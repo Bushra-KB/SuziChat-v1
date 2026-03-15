@@ -40,6 +40,9 @@ The goal is to keep local development simple while protecting production secrets
 - `JWT_REFRESH_SECRET`
 - `JWT_ACCESS_TTL`
 - `JWT_REFRESH_TTL`
+- `ARGON2_TIME_COST`
+- `ARGON2_MEMORY_COST`
+- `ARGON2_PARALLELISM`
 
 ### Storage
 - `UPLOAD_DIR`
