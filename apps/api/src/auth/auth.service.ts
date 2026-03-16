@@ -1,14 +1,50 @@
-import { Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import type { JwtSignOptions } from '@nestjs/jwt';
+import type { JwtSignOptions, JwtVerifyOptions } from '@nestjs/jwt';
 import { UserRole } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
 import authConfig from './config/auth.config';
+import type { LoginDto } from './dto/login.dto';
+import type { RegisterDto } from './dto/register.dto';
+import type { AuthTokenPayload } from './auth.types';
 
-function toJwtExpiresIn(value: string): NonNullable<JwtSignOptions['expiresIn']> {
+function toJwtExpiresIn(
+  value: string,
+): NonNullable<JwtSignOptions['expiresIn']> {
   return value as NonNullable<JwtSignOptions['expiresIn']>;
+}
+
+function toJwtSecret(value: string): NonNullable<JwtVerifyOptions['secret']> {
+  return value as NonNullable<JwtVerifyOptions['secret']>;
+}
+
+const publicUserSelect = {
+  id: true,
+  email: true,
+  username: true,
+  role: true,
+  isAdultConfirmed: true,
+  isEmailVerified: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+type PublicUser = Awaited<ReturnType<AuthService['getCurrentUser']>>;
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function normalizeUsername(username: string) {
+  return username.trim();
 }
 
 @Injectable()
@@ -29,6 +65,124 @@ export class AuthService {
   findUserByUsername(username: string) {
     return this.prisma.user.findUnique({
       where: { username },
+    });
+  }
+
+  async register(registerDto: RegisterDto) {
+    const email = normalizeEmail(registerDto.email ?? '');
+    const username = normalizeUsername(registerDto.username ?? '');
+    const password = registerDto.password ?? '';
+
+    this.validateRegistrationInput({
+      email,
+      username,
+      password,
+      isAdultConfirmed: registerDto.isAdultConfirmed,
+    });
+
+    const [existingEmailUser, existingUsernameUser] = await Promise.all([
+      this.findUserByEmail(email),
+      this.findUserByUsername(username),
+    ]);
+
+    if (existingEmailUser) {
+      throw new ConflictException('Email is already in use');
+    }
+
+    if (existingUsernameUser) {
+      throw new ConflictException('Username is already in use');
+    }
+
+    const passwordHash = await this.hashPassword(password);
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        username,
+        passwordHash,
+        isAdultConfirmed: true,
+      },
+      select: publicUserSelect,
+    });
+
+    return this.issueAuthResponse(user);
+  }
+
+  async login(loginDto: LoginDto) {
+    const identifier = (loginDto.emailOrUsername ?? '').trim();
+    const password = loginDto.password ?? '';
+
+    if (!identifier || !password) {
+      throw new BadRequestException(
+        'Email or username and password are required',
+      );
+    }
+
+    const user = identifier.includes('@')
+      ? await this.prisma.user.findUnique({
+          where: { email: normalizeEmail(identifier) },
+        })
+      : await this.prisma.user.findUnique({
+          where: { username: normalizeUsername(identifier) },
+        });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isPasswordValid = await this.verifyPassword(
+      user.passwordHash,
+      password,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const publicUser = await this.getCurrentUser(user.id);
+
+    if (!publicUser) {
+      throw new UnauthorizedException('User account not found');
+    }
+
+    return this.issueAuthResponse(publicUser);
+  }
+
+  async refresh(refreshToken: string) {
+    const token = refreshToken?.trim();
+
+    if (!token) {
+      throw new BadRequestException('Refresh token is required');
+    }
+
+    const payload = await this.verifyRefreshToken(token);
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        ...publicUserSelect,
+        refreshTokenHash: true,
+      },
+    });
+
+    if (!user?.refreshTokenHash) {
+      throw new UnauthorizedException('Refresh token is invalid');
+    }
+
+    const isRefreshTokenValid = await this.verifyPassword(
+      user.refreshTokenHash,
+      token,
+    );
+
+    if (!isRefreshTokenValid) {
+      throw new UnauthorizedException('Refresh token is invalid');
+    }
+
+    return this.issueAuthResponse(user);
+  }
+
+  getCurrentUser(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: publicUserSelect,
     });
   }
 
@@ -72,5 +226,76 @@ export class AuthService {
         expiresIn: toJwtExpiresIn(this.config.refreshTokenTtl),
       },
     );
+  }
+
+  async verifyAccessToken(accessToken: string) {
+    try {
+      return await this.jwtService.verifyAsync<AuthTokenPayload>(accessToken, {
+        secret: toJwtSecret(this.config.accessTokenSecret),
+      });
+    } catch {
+      throw new UnauthorizedException('Access token is invalid');
+    }
+  }
+
+  async verifyRefreshToken(refreshToken: string) {
+    try {
+      return await this.jwtService.verifyAsync<AuthTokenPayload>(refreshToken, {
+        secret: toJwtSecret(this.config.refreshTokenSecret),
+      });
+    } catch {
+      throw new UnauthorizedException('Refresh token is invalid');
+    }
+  }
+
+  private validateRegistrationInput(input: {
+    email: string;
+    username: string;
+    password: string;
+    isAdultConfirmed: boolean;
+  }) {
+    if (!input.email || !input.username || !input.password) {
+      throw new BadRequestException(
+        'Email, username, and password are required',
+      );
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(input.email)) {
+      throw new BadRequestException('Email must be valid');
+    }
+
+    if (input.username.length < 3) {
+      throw new BadRequestException('Username must be at least 3 characters');
+    }
+
+    if (input.password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+
+    if (!input.isAdultConfirmed) {
+      throw new BadRequestException('18+ confirmation is required');
+    }
+  }
+
+  private async issueAuthResponse(user: PublicUser & { role: UserRole }) {
+    const [accessToken, refreshToken] = await Promise.all([
+      this.signAccessToken(user.id, user.role),
+      this.signRefreshToken(user.id, user.role),
+    ]);
+
+    const refreshTokenHash = await this.hashRefreshToken(refreshToken);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshTokenHash },
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        ...user,
+      },
+    };
   }
 }

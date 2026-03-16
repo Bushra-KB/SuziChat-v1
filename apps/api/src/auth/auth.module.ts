@@ -4,10 +4,14 @@ import type { ConfigType } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import type { JwtSignOptions } from '@nestjs/jwt';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AuthController } from './auth.controller';
 import authConfig from './config/auth.config';
 import { AuthService } from './auth.service';
+import { AccessTokenGuard } from './guards/access-token.guard';
 
-function toJwtExpiresIn(value: string): NonNullable<JwtSignOptions['expiresIn']> {
+function toJwtExpiresIn(
+  value: string,
+): NonNullable<JwtSignOptions['expiresIn']> {
   return value as NonNullable<JwtSignOptions['expiresIn']>;
 }
 
@@ -26,7 +30,8 @@ function toJwtExpiresIn(value: string): NonNullable<JwtSignOptions['expiresIn']>
       }),
     }),
   ],
-  providers: [AuthService],
+  controllers: [AuthController],
+  providers: [AuthService, AccessTokenGuard],
   exports: [AuthService],
 })
 export class AuthModule {}
