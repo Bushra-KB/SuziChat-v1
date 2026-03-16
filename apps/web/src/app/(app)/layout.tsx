@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   clearAuthSession,
@@ -17,6 +17,7 @@ export default function ProtectedAppLayout({
   children: ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [session, setSession] = useState<AuthSession | null>(() =>
     getStoredAuthSession(),
   );
@@ -97,7 +98,49 @@ export default function ProtectedAppLayout({
           </div>
         </div>
 
-        <div className="mt-8">{children}</div>
+        <div className="mt-8 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <aside className="rounded-[2rem] border border-white/18 bg-[linear-gradient(180deg,rgba(255,94,214,0.2),rgba(79,40,149,0.32))] p-5 shadow-[0_0_28px_rgba(255,86,214,0.22),inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-xl">
+            <p className="text-sm font-medium uppercase tracking-[0.35em] text-cyan-100/78">
+              Navigation
+            </p>
+            <div className="mt-5 space-y-3">
+              {[
+                { href: "/app", label: "Overview", copy: "Protected app home" },
+                {
+                  href: "/app/profile",
+                  label: "Profile",
+                  copy: "View and edit your profile",
+                },
+                {
+                  href: "/app/rooms",
+                  label: "Rooms",
+                  copy: "Preview room navigation",
+                },
+              ].map((item) => {
+                const isActive = pathname === item.href;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`block rounded-[1.35rem] border px-4 py-4 backdrop-blur-md transition ${
+                      isActive
+                        ? "border-pink-300/45 bg-pink-400/18 text-white shadow-[0_0_22px_rgba(255,86,214,0.2)]"
+                        : "border-white/14 bg-white/8 text-blue-100/78 hover:bg-white/12"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">{item.label}</p>
+                    <p className="mt-1 text-xs leading-6 opacity-80">
+                      {item.copy}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
+          </aside>
+
+          <div>{children}</div>
+        </div>
       </div>
     </main>
   );

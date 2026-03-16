@@ -2,6 +2,7 @@ export type AuthUser = {
   id: string;
   email: string;
   username: string;
+  displayName: string | null;
   role: "USER" | "ADMIN";
   isAdultConfirmed: boolean;
   isEmailVerified: boolean;

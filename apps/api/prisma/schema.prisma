@@ -15,6 +15,9 @@ model User {
   id               String    @id @default(cuid())
   email            String    @unique
   username         String    @unique
+  displayName      String?
+  bio              String?
+  country          String?
   passwordHash     String
   refreshTokenHash String?
   passwordResetTokenHash String?

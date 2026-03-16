@@ -31,6 +31,7 @@ const publicUserSelect = {
   id: true,
   email: true,
   username: true,
+  displayName: true,
   role: true,
   isAdultConfirmed: true,
   isEmailVerified: true,
