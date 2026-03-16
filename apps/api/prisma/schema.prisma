@@ -17,6 +17,8 @@ model User {
   username         String    @unique
   passwordHash     String
   refreshTokenHash String?
+  passwordResetTokenHash String?
+  passwordResetTokenExpiresAt DateTime?
   role             UserRole  @default(USER)
   isAdultConfirmed Boolean   @default(false)
   isEmailVerified  Boolean   @default(false)

@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { forgotPassword } from "@/lib/auth-client";
+import {
+  forgotPassword,
+  type ForgotPasswordResponse,
+} from "@/lib/auth-client";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -10,16 +13,21 @@ export default function ForgotPasswordPage() {
     "idle",
   );
   const [message, setMessage] = useState("");
+  const [resetPreview, setResetPreview] = useState<ForgotPasswordResponse | null>(
+    null,
+  );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("loading");
     setMessage("");
+    setResetPreview(null);
 
     try {
       const response = await forgotPassword({ email });
       setStatus("success");
       setMessage(response.message);
+      setResetPreview(response);
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Request failed.");
@@ -35,8 +43,8 @@ export default function ForgotPasswordPage() {
         Reset your password
       </h2>
       <p className="mt-4 max-w-xl text-base leading-7 text-blue-100/78">
-        Enter your account email and we will send the next-step reset flow once
-        the backend integration is connected.
+        Enter your account email to request a password reset. For V1 preview,
+        the API returns a temporary reset token instead of sending email.
       </p>
 
       <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
@@ -73,6 +81,26 @@ export default function ForgotPasswordPage() {
         >
           {message}
         </p>
+      ) : null}
+
+      {resetPreview?.resetTokenPreview ? (
+        <div className="mt-5 rounded-[1.3rem] border border-cyan-300/25 bg-cyan-400/10 px-4 py-4 text-sm text-blue-100/86 backdrop-blur-md">
+          <p className="text-xs uppercase tracking-[0.3em] text-cyan-100/72">
+            Preview reset token
+          </p>
+          <p className="mt-3 break-all rounded-[1rem] border border-white/10 bg-white/8 px-3 py-3 font-mono text-xs text-white/90">
+            {resetPreview.resetTokenPreview}
+          </p>
+          <p className="mt-3 text-xs text-blue-100/72">
+            Expires at: {resetPreview.resetTokenExpiresAt}
+          </p>
+          <Link
+            href={`/reset-password?token=${encodeURIComponent(resetPreview.resetTokenPreview)}`}
+            className="mt-4 inline-flex rounded-full border border-pink-300/40 bg-pink-400/16 px-4 py-2 text-sm font-medium text-white transition hover:bg-pink-400/22"
+          >
+            Continue to reset password
+          </Link>
+        </div>
       ) : null}
 
       <p className="mt-6 text-sm text-blue-100/72">

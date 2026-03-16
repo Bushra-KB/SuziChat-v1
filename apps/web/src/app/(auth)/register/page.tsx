@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   getCurrentUser,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/auth-client";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,6 +44,7 @@ export default function RegisterPage() {
       setUser(currentUser);
       setStatus("success");
       setMessage("Account created and signed in.");
+      router.push("/app");
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Registration failed.");

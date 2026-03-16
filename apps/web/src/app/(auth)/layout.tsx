@@ -66,7 +66,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              {["Login", "Register", "Password reset", "18+ community"].map(
+              {["Login", "Register", "Password reset", "Protected app"].map(
                 (item) => (
                   <span
                     key={item}

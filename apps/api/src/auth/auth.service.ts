@@ -5,6 +5,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { createHash, randomBytes } from 'node:crypto';
 import type { ConfigType } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { JwtSignOptions, JwtVerifyOptions } from '@nestjs/jwt';
@@ -45,6 +46,10 @@ function normalizeEmail(email: string) {
 
 function normalizeUsername(username: string) {
   return username.trim();
+}
+
+function hashResetToken(token: string) {
+  return createHash('sha256').update(token).digest('hex');
 }
 
 @Injectable()
@@ -179,17 +184,88 @@ export class AuthService {
     return this.issueAuthResponse(user);
   }
 
-  forgotPassword(email: string) {
+  async forgotPassword(email: string) {
     const normalizedEmail = normalizeEmail(email ?? '');
 
     if (!normalizedEmail || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
       throw new BadRequestException('Email must be valid');
     }
 
-    // Intentionally return a generic success response for V1.
+    const user = await this.findUserByEmail(normalizedEmail);
+
+    if (!user) {
+      return {
+        message:
+          'If an account exists for this email, a password reset flow will be sent.',
+      };
+    }
+
+    const resetToken = randomBytes(32).toString('hex');
+    const resetTokenHash = hashResetToken(resetToken);
+    const expiresAt = new Date(
+      Date.now() + this.config.passwordResetTtlMinutes * 60 * 1000,
+    );
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetTokenHash: resetTokenHash,
+        passwordResetTokenExpiresAt: expiresAt,
+      },
+    });
+
     return {
       message:
         'If an account exists for this email, a password reset flow will be sent.',
+      resetTokenPreview: resetToken,
+      resetTokenExpiresAt: expiresAt.toISOString(),
+    };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const normalizedToken = token?.trim();
+    const normalizedPassword = newPassword?.trim();
+
+    if (!normalizedToken) {
+      throw new BadRequestException('Reset token is required');
+    }
+
+    if (!normalizedPassword || normalizedPassword.length < 8) {
+      throw new BadRequestException(
+        'New password must be at least 8 characters long',
+      );
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordResetTokenHash: hashResetToken(normalizedToken),
+        passwordResetTokenExpiresAt: {
+          gt: new Date(),
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Reset token is invalid or expired');
+    }
+
+    const passwordHash = await this.hashPassword(normalizedPassword);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        refreshTokenHash: null,
+        passwordResetTokenHash: null,
+        passwordResetTokenExpiresAt: null,
+      },
+    });
+
+    return {
+      message: 'Password has been reset successfully. You can now sign in.',
     };
   }
 

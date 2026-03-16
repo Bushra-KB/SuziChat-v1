@@ -15,6 +15,12 @@ export type AuthSession = {
   user: AuthUser;
 };
 
+export type ForgotPasswordResponse = {
+  message: string;
+  resetTokenPreview?: string;
+  resetTokenExpiresAt?: string;
+};
+
 type ApiErrorPayload = {
   message?: string | string[];
 };
@@ -116,7 +122,17 @@ export async function refresh(payload: { refreshToken: string }) {
 }
 
 export async function forgotPassword(payload: { email: string }) {
-  return request<{ message: string }>("/v1/auth/forgot-password", {
+  return request<ForgotPasswordResponse>("/v1/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resetPassword(payload: {
+  token: string;
+  newPassword: string;
+}) {
+  return request<{ message: string }>("/v1/auth/reset-password", {
     method: "POST",
     body: JSON.stringify(payload),
   });

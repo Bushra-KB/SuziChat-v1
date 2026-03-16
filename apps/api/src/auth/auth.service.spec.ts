@@ -9,6 +9,7 @@ describe('AuthService', () => {
   const prismaMock = {
     user: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
     },
@@ -35,6 +36,7 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     prismaMock.user.findUnique.mockReset();
+    prismaMock.user.findFirst.mockReset();
     prismaMock.user.create.mockReset();
     prismaMock.user.update.mockReset();
   });
@@ -186,10 +188,81 @@ describe('AuthService', () => {
     });
   });
 
-  it('returns a generic forgot-password response', () => {
-    expect(authService.forgotPassword('forgot@example.com')).toEqual({
+  it('returns a generic forgot-password response when no user exists', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce(null);
+
+    await expect(
+      authService.forgotPassword('forgot@example.com'),
+    ).resolves.toEqual({
       message:
         'If an account exists for this email, a password reset flow will be sent.',
     });
+  });
+
+  it('creates a password reset preview token for existing users', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: 'user_1',
+      email: 'forgot@example.com',
+      username: 'forgotuser',
+    });
+    prismaMock.user.update.mockResolvedValueOnce({});
+
+    const result = await authService.forgotPassword('forgot@example.com');
+
+    expect(result.message).toContain('If an account exists');
+    expect(result.resetTokenPreview).toEqual(expect.any(String));
+    expect(result.resetTokenExpiresAt).toEqual(expect.any(String));
+    const forgotPasswordUpdateCalls = prismaMock.user.update.mock
+      .calls as Array<
+      [
+        {
+          where: { id: string };
+          data: { passwordResetTokenHash: string };
+        },
+      ]
+    >;
+    const forgotPasswordUpdateArgs = forgotPasswordUpdateCalls[0][0];
+
+    expect(forgotPasswordUpdateArgs.where.id).toBe('user_1');
+    expect(forgotPasswordUpdateArgs.data.passwordResetTokenHash).toEqual(
+      expect.any(String),
+    );
+  });
+
+  it('resets the password with a valid reset token', async () => {
+    prismaMock.user.findFirst.mockResolvedValueOnce({
+      id: 'user_1',
+    });
+    prismaMock.user.update.mockResolvedValueOnce({});
+
+    await expect(
+      authService.resetPassword('reset-token', 'new-password-123'),
+    ).resolves.toEqual({
+      message: 'Password has been reset successfully. You can now sign in.',
+    });
+
+    expect(prismaMock.user.findFirst).toHaveBeenCalled();
+    const resetPasswordUpdateCalls = prismaMock.user.update.mock.calls as Array<
+      [
+        {
+          where: { id: string };
+          data: {
+            passwordHash: string;
+            refreshTokenHash: null;
+            passwordResetTokenHash: null;
+            passwordResetTokenExpiresAt: null;
+          };
+        },
+      ]
+    >;
+    const resetPasswordUpdateArgs = resetPasswordUpdateCalls[0][0];
+
+    expect(resetPasswordUpdateArgs.where.id).toBe('user_1');
+    expect(resetPasswordUpdateArgs.data.passwordHash).toEqual(
+      expect.any(String),
+    );
+    expect(resetPasswordUpdateArgs.data.refreshTokenHash).toBeNull();
+    expect(resetPasswordUpdateArgs.data.passwordResetTokenHash).toBeNull();
+    expect(resetPasswordUpdateArgs.data.passwordResetTokenExpiresAt).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   getCurrentUser,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/auth-client";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
@@ -38,6 +40,7 @@ export default function LoginPage() {
       setUser(currentUser);
       setStatus("success");
       setMessage("Signed in successfully.");
+      router.push("/app");
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Login failed.");
