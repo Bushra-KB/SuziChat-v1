@@ -165,4 +165,31 @@ describe('AuthService', () => {
     expect(result.accessToken).toEqual(expect.any(String));
     expect(result.refreshToken).toEqual(expect.any(String));
   });
+
+  it('returns the current user or throws when missing', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: 'user_1',
+      email: 'current@example.com',
+      username: 'currentuser',
+      role: UserRole.USER,
+      isAdultConfirmed: true,
+      isEmailVerified: false,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    await expect(
+      authService.getCurrentUserOrThrow('user_1'),
+    ).resolves.toMatchObject({
+      id: 'user_1',
+      email: 'current@example.com',
+    });
+  });
+
+  it('returns a generic forgot-password response', () => {
+    expect(authService.forgotPassword('forgot@example.com')).toEqual({
+      message:
+        'If an account exists for this email, a password reset flow will be sent.',
+    });
+  });
 });

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { AuthSessionStatus } from "@/components/auth/auth-session-status";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
@@ -75,6 +76,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
                   </span>
                 ),
               )}
+            </div>
+
+            <div className="mt-8">
+              <AuthSessionStatus />
             </div>
           </section>
 

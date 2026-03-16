@@ -1,0 +1,162 @@
+export type AuthUser = {
+  id: string;
+  email: string;
+  username: string;
+  role: "USER" | "ADMIN";
+  isAdultConfirmed: boolean;
+  isEmailVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AuthSession = {
+  accessToken: string;
+  refreshToken: string;
+  user: AuthUser;
+};
+
+type ApiErrorPayload = {
+  message?: string | string[];
+};
+
+const AUTH_SESSION_KEY = "suzi-chat-auth-session";
+const apiBaseUrl =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+
+function normalizeErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Something went wrong. Please try again.";
+}
+
+async function request<T>(path: string, options: RequestInit = {}) {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers ?? {}),
+    },
+  });
+
+  if (!response.ok) {
+    let payload: ApiErrorPayload | undefined;
+
+    try {
+      payload = (await response.json()) as ApiErrorPayload;
+    } catch {
+      payload = undefined;
+    }
+
+    const message = Array.isArray(payload?.message)
+      ? payload?.message[0]
+      : payload?.message;
+
+    throw new Error(message ?? "Request failed");
+  }
+
+  return (await response.json()) as T;
+}
+
+export function getStoredAuthSession() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const rawValue = window.localStorage.getItem(AUTH_SESSION_KEY);
+
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawValue) as AuthSession;
+  } catch {
+    window.localStorage.removeItem(AUTH_SESSION_KEY);
+    return null;
+  }
+}
+
+export function saveAuthSession(session: AuthSession) {
+  window.localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+}
+
+export function clearAuthSession() {
+  window.localStorage.removeItem(AUTH_SESSION_KEY);
+}
+
+export async function register(payload: {
+  email: string;
+  username: string;
+  password: string;
+  isAdultConfirmed: boolean;
+}) {
+  return request<AuthSession>("/v1/auth/register", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function login(payload: {
+  emailOrUsername: string;
+  password: string;
+}) {
+  return request<AuthSession>("/v1/auth/login", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function refresh(payload: { refreshToken: string }) {
+  return request<AuthSession>("/v1/auth/refresh", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function forgotPassword(payload: { email: string }) {
+  return request<{ message: string }>("/v1/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getCurrentUser(accessToken: string) {
+  return request<AuthUser>("/v1/auth/me", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+export async function hydrateStoredSession() {
+  const session = getStoredAuthSession();
+
+  if (!session) {
+    return null;
+  }
+
+  try {
+    const user = await getCurrentUser(session.accessToken);
+    const updatedSession = {
+      ...session,
+      user,
+    };
+
+    saveAuthSession(updatedSession);
+    return updatedSession;
+  } catch {
+    try {
+      const refreshedSession = await refresh({
+        refreshToken: session.refreshToken,
+      });
+
+      saveAuthSession(refreshedSession);
+      return refreshedSession;
+    } catch (error) {
+      clearAuthSession();
+      throw new Error(normalizeErrorMessage(error));
+    }
+  }
+}

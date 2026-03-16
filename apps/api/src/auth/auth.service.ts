@@ -179,11 +179,35 @@ export class AuthService {
     return this.issueAuthResponse(user);
   }
 
+  forgotPassword(email: string) {
+    const normalizedEmail = normalizeEmail(email ?? '');
+
+    if (!normalizedEmail || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      throw new BadRequestException('Email must be valid');
+    }
+
+    // Intentionally return a generic success response for V1.
+    return {
+      message:
+        'If an account exists for this email, a password reset flow will be sent.',
+    };
+  }
+
   getCurrentUser(userId: string) {
     return this.prisma.user.findUnique({
       where: { id: userId },
       select: publicUserSelect,
     });
+  }
+
+  async getCurrentUserOrThrow(userId: string) {
+    const user = await this.getCurrentUser(userId);
+
+    if (!user) {
+      throw new UnauthorizedException('User account not found');
+    }
+
+    return user;
   }
 
   hashPassword(password: string) {

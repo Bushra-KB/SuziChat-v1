@@ -1,15 +1,12 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AccessTokenGuard } from './guards/access-token.guard';
 import type { AuthenticatedUser } from './auth.types';
-
-type AuthenticatedRequest = Request & {
-  authUser: AuthenticatedUser;
-};
 
 @Controller('v1/auth')
 export class AuthController {
@@ -30,9 +27,14 @@ export class AuthController {
     return this.authService.refresh(refreshTokenDto.refreshToken);
   }
 
+  @Post('forgot-password')
+  forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto.email);
+  }
+
   @UseGuards(AccessTokenGuard)
   @Get('me')
-  me(@Req() request: AuthenticatedRequest) {
-    return this.authService.getCurrentUser(request.authUser.id);
+  me(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.getCurrentUserOrThrow(user.id);
   }
 }
