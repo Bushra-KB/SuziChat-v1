@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   const features = [
     "Chat rooms",
@@ -53,6 +55,21 @@ export default function Home() {
                     {feature}
                   </span>
                 ))}
+              </div>
+
+              <div className="mt-10 flex flex-wrap justify-center gap-4">
+                <Link
+                  href="/register"
+                  className="rounded-full border border-pink-300/45 bg-[linear-gradient(90deg,rgba(246,94,219,0.8),rgba(114,76,255,0.85))] px-6 py-3 text-base font-semibold text-white shadow-[0_0_28px_rgba(255,86,214,0.28)] transition hover:brightness-110"
+                >
+                  Create account
+                </Link>
+                <Link
+                  href="/login"
+                  className="rounded-full border border-white/18 bg-white/10 px-6 py-3 text-base font-medium text-white/92 backdrop-blur-md transition hover:bg-white/16"
+                >
+                  Sign in preview
+                </Link>
               </div>
             </div>
 
