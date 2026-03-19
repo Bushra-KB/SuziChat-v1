@@ -107,6 +107,11 @@ export default function ProtectedAppLayout({
               {[
                 { href: "/app", label: "Overview", copy: "Protected app home" },
                 {
+                  href: "/app/friends",
+                  label: "Friends",
+                  copy: "Requests and current friends",
+                },
+                {
                   href: "/app/profile",
                   label: "Profile",
                   copy: "View and edit your profile",
