@@ -1,0 +1,15 @@
+[Unit]
+Description=Suzi Chat API Preview
+After=network.target
+
+[Service]
+Type=simple
+User=suziadmin
+WorkingDirectory=/home/suziadmin/apps/suzi-chat
+EnvironmentFile=/home/suziadmin/apps/suzi-chat/apps/api/.env.preview
+ExecStart=/usr/local/bin/pnpm --filter api start:prod
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

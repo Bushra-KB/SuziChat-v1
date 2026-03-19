@@ -1,19 +1,17 @@
 import type { AuthUser } from "@/lib/auth-client";
+import { getApiBaseUrl } from "@/lib/api-base-url";
 
 type ProfilePayload = Pick<AuthUser, "displayName"> & {
   bio: string | null;
   country: string | null;
 };
 
-const apiBaseUrl =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
-
 async function request<T>(
   path: string,
   accessToken: string,
   options: RequestInit = {},
 ) {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",

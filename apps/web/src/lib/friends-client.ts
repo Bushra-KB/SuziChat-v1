@@ -1,5 +1,4 @@
-const apiBaseUrl =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+import { getApiBaseUrl } from "@/lib/api-base-url";
 
 export type FriendUser = {
   id: string;
@@ -33,7 +32,7 @@ async function request<T>(
   accessToken: string,
   options: RequestInit = {},
 ) {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
