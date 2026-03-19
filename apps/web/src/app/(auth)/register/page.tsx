@@ -52,14 +52,14 @@ export default function RegisterPage() {
   }
 
   return (
-    <section className="rounded-[2rem] border border-white/18 bg-[linear-gradient(180deg,rgba(88,70,255,0.34),rgba(57,24,121,0.38))] p-6 shadow-[0_0_30px_rgba(117,84,255,0.28),inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-xl sm:p-8">
-      <p className="text-sm font-medium uppercase tracking-[0.35em] text-pink-100/78">
+    <section className="rounded-[2.1rem] border border-white/10 bg-[linear-gradient(180deg,rgba(49,10,82,0.88),rgba(33,6,55,0.94))] p-6 shadow-[0_24px_80px_rgba(8,0,24,0.55),inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-xl sm:p-8">
+      <p className="text-xs font-semibold uppercase tracking-[0.38em] text-cyan-100/70">
         Register
       </p>
-      <h2 className="mt-4 text-3xl font-semibold sm:text-4xl">
+      <h2 className="mt-5 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
         Create your account
       </h2>
-      <p className="mt-4 max-w-xl text-base leading-7 text-blue-100/78">
+      <p className="mt-4 max-w-xl text-sm leading-7 text-white/68 sm:text-base">
         Join Suzi Chat to explore rooms, direct messages, dating, snaps, reels,
         and social games in one place.
       </p>
@@ -69,7 +69,7 @@ export default function RegisterPage() {
           <div>
             <label
               htmlFor="register-username"
-              className="text-xs uppercase tracking-[0.28em] text-cyan-100/70"
+              className="text-sm font-semibold text-white"
             >
               Username
             </label>
@@ -79,13 +79,13 @@ export default function RegisterPage() {
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               placeholder="suziuser"
-              className="mt-2 w-full rounded-[1.35rem] border border-white/15 bg-white/10 px-4 py-3 text-white outline-none backdrop-blur-md placeholder:text-blue-100/45"
+              className="mt-3 w-full rounded-[1.1rem] border border-white/6 bg-[#3b0a59]/92 px-4 py-4 text-white outline-none transition placeholder:text-white/36 focus:border-cyan-300/45 focus:bg-[#461066]"
             />
           </div>
           <div>
             <label
               htmlFor="register-email"
-              className="text-xs uppercase tracking-[0.28em] text-cyan-100/70"
+              className="text-sm font-semibold text-white"
             >
               Email
             </label>
@@ -95,7 +95,7 @@ export default function RegisterPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
-              className="mt-2 w-full rounded-[1.35rem] border border-white/15 bg-white/10 px-4 py-3 text-white outline-none backdrop-blur-md placeholder:text-blue-100/45"
+              className="mt-3 w-full rounded-[1.1rem] border border-white/6 bg-[#3b0a59]/92 px-4 py-4 text-white outline-none transition placeholder:text-white/36 focus:border-cyan-300/45 focus:bg-[#461066]"
             />
           </div>
         </div>
@@ -103,7 +103,7 @@ export default function RegisterPage() {
         <div>
           <label
             htmlFor="register-password"
-            className="text-xs uppercase tracking-[0.28em] text-cyan-100/70"
+            className="text-sm font-semibold text-white"
           >
             Password
           </label>
@@ -113,11 +113,11 @@ export default function RegisterPage() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Choose a secure password"
-            className="mt-2 w-full rounded-[1.35rem] border border-white/15 bg-white/10 px-4 py-3 text-white outline-none backdrop-blur-md placeholder:text-blue-100/45"
+            className="mt-3 w-full rounded-[1.1rem] border border-white/6 bg-[#3b0a59]/92 px-4 py-4 text-white outline-none transition placeholder:text-white/36 focus:border-cyan-300/45 focus:bg-[#461066]"
           />
         </div>
 
-        <label className="flex items-start gap-3 rounded-[1.2rem] border border-white/12 bg-white/8 px-4 py-4 text-sm leading-6 text-blue-100/82 backdrop-blur-md">
+        <label className="flex items-start gap-3 rounded-[1.2rem] border border-white/10 bg-white/6 px-4 py-4 text-sm leading-6 text-blue-100/82 backdrop-blur-md">
           <input
             type="checkbox"
             checked={isAdultConfirmed}
@@ -129,7 +129,7 @@ export default function RegisterPage() {
 
         <button
           type="submit"
-          className="w-full rounded-full border border-pink-300/45 bg-[linear-gradient(90deg,rgba(246,94,219,0.8),rgba(114,76,255,0.85))] px-5 py-3 text-base font-semibold text-white shadow-[0_0_28px_rgba(255,86,214,0.28)] transition hover:brightness-110"
+          className="w-full rounded-[1.1rem] border border-cyan-300/20 bg-[linear-gradient(90deg,#7f10c9,#8744f6_52%,#3f89d3)] px-5 py-4 text-lg font-semibold text-white shadow-[0_16px_36px_rgba(88,49,224,0.34)] transition hover:brightness-110"
         >
           {status === "loading" ? "Creating account..." : "Create account"}
         </button>
@@ -146,7 +146,7 @@ export default function RegisterPage() {
       ) : null}
 
       {user ? (
-        <div className="mt-5 rounded-[1.3rem] border border-white/12 bg-white/8 px-4 py-4 text-sm text-blue-100/82 backdrop-blur-md">
+        <div className="mt-5 rounded-[1.2rem] border border-white/10 bg-white/6 px-4 py-4 text-sm text-blue-100/82 backdrop-blur-md">
           Signed in as <span className="font-semibold text-white">{user.username}</span>
           .
         </div>

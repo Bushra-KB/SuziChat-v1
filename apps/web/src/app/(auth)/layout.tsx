@@ -1,89 +1,84 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { AuthSessionStatus } from "@/components/auth/auth-session-status";
+
+const twinkleStars = [
+  { left: "11%", top: "18%", size: 6, delay: "0.2s", duration: "2.5s" },
+  { left: "22%", top: "72%", size: 5, delay: "1.1s", duration: "3.2s" },
+  { left: "34%", top: "58%", size: 8, delay: "0.8s", duration: "2.9s" },
+  { left: "58%", top: "16%", size: 7, delay: "1.7s", duration: "3.1s" },
+  { left: "71%", top: "68%", size: 5, delay: "0.5s", duration: "2.7s" },
+  { left: "82%", top: "26%", size: 8, delay: "2.2s", duration: "3.4s" },
+  { left: "88%", top: "80%", size: 6, delay: "1.4s", duration: "2.8s" },
+  { left: "63%", top: "44%", size: 7, delay: "0.9s", duration: "2.6s" },
+  { left: "76%", top: "54%", size: 6, delay: "1.9s", duration: "3.3s" },
+];
+
+const shootingStars = [
+  { left: "18%", top: "26%", width: 220, delay: "1.1s", duration: "6.6s" },
+  { left: "63%", top: "15%", width: 240, delay: "3.8s", duration: "7.2s" },
+  { left: "48%", top: "72%", width: 180, delay: "5.4s", duration: "6.1s" },
+  { left: "74%", top: "36%", width: 160, delay: "2.4s", duration: "5.8s" },
+];
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main className="relative min-h-screen overflow-hidden text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,108,214,0.26),_transparent_24%),radial-gradient(circle_at_15%_20%,_rgba(122,125,255,0.42),_transparent_30%),radial-gradient(circle_at_82%_18%,_rgba(86,208,255,0.18),_transparent_26%),linear-gradient(180deg,_#1b2aaa_0%,_#321f96_38%,_#22124b_100%)]" />
-      <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(255,255,255,0.8)_0.65px,transparent_0.65px)] [background-size:24px_24px]" />
-      <div className="absolute left-1/2 top-28 h-px w-[85%] -translate-x-1/2 bg-[linear-gradient(90deg,transparent,rgba(255,168,243,0.95),transparent)] shadow-[0_0_22px_rgba(255,140,230,0.85)]" />
+      <div
+        className="index-scene-drift absolute inset-0 bg-cover bg-left-top bg-no-repeat"
+        style={{ backgroundImage: "url('/loginpg.png')" }}
+      />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(21,3,45,0.36)_0%,rgba(36,5,62,0.46)_38%,rgba(28,2,47,0.9)_62%,rgba(28,2,47,0.98)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_58%,rgba(194,37,255,0.2),transparent_28%),radial-gradient(circle_at_78%_24%,rgba(93,197,255,0.16),transparent_22%)]" />
+      <div className="index-aurora absolute inset-0 bg-[radial-gradient(circle_at_22%_48%,rgba(222,66,255,0.22),transparent_22%),radial-gradient(circle_at_70%_32%,rgba(90,208,255,0.16),transparent_20%),radial-gradient(circle_at_82%_72%,rgba(144,84,255,0.12),transparent_24%)]" />
+      {twinkleStars.map((star) => (
+        <span
+          key={`${star.left}-${star.top}`}
+          className="index-twinkle-star"
+          style={{
+            left: star.left,
+            top: star.top,
+            width: `${star.size}px`,
+            height: `${star.size}px`,
+            animationDelay: star.delay,
+            animationDuration: star.duration,
+          }}
+        />
+      ))}
+      {shootingStars.map((star) => (
+        <span
+          key={`${star.left}-${star.top}`}
+          className="index-shooting-star"
+          style={{
+            left: star.left,
+            top: star.top,
+            width: `${star.width}px`,
+            animationDelay: star.delay,
+            animationDuration: star.duration,
+          }}
+        />
+      ))}
 
-      <section className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-8 sm:px-10 lg:px-12">
-        <div className="flex items-center justify-between gap-4">
-          <Link
-            href="/"
-            className="w-fit rounded-[1.65rem] border border-pink-300/65 bg-[linear-gradient(180deg,rgba(231,97,255,0.68),rgba(111,47,255,0.5))] px-6 py-4 text-center shadow-[0_0_36px_rgba(255,69,214,0.48),inset_0_0_18px_rgba(255,255,255,0.2)] backdrop-blur-xl sm:px-8"
-          >
-            <span className="text-3xl font-semibold leading-none tracking-tight text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.45)] sm:text-4xl">
+      <section className="relative mx-auto flex min-h-screen w-full max-w-[1400px] flex-col px-6 py-8 sm:px-8 lg:px-12">
+        <div className="index-reveal-header flex items-center justify-between gap-4">
+          <Link href="/" className="block">
+            <p className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
               Suzi Chat
-            </span>
+            </p>
+            <p className="mt-1 text-[0.68rem] uppercase tracking-[0.45em] text-white/45 sm:text-[0.72rem]">
+              SOCIAL PLATFORM
+            </p>
           </Link>
 
-          <div className="hidden items-center gap-3 md:flex">
-            <Link
-              href="/login"
-              className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-medium text-white/90 backdrop-blur-md transition hover:bg-white/16"
-            >
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className="rounded-full border border-pink-300/45 bg-pink-400/16 px-5 py-2.5 text-sm font-medium text-white shadow-[0_0_22px_rgba(255,86,214,0.22)] backdrop-blur-md transition hover:bg-pink-400/22"
-            >
-              Create account
-            </Link>
-          </div>
+          <Link
+            href="/"
+            className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-white/58 transition hover:text-white sm:text-xs"
+          >
+            Back to home
+          </Link>
         </div>
 
-        <div className="mt-10 grid flex-1 items-center gap-8 lg:grid-cols-[0.88fr_1.12fr]">
-          <section className="rounded-[2rem] border border-white/18 bg-[linear-gradient(180deg,rgba(79,87,255,0.24),rgba(45,28,127,0.3))] p-6 shadow-[0_0_28px_rgba(78,102,255,0.22),inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-xl sm:p-8">
-            <p className="text-xs font-medium uppercase tracking-[0.45em] text-cyan-100/78">
-              Auth Preview
-            </p>
-            <h1 className="mt-5 max-w-md text-4xl font-semibold leading-tight sm:text-5xl">
-              Sign in to the next phase of Suzi Chat.
-            </h1>
-            <p className="mt-5 max-w-lg text-base leading-8 text-blue-100/78 sm:text-lg">
-              This is the first auth shell for the web experience. It follows
-              the same neon-glass style as the preview page and sets up the
-              route structure for the real auth flow.
-            </p>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[1.4rem] border border-cyan-300/30 bg-cyan-400/10 p-4 backdrop-blur-md">
-                <p className="text-xs uppercase tracking-[0.35em] text-cyan-100/70">
-                  Web-first
-                </p>
-                <p className="mt-2 text-lg font-semibold">Responsive auth UI</p>
-              </div>
-              <div className="rounded-[1.4rem] border border-pink-300/30 bg-pink-400/10 p-4 backdrop-blur-md">
-                <p className="text-xs uppercase tracking-[0.35em] text-pink-100/70">
-                  V1
-                </p>
-                <p className="mt-2 text-lg font-semibold">Simple, direct flow</p>
-              </div>
-            </div>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              {["Login", "Register", "Password reset", "Protected app"].map(
-                (item) => (
-                  <span
-                    key={item}
-                    className="rounded-full border border-white/18 bg-white/8 px-4 py-2 text-sm font-medium text-white/90 backdrop-blur-md"
-                  >
-                    {item}
-                  </span>
-                ),
-              )}
-            </div>
-
-            <div className="mt-8">
-              <AuthSessionStatus />
-            </div>
-          </section>
-
-          {children}
+        <div className="flex flex-1 items-center justify-center py-10 lg:justify-end">
+          <div className="index-reveal-card w-full max-w-[34rem]">{children}</div>
         </div>
       </section>
     </main>

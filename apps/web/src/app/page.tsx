@@ -1,126 +1,110 @@
 import Link from "next/link";
+import { LoginPanel } from "@/components/auth/login-panel";
+
+const twinkleStars = [
+  { left: "11%", top: "18%", size: 6, delay: "0.2s", duration: "2.5s" },
+  { left: "22%", top: "72%", size: 5, delay: "1.1s", duration: "3.2s" },
+  { left: "34%", top: "58%", size: 8, delay: "0.8s", duration: "2.9s" },
+  { left: "58%", top: "16%", size: 7, delay: "1.7s", duration: "3.1s" },
+  { left: "71%", top: "68%", size: 5, delay: "0.5s", duration: "2.7s" },
+  { left: "82%", top: "26%", size: 8, delay: "2.2s", duration: "3.4s" },
+  { left: "88%", top: "80%", size: 6, delay: "1.4s", duration: "2.8s" },
+  { left: "63%", top: "44%", size: 7, delay: "0.9s", duration: "2.6s" },
+  { left: "76%", top: "54%", size: 6, delay: "1.9s", duration: "3.3s" },
+];
+
+const shootingStars = [
+  { left: "18%", top: "26%", width: 220, delay: "1.1s", duration: "6.6s" },
+  { left: "63%", top: "15%", width: 240, delay: "3.8s", duration: "7.2s" },
+  { left: "48%", top: "72%", width: 180, delay: "5.4s", duration: "6.1s" },
+  { left: "74%", top: "36%", width: 160, delay: "2.4s", duration: "5.8s" },
+];
 
 export default function Home() {
-  const features = [
-    "Chat rooms",
-    "Direct messaging",
-    "Friends",
-    "Dating",
-    "Snaps",
-    "Reels",
-    "Games",
-  ];
-
   return (
-    <main className="relative min-h-screen overflow-hidden text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,108,214,0.3),_transparent_28%),radial-gradient(circle_at_20%_20%,_rgba(122,125,255,0.45),_transparent_32%),radial-gradient(circle_at_80%_30%,_rgba(86,208,255,0.22),_transparent_28%),linear-gradient(180deg,_#1f2fba_0%,_#3322a3_35%,_#24145f_100%)]" />
-      <div className="absolute inset-0 opacity-35 [background-image:radial-gradient(rgba(255,255,255,0.9)_0.7px,transparent_0.7px)] [background-size:26px_26px]" />
-      <div className="absolute left-1/2 top-36 h-px w-[88%] -translate-x-1/2 bg-[linear-gradient(90deg,transparent,rgba(255,168,243,0.95),transparent)] shadow-[0_0_22px_rgba(255,140,230,0.85)]" />
+    <main className="relative min-h-screen overflow-hidden bg-[#1d0434] text-white">
+      <div
+        className="index-scene-drift absolute inset-0 bg-cover bg-left-top bg-no-repeat"
+        style={{ backgroundImage: "url('/loginpg.png')" }}
+      />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(21,3,45,0.28)_0%,rgba(36,5,62,0.38)_40%,rgba(28,2,47,0.9)_62%,rgba(28,2,47,0.98)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_58%,rgba(194,37,255,0.2),transparent_28%),radial-gradient(circle_at_78%_24%,rgba(93,197,255,0.16),transparent_22%)]" />
+      <div className="index-aurora absolute inset-0 bg-[radial-gradient(circle_at_22%_48%,rgba(222,66,255,0.22),transparent_22%),radial-gradient(circle_at_70%_32%,rgba(90,208,255,0.16),transparent_20%),radial-gradient(circle_at_82%_72%,rgba(144,84,255,0.12),transparent_24%)]" />
+      {twinkleStars.map((star) => (
+        <span
+          key={`${star.left}-${star.top}`}
+          className="index-twinkle-star"
+          style={{
+            left: star.left,
+            top: star.top,
+            width: `${star.size}px`,
+            height: `${star.size}px`,
+            animationDelay: star.delay,
+            animationDuration: star.duration,
+          }}
+        />
+      ))}
+      {shootingStars.map((star) => (
+        <span
+          key={`${star.left}-${star.top}`}
+          className="index-shooting-star"
+          style={{
+            left: star.left,
+            top: star.top,
+            width: `${star.width}px`,
+            animationDelay: star.delay,
+            animationDuration: star.duration,
+          }}
+        />
+      ))}
 
-      <section className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 py-10 sm:px-10 lg:px-12">
-        <div className="mx-auto mt-4 w-fit rounded-[2rem] border border-pink-300/70 bg-[linear-gradient(180deg,rgba(231,97,255,0.68),rgba(111,47,255,0.5))] px-8 py-5 text-center shadow-[0_0_45px_rgba(255,69,214,0.55),inset_0_0_18px_rgba(255,255,255,0.24)] backdrop-blur-xl sm:px-14 sm:py-7">
-          <p className="text-[clamp(3rem,8vw,5.6rem)] font-semibold leading-none tracking-tight text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.45)]">
-            Suzi Chat
-          </p>
-        </div>
-
-        <section className="mt-12 text-center">
-          <p className="animate-pulse text-3xl font-extrabold uppercase tracking-[0.45em] text-pink-100 drop-shadow-[0_0_18px_rgba(255,126,224,0.7)] sm:text-4xl">
-            ComingSoon
-          </p>
-        </section>
-
-        <div className="mt-12">
-          <section className="rounded-[2rem] border border-white/20 bg-[linear-gradient(180deg,rgba(78,89,255,0.34),rgba(47,33,135,0.36))] p-6 shadow-[0_0_30px_rgba(78,102,255,0.28),inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-xl sm:p-8">
-            <p className="text-xs font-medium uppercase tracking-[0.45em] text-cyan-100/80">
-              Web Preview
+      <section className="relative mx-auto flex min-h-screen max-w-[1400px] flex-col px-6 py-8 sm:px-8 lg:px-12">
+        <header className="index-reveal-header flex items-center justify-between gap-4">
+          <div>
+            <p className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              Suzi Chat
             </p>
-            <div className="flex flex-col items-center text-center">
-              <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-                A social platform for adults, built around live chat,
-                connection, and playful community.
-              </h1>
-              <p className="mt-5 max-w-2xl text-base leading-8 text-blue-100/78 sm:text-lg">
-                Suzi Chat is launching first on the web with a responsive
-                experience focused on chat rooms, direct messaging, dating,
-                media sharing, and casual games.
-              </p>
+            <p className="mt-1 text-[0.68rem] uppercase tracking-[0.45em] text-white/45 sm:text-[0.72rem]">
+              SOCIAL PLATFORM
+            </p>
+          </div>
+          <div className="text-right text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-white/58 sm:text-xs">
+            <span>Need an account? </span>
+            <Link href="/register" className="text-white transition hover:text-cyan-100">
+              Sign up
+            </Link>
+          </div>
+        </header>
 
-              <div className="mt-8 flex flex-wrap justify-center gap-3">
-                {features.map((feature) => (
-                  <span
-                    key={feature}
-                    className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_0_18px_rgba(78,136,255,0.18)] backdrop-blur-md"
-                  >
-                    {feature}
+        <section className="relative mt-10 flex flex-1 items-center lg:mt-0 lg:justify-end">
+          <div className="grid w-full gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,520px)] lg:items-center">
+            <section className="index-reveal-hero flex min-h-[420px] items-end pb-4 max-lg:hidden">
+              <div className="max-w-xl">
+                <p className="text-sm font-semibold uppercase tracking-[0.5em] text-cyan-100/58">
+                  ENTER SUZI CHAT
+                </p>
+                <h1 className="mt-5 text-6xl font-semibold leading-[0.95] tracking-tight text-white">
+                  Sign in to your
+                  <span className="block bg-[linear-gradient(90deg,#ffffff_0%,#ff58d1_34%,#8d47ff_72%)] bg-clip-text text-transparent">
+                    social world
                   </span>
-                ))}
+                </h1>
+                <p className="mt-6 max-w-lg text-lg leading-8 text-white/70">
+                  Continue your rooms, messages, friends, dating, and game
+                  lobby activity from one account.
+                </p>
               </div>
+            </section>
 
-              <div className="mt-10 flex flex-wrap justify-center gap-4">
-                <Link
-                  href="/register"
-                  className="rounded-full border border-pink-300/45 bg-[linear-gradient(90deg,rgba(246,94,219,0.8),rgba(114,76,255,0.85))] px-6 py-3 text-base font-semibold text-white shadow-[0_0_28px_rgba(255,86,214,0.28)] transition hover:brightness-110"
-                >
-                  Create account
-                </Link>
-                <Link
-                  href="/login"
-                  className="rounded-full border border-white/18 bg-white/10 px-6 py-3 text-base font-medium text-white/92 backdrop-blur-md transition hover:bg-white/16"
-                >
-                  Sign in preview
-                </Link>
-              </div>
+            <div className="index-reveal-card mx-auto w-full max-w-[34rem] lg:mx-0 lg:justify-self-end">
+              <LoginPanel
+                eyebrow="Sign In"
+                title="Welcome back"
+                description="Use your email or username to access your account."
+              />
             </div>
-
-            <div className="mt-10 grid gap-4 sm:grid-cols-3">
-              <article className="rounded-[1.5rem] border border-cyan-300/35 bg-cyan-400/10 p-4 backdrop-blur-md">
-                <p className="text-xs uppercase tracking-[0.35em] text-cyan-100/70">
-                  Realtime
-                </p>
-                <p className="mt-2 text-xl font-semibold">Rooms and DMs</p>
-              </article>
-              <article className="rounded-[1.5rem] border border-pink-300/35 bg-pink-400/10 p-4 backdrop-blur-md">
-                <p className="text-xs uppercase tracking-[0.35em] text-pink-100/70">
-                  Social
-                </p>
-                <p className="mt-2 text-xl font-semibold">Snaps and reels</p>
-              </article>
-              <article className="rounded-[1.5rem] border border-amber-300/35 bg-amber-300/10 p-4 backdrop-blur-md">
-                <p className="text-xs uppercase tracking-[0.35em] text-amber-50/75">
-                  Play
-                </p>
-                <p className="mt-2 text-xl font-semibold">Dating and games</p>
-              </article>
-            </div>
-            <div className="mt-10 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-              <section className="rounded-[1.75rem] border border-white/20 bg-[linear-gradient(180deg,rgba(86,61,255,0.28),rgba(61,22,137,0.3))] p-5 shadow-[0_0_26px_rgba(116,79,255,0.24)] backdrop-blur-md">
-                <p className="text-sm font-medium uppercase tracking-[0.35em] text-pink-100/75">
-                  Coming Soon
-                </p>
-                <p className="mt-4 text-2xl font-semibold leading-tight">
-                  Private preview deployment in progress.
-                </p>
-                <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100/80">
-                  The first live version will focus on a polished web
-                  experience, fast navigation, and a clear product direction
-                  for client review.
-                </p>
-              </section>
-
-              <section className="rounded-[1.75rem] border border-pink-300/25 bg-[linear-gradient(180deg,rgba(191,57,255,0.24),rgba(82,21,135,0.3))] p-5 shadow-[0_0_24px_rgba(255,86,214,0.22)] backdrop-blur-md">
-                <p className="text-sm font-medium uppercase tracking-[0.35em] text-pink-100/75">
-                  V1 Focus
-                </p>
-                <ul className="mt-4 space-y-3 text-base text-white/88">
-                  <li>Responsive web-first experience</li>
-                  <li>Simple, stable modular monolith architecture</li>
-                  <li>Chat-first product with clear social features</li>
-                </ul>
-              </section>
-            </div>
-          </section>
-        </div>
+          </div>
+        </section>
       </section>
     </main>
   );
