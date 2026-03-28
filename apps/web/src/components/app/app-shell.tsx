@@ -7,6 +7,7 @@ import { useRef, useState, useEffect } from "react";
 import type { AuthSession } from "@/lib/auth-client";
 import { appNavItems, createMenuItems, mobileNavItems } from "@/lib/v1-mock-data";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
+import { ModeToggle } from "@/components/mode-toggle";
 
 function isActive(pathname: string, href: string, exact?: boolean) {
   if (exact) {
@@ -60,19 +61,19 @@ export function AppShell({
       <div className="absolute bottom-0 right-0 h-[24rem] w-[24rem] rounded-full bg-cyan-400/10 blur-[120px]" />
 
       <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-4 lg:px-6">
-        <div className="mx-auto flex max-w-[1680px] items-center gap-3 rounded-[1.6rem] border border-white/10 bg-[rgba(8,11,24,0.82)] px-3 py-3 shadow-[0_18px_40px_rgba(4,6,18,0.42)] backdrop-blur-2xl sm:px-4">
+        <div className="suzi-shell-panel mx-auto flex max-w-[1680px] items-center gap-3 rounded-[1.6rem] px-3 py-3 sm:px-4">
           <button
             type="button"
             aria-label="Open navigation"
             onClick={() => setIsMobileNavOpen(true)}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/78 transition hover:bg-white/10 lg:hidden"
+            className="suzi-icon-btn inline-flex h-11 w-11 items-center justify-center rounded-2xl text-white/78 lg:hidden"
           >
             <Icon path="M4 7h16M4 12h16M4 17h16" className="h-5 w-5" />
           </button>
 
           <Link
             href="/app"
-            className="flex min-w-0 items-center gap-3 rounded-[1.2rem] border border-white/8 bg-white/5 px-3 py-2.5"
+            className="flex min-w-0 items-center gap-3 rounded-[1.2rem] border border-[var(--border-soft)] bg-white/5 px-3 py-2.5"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(232,77,255,0.96),rgba(82,213,255,0.9))] text-sm font-semibold tracking-[0.14em] text-slate-950">
               SC
@@ -81,7 +82,7 @@ export function AppShell({
               <p className="truncate text-base font-semibold tracking-tight text-white">
                 SuziChat
               </p>
-              <p className="truncate text-[0.64rem] uppercase tracking-[0.3em] text-slate-400">
+              <p className="truncate text-[0.64rem] uppercase tracking-[0.3em] text-[var(--text-soft)]">
                 V1 Hybrid Modern
               </p>
             </div>
@@ -90,7 +91,7 @@ export function AppShell({
           <div className="relative hidden min-w-0 flex-1 md:block">
             <Icon
               path="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"
-              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-soft)]"
             />
             <input
               className="suzi-input pl-11"
@@ -99,6 +100,8 @@ export function AppShell({
           </div>
 
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <ModeToggle className="hidden md:block" />
+
             <div ref={createRef} className="relative">
               <button
                 type="button"
@@ -110,13 +113,13 @@ export function AppShell({
               </button>
 
               {isCreateOpen ? (
-                <div className="absolute right-0 top-[calc(100%+0.7rem)] z-50 w-64 rounded-[1.4rem] border border-white/10 bg-[rgba(10,12,26,0.96)] p-2 shadow-[0_18px_40px_rgba(4,6,18,0.48)] backdrop-blur-xl">
+                <div className="suzi-overlay-panel absolute right-0 top-[calc(100%+0.7rem)] z-50 w-64 rounded-[1.4rem] p-2">
                   {createMenuItems.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
                       onClick={() => setIsCreateOpen(false)}
-                      className="flex items-center gap-3 rounded-[1rem] px-3 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/6 hover:text-white"
+                      className="flex items-center gap-3 rounded-[1rem] px-3 py-3 text-sm font-medium text-[var(--text-muted)] transition hover:bg-white/6 hover:text-white"
                     >
                       <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-cyan-100">
                         <Icon path={item.icon} />
@@ -130,7 +133,7 @@ export function AppShell({
 
             <Link
               href="/app/notifications"
-              className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/78 transition hover:bg-white/10"
+              className="suzi-icon-btn relative inline-flex h-11 w-11 items-center justify-center rounded-2xl text-white/78"
               aria-label="Notifications"
             >
               <Icon path="M15 17H5l2-2.5V10a5 5 0 1 1 10 0v4.5L19 17h-4ZM10 20a2 2 0 0 0 4 0" className="h-5 w-5" />
@@ -141,7 +144,7 @@ export function AppShell({
               <button
                 type="button"
                 onClick={() => setIsProfileOpen((current) => !current)}
-                className="inline-flex items-center gap-3 rounded-[1.1rem] border border-white/10 bg-white/5 px-2.5 py-2 text-left transition hover:bg-white/10 sm:px-3"
+                className="inline-flex items-center gap-3 rounded-[1.1rem] border border-[var(--border-soft)] bg-white/5 px-2.5 py-2 text-left transition hover:bg-white/10 sm:px-3"
               >
                 <Image
                   src="/ppic/ppic1.jpeg"
@@ -154,19 +157,19 @@ export function AppShell({
                   <p className="truncate text-sm font-medium text-white">
                     {session.user.displayName || session.user.username}
                   </p>
-                  <p className="truncate text-xs text-slate-400">
+                  <p className="truncate text-xs text-[var(--text-soft)]">
                     @{session.user.username}
                   </p>
                 </div>
                 <Icon
                   path={isProfileOpen ? "M7 14l5-5 5 5" : "M7 10l5 5 5-5"}
-                  className="hidden h-4 w-4 text-slate-400 sm:block"
+                  className="hidden h-4 w-4 text-[var(--text-soft)] sm:block"
                 />
               </button>
 
               {isProfileOpen ? (
-                <div className="absolute right-0 top-[calc(100%+0.7rem)] z-50 w-72 rounded-[1.5rem] border border-white/10 bg-[rgba(10,12,26,0.98)] p-3 shadow-[0_18px_40px_rgba(4,6,18,0.48)] backdrop-blur-xl">
-                  <div className="flex items-center gap-3 rounded-[1rem] border border-white/8 bg-white/5 p-3">
+                <div className="suzi-overlay-panel absolute right-0 top-[calc(100%+0.7rem)] z-50 w-72 rounded-[1.5rem] p-3">
+                  <div className="flex items-center gap-3 rounded-[1rem] border border-[var(--border-soft)] bg-white/5 p-3">
                     <Image
                       src="/ppic/ppic1.jpeg"
                       alt="Profile picture"
@@ -178,7 +181,7 @@ export function AppShell({
                       <p className="truncate font-medium text-white">
                         {session.user.displayName || session.user.username}
                       </p>
-                      <p className="truncate text-xs text-slate-400">
+                      <p className="truncate text-xs text-[var(--text-soft)]">
                         {session.user.email}
                       </p>
                     </div>
@@ -197,7 +200,7 @@ export function AppShell({
                         key={item.href}
                         href={item.href}
                         onClick={() => setIsProfileOpen(false)}
-                        className="flex items-center gap-3 rounded-[0.95rem] px-3 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-white/6 hover:text-white"
+                        className="flex items-center gap-3 rounded-[0.95rem] px-3 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-white/6 hover:text-white"
                       >
                         <Icon path={item.icon} className="h-4 w-4 text-cyan-100" />
                         <span>{item.label}</span>
@@ -205,7 +208,7 @@ export function AppShell({
                     ))}
                   </div>
 
-                  <div className="my-3 h-px bg-white/8" />
+                  <div className="my-3 h-px bg-[var(--border-soft)]" />
 
                   <button
                     type="button"
@@ -222,7 +225,7 @@ export function AppShell({
         </div>
       </header>
 
-      <aside className="fixed bottom-4 left-4 top-[6.25rem] z-40 hidden w-[5.5rem] rounded-[1.8rem] border border-white/10 bg-[rgba(8,11,24,0.82)] p-3 shadow-[0_18px_40px_rgba(4,6,18,0.42)] backdrop-blur-xl lg:flex xl:w-[16.5rem] xl:flex-col">
+      <aside className="suzi-shell-panel fixed bottom-4 left-4 top-[6.25rem] z-40 hidden w-[5.5rem] rounded-[1.8rem] p-3 lg:flex xl:w-[16.5rem] xl:flex-col">
         <nav className="flex w-full flex-col gap-2">
           {appNavItems.map((item) => {
             const active = isActive(pathname, item.href, item.exact);
@@ -235,7 +238,7 @@ export function AppShell({
                   "group flex items-center gap-3 rounded-[1rem] border px-3 py-3 text-sm font-medium transition",
                   active
                     ? "border-fuchsia-400/20 bg-fuchsia-400/12 text-white"
-                    : "border-transparent text-slate-300 hover:border-white/8 hover:bg-white/5 hover:text-white",
+                    : "border-transparent text-[var(--text-muted)] hover:border-[var(--border-soft)] hover:bg-white/5 hover:text-white",
                 )}
               >
                 <span
@@ -248,7 +251,7 @@ export function AppShell({
                 </span>
                 <span className="hidden xl:inline">{item.label}</span>
                 {item.isSoon ? (
-                  <span className="ml-auto hidden rounded-full border border-white/10 bg-white/6 px-2 py-0.5 text-[0.56rem] uppercase tracking-[0.24em] text-slate-400 xl:inline">
+                  <span className="ml-auto hidden rounded-full border border-white/10 bg-white/6 px-2 py-0.5 text-[0.56rem] uppercase tracking-[0.24em] text-[var(--text-soft)] xl:inline">
                     Soon
                   </span>
                 ) : null}
@@ -266,18 +269,18 @@ export function AppShell({
             onClick={() => setIsMobileNavOpen(false)}
             className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-sm lg:hidden"
           />
-          <aside className="fixed inset-y-0 left-0 z-50 w-[88vw] max-w-sm border-r border-white/10 bg-[rgba(10,12,26,0.98)] p-4 shadow-[0_18px_40px_rgba(4,6,18,0.48)] backdrop-blur-xl lg:hidden">
+          <aside className="suzi-overlay-panel fixed inset-y-0 left-0 z-50 w-[88vw] max-w-sm rounded-none border-r p-4 lg:hidden">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-lg font-semibold text-white">SuziChat</p>
-                <p className="text-xs uppercase tracking-[0.28em] text-slate-400">
+                <p className="text-xs uppercase tracking-[0.28em] text-[var(--text-soft)]">
                   Social + Rooms + Games
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsMobileNavOpen(false)}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/78"
+                className="suzi-icon-btn inline-flex h-11 w-11 items-center justify-center rounded-2xl text-white/78"
               >
                 <Icon path="M6 6l12 12M18 6 6 18" className="h-5 w-5" />
               </button>
@@ -285,6 +288,10 @@ export function AppShell({
 
             <div className="mt-5">
               <input className="suzi-input" placeholder="Search SuziChat" />
+            </div>
+
+            <div className="mt-3">
+              <ModeToggle fullWidth />
             </div>
 
             <nav className="mt-5 space-y-2">
@@ -297,7 +304,7 @@ export function AppShell({
                     "flex items-center justify-between rounded-[1rem] border px-4 py-3 text-sm font-medium",
                     isActive(pathname, item.href, item.exact)
                       ? "border-fuchsia-400/20 bg-fuchsia-400/12 text-white"
-                      : "border-white/8 bg-white/4 text-slate-200",
+                      : "border-[var(--border-soft)] bg-white/4 text-[var(--text-muted)]",
                   )}
                 >
                   <span className="flex items-center gap-3">
@@ -305,7 +312,7 @@ export function AppShell({
                     <span>{item.label}</span>
                   </span>
                   {item.isSoon ? (
-                    <span className="rounded-full border border-white/10 bg-white/6 px-2 py-0.5 text-[0.56rem] uppercase tracking-[0.24em] text-slate-400">
+                    <span className="rounded-full border border-white/10 bg-white/6 px-2 py-0.5 text-[0.56rem] uppercase tracking-[0.24em] text-[var(--text-soft)]">
                       Soon
                     </span>
                   ) : null}
@@ -328,7 +335,7 @@ export function AppShell({
         <Icon path="M12 5v14M5 12h14" className="h-5 w-5" />
       </Link>
 
-      <nav className="fixed inset-x-3 bottom-3 z-50 rounded-[1.4rem] border border-white/10 bg-[rgba(8,11,24,0.92)] px-2 py-2 shadow-[0_18px_40px_rgba(4,6,18,0.48)] backdrop-blur-2xl lg:hidden">
+      <nav className="suzi-shell-panel fixed inset-x-3 bottom-3 z-50 rounded-[1.4rem] px-2 py-2 lg:hidden">
         <div className="grid grid-cols-5 gap-1">
           {mobileNavItems.map((item) => {
             const active = isActive(pathname, item.href, item.exact);
@@ -341,7 +348,7 @@ export function AppShell({
                   "flex flex-col items-center gap-1 rounded-[1rem] px-2 py-2 text-[0.63rem] font-medium uppercase tracking-[0.18em] transition",
                   active
                     ? "bg-fuchsia-400/12 text-white"
-                    : "text-slate-400 hover:bg-white/5 hover:text-white",
+                    : "text-[var(--text-soft)] hover:bg-white/5 hover:text-white",
                 )}
               >
                 <Icon path={item.icon} className="h-4 w-4" />
