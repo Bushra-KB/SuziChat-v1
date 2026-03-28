@@ -1,0 +1,683 @@
+export type NavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  exact?: boolean;
+  isSoon?: boolean;
+};
+
+export type Person = {
+  id: string;
+  name: string;
+  handle: string;
+  role?: string;
+  age?: number;
+  location?: string;
+  avatar: string;
+  status?: "online" | "away" | "busy" | "offline";
+  bio?: string;
+  headline?: string;
+  flags?: string[];
+};
+
+export type Room = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  privacy: "Public" | "Friends" | "Private";
+  members: number;
+  activeNow: number;
+  coverTone: string;
+  tags: string[];
+  owner: string;
+};
+
+export type Snap = {
+  id: string;
+  author: string;
+  avatar: string;
+  title: string;
+  caption: string;
+  visibility: "Public" | "Friends";
+  likes: number;
+  comments: number;
+  tone: string;
+};
+
+export type Reel = {
+  id: string;
+  author: string;
+  avatar: string;
+  caption: string;
+  views: number;
+  likes: number;
+  comments: number;
+  tone: string;
+};
+
+export type NotificationItem = {
+  id: string;
+  type: string;
+  title: string;
+  copy: string;
+  time: string;
+  action: string;
+  unread?: boolean;
+};
+
+export const appNavItems: NavItem[] = [
+  {
+    href: "/app",
+    label: "Home",
+    icon: "M3 11.5 12 4l9 7.5M6.5 10.5V20h11v-9.5",
+    exact: true,
+  },
+  {
+    href: "/app/rooms",
+    label: "Rooms",
+    icon: "M4 7h16M4 12h10M4 17h13M18 10l3 2-3 2",
+  },
+  {
+    href: "/app/messages",
+    label: "Messages",
+    icon: "M4 6h16v10H8l-4 4V6Z",
+  },
+  {
+    href: "/app/friends",
+    label: "Friends",
+    icon: "M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M17 11a3 3 0 1 0 0-6M21 21v-2a3 3 0 0 0-2-2.85",
+  },
+  {
+    href: "/app/dating",
+    label: "Dating",
+    icon: "M12 20s-6.5-4.3-8.6-7.4C.8 9.4 2 4.9 6.3 4.3 8.7 4 10.5 5.2 12 7c1.5-1.8 3.3-3 5.7-2.7 4.3.6 5.5 5.1 2.9 8.3C18.5 15.7 12 20 12 20Z",
+  },
+  {
+    href: "/app/snaps",
+    label: "Snaps",
+    icon: "M7 7h10v10H7zM5 5h14v14H5zM9 2v3M15 2v3",
+  },
+  {
+    href: "/app/reels",
+    label: "Reels",
+    icon: "M8 5h8l4 4v10a2 2 0 0 1-2 2H8a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4Z M11 11.5v4l3-2-3-2Z",
+  },
+  {
+    href: "/app/games",
+    label: "Games",
+    icon: "M7 8h10l3 3v5l-3 3H7l-3-3v-5l3-3ZM9 12h.01M15 12h.01M10 15h4",
+  },
+  {
+    href: "/app/notifications",
+    label: "Notifications",
+    icon: "M15 17H5l2-2.5V10a5 5 0 1 1 10 0v4.5L19 17h-4ZM10 20a2 2 0 0 0 4 0",
+  },
+  {
+    href: "/app/settings",
+    label: "Settings",
+    icon: "M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8",
+  },
+];
+
+export const mobileNavItems: NavItem[] = [
+  appNavItems[0],
+  appNavItems[1],
+  appNavItems[5],
+  appNavItems[4],
+  appNavItems[7],
+];
+
+export const createMenuItems = [
+  {
+    href: "/app/rooms/create",
+    label: "Create Room",
+    icon: "M12 5v14M5 12h14",
+  },
+  {
+    href: "/app/snaps/create",
+    label: "Post Snap",
+    icon: "M12 4v10M8 8l4-4 4 4M5 18h14",
+  },
+  {
+    href: "/app/reels/upload",
+    label: "Upload Reel",
+    icon: "M8 5h8l4 4v10a2 2 0 0 1-2 2H8a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4Z M11 11.5v4l3-2-3-2Z",
+  },
+];
+
+export const people: Person[] = [
+  {
+    id: "alan",
+    name: "Alan Rivera",
+    handle: "@alan",
+    role: "Friend",
+    age: 31,
+    location: "Dublin, IE",
+    avatar: "/ppic/ppic1.jpeg",
+    status: "online",
+    headline: "Always in music and games.",
+    bio: "Night owl, room regular, and the first person to spin up a quick chess lobby.",
+    flags: ["EN", "IE"],
+  },
+  {
+    id: "mary",
+    name: "Mary Njoroge",
+    handle: "@mary",
+    role: "Moderator",
+    age: 29,
+    location: "Nairobi, KE",
+    avatar: "/ppic/ppic2.png",
+    status: "online",
+    headline: "Hosting friendly late-night rooms.",
+    bio: "Keeps community rooms warm, safe, and active. Usually in Night Chat or matchmaking friends for games.",
+    flags: ["EN", "KE"],
+  },
+  {
+    id: "john",
+    name: "John Tesfaye",
+    handle: "@john",
+    role: "Friend",
+    age: 28,
+    location: "Addis Ababa, ET",
+    avatar: "/ppic/ppic3.jpg",
+    status: "away",
+    headline: "DMs, reels, and rooms.",
+    bio: "Usually floating between voice rooms and direct messages, with a soft spot for reels and sports rooms.",
+    flags: ["EN", "ET"],
+  },
+  {
+    id: "nadia",
+    name: "Nadia Okello",
+    handle: "@nadia",
+    role: "New Match",
+    age: 27,
+    location: "Kampala, UG",
+    avatar: "/ppic/ppic2.png",
+    status: "busy",
+    headline: "Dating + snaps + travel rooms.",
+    bio: "Likes low-pressure conversations, public snaps, and cozy travel-themed rooms.",
+    flags: ["EN", "UG"],
+  },
+  {
+    id: "steve",
+    name: "Steve Laurent",
+    handle: "@steve",
+    role: "Friend",
+    age: 33,
+    location: "Paris, FR",
+    avatar: "/ppic/ppic1.jpeg",
+    status: "online",
+    headline: "Game lobbies and quick tables.",
+    bio: "Mostly in poker or connect-four lobbies, and always ready to invite people into a private table.",
+    flags: ["FR", "EN"],
+  },
+  {
+    id: "lisa",
+    name: "Lisa Bauer",
+    handle: "@lisa",
+    role: "Friend",
+    age: 26,
+    location: "Berlin, DE",
+    avatar: "/ppic/ppic3.jpg",
+    status: "online",
+    headline: "Snaps and city-night reels.",
+    bio: "Builds a lot of visual content, shares friends-only snaps, and collects nightlife room recommendations.",
+    flags: ["DE", "EN"],
+  },
+];
+
+export const rooms: Room[] = [
+  {
+    id: "general-chat",
+    name: "General Chat",
+    description: "Warm open room for friendly conversations and community check-ins.",
+    category: "Social",
+    privacy: "Public",
+    members: 1480,
+    activeNow: 126,
+    coverTone:
+      "from-fuchsia-500/40 via-violet-500/16 to-cyan-400/10",
+    tags: ["Friendly", "Open", "Daily"],
+    owner: "Mary",
+  },
+  {
+    id: "music-lounge",
+    name: "Music Lounge",
+    description: "Share playlists, compare headphones, and post your current mood track.",
+    category: "Music",
+    privacy: "Public",
+    members: 930,
+    activeNow: 88,
+    coverTone: "from-cyan-400/34 via-blue-500/18 to-violet-500/12",
+    tags: ["Tunes", "Chill", "Requests"],
+    owner: "Alan",
+  },
+  {
+    id: "late-night-chat",
+    name: "Late Night Chat",
+    description: "Adults-only conversations with a slower, more intimate pace.",
+    category: "Dating",
+    privacy: "Public",
+    members: 610,
+    activeNow: 43,
+    coverTone: "from-pink-500/38 via-fuchsia-500/20 to-amber-400/10",
+    tags: ["18+", "After Hours", "Voice"],
+    owner: "Nadia",
+  },
+  {
+    id: "movie-nights",
+    name: "Movie Nights",
+    description: "Watchlist swaps, room rewatches, and scene-by-scene reactions.",
+    category: "Media",
+    privacy: "Friends",
+    members: 280,
+    activeNow: 27,
+    coverTone: "from-amber-500/30 via-orange-500/16 to-pink-500/10",
+    tags: ["Watchlist", "Friends", "Weekly"],
+    owner: "Lisa",
+  },
+  {
+    id: "gaming-hangout",
+    name: "Gaming Hangout",
+    description: "Organize quick matches, invite friends, and move into game tables fast.",
+    category: "Games",
+    privacy: "Public",
+    members: 720,
+    activeNow: 64,
+    coverTone: "from-violet-500/38 via-indigo-500/18 to-cyan-400/10",
+    tags: ["Tables", "Competitive", "Voice"],
+    owner: "Steve",
+  },
+];
+
+export const roomCategories = [
+  "Social",
+  "Music",
+  "Dating",
+  "Games",
+  "Sports",
+  "Media",
+  "Travel",
+];
+
+export const directMessageThreads = [
+  {
+    id: "alan-thread",
+    person: people[0],
+    preview: "Want to join the chess lobby after rooms?",
+    time: "2m",
+    unread: 3,
+  },
+  {
+    id: "mary-thread",
+    person: people[1],
+    preview: "I pinned the new moderation note in General Chat.",
+    time: "18m",
+    unread: 1,
+  },
+  {
+    id: "john-thread",
+    person: people[2],
+    preview: "The reels draft looks better on mobile now.",
+    time: "1h",
+    unread: 0,
+  },
+  {
+    id: "nadia-thread",
+    person: people[3],
+    preview: "Open to a low-key room tonight if you are.",
+    time: "3h",
+    unread: 0,
+  },
+];
+
+export const roomMessages = [
+  {
+    id: "m1",
+    author: "Alan",
+    kind: "other" as const,
+    message: "The evening room feels quieter now, we can shift into game tables if people want.",
+    time: "18:32",
+  },
+  {
+    id: "m2",
+    author: "You",
+    kind: "mine" as const,
+    message: "Let’s keep chat open and spin up a chess table on the side for anyone interested.",
+    time: "18:35",
+  },
+  {
+    id: "m3",
+    author: "Mary",
+    kind: "other" as const,
+    message: "Pinned the update. Also inviting John and Lisa into the room now.",
+    time: "18:37",
+  },
+  {
+    id: "m4",
+    author: "John",
+    kind: "other" as const,
+    message: "I can moderate the thread while the quick game starts.",
+    time: "18:39",
+  },
+];
+
+export const dmMessages = [
+  {
+    id: "d1",
+    author: "Alan",
+    kind: "other" as const,
+    message: "Want the private chess table or public lobby tonight?",
+    time: "19:14",
+  },
+  {
+    id: "d2",
+    author: "You",
+    kind: "mine" as const,
+    message: "Start public. If it gets full, we can move people into a private invite table.",
+    time: "19:16",
+  },
+  {
+    id: "d3",
+    author: "Alan",
+    kind: "other" as const,
+    message: "Perfect. I’ll hold table two and call it out in lobby chat.",
+    time: "19:18",
+  },
+];
+
+export const datingProfiles = [
+  {
+    id: "emma",
+    name: "Emma",
+    handle: "@emma",
+    age: 29,
+    location: "NYC, NY, USA",
+    avatar: "/ppic/ppic2.png",
+    headline: "Live music, city walks, and low-pressure chats.",
+    bio: "Looking for playful, adult conversation that can move from public rooms into something more personal if the vibe is right.",
+    flags: ["Music", "Travel", "Nightlife"],
+  },
+  {
+    id: "jake",
+    name: "Jake",
+    handle: "@jake",
+    age: 30,
+    location: "Chicago, IL, USA",
+    avatar: "/ppic/ppic1.jpeg",
+    headline: "Games hub regular and movie room fan.",
+    bio: "Usually online in evenings. Likes rooms first, then matches and DMs after there is some comfort.",
+    flags: ["Games", "Movies", "Travel"],
+  },
+  {
+    id: "hannah",
+    name: "Hannah",
+    handle: "@hannah",
+    age: 26,
+    location: "Dublin, IE",
+    avatar: "/ppic/ppic2.png",
+    headline: "Friends-only snaps and relaxed rooms.",
+    bio: "Here for mature energy, visual storytelling, and the occasional quick lounge conversation.",
+    flags: ["Snaps", "Travel", "Chill"],
+  },
+  {
+    id: "lucas",
+    name: "Lucas",
+    handle: "@lucas",
+    age: 32,
+    location: "Miami, FL, USA",
+    avatar: "/ppic/ppic1.jpeg",
+    headline: "Sports rooms and dating discover.",
+    bio: "Prefers direct conversations after a clean mutual match. Good with voice rooms and travel plans.",
+    flags: ["Sports", "Voice", "Travel"],
+  },
+];
+
+export const snaps: Snap[] = [
+  {
+    id: "sunset-walk",
+    author: "Lena Rose",
+    avatar: "/ppic/ppic2.png",
+    title: "Sunset walk",
+    caption: "Quiet city light and a slower evening mood.",
+    visibility: "Public",
+    likes: 342,
+    comments: 48,
+    tone: "from-orange-400/40 via-pink-500/22 to-violet-500/10",
+  },
+  {
+    id: "night-friends",
+    author: "Marco",
+    avatar: "/ppic/ppic1.jpeg",
+    title: "Night with friends",
+    caption: "Music room energy moved offline for the weekend.",
+    visibility: "Friends",
+    likes: 275,
+    comments: 32,
+    tone: "from-fuchsia-500/38 via-violet-500/22 to-indigo-500/10",
+  },
+  {
+    id: "ocean-view",
+    author: "Aoife",
+    avatar: "/ppic/ppic3.jpg",
+    title: "Ocean view",
+    caption: "A softer reset before jumping back into room chat.",
+    visibility: "Public",
+    likes: 154,
+    comments: 12,
+    tone: "from-cyan-400/36 via-sky-500/18 to-violet-500/10",
+  },
+  {
+    id: "city-lights",
+    author: "Priya",
+    avatar: "/ppic/ppic2.png",
+    title: "City cafe vibes",
+    caption: "Late snack, quick reel draft, then back to DMs.",
+    visibility: "Friends",
+    likes: 218,
+    comments: 27,
+    tone: "from-amber-400/30 via-orange-500/18 to-rose-500/12",
+  },
+];
+
+export const reels: Reel[] = [
+  {
+    id: "chill-mix",
+    author: "Suzi",
+    avatar: "/ppic/ppic2.png",
+    caption: "Chillin with my favorite tunes tonight.",
+    views: 231,
+    likes: 321,
+    comments: 21,
+    tone: "from-fuchsia-500/34 via-indigo-500/20 to-cyan-400/12",
+  },
+  {
+    id: "night-drive",
+    author: "Mary",
+    avatar: "/ppic/ppic2.png",
+    caption: "Night drive and room-cleanup playlist.",
+    views: 180,
+    likes: 210,
+    comments: 14,
+    tone: "from-cyan-400/30 via-violet-500/18 to-pink-500/12",
+  },
+  {
+    id: "game-lobby",
+    author: "Steve",
+    avatar: "/ppic/ppic1.jpeg",
+    caption: "Setting up table lobbies for tonight’s quick matches.",
+    views: 144,
+    likes: 188,
+    comments: 16,
+    tone: "from-violet-500/36 via-fuchsia-500/16 to-amber-400/10",
+  },
+];
+
+export const games = [
+  {
+    id: "chess",
+    name: "Chess",
+    icon: "/games/Chess_icon.png",
+    copy: "Play with friends or keep a private table open.",
+    tone: "from-cyan-400/24 via-blue-400/10 to-transparent",
+  },
+  {
+    id: "checkers",
+    name: "Checkers",
+    icon: "/games/Checker_icon.png",
+    copy: "Fast two-player tables with public or friends-only queues.",
+    tone: "from-pink-400/24 via-fuchsia-400/12 to-transparent",
+  },
+  {
+    id: "poker",
+    name: "Poker",
+    icon: "/games/Poker_icon.png",
+    copy: "Private and public lobbies with easy invite flow.",
+    tone: "from-emerald-400/24 via-cyan-400/12 to-transparent",
+  },
+  {
+    id: "connect4",
+    name: "Connect 4",
+    icon: "/games/Connect4_icon.png",
+    copy: "Quick lobby matches for short sessions and low friction.",
+    tone: "from-amber-400/24 via-orange-400/12 to-transparent",
+  },
+];
+
+export const gameLobbyTables = [
+  { table: "Table 1", players: "Alan vs Jane", status: "Playing", watchers: 3 },
+  { table: "Table 2", players: "Mary vs Empty", status: "Watching", watchers: 2 },
+  { table: "Table 3", players: "John vs Sue", status: "Playing", watchers: 5 },
+  { table: "Table 4", players: "Empty vs Lisa", status: "Playing", watchers: 1 },
+  { table: "Table 5", players: "Steve vs Nathan", status: "Private", watchers: 0 },
+  { table: "Table 6", players: "Mark vs Sally", status: "Playing", watchers: 4 },
+  { table: "Table 7", players: "Sarah vs Empty", status: "Waiting", watchers: 1 },
+  { table: "Table 8", players: "Empty vs Alex", status: "Watching", watchers: 2 },
+];
+
+export const gameLobbyChat = [
+  "Alan: anyone for chess?",
+  "Mary: table 6 is free",
+  "John: I’m watching table 2",
+  "Steve: private table open if you know the invite code",
+];
+
+export const notifications: NotificationItem[] = [
+  {
+    id: "n1",
+    type: "Friend Request",
+    title: "Catherine sent you a friend request",
+    copy: "They found you from a room invite and want to connect.",
+    time: "5 minutes ago",
+    action: "Review",
+    unread: true,
+  },
+  {
+    id: "n2",
+    type: "New Message",
+    title: "Alan mentioned you in Music Lounge",
+    copy: "“Can you post the reel draft in the room?”",
+    time: "18 minutes ago",
+    action: "Open",
+    unread: true,
+  },
+  {
+    id: "n3",
+    type: "Dating Match",
+    title: "You matched with Maria",
+    copy: "You can start a DM now that interest is mutual.",
+    time: "1 hour ago",
+    action: "Chat",
+  },
+  {
+    id: "n4",
+    type: "Snap Activity",
+    title: "Your sunset snap got new comments",
+    copy: "3 people responded to the public post.",
+    time: "2 hours ago",
+    action: "View",
+  },
+];
+
+export const settingsSections = [
+  {
+    title: "Privacy",
+    items: [
+      "Show online status",
+      "Default snaps visibility",
+      "Default reels visibility",
+      "Show or hide dating profile",
+    ],
+  },
+  {
+    title: "Safety",
+    items: ["Blocked users", "Reports you submitted", "Room moderation history"],
+  },
+  {
+    title: "Appearance",
+    items: ["Reduced transparency", "Reduced motion", "High contrast"],
+  },
+];
+
+export const adminStats = [
+  { label: "Active Users", value: "35,439", tone: "from-cyan-400/30 to-transparent" },
+  { label: "Daily Reports", value: "148", tone: "from-pink-400/30 to-transparent" },
+  { label: "Active Rooms", value: "2,646", tone: "from-violet-400/30 to-transparent" },
+  { label: "Pending Reports", value: "56", tone: "from-amber-400/30 to-transparent" },
+];
+
+export const adminReports = [
+  {
+    title: "Spam room promotion",
+    reporter: "Nadia",
+    severity: "High",
+    area: "Rooms",
+    status: "Open",
+  },
+  {
+    title: "Harassment in DM thread",
+    reporter: "Mary",
+    severity: "High",
+    area: "Messages",
+    status: "Review",
+  },
+  {
+    title: "Snap visibility dispute",
+    reporter: "John",
+    severity: "Medium",
+    area: "Snaps",
+    status: "Queued",
+  },
+];
+
+export const adminRoomRows = [
+  {
+    name: "General Chat",
+    email: "owner@suzichat.com",
+    role: "Admin",
+    category: "Social",
+    status: "Live",
+  },
+  {
+    name: "Music Lounge",
+    email: "mary@suzichat.com",
+    role: "Moderator",
+    category: "Music",
+    status: "Stable",
+  },
+  {
+    name: "Late Night Chat",
+    email: "nadia@suzichat.com",
+    role: "Owner",
+    category: "Dating",
+    status: "Flagged",
+  },
+  {
+    name: "Chess Club",
+    email: "steve@suzichat.com",
+    role: "Owner",
+    category: "Games",
+    status: "Stable",
+  },
+];
