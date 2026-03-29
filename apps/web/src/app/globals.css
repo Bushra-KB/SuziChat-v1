@@ -129,6 +129,10 @@ a {
     box-shadow 180ms ease;
 }
 
+.suzi-search-input {
+  padding-left: 3.2rem;
+}
+
 .suzi-input::placeholder {
   color: rgba(168, 175, 212, 0.52);
 }
