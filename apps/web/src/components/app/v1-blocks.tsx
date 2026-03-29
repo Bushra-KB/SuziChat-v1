@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type {
@@ -58,12 +59,21 @@ export function RoomDirectoryCard({
 }) {
   return (
     <PanelMuted className="overflow-hidden p-0">
-      <div
-        className={cx(
-          "h-28 border-b border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_45%),linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]",
-          room.coverTone,
-        )}
-      />
+      <div className="relative h-28 overflow-hidden border-b border-white/8">
+        <Image
+          src={room.coverImage}
+          alt={`${room.name} banner`}
+          fill
+          sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
+          className="object-cover"
+        />
+        <div
+          className={cx(
+            "absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,24,0.05),rgba(10,12,24,0.46)),radial-gradient(circle_at_top_left,rgba(255,255,255,0.14),transparent_48%)]",
+            room.coverTone,
+          )}
+        />
+      </div>
       <div className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -189,12 +199,21 @@ export function SnapCard({
       href={href}
       className="overflow-hidden rounded-[1.2rem] border border-white/8 bg-[rgba(18,21,40,0.94)] transition hover:-translate-y-0.5 hover:border-white/12"
     >
-      <div
-        className={cx(
-          "h-44 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]",
-          snap.tone,
-        )}
-      />
+      <div className="relative h-44 overflow-hidden">
+        <Image
+          src={snap.image}
+          alt={`${snap.title} snap`}
+          fill
+          sizes="(min-width: 1280px) 22vw, (min-width: 768px) 33vw, 100vw"
+          className="object-cover"
+        />
+        <div
+          className={cx(
+            "absolute inset-0 bg-[linear-gradient(180deg,rgba(9,11,24,0.08),rgba(9,11,24,0.28)),radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_42%)]",
+            snap.tone,
+          )}
+        />
+      </div>
       <div className="p-4">
         <div className="flex items-center gap-3">
           <Avatar src={snap.avatar} alt={`${snap.author} avatar`} size={34} className="h-8 w-8" />
@@ -228,12 +247,20 @@ export function ReelCard({
       href={href}
       className="overflow-hidden rounded-[1.4rem] border border-white/8 bg-[rgba(18,21,40,0.94)] transition hover:-translate-y-0.5 hover:border-white/12"
     >
-      <div
-        className={cx(
-          "relative aspect-[9/14] bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.16),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]",
-          reel.tone,
-        )}
-      >
+      <div className="relative aspect-[9/14] overflow-hidden">
+        <Image
+          src={reel.poster}
+          alt={`${reel.author} reel`}
+          fill
+          sizes="(min-width: 1280px) 20vw, (min-width: 768px) 33vw, 100vw"
+          className="object-cover"
+        />
+        <div
+          className={cx(
+            "absolute inset-0 bg-[linear-gradient(180deg,rgba(9,11,24,0.06),rgba(9,11,24,0.18)_32%,rgba(9,11,24,0.58)),radial-gradient(circle_at_top_left,rgba(255,255,255,0.14),transparent_38%)]",
+            reel.tone,
+          )}
+        />
         <div className="absolute inset-x-4 bottom-4 rounded-[1.1rem] border border-white/10 bg-[rgba(9,11,24,0.72)] p-3 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <Avatar src={reel.avatar} alt={`${reel.author} avatar`} size={34} className="h-8 w-8" />

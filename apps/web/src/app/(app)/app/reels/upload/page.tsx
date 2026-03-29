@@ -1,6 +1,10 @@
+import Image from "next/image";
 import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
+import { reels } from "@/lib/v1-mock-data";
 
 export default function UploadReelPage() {
+  const previewReel = reels[0];
+
   return (
     <section className="flex justify-center">
       <Panel className="w-full max-w-4xl p-6 sm:p-7">
@@ -12,7 +16,16 @@ export default function UploadReelPage() {
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-5">
-            <div className="aspect-[16/9] rounded-[1.5rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01)),radial-gradient(circle_at_top,rgba(232,77,255,0.18),transparent_36%),radial-gradient(circle_at_bottom,rgba(82,213,255,0.14),transparent_36%)]" />
+            <div className="relative aspect-[16/9] overflow-hidden rounded-[1.5rem] border border-white/10">
+              <Image
+                src={previewReel.poster}
+                alt="Reel preview"
+                fill
+                sizes="(min-width: 1280px) 60vw, 100vw"
+                className="object-cover"
+              />
+              <div className={`absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,24,0.05),rgba(10,12,24,0.28))] ${previewReel.tone}`} />
+            </div>
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
                 Trim clip

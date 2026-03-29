@@ -1,6 +1,10 @@
+import Image from "next/image";
 import { Chip, Panel, SectionHeader } from "@/components/ui/suzi-primitives";
+import { rooms } from "@/lib/v1-mock-data";
 
 export default function CreateRoomPage() {
+  const previewRoom = rooms[0];
+
   return (
     <section className="space-y-6">
       <Panel className="p-6 sm:p-7">
@@ -82,7 +86,16 @@ export default function CreateRoomPage() {
 
           <Panel className="p-5">
             <SectionHeader eyebrow="Cover Preview" title="How this room will feel" />
-            <div className="mt-5 h-56 rounded-[1.4rem] border border-white/10 bg-[linear-gradient(135deg,rgba(232,77,255,0.24),rgba(82,213,255,0.1))]" />
+            <div className="relative mt-5 h-56 overflow-hidden rounded-[1.4rem] border border-white/10">
+              <Image
+                src={previewRoom.coverImage}
+                alt="Room cover preview"
+                fill
+                sizes="320px"
+                className="object-cover"
+              />
+              <div className={`absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,24,0.08),rgba(10,12,24,0.44))] ${previewRoom.coverTone}`} />
+            </div>
             <div className="mt-5 space-y-3 text-sm text-slate-300/80">
               <p>Use cover art that fits the room tone instead of overwhelming neon.</p>
               <p>Keep category and privacy obvious so members understand the room fast.</p>

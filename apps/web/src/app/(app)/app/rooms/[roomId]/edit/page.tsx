@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Chip, Panel, SectionHeader } from "@/components/ui/suzi-primitives";
 import { rooms } from "@/lib/v1-mock-data";
 
@@ -55,6 +56,16 @@ export default async function EditRoomPage({
 
           <Panel className="p-5">
             <SectionHeader eyebrow="Live State" title="Current visibility" />
+            <div className="relative mt-5 h-40 overflow-hidden rounded-[1.2rem] border border-white/10">
+              <Image
+                src={room.coverImage}
+                alt={`${room.name} cover`}
+                fill
+                sizes="320px"
+                className="object-cover"
+              />
+              <div className={`absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,24,0.08),rgba(10,12,24,0.44))] ${room.coverTone}`} />
+            </div>
             <div className="mt-5 space-y-3 text-sm text-slate-300/80">
               <div className="flex items-center justify-between rounded-[1rem] border border-white/8 bg-white/4 px-4 py-3">
                 <span>Privacy</span>

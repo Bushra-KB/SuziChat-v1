@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Chip, Panel, SectionHeader } from "@/components/ui/suzi-primitives";
 import { datingProfiles } from "@/lib/v1-mock-data";
@@ -13,7 +14,16 @@ export default async function DatingProfilePage({
   return (
     <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <Panel className="overflow-hidden p-0">
-        <div className="h-[22rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01)),radial-gradient(circle_at_top,rgba(232,77,255,0.22),transparent_36%),radial-gradient(circle_at_bottom,rgba(82,213,255,0.16),transparent_36%)]" />
+        <div className="relative h-[22rem] overflow-hidden">
+          <Image
+            src={profile.photo ?? profile.avatar}
+            alt={`${profile.name} profile`}
+            fill
+            sizes="(min-width: 1280px) 70vw, 100vw"
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,24,0.02),rgba(10,12,24,0.54)),radial-gradient(circle_at_top,rgba(232,77,255,0.22),transparent_36%),radial-gradient(circle_at_bottom,rgba(82,213,255,0.16),transparent_36%)]" />
+        </div>
         <div className="p-6 sm:p-7">
           <SectionHeader
             eyebrow="Profile Detail"

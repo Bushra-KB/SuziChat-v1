@@ -18,6 +18,7 @@ export type Person = {
   bio?: string;
   headline?: string;
   flags?: string[];
+  photo?: string;
 };
 
 export type Room = {
@@ -29,6 +30,7 @@ export type Room = {
   members: number;
   activeNow: number;
   coverTone: string;
+  coverImage: string;
   tags: string[];
   owner: string;
 };
@@ -43,6 +45,7 @@ export type Snap = {
   likes: number;
   comments: number;
   tone: string;
+  image: string;
 };
 
 export type Reel = {
@@ -54,6 +57,7 @@ export type Reel = {
   likes: number;
   comments: number;
   tone: string;
+  poster: string;
 };
 
 export type NotificationItem = {
@@ -238,6 +242,7 @@ export const rooms: Room[] = [
     activeNow: 126,
     coverTone:
       "from-fuchsia-500/40 via-violet-500/16 to-cyan-400/10",
+    coverImage: "/banner/general_chat_banner.png",
     tags: ["Friendly", "Open", "Daily"],
     owner: "Mary",
   },
@@ -250,6 +255,7 @@ export const rooms: Room[] = [
     members: 930,
     activeNow: 88,
     coverTone: "from-cyan-400/34 via-blue-500/18 to-violet-500/12",
+    coverImage: "/banner/Music_lounch_banner.png",
     tags: ["Tunes", "Chill", "Requests"],
     owner: "Alan",
   },
@@ -262,6 +268,7 @@ export const rooms: Room[] = [
     members: 610,
     activeNow: 43,
     coverTone: "from-pink-500/38 via-fuchsia-500/20 to-amber-400/10",
+    coverImage: "/banner/Late_Night_chat_banner.png",
     tags: ["18+", "After Hours", "Voice"],
     owner: "Nadia",
   },
@@ -274,6 +281,7 @@ export const rooms: Room[] = [
     members: 280,
     activeNow: 27,
     coverTone: "from-amber-500/30 via-orange-500/16 to-pink-500/10",
+    coverImage: "/banner/hobbies_banner.png",
     tags: ["Watchlist", "Friends", "Weekly"],
     owner: "Lisa",
   },
@@ -286,6 +294,7 @@ export const rooms: Room[] = [
     members: 720,
     activeNow: 64,
     coverTone: "from-violet-500/38 via-indigo-500/18 to-cyan-400/10",
+    coverImage: "/banner/gamming_hangout_banner.png",
     tags: ["Tables", "Competitive", "Voice"],
     owner: "Steve",
   },
@@ -395,6 +404,7 @@ export const datingProfiles = [
     age: 29,
     location: "NYC, NY, USA",
     avatar: "/ppic/ppic2.png",
+    photo: "/snaps/snap3.jpeg",
     headline: "Live music, city walks, and low-pressure chats.",
     bio: "Looking for playful, adult conversation that can move from public rooms into something more personal if the vibe is right.",
     flags: ["Music", "Travel", "Nightlife"],
@@ -406,6 +416,7 @@ export const datingProfiles = [
     age: 30,
     location: "Chicago, IL, USA",
     avatar: "/ppic/ppic1.jpeg",
+    photo: "/snaps/snap4.jpeg",
     headline: "Games hub regular and movie room fan.",
     bio: "Usually online in evenings. Likes rooms first, then matches and DMs after there is some comfort.",
     flags: ["Games", "Movies", "Travel"],
@@ -417,6 +428,7 @@ export const datingProfiles = [
     age: 26,
     location: "Dublin, IE",
     avatar: "/ppic/ppic2.png",
+    photo: "/snaps/snap01.png",
     headline: "Friends-only snaps and relaxed rooms.",
     bio: "Here for mature energy, visual storytelling, and the occasional quick lounge conversation.",
     flags: ["Snaps", "Travel", "Chill"],
@@ -428,6 +440,7 @@ export const datingProfiles = [
     age: 32,
     location: "Miami, FL, USA",
     avatar: "/ppic/ppic1.jpeg",
+    photo: "/snaps/snap2.png",
     headline: "Sports rooms and dating discover.",
     bio: "Prefers direct conversations after a clean mutual match. Good with voice rooms and travel plans.",
     flags: ["Sports", "Voice", "Travel"],
@@ -445,6 +458,7 @@ export const snaps: Snap[] = [
     likes: 342,
     comments: 48,
     tone: "from-orange-400/40 via-pink-500/22 to-violet-500/10",
+    image: "/snaps/snap3.jpeg",
   },
   {
     id: "night-friends",
@@ -456,6 +470,7 @@ export const snaps: Snap[] = [
     likes: 275,
     comments: 32,
     tone: "from-fuchsia-500/38 via-violet-500/22 to-indigo-500/10",
+    image: "/snaps/snap01.png",
   },
   {
     id: "ocean-view",
@@ -467,6 +482,7 @@ export const snaps: Snap[] = [
     likes: 154,
     comments: 12,
     tone: "from-cyan-400/36 via-sky-500/18 to-violet-500/10",
+    image: "/snaps/snap2.png",
   },
   {
     id: "city-lights",
@@ -478,6 +494,7 @@ export const snaps: Snap[] = [
     likes: 218,
     comments: 27,
     tone: "from-amber-400/30 via-orange-500/18 to-rose-500/12",
+    image: "/snaps/snap0.png",
   },
 ];
 
@@ -491,6 +508,7 @@ export const reels: Reel[] = [
     likes: 321,
     comments: 21,
     tone: "from-fuchsia-500/34 via-indigo-500/20 to-cyan-400/12",
+    poster: "/snaps/snap6.webp",
   },
   {
     id: "night-drive",
@@ -501,6 +519,7 @@ export const reels: Reel[] = [
     likes: 210,
     comments: 14,
     tone: "from-cyan-400/30 via-violet-500/18 to-pink-500/12",
+    poster: "/snaps/snap05.png",
   },
   {
     id: "game-lobby",
@@ -511,6 +530,7 @@ export const reels: Reel[] = [
     likes: 188,
     comments: 16,
     tone: "from-violet-500/36 via-fuchsia-500/16 to-amber-400/10",
+    poster: "/snaps/snap02.png",
   },
 ];
 

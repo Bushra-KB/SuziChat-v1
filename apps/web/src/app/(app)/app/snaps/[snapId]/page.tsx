@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
 import { snaps } from "@/lib/v1-mock-data";
 
@@ -12,7 +13,16 @@ export default async function SnapDetailPage({
   return (
     <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <Panel className="overflow-hidden p-0">
-        <div className={`aspect-[4/3] bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] ${snap.tone}`} />
+        <div className="relative aspect-[4/3] overflow-hidden">
+          <Image
+            src={snap.image}
+            alt={`${snap.title} snap`}
+            fill
+            sizes="(min-width: 1280px) 70vw, 100vw"
+            className="object-cover"
+          />
+          <div className={`absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,24,0.03),rgba(10,12,24,0.22))] ${snap.tone}`} />
+        </div>
         <div className="border-t border-white/8 px-6 py-5">
           <p className="text-xl font-semibold text-white">{snap.author}</p>
           <p className="mt-2 text-sm leading-7 text-slate-300/80">{snap.caption}</p>

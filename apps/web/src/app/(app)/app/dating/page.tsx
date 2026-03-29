@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Chip, Panel, SectionHeader } from "@/components/ui/suzi-primitives";
 import { datingProfiles } from "@/lib/v1-mock-data";
@@ -45,7 +46,16 @@ export default function DatingPage() {
               key={profile.id}
               className="overflow-hidden rounded-[1.4rem] border border-white/10 bg-[rgba(16,19,38,0.94)]"
             >
-              <div className="h-64 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0)),radial-gradient(circle_at_top,rgba(232,77,255,0.18),transparent_45%),radial-gradient(circle_at_bottom,rgba(82,213,255,0.12),transparent_40%)]" />
+              <div className="relative h-64 overflow-hidden">
+                <Image
+                  src={profile.photo ?? profile.avatar}
+                  alt={`${profile.name} profile`}
+                  fill
+                  sizes="(min-width: 1280px) 22vw, (min-width: 768px) 33vw, 100vw"
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,24,0.02),rgba(10,12,24,0.5)),radial-gradient(circle_at_top,rgba(232,77,255,0.18),transparent_45%),radial-gradient(circle_at_bottom,rgba(82,213,255,0.12),transparent_40%)]" />
+              </div>
               <div className="p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
