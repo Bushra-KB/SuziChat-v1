@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Chip, Panel, SectionHeader, StatusDot } from "@/components/ui/suzi-primitives";
-import { games, gameLobbyChat, people, reels, roomCategories, rooms, snaps } from "@/lib/v1-mock-data";
+import { games, people, reels, roomCategories, rooms, snaps } from "@/lib/v1-mock-data";
 
 export default function AppHomePage() {
   const roomTones = [
@@ -214,36 +214,6 @@ export default function AppHomePage() {
                   </div>
                 </Link>
               ))}
-            </div>
-          </Panel>
-
-          <Panel className="p-4">
-            <SectionHeader eyebrow="People in Lobby" title="Live Now" />
-            <div className="mt-4 space-y-2">
-              {people.slice(0, 5).map((person) => (
-                <div key={person.id} className="flex items-center justify-between rounded-[0.9rem] border border-white/8 bg-white/4 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Image src={person.avatar} alt={person.name} width={30} height={30} className="h-7 w-7 rounded-full object-cover" />
-                    <p className="text-sm font-medium text-white">{person.name}</p>
-                  </div>
-                  <StatusDot status={person.status} />
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 rounded-[1rem] border border-white/8 bg-white/4 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-100/68">Lobby Chat</p>
-              <div className="mt-3 space-y-2 text-sm text-[var(--text-muted)]">
-                {gameLobbyChat.slice(0, 3).map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-              </div>
-              <Link
-                href="/app/games/chess"
-                className="suzi-secondary-btn mt-3 inline-flex w-full items-center justify-center px-3 py-2 text-sm"
-              >
-                Open game lobby
-              </Link>
             </div>
           </Panel>
 
