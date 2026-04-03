@@ -59,18 +59,20 @@ a {
 
 .suzi-hybrid-bg {
   background:
-    radial-gradient(circle at top, rgba(232, 77, 255, 0.18), transparent 18%),
-    radial-gradient(circle at 18% 18%, rgba(82, 213, 255, 0.13), transparent 22%),
-    radial-gradient(circle at 82% 14%, rgba(142, 93, 255, 0.14), transparent 18%),
-    linear-gradient(180deg, #171936 0%, #1a1f3d 34%, #141831 100%);
+    radial-gradient(circle at 48% -22%, rgba(143, 214, 255, 0.5), transparent 46%),
+    radial-gradient(circle at 12% 22%, rgba(91, 160, 255, 0.32), transparent 38%),
+    radial-gradient(circle at 82% 16%, rgba(144, 122, 255, 0.26), transparent 34%),
+    radial-gradient(circle at 50% 74%, rgba(123, 82, 255, 0.2), transparent 46%),
+    linear-gradient(180deg, #2a49cb 0%, #3653ce 12%, #2a3ec0 32%, #202f99 60%, #18256f 100%);
 }
 
 .dark .suzi-hybrid-bg {
   background:
-    radial-gradient(circle at top, rgba(232, 77, 255, 0.16), transparent 18%),
-    radial-gradient(circle at 18% 18%, rgba(82, 213, 255, 0.12), transparent 22%),
-    radial-gradient(circle at 82% 14%, rgba(142, 93, 255, 0.12), transparent 18%),
-    linear-gradient(180deg, #090c18 0%, #0e1224 34%, #0b0f20 100%);
+    radial-gradient(circle at 50% -30%, rgba(121, 201, 255, 0.35), transparent 48%),
+    radial-gradient(circle at 10% 24%, rgba(63, 122, 255, 0.26), transparent 34%),
+    radial-gradient(circle at 86% 14%, rgba(131, 88, 255, 0.24), transparent 34%),
+    radial-gradient(circle at 56% 82%, rgba(161, 53, 255, 0.18), transparent 46%),
+    linear-gradient(180deg, #070d2a 0%, #0a1337 18%, #08122f 42%, #071028 64%, #060d23 100%);
 }
 
 .suzi-panel {

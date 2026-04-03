@@ -1,188 +1,181 @@
+import Image from "next/image";
 import Link from "next/link";
-import { PersonRow, RoomDirectoryCard, SnapCard } from "@/components/app/v1-blocks";
-import {
-  Chip,
-  MetricCard,
-  Panel,
-  SectionHeader,
-} from "@/components/ui/suzi-primitives";
-import {
-  adminStats,
-  datingProfiles,
-  directMessageThreads,
-  games,
-  notifications,
-  people,
-  roomCategories,
-  rooms,
-  snaps,
-} from "@/lib/v1-mock-data";
+import { Chip, Panel, SectionHeader, StatusDot } from "@/components/ui/suzi-primitives";
+import { games, gameLobbyChat, people, reels, roomCategories, rooms, snaps } from "@/lib/v1-mock-data";
 
 export default function AppHomePage() {
+  const roomTones = [
+    "from-cyan-400/26 via-blue-500/18 to-indigo-500/12",
+    "from-fuchsia-500/30 via-violet-500/20 to-sky-500/10",
+    "from-emerald-400/24 via-cyan-500/16 to-blue-500/10",
+  ];
+
   return (
     <section className="space-y-6">
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_360px]">
-        <div className="space-y-6">
-          <Panel className="p-6 sm:p-7">
-            <SectionHeader
-              eyebrow="Dashboard"
-              title="Continue chatting, browsing, and matching"
-              copy="A cleaner SuziChat home for rooms, messages, friends, dating, snaps, reels, and games. Neon stays controlled and functional."
-              action={
+      <div className="grid gap-5 xl:grid-cols-[18.75rem_minmax(0,1fr)_20rem]">
+        <div className="space-y-5">
+          <Panel className="p-4">
+            <SectionHeader eyebrow="Your Friends" title="Friends Online" />
+
+            <div className="mt-4 flex items-center gap-2">
+              <input className="suzi-input" placeholder="Search friends" />
+              <button type="button" className="suzi-secondary-btn px-3 py-2 text-xs">
+                All
+              </button>
+            </div>
+
+            <div className="suzi-scrollbar mt-4 max-h-[24rem] space-y-2 overflow-y-auto pr-1">
+              {people.map((person) => (
                 <Link
-                  href="/app/rooms/create"
-                  className="suzi-primary-btn inline-flex items-center gap-2 px-4 py-2.5 text-sm"
+                  key={person.id}
+                  href={`/app/messages/${person.id}-thread`}
+                  className="flex items-center gap-3 rounded-[1rem] border border-white/8 bg-white/4 px-3 py-3 transition hover:border-cyan-300/25 hover:bg-white/7"
                 >
+                  <Image
+                    src={person.avatar}
+                    alt={person.name}
+                    width={44}
+                    height={44}
+                    className="h-11 w-11 rounded-full border border-white/15 object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-white">{person.name}</p>
+                      <StatusDot status={person.status} />
+                    </div>
+                    <p className="truncate text-xs text-[var(--text-soft)]">{person.location}</p>
+                  </div>
+                  <span className="suzi-icon-btn inline-flex h-8 w-8 items-center justify-center rounded-full">
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.85"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M4 6h16v10H8l-4 4V6Z" />
+                    </svg>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </Panel>
+
+          <Panel className="p-4">
+            <SectionHeader
+              eyebrow="Reels"
+              title="Fresh Clips"
+              action={
+                <Link href="/app/reels" className="text-sm font-medium text-cyan-100/78 transition hover:text-white">
+                  See all
+                </Link>
+              }
+            />
+
+            <div className="mt-4 space-y-3">
+              {reels.slice(0, 3).map((reel) => (
+                <Link
+                  key={reel.id}
+                  href={`/app/reels?focus=${reel.id}`}
+                  className="flex items-center gap-3 rounded-[1rem] border border-white/8 bg-white/4 p-2 transition hover:border-fuchsia-300/30 hover:bg-white/7"
+                >
+                  <Image
+                    src={reel.poster}
+                    alt={reel.author}
+                    width={80}
+                    height={80}
+                    className="h-20 w-20 rounded-[0.8rem] object-cover"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-white">{reel.author}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{reel.caption}</p>
+                    <p className="mt-2 text-[0.7rem] uppercase tracking-[0.2em] text-cyan-100/70">
+                      {reel.views} views
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </Panel>
+        </div>
+
+        <div className="space-y-5">
+          <Panel className="p-5 sm:p-6">
+            <SectionHeader
+              eyebrow="Chat Rooms"
+              title="Lobby · Chat · Cam · Relaxed"
+              copy="Immersive community spaces with stronger color identity. Join a room or browse by category."
+              action={
+                <Link href="/app/rooms/create" className="suzi-primary-btn inline-flex items-center gap-2 px-4 py-2.5 text-sm">
                   Create Room
                 </Link>
               }
             />
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {adminStats.map((item) => (
-                <MetricCard key={item.label} label={item.label} value={item.value} tone={item.tone} />
+            <div className="mt-5 space-y-3">
+              {rooms.slice(0, 3).map((room, index) => (
+                <article
+                  key={room.id}
+                  className={`rounded-[1.2rem] border border-white/12 bg-[linear-gradient(120deg,rgba(20,24,51,0.84),rgba(20,24,51,0.62)),radial-gradient(circle_at_top_left,rgba(255,255,255,0.14),transparent_50%)] p-4 ${roomTones[index] ?? roomTones[0]}`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xl font-semibold text-white">{room.name}</p>
+                      <p className="mt-1 text-sm text-[var(--text-muted)]">{room.description}</p>
+                    </div>
+                    <Link href={`/app/rooms/${room.id}`} className="suzi-secondary-btn inline-flex items-center gap-2 px-4 py-2 text-sm">
+                      {index === 2 ? "Browse" : "Join Group"}
+                    </Link>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {room.tags.slice(0, 3).map((tag) => (
+                      <Chip key={tag}>{tag}</Chip>
+                    ))}
+                    <Chip tone={room.privacy === "Friends" ? "cyan" : "default"}>{room.privacy}</Chip>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {roomCategories.slice(0, 6).map((category, index) => (
+                <Chip
+                  key={category}
+                  active={index === 0}
+                  tone={index === 1 ? "cyan" : index === 2 ? "pink" : index === 4 ? "gold" : "default"}
+                >
+                  {category}
+                </Chip>
               ))}
             </div>
           </Panel>
 
-          <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.05fr)_360px]">
-            <Panel className="p-6 sm:p-7">
-              <SectionHeader
-                eyebrow="Continue"
-                title="Resume your active spaces"
-                copy="Jump back into the room, direct message, or game lobby that still has momentum."
-              />
-
-              <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                <Link
-                  href="/app/rooms/general-chat"
-                  className="overflow-hidden rounded-[1.4rem] border border-white/10 bg-[linear-gradient(135deg,rgba(103,76,255,0.3),rgba(232,77,255,0.18))] p-5 transition hover:-translate-y-0.5"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/70">
-                    Active room
-                  </p>
-                  <p className="mt-3 text-2xl font-semibold text-white">General Chat</p>
-                  <p className="mt-2 text-sm leading-7 text-slate-200/78">
-                    Music, daily room updates, and quick moves into game tables.
-                  </p>
-                  <div className="mt-5 flex items-center justify-between">
-                    <Chip tone="cyan">126 active</Chip>
-                    <span className="text-sm font-medium text-white">Open</span>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/app/messages/alan-thread"
-                  className="overflow-hidden rounded-[1.4rem] border border-white/10 bg-[linear-gradient(135deg,rgba(20,120,173,0.22),rgba(68,38,180,0.2))] p-5 transition hover:-translate-y-0.5"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/70">
-                    Active DM
-                  </p>
-                  <p className="mt-3 text-2xl font-semibold text-white">Alan Rivera</p>
-                  <p className="mt-2 text-sm leading-7 text-slate-200/78">
-                    “Want the private chess table or public lobby tonight?”
-                  </p>
-                  <div className="mt-5 flex items-center justify-between">
-                    <Chip tone="pink">3 unread</Chip>
-                    <span className="text-sm font-medium text-white">Reply</span>
-                  </div>
-                </Link>
-              </div>
-
-              <div className="mt-8">
-                <SectionHeader
-                  eyebrow="Trending Rooms"
-                  title="Rooms worth joining tonight"
-                  action={
-                    <Link href="/app/rooms" className="text-sm font-medium text-cyan-100/78 transition hover:text-white">
-                      View all rooms
-                    </Link>
-                  }
-                />
-                <div className="mt-5 grid gap-4 xl:grid-cols-3">
-                  {rooms.slice(0, 3).map((room) => (
-                    <RoomDirectoryCard key={room.id} room={room} />
-                  ))}
-                </div>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {roomCategories.slice(0, 6).map((category, index) => (
-                    <Chip key={category} active={index === 0} tone={index === 2 ? "pink" : index === 4 ? "gold" : "default"}>
-                      {category}
-                    </Chip>
-                  ))}
-                </div>
-              </div>
-            </Panel>
-
-            <div className="space-y-6">
-              <Panel className="p-5">
-                <SectionHeader
-                  eyebrow="Online Friends"
-                  title="People available now"
-                />
-                <div className="mt-5 space-y-3">
-                  {people.slice(0, 4).map((person) => (
-                    <PersonRow
-                      key={person.id}
-                      person={person}
-                      compact
-                      action={
-                        <Link
-                          href={`/app/messages/${person.id}-thread`}
-                          className="suzi-secondary-btn px-3 py-2 text-xs"
-                        >
-                          DM
-                        </Link>
-                      }
-                    />
-                  ))}
-                </div>
-              </Panel>
-
-              <Panel className="p-5">
-                <SectionHeader eyebrow="Notifications" title="What needs attention" />
-                <div className="mt-5 space-y-3">
-                  {notifications.slice(0, 3).map((item) => (
-                    <div key={item.id} className="rounded-[1rem] border border-white/8 bg-white/4 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-pink-100/70">
-                        {item.type}
-                      </p>
-                      <p className="mt-2 font-medium text-white">{item.title}</p>
-                      <p className="mt-1 text-sm text-slate-400">{item.time}</p>
-                    </div>
-                  ))}
-                </div>
-              </Panel>
-            </div>
-          </div>
-
-          <Panel className="p-6 sm:p-7">
+          <Panel className="p-5 sm:p-6">
             <SectionHeader
               eyebrow="Suzi Games"
-              title="Quick lobbies, private tables, and friend invites"
-              copy="The games surfaces stay connected to the social layer, so room activity, friends, and table invites all move together."
+              title="Play With Friends"
               action={
                 <Link href="/app/games" className="text-sm font-medium text-cyan-100/78 transition hover:text-white">
-                  Open Games Hub
+                  View more
                 </Link>
               }
             />
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {games.map((game) => (
-                <article
-                  key={game.id}
-                  className="rounded-[1.4rem] border border-white/10 bg-[rgba(255,255,255,0.03)] p-4"
-                >
-                  <div
-                    className={`rounded-[1.1rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.14),transparent_40%)] ${game.tone} p-4`}
-                  >
-                    <div className="text-xl font-semibold text-white">{game.name}</div>
-                    <p className="mt-2 text-sm leading-6 text-slate-300/78">{game.copy}</p>
+                <article key={game.id} className="rounded-[1.1rem] border border-white/10 bg-white/4 p-3">
+                  <div className={`rounded-[0.9rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.16),transparent_45%)] p-3 ${game.tone}`}>
+                    <div className="relative h-20 w-full overflow-hidden rounded-[0.65rem]">
+                      <Image src={game.icon} alt={game.name} fill sizes="(min-width: 1280px) 20vw, 33vw" className="object-contain" />
+                    </div>
                   </div>
+                  <p className="mt-3 text-lg font-semibold text-white">{game.name}</p>
                   <Link
                     href={`/app/games/${game.id}`}
-                    className="suzi-secondary-btn mt-4 inline-flex w-full items-center justify-center px-4 py-2.5 text-sm"
+                    className="suzi-secondary-btn mt-3 inline-flex w-full items-center justify-center px-3 py-2 text-sm"
                   >
                     Open lobby
                   </Link>
@@ -192,80 +185,80 @@ export default function AppHomePage() {
           </Panel>
         </div>
 
-        <div className="space-y-6">
-          <Panel className="p-5">
+        <div className="space-y-5">
+          <Panel className="p-4">
             <SectionHeader
               eyebrow="Suzi Snaps"
-              title="Latest moments"
+              title="Moments"
               action={
                 <Link href="/app/snaps" className="text-sm font-medium text-cyan-100/78 transition hover:text-white">
-                  See feed
+                  Open feed
                 </Link>
               }
             />
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+
+            <div className="mt-4 space-y-3">
               {snaps.slice(0, 2).map((snap) => (
-                <SnapCard key={snap.id} snap={snap} />
+                <Link
+                  key={snap.id}
+                  href={`/app/snaps/${snap.id}`}
+                  className="block overflow-hidden rounded-[1rem] border border-white/10 bg-white/4"
+                >
+                  <div className="relative h-36">
+                    <Image src={snap.image} alt={snap.title} fill sizes="(min-width: 1280px) 20vw, 50vw" className="object-cover" />
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0.12),rgba(4,8,26,0.55))]" />
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-semibold text-white">{snap.author}</p>
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">{snap.caption}</p>
+                  </div>
+                </Link>
               ))}
             </div>
           </Panel>
 
-          <Panel className="p-5">
-            <SectionHeader
-              eyebrow="Dating"
-              title="Discover and matches"
-              copy="Low-pressure entry into the dating layer, with filters, mutual interest, and an easy move into DMs."
-            />
-            <div className="mt-5 space-y-3">
-              {datingProfiles.slice(0, 3).map((profile) => (
-                <div key={profile.id} className="rounded-[1.15rem] border border-white/8 bg-white/4 p-4">
-                  <p className="font-medium text-white">
-                    {profile.name}, {profile.age}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-400">{profile.location}</p>
-                  <p className="mt-3 text-sm leading-6 text-slate-300/76">
-                    {profile.headline}
-                  </p>
-                  <div className="mt-4 flex items-center justify-between gap-3">
-                    <div className="flex flex-wrap gap-2">
-                      {profile.flags?.slice(0, 2).map((flag) => (
-                        <Chip key={flag} tone="pink">
-                          {flag}
-                        </Chip>
-                      ))}
-                    </div>
-                    <Link
-                      href={`/app/dating/${profile.id}`}
-                      className="suzi-secondary-btn px-3 py-2 text-xs"
-                    >
-                      View
-                    </Link>
+          <Panel className="p-4">
+            <SectionHeader eyebrow="People in Lobby" title="Live Now" />
+            <div className="mt-4 space-y-2">
+              {people.slice(0, 5).map((person) => (
+                <div key={person.id} className="flex items-center justify-between rounded-[0.9rem] border border-white/8 bg-white/4 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <Image src={person.avatar} alt={person.name} width={30} height={30} className="h-7 w-7 rounded-full object-cover" />
+                    <p className="text-sm font-medium text-white">{person.name}</p>
                   </div>
+                  <StatusDot status={person.status} />
                 </div>
               ))}
             </div>
+
+            <div className="mt-4 rounded-[1rem] border border-white/8 bg-white/4 p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-100/68">Lobby Chat</p>
+              <div className="mt-3 space-y-2 text-sm text-[var(--text-muted)]">
+                {gameLobbyChat.slice(0, 3).map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </div>
+              <Link
+                href="/app/games/chess"
+                className="suzi-secondary-btn mt-3 inline-flex w-full items-center justify-center px-3 py-2 text-sm"
+              >
+                Open game lobby
+              </Link>
+            </div>
           </Panel>
 
-          <Panel className="p-5">
-            <SectionHeader eyebrow="Messages" title="Unread conversations" />
-            <div className="mt-5 space-y-3">
-              {directMessageThreads.slice(0, 4).map((thread) => (
-                <Link
-                  key={thread.id}
-                  href={`/app/messages/${thread.id}`}
-                  className="flex items-center justify-between gap-3 rounded-[1rem] border border-white/8 bg-white/4 px-3 py-3 transition hover:bg-white/6"
-                >
-                  <div>
-                    <p className="font-medium text-white">{thread.person.name}</p>
-                    <p className="mt-1 text-sm text-slate-400">{thread.preview}</p>
-                  </div>
-                  {thread.unread ? (
-                    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-fuchsia-500/90 px-2 text-xs font-semibold text-white">
-                      {thread.unread}
-                    </span>
-                  ) : null}
-                </Link>
-              ))}
+          <Panel className="p-4">
+            <SectionHeader eyebrow="Suzi Dating" title="Discover and match" />
+            <div className="mt-4 rounded-[1rem] border border-pink-300/25 bg-[linear-gradient(145deg,rgba(232,77,255,0.25),rgba(49,78,220,0.22))] p-4">
+              <p className="text-sm leading-7 text-pink-50/90">
+                Browse profiles, send interest, and move to private chat on mutual match.
+              </p>
+              <Link
+                href="/app/dating"
+                className="suzi-primary-btn mt-4 inline-flex w-full items-center justify-center px-4 py-2.5 text-sm"
+              >
+                Open Dating
+              </Link>
             </div>
           </Panel>
         </div>
