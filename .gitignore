@@ -23,6 +23,7 @@ coverage/
 Thumbs.db
 .idea/
 .vscode/
+.codex
 
 # local runtime data
 uploads/
