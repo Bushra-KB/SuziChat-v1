@@ -64,9 +64,22 @@ export function AppShell({
 
   return (
     <main className="suzi-hybrid-bg relative min-h-screen overflow-hidden text-white">
-      <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(rgba(255,255,255,0.6)_0.7px,transparent_0.7px)] [background-size:28px_28px]" />
-      <div className="absolute left-0 top-0 h-[30rem] w-[30rem] rounded-full bg-fuchsia-500/10 blur-[140px]" />
-      <div className="absolute bottom-0 right-0 h-[24rem] w-[24rem] rounded-full bg-cyan-400/10 blur-[120px]" />
+      <div className="absolute inset-0 opacity-12 [background-image:radial-gradient(rgba(255,255,255,0.6)_0.7px,transparent_0.7px)] [background-size:28px_28px]" />
+      <div className="absolute left-[-8%] top-[-6%] h-[34rem] w-[34rem] rounded-full bg-sky-300/14 blur-[150px]" />
+      <div className="absolute right-[-5%] top-[8%] h-[28rem] w-[28rem] rounded-full bg-blue-400/10 blur-[130px]" />
+      <div className="absolute bottom-[-8%] left-[18%] h-[26rem] w-[26rem] rounded-full bg-indigo-500/14 blur-[140px]" />
+      <div className="suzi-bottom-stars" aria-hidden="true">
+        <span className="suzi-bottom-star suzi-bottom-star-1" />
+        <span className="suzi-bottom-star suzi-bottom-star-2" />
+        <span className="suzi-bottom-star suzi-bottom-star-3" />
+        <span className="suzi-bottom-star suzi-bottom-star-4" />
+        <span className="suzi-bottom-star suzi-bottom-star-5" />
+        <span className="suzi-bottom-star suzi-bottom-star-6" />
+        <span className="suzi-bottom-star suzi-bottom-star-7" />
+        <span className="suzi-bottom-star suzi-bottom-star-8" />
+        <span className="suzi-bottom-star suzi-bottom-star-9" />
+        <span className="suzi-bottom-star suzi-bottom-star-10" />
+      </div>
 
       <div className="relative mx-auto w-full max-w-[1460px] px-3 pb-10 pt-6 sm:px-4 lg:px-5">
         <div className="pointer-events-auto absolute left-3 top-4 z-40 sm:left-4 lg:left-5">

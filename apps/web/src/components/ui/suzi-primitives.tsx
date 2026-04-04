@@ -61,20 +61,20 @@ export function Chip({
 }) {
   const toneClass =
     tone === "cyan"
-      ? "border-cyan-300/25 bg-cyan-400/10 text-cyan-100"
+      ? "border-cyan-300/35 bg-cyan-400/15 text-cyan-100 shadow-[0_0_14px_rgba(0,229,255,0.16)]"
       : tone === "pink"
-        ? "border-pink-300/25 bg-pink-400/12 text-pink-100"
+        ? "border-pink-300/35 bg-pink-400/15 text-pink-100 shadow-[0_0_14px_rgba(255,32,121,0.18)]"
         : tone === "gold"
-          ? "border-amber-300/25 bg-amber-400/12 text-amber-100"
+          ? "border-amber-300/35 bg-amber-400/14 text-amber-100 shadow-[0_0_14px_rgba(255,189,0,0.16)]"
           : tone === "emerald"
-            ? "border-emerald-300/25 bg-emerald-400/10 text-emerald-100"
-            : "border-white/10 bg-white/6 text-slate-200";
+            ? "border-emerald-300/35 bg-emerald-400/12 text-emerald-100 shadow-[0_0_14px_rgba(0,255,102,0.14)]"
+            : "border-white/14 bg-white/7 text-[var(--text-muted)]";
 
   return (
     <span
       className={cx(
-        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium tracking-[0.16em] uppercase",
-        active && "shadow-[0_0_20px_rgba(232,77,255,0.12)]",
+        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-[0.15em] uppercase",
+        active && "shadow-[0_0_18px_rgba(255,32,121,0.24)]",
         toneClass,
         className,
       )}
@@ -98,14 +98,14 @@ export function SectionHeader({
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.34em] text-cyan-100/64">
+        <p className="text-[0.84rem] font-semibold uppercase tracking-[0.2em] text-cyan-100/75">
           {eyebrow}
         </p>
-        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+        <h2 className="mt-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">
           {title}
         </h2>
         {copy ? (
-          <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300/78 sm:text-[0.96rem]">
+          <p className="mt-2 max-w-2xl text-base leading-7 text-[var(--text-muted)] sm:text-[1rem]">
             {copy}
           </p>
         ) : null}
@@ -127,11 +127,11 @@ export function MetricCard({
   return (
     <div
       className={cx(
-        "rounded-[1.4rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]",
+        "rounded-[1.4rem] border border-cyan-300/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.09),rgba(255,255,255,0.015))] p-4 shadow-[0_0_14px_rgba(0,229,255,0.12),inset_0_1px_0_rgba(255,255,255,0.1)]",
         tone && `bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_45%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))]`,
       )}
     >
-      <p className="text-xs font-medium uppercase tracking-[0.24em] text-slate-400">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-muted)]">
         {label}
       </p>
       <p className="mt-3 text-3xl font-semibold tracking-tight text-white">
