@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { HomeChatRoomsPanel } from "@/components/app/home-chat-rooms-panel";
+import { HomeDatingPanel } from "@/components/app/home-dating-panel";
 import { HomeFriendsPanel } from "@/components/app/home-friends-panel";
 import { HomeSnapsPanel } from "@/components/app/home-snaps-panel";
 import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
@@ -89,20 +90,7 @@ export default function AppHomePage() {
         <div className="space-y-5">
           <HomeSnapsPanel />
 
-          <Panel className="p-4">
-            <SectionHeader eyebrow="Suzi Dating" title="Discover and match" />
-            <div className="mt-4 rounded-[1rem] border border-pink-300/35 bg-[linear-gradient(145deg,rgba(255,32,121,0.34),rgba(157,78,221,0.24))] p-4 shadow-[0_0_22px_rgba(255,32,121,0.2)]">
-              <p className="text-sm leading-7 text-pink-50/90">
-                Browse profiles, send interest, and move to private chat on mutual match.
-              </p>
-              <Link
-                href="/app/dating"
-                className="suzi-primary-btn mt-4 inline-flex w-full items-center justify-center px-4 py-2.5 text-sm"
-              >
-                Open Dating
-              </Link>
-            </div>
-          </Panel>
+          <HomeDatingPanel />
         </div>
       </div>
     </section>
