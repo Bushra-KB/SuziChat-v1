@@ -2,8 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { HomeChatRoomsPanel } from "@/components/app/home-chat-rooms-panel";
 import { HomeFriendsPanel } from "@/components/app/home-friends-panel";
+import { HomeSnapsPanel } from "@/components/app/home-snaps-panel";
 import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
-import { games, reels, snaps } from "@/lib/v1-mock-data";
+import { games, reels } from "@/lib/v1-mock-data";
 
 export default function AppHomePage() {
   return (
@@ -86,36 +87,7 @@ export default function AppHomePage() {
         </div>
 
         <div className="space-y-5">
-          <Panel className="p-4">
-            <SectionHeader
-              eyebrow="Suzi Snaps"
-              title="Moments"
-              action={
-                <Link href="/app/snaps" className="text-sm font-medium text-cyan-100/78 transition hover:text-white">
-                  Open feed
-                </Link>
-              }
-            />
-
-            <div className="mt-4 space-y-3">
-              {snaps.slice(0, 2).map((snap) => (
-                <Link
-                  key={snap.id}
-                  href={`/app/snaps/${snap.id}`}
-                  className="block overflow-hidden rounded-[1rem] border border-fuchsia-300/24 bg-[linear-gradient(160deg,rgba(255,32,121,0.12),rgba(0,229,255,0.06))] shadow-[0_0_18px_rgba(255,32,121,0.14)]"
-                >
-                  <div className="relative h-36">
-                    <Image src={snap.image} alt={snap.title} fill sizes="(min-width: 1280px) 20vw, 50vw" className="object-cover" />
-                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0.12),rgba(4,8,26,0.55))]" />
-                  </div>
-                  <div className="p-3">
-                    <p className="text-sm font-semibold text-white">{snap.author}</p>
-                    <p className="mt-1 text-xs text-[var(--text-muted)]">{snap.caption}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </Panel>
+          <HomeSnapsPanel />
 
           <Panel className="p-4">
             <SectionHeader eyebrow="Suzi Dating" title="Discover and match" />
