@@ -5,9 +5,17 @@ import { games, people, reels, roomCategories, rooms, snaps } from "@/lib/v1-moc
 
 export default function AppHomePage() {
   const roomTones = [
-    "from-cyan-400/26 via-blue-500/18 to-indigo-500/12",
-    "from-fuchsia-500/30 via-violet-500/20 to-sky-500/10",
-    "from-emerald-400/24 via-cyan-500/16 to-blue-500/10",
+    "from-cyan-400/42 via-blue-500/28 to-indigo-500/14",
+    "from-fuchsia-500/44 via-violet-500/28 to-sky-500/14",
+    "from-emerald-400/36 via-cyan-500/26 to-blue-500/14",
+  ];
+  const categoryStyles = [
+    "suzi-chip-hobbies border-cyan-300/50 shadow-[0_0_18px_rgba(0,229,255,0.24)]",
+    "suzi-chip-hobbies border-cyan-300/50 shadow-[0_0_18px_rgba(0,229,255,0.24)]",
+    "suzi-chip-erotic border-pink-300/50 shadow-[0_0_18px_rgba(255,32,121,0.24)]",
+    "suzi-chip-erotic border-fuchsia-300/45 shadow-[0_0_18px_rgba(157,78,221,0.24)]",
+    "suzi-chip-sports border-amber-300/45 shadow-[0_0_18px_rgba(255,181,0,0.24)]",
+    "suzi-chip-music border-emerald-300/45 shadow-[0_0_18px_rgba(0,255,102,0.22)]",
   ];
 
   return (
@@ -29,7 +37,7 @@ export default function AppHomePage() {
                 <Link
                   key={person.id}
                   href={`/app/messages/${person.id}-thread`}
-                  className="flex items-center gap-3 rounded-[1rem] border border-white/8 bg-white/4 px-3 py-3 transition hover:border-cyan-300/25 hover:bg-white/7"
+                  className="flex items-center gap-3 rounded-[1rem] border border-cyan-300/20 bg-[linear-gradient(160deg,rgba(0,229,255,0.08),rgba(255,32,121,0.04))] px-3 py-3 transition hover:border-cyan-300/45 hover:bg-[linear-gradient(160deg,rgba(0,229,255,0.14),rgba(255,32,121,0.08))]"
                 >
                   <Image
                     src={person.avatar}
@@ -80,7 +88,7 @@ export default function AppHomePage() {
                 <Link
                   key={reel.id}
                   href={`/app/reels?focus=${reel.id}`}
-                  className="flex items-center gap-3 rounded-[1rem] border border-white/8 bg-white/4 p-2 transition hover:border-fuchsia-300/30 hover:bg-white/7"
+                  className="flex items-center gap-3 rounded-[1rem] border border-fuchsia-300/25 bg-[linear-gradient(155deg,rgba(157,78,221,0.18),rgba(0,229,255,0.07))] p-2 transition hover:border-fuchsia-300/55 hover:bg-[linear-gradient(155deg,rgba(157,78,221,0.28),rgba(0,229,255,0.13))]"
                 >
                   <Image
                     src={reel.poster}
@@ -119,7 +127,7 @@ export default function AppHomePage() {
               {rooms.slice(0, 3).map((room, index) => (
                 <article
                   key={room.id}
-                  className={`rounded-[1.2rem] border border-white/12 bg-[linear-gradient(120deg,rgba(20,24,51,0.84),rgba(20,24,51,0.62)),radial-gradient(circle_at_top_left,rgba(255,255,255,0.14),transparent_50%)] p-4 ${roomTones[index] ?? roomTones[0]}`}
+                  className={`rounded-[1.2rem] border border-cyan-300/26 bg-[linear-gradient(120deg,rgba(20,24,51,0.82),rgba(20,24,51,0.62)),radial-gradient(circle_at_top_left,rgba(255,255,255,0.2),transparent_52%)] p-4 shadow-[0_0_24px_rgba(0,229,255,0.14)] ${roomTones[index] ?? roomTones[0]}`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
@@ -146,6 +154,7 @@ export default function AppHomePage() {
                   key={category}
                   active={index === 0}
                   tone={index === 1 ? "cyan" : index === 2 ? "pink" : index === 4 ? "gold" : "default"}
+                  className={categoryStyles[index]}
                 >
                   {category}
                 </Chip>
@@ -166,8 +175,8 @@ export default function AppHomePage() {
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {games.map((game) => (
-                <article key={game.id} className="rounded-[1.1rem] border border-white/10 bg-white/4 p-3">
-                  <div className={`rounded-[0.9rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.16),transparent_45%)] p-3 ${game.tone}`}>
+                <article key={game.id} className="rounded-[1.1rem] border border-cyan-300/18 bg-[linear-gradient(165deg,rgba(255,32,121,0.08),rgba(0,229,255,0.07))] p-3 shadow-[0_0_20px_rgba(157,78,221,0.14)]">
+                  <div className={`rounded-[0.9rem] border border-white/14 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.2),transparent_45%)] p-3 ${game.tone}`}>
                     <div className="relative h-20 w-full overflow-hidden rounded-[0.65rem]">
                       <Image src={game.icon} alt={game.name} fill sizes="(min-width: 1280px) 20vw, 33vw" className="object-contain" />
                     </div>
@@ -202,7 +211,7 @@ export default function AppHomePage() {
                 <Link
                   key={snap.id}
                   href={`/app/snaps/${snap.id}`}
-                  className="block overflow-hidden rounded-[1rem] border border-white/10 bg-white/4"
+                  className="block overflow-hidden rounded-[1rem] border border-fuchsia-300/24 bg-[linear-gradient(160deg,rgba(255,32,121,0.12),rgba(0,229,255,0.06))] shadow-[0_0_18px_rgba(255,32,121,0.14)]"
                 >
                   <div className="relative h-36">
                     <Image src={snap.image} alt={snap.title} fill sizes="(min-width: 1280px) 20vw, 50vw" className="object-cover" />
@@ -219,7 +228,7 @@ export default function AppHomePage() {
 
           <Panel className="p-4">
             <SectionHeader eyebrow="Suzi Dating" title="Discover and match" />
-            <div className="mt-4 rounded-[1rem] border border-pink-300/25 bg-[linear-gradient(145deg,rgba(232,77,255,0.25),rgba(49,78,220,0.22))] p-4">
+            <div className="mt-4 rounded-[1rem] border border-pink-300/35 bg-[linear-gradient(145deg,rgba(255,32,121,0.34),rgba(157,78,221,0.24))] p-4 shadow-[0_0_22px_rgba(255,32,121,0.2)]">
               <p className="text-sm leading-7 text-pink-50/90">
                 Browse profiles, send interest, and move to private chat on mutual match.
               </p>
