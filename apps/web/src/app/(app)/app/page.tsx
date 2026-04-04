@@ -1,24 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
+import { HomeChatRoomsPanel } from "@/components/app/home-chat-rooms-panel";
 import { HomeFriendsPanel } from "@/components/app/home-friends-panel";
-import { Chip, Panel, SectionHeader } from "@/components/ui/suzi-primitives";
-import { games, reels, roomCategories, rooms, snaps } from "@/lib/v1-mock-data";
+import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
+import { games, reels, snaps } from "@/lib/v1-mock-data";
 
 export default function AppHomePage() {
-  const roomTones = [
-    "from-cyan-400/42 via-blue-500/28 to-indigo-500/14",
-    "from-fuchsia-500/44 via-violet-500/28 to-sky-500/14",
-    "from-emerald-400/36 via-cyan-500/26 to-blue-500/14",
-  ];
-  const categoryStyles = [
-    "suzi-chip-hobbies border-cyan-300/50 shadow-[0_0_18px_rgba(0,229,255,0.24)]",
-    "suzi-chip-hobbies border-cyan-300/50 shadow-[0_0_18px_rgba(0,229,255,0.24)]",
-    "suzi-chip-erotic border-pink-300/50 shadow-[0_0_18px_rgba(255,32,121,0.24)]",
-    "suzi-chip-erotic border-fuchsia-300/45 shadow-[0_0_18px_rgba(157,78,221,0.24)]",
-    "suzi-chip-sports border-amber-300/45 shadow-[0_0_18px_rgba(255,181,0,0.24)]",
-    "suzi-chip-music border-emerald-300/45 shadow-[0_0_18px_rgba(0,255,102,0.22)]",
-  ];
-
   return (
     <section className="space-y-6">
       <div className="grid gap-5 xl:grid-cols-[18.75rem_minmax(0,1fr)_20rem]">
@@ -64,56 +51,7 @@ export default function AppHomePage() {
         </div>
 
         <div className="space-y-5">
-          <Panel className="p-5 sm:p-6">
-            <SectionHeader
-              eyebrow="Chat Rooms"
-              title="Lobby · Chat · Cam · Relaxed"
-              copy="Immersive community spaces with stronger color identity. Join a room or browse by category."
-              action={
-                <Link href="/app/rooms/create" className="suzi-primary-btn inline-flex items-center gap-2 px-4 py-2.5 text-sm">
-                  Create Room
-                </Link>
-              }
-            />
-
-            <div className="mt-5 space-y-3">
-              {rooms.slice(0, 3).map((room, index) => (
-                <article
-                  key={room.id}
-                  className={`rounded-[1.2rem] border border-cyan-300/26 bg-[linear-gradient(120deg,rgba(20,24,51,0.82),rgba(20,24,51,0.62)),radial-gradient(circle_at_top_left,rgba(255,255,255,0.2),transparent_52%)] p-4 shadow-[0_0_24px_rgba(0,229,255,0.14)] ${roomTones[index] ?? roomTones[0]}`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xl font-semibold text-white">{room.name}</p>
-                      <p className="mt-1 text-sm text-[var(--text-muted)]">{room.description}</p>
-                    </div>
-                    <Link href={`/app/rooms/${room.id}`} className="suzi-secondary-btn inline-flex items-center gap-2 px-4 py-2 text-sm">
-                      {index === 2 ? "Browse" : "Join Group"}
-                    </Link>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {room.tags.slice(0, 3).map((tag) => (
-                      <Chip key={tag}>{tag}</Chip>
-                    ))}
-                    <Chip tone={room.privacy === "Friends" ? "cyan" : "default"}>{room.privacy}</Chip>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              {roomCategories.slice(0, 6).map((category, index) => (
-                <Chip
-                  key={category}
-                  active={index === 0}
-                  tone={index === 1 ? "cyan" : index === 2 ? "pink" : index === 4 ? "gold" : "default"}
-                  className={categoryStyles[index]}
-                >
-                  {category}
-                </Chip>
-              ))}
-            </div>
-          </Panel>
+          <HomeChatRoomsPanel />
 
           <Panel className="p-5 sm:p-6">
             <SectionHeader
