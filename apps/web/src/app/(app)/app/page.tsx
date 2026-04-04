@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Chip, Panel, SectionHeader, StatusDot } from "@/components/ui/suzi-primitives";
-import { games, people, reels, roomCategories, rooms, snaps } from "@/lib/v1-mock-data";
+import { HomeFriendsPanel } from "@/components/app/home-friends-panel";
+import { Chip, Panel, SectionHeader } from "@/components/ui/suzi-primitives";
+import { games, reels, roomCategories, rooms, snaps } from "@/lib/v1-mock-data";
 
 export default function AppHomePage() {
   const roomTones = [
@@ -22,55 +23,7 @@ export default function AppHomePage() {
     <section className="space-y-6">
       <div className="grid gap-5 xl:grid-cols-[18.75rem_minmax(0,1fr)_20rem]">
         <div className="space-y-5">
-          <Panel className="p-4">
-            <SectionHeader eyebrow="Your Friends" title="Friends Online" />
-
-            <div className="mt-4 flex items-center gap-2">
-              <input className="suzi-input" placeholder="Search friends" />
-              <button type="button" className="suzi-secondary-btn px-3 py-2 text-xs">
-                All
-              </button>
-            </div>
-
-            <div className="suzi-scrollbar mt-4 max-h-[24rem] space-y-2 overflow-y-auto pr-1">
-              {people.map((person) => (
-                <Link
-                  key={person.id}
-                  href={`/app/messages/${person.id}-thread`}
-                  className="flex items-center gap-3 rounded-[1rem] border border-cyan-300/20 bg-[linear-gradient(160deg,rgba(0,229,255,0.08),rgba(255,32,121,0.04))] px-3 py-3 transition hover:border-cyan-300/45 hover:bg-[linear-gradient(160deg,rgba(0,229,255,0.14),rgba(255,32,121,0.08))]"
-                >
-                  <Image
-                    src={person.avatar}
-                    alt={person.name}
-                    width={44}
-                    height={44}
-                    className="h-11 w-11 rounded-full border border-white/15 object-cover"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-semibold text-white">{person.name}</p>
-                      <StatusDot status={person.status} />
-                    </div>
-                    <p className="truncate text-xs text-[var(--text-soft)]">{person.location}</p>
-                  </div>
-                  <span className="suzi-icon-btn inline-flex h-8 w-8 items-center justify-center rounded-full">
-                    <svg
-                      aria-hidden="true"
-                      viewBox="0 0 24 24"
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.85"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M4 6h16v10H8l-4 4V6Z" />
-                    </svg>
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </Panel>
+          <HomeFriendsPanel />
 
           <Panel className="p-4">
             <SectionHeader
