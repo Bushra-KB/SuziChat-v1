@@ -248,12 +248,16 @@ export function ReelCard({
       className="overflow-hidden rounded-[1.4rem] border border-white/8 bg-[rgba(18,21,40,0.94)] transition hover:-translate-y-0.5 hover:border-white/12"
     >
       <div className="relative aspect-[9/14] overflow-hidden">
-        <Image
-          src={reel.poster}
-          alt={`${reel.author} reel`}
-          fill
-          sizes="(min-width: 1280px) 20vw, (min-width: 768px) 33vw, 100vw"
-          className="object-cover"
+        <video
+          src={reel.video}
+          poster={reel.poster}
+          className="h-full w-full object-cover"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
+          aria-label={`${reel.author} reel`}
         />
         <div
           className={cx(
@@ -266,7 +270,7 @@ export function ReelCard({
             <Avatar src={reel.avatar} alt={`${reel.author} avatar`} size={34} className="h-8 w-8" />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-white">{reel.author}</p>
-              <p className="truncate text-xs text-slate-400">{reel.views} views</p>
+              <p className="truncate text-xs text-slate-400">{reel.views} views · {reel.likes} likes</p>
             </div>
           </div>
           <p className="mt-3 text-sm leading-6 text-slate-300/80">{reel.caption}</p>
