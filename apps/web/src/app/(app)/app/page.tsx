@@ -3,9 +3,10 @@ import Link from "next/link";
 import { HomeChatRoomsPanel } from "@/components/app/home-chat-rooms-panel";
 import { HomeDatingPanel } from "@/components/app/home-dating-panel";
 import { HomeFriendsPanel } from "@/components/app/home-friends-panel";
+import { HomeReelsPanel } from "@/components/app/home-reels-panel";
 import { HomeSnapsPanel } from "@/components/app/home-snaps-panel";
-import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
-import { games, reels } from "@/lib/v1-mock-data";
+import { Panel } from "@/components/ui/suzi-primitives";
+import { games } from "@/lib/v1-mock-data";
 
 export default function AppHomePage() {
   return (
@@ -13,60 +14,41 @@ export default function AppHomePage() {
       <div className="grid gap-5 xl:grid-cols-[18.75rem_minmax(0,1fr)_20rem]">
         <div className="space-y-5">
           <HomeFriendsPanel />
-
-          <Panel className="p-4">
-            <SectionHeader
-              eyebrow="Reels"
-              title="Fresh Clips"
-              action={
-                <Link href="/app/reels" className="text-sm font-medium text-cyan-100/78 transition hover:text-white">
-                  See all
-                </Link>
-              }
-            />
-
-            <div className="mt-4 space-y-3">
-              {reels.slice(0, 3).map((reel) => (
-                <Link
-                  key={reel.id}
-                  href={`/app/reels?focus=${reel.id}`}
-                  className="flex items-center gap-3 rounded-[1rem] border border-fuchsia-300/25 bg-[linear-gradient(155deg,rgba(157,78,221,0.18),rgba(0,229,255,0.07))] p-2 transition hover:border-fuchsia-300/55 hover:bg-[linear-gradient(155deg,rgba(157,78,221,0.28),rgba(0,229,255,0.13))]"
-                >
-                  <Image
-                    src={reel.poster}
-                    alt={reel.author}
-                    width={80}
-                    height={80}
-                    className="h-20 w-20 rounded-[0.8rem] object-cover"
-                  />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white">{reel.author}</p>
-                    <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{reel.caption}</p>
-                    <p className="mt-2 text-[0.7rem] uppercase tracking-[0.2em] text-cyan-100/70">
-                      {reel.views} views
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </Panel>
+          <HomeReelsPanel />
         </div>
 
         <div className="space-y-5">
           <HomeChatRoomsPanel />
 
           <Panel className="p-5 sm:p-6">
-            <SectionHeader
-              eyebrow="Suzi Games"
-              title="Play With Friends"
-              action={
-                <Link href="/app/games" className="text-sm font-medium text-cyan-100/78 transition hover:text-white">
-                  View more
-                </Link>
-              }
-            />
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.75rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="h-4.5 w-4.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="4" y="8" width="16" height="9" rx="4.5" />
+                    <path d="M8 12h3M9.5 10.5v3" />
+                    <circle cx="15.5" cy="11.5" r=".8" fill="currentColor" stroke="none" />
+                    <circle cx="17.5" cy="13.5" r=".8" fill="currentColor" stroke="none" />
+                  </svg>
+                </span>
+                <h2 className="whitespace-nowrap text-[1.65rem] font-bold tracking-tight text-white">Suzi Games</h2>
+              </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Link href="/app/games" className="shrink-0 whitespace-nowrap text-[1.05rem] font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100">
+                Explore more
+              </Link>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {games.map((game) => (
                 <article key={game.id} className="rounded-[1.1rem] border border-cyan-300/18 bg-[linear-gradient(165deg,rgba(255,32,121,0.08),rgba(0,229,255,0.07))] p-3 shadow-[0_0_20px_rgba(157,78,221,0.14)]">
                   <div className={`rounded-[0.9rem] border border-white/14 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.2),transparent_45%)] p-3 ${game.tone}`}>

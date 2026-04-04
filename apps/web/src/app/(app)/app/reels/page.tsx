@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ReelCard } from "@/components/app/v1-blocks";
 import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
@@ -29,20 +28,24 @@ export default function ReelsPage() {
       </Panel>
 
       <Panel className="p-5">
-        <SectionHeader eyebrow="Featured" title={featured.author} />
+        <SectionHeader eyebrow="Featured" title={featured.title} />
         <div className="relative mt-5 aspect-[9/14] overflow-hidden rounded-[1.5rem] border border-white/10">
-          <Image
-            src={featured.poster}
-            alt={`${featured.author} featured reel`}
-            fill
-            sizes="(min-width: 1280px) 24vw, 100vw"
-            className="object-cover"
+          <video
+            src={featured.video}
+            poster={featured.poster}
+            className="h-full w-full object-cover"
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="metadata"
+            aria-label={`${featured.author} featured reel`}
           />
           <div className={`absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,24,0.06),rgba(10,12,24,0.38))] ${featured.tone}`} />
         </div>
         <p className="mt-4 text-sm leading-7 text-slate-300/80">{featured.caption}</p>
         <div className="mt-4 text-sm text-slate-400">
-          {featured.likes} likes · {featured.comments} comments
+          {featured.views} views · {featured.likes} likes · {featured.comments} comments
         </div>
       </Panel>
     </section>

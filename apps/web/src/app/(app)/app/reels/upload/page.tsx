@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
 import { reels } from "@/lib/v1-mock-data";
 
@@ -17,12 +16,16 @@ export default function UploadReelPage() {
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-5">
             <div className="relative aspect-[16/9] overflow-hidden rounded-[1.5rem] border border-white/10">
-              <Image
-                src={previewReel.poster}
-                alt="Reel preview"
-                fill
-                sizes="(min-width: 1280px) 60vw, 100vw"
-                className="object-cover"
+              <video
+                src={previewReel.video}
+                poster={previewReel.poster}
+                className="h-full w-full object-cover"
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="metadata"
+                aria-label="Reel preview"
               />
               <div className={`absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,24,0.05),rgba(10,12,24,0.28))] ${previewReel.tone}`} />
             </div>

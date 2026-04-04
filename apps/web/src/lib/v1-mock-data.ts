@@ -51,11 +51,14 @@ export type Snap = {
 export type Reel = {
   id: string;
   author: string;
+  handle: string;
+  title: string;
   avatar: string;
   caption: string;
   views: number;
   likes: number;
   comments: number;
+  video: string;
   tone: string;
   poster: string;
 };
@@ -502,33 +505,70 @@ export const reels: Reel[] = [
   {
     id: "chill-mix",
     author: "Suzi",
+    handle: "@chloe",
+    title: "City lights & late nights",
     avatar: "/ppic/ppic2.png",
     caption: "Chillin with my favorite tunes tonight.",
-    views: 231,
+    views: 1200,
     likes: 321,
     comments: 21,
+    video: "/reels/reel1.mp4",
     tone: "from-fuchsia-500/34 via-indigo-500/20 to-cyan-400/12",
     poster: "/snaps/snap6.webp",
   },
   {
     id: "night-drive",
     author: "Mary",
+    handle: "@sarah",
+    title: "Ocean breeze",
     avatar: "/ppic/ppic2.png",
     caption: "Night drive and room-cleanup playlist.",
-    views: 180,
+    views: 856,
     likes: 210,
     comments: 14,
+    video: "/reels/reel2.mp4",
     tone: "from-cyan-400/30 via-violet-500/18 to-pink-500/12",
     poster: "/snaps/snap05.png",
   },
   {
     id: "game-lobby",
     author: "Steve",
+    handle: "@mia",
+    title: "Dance vibes",
     avatar: "/ppic/ppic1.jpeg",
     caption: "Setting up table lobbies for tonight’s quick matches.",
-    views: 144,
+    views: 2100,
     likes: 188,
     comments: 16,
+    video: "/reels/reel3.mp4",
+    tone: "from-violet-500/36 via-fuchsia-500/16 to-amber-400/10",
+    poster: "/snaps/snap02.png",
+  },
+  {
+    id: "sunset-therapy",
+    author: "David",
+    handle: "@david",
+    title: "Sunset therapy",
+    avatar: "/ppic/ppic1.jpeg",
+    caption: "Sunset walk with mellow beats and soft city glow.",
+    views: 1500,
+    likes: 244,
+    comments: 19,
+    video: "/reels/reel1.mp4",
+    tone: "from-amber-400/24 via-pink-500/20 to-fuchsia-500/16",
+    poster: "/snaps/snap3.jpeg",
+  },
+  {
+    id: "good-energy",
+    author: "Steve",
+    handle: "@steve",
+    title: "Good energy only",
+    avatar: "/ppic/ppic1.jpeg",
+    caption: "Weekend crowd, bright lights, and dance-floor momentum.",
+    views: 987,
+    likes: 176,
+    comments: 11,
+    video: "/reels/reel2.mp4",
     tone: "from-violet-500/36 via-fuchsia-500/16 to-amber-400/10",
     poster: "/snaps/snap02.png",
   },
