@@ -82,9 +82,9 @@ export function AppShell({
       </div>
 
       <div className="relative mx-auto w-full max-w-[1460px] px-3 pb-10 pt-6 sm:px-4 lg:px-5">
-        <div className="pointer-events-auto absolute left-3 top-4 z-40 sm:left-4 lg:left-5">
+        <div className="pointer-events-auto absolute left-1/2 top-3 z-40 -translate-x-1/2 sm:top-3.5 lg:top-4">
           <Link href="/app" className="block">
-            <span className="relative block h-[2.4rem] w-[7.8rem] overflow-hidden xs:h-[2.9rem] xs:w-[9.4rem] sm:h-[3.7rem] sm:w-[12.2rem] md:h-[4.7rem] md:w-[15.6rem] lg:h-[5rem] lg:w-[16.6rem]">
+            <span className="relative block h-[3rem] w-[9.8rem] overflow-hidden xs:h-[3.4rem] xs:w-[11.2rem] sm:h-[4.4rem] sm:w-[14.4rem] md:h-[5.3rem] md:w-[17.6rem] lg:h-[6rem] lg:w-[19.8rem]">
               <Image
                 src="/logo/logo.png"
                 alt="SuziChat"
@@ -342,7 +342,14 @@ export function AppShell({
           </div>
         </div>
 
-        <div className="pt-[5.4rem]">{children}</div>
+        <div className="pt-[6.1rem] sm:pt-[6.7rem] md:pt-[7.2rem]">{children}</div>
+
+        <footer className="mt-8 pb-3">
+          <div className="h-px w-full bg-[linear-gradient(90deg,rgba(165,243,252,0.06),rgba(165,243,252,0.72),rgba(165,243,252,0.06))]" />
+          <p className="mt-3 text-center text-[0.9rem] font-medium tracking-[0.12em] text-cyan-100/82">
+            © Suzi Chat. All rights reserved.
+          </p>
+        </footer>
       </div>
     </main>
   );
