@@ -61,7 +61,7 @@ export function LoginPanel({
 
   return (
     <section
-      className={`rounded-[2.1rem] border border-white/10 bg-[linear-gradient(180deg,rgba(49,10,82,0.88),rgba(33,6,55,0.94))] p-6 shadow-[0_24px_80px_rgba(8,0,24,0.55),inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-xl sm:p-8 ${className}`}
+      className={`rounded-[2.1rem] border border-white/12 bg-[linear-gradient(180deg,rgba(49,10,82,0.78),rgba(33,6,55,0.84))] p-6 shadow-[0_24px_80px_rgba(8,0,24,0.48),inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-xl sm:p-8 ${className}`}
     >
       <p className="text-xs font-semibold uppercase tracking-[0.38em] text-cyan-100/70">
         {eyebrow}
@@ -87,7 +87,7 @@ export function LoginPanel({
             value={emailOrUsername}
             onChange={(event) => setEmailOrUsername(event.target.value)}
             placeholder="yourname@gmail.com"
-            className="mt-3 w-full rounded-[1.1rem] border border-white/6 bg-[#3b0a59]/92 px-4 py-4 text-white outline-none transition placeholder:text-white/36 focus:border-cyan-300/45 focus:bg-[#461066]"
+            className="mt-3 w-full rounded-[1.1rem] border border-white/8 bg-[#3b0a59]/82 px-4 py-4 text-white outline-none transition placeholder:text-white/36 focus:border-cyan-300/45 focus:bg-[#461066]/88"
           />
         </div>
         <div>
@@ -103,7 +103,7 @@ export function LoginPanel({
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Enter your password"
-            className="mt-3 w-full rounded-[1.1rem] border border-white/6 bg-[#3b0a59]/92 px-4 py-4 text-white outline-none transition placeholder:text-white/36 focus:border-cyan-300/45 focus:bg-[#461066]"
+            className="mt-3 w-full rounded-[1.1rem] border border-white/8 bg-[#3b0a59]/82 px-4 py-4 text-white outline-none transition placeholder:text-white/36 focus:border-cyan-300/45 focus:bg-[#461066]/88"
           />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <Link
