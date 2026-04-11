@@ -250,7 +250,6 @@ export function ReelCard({
       <div className="relative aspect-[9/14] overflow-hidden">
         <video
           src={reel.video}
-          poster={reel.poster}
           className="h-full w-full object-cover"
           autoPlay
           loop

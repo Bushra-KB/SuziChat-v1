@@ -18,7 +18,6 @@ export default function UploadReelPage() {
             <div className="relative aspect-[16/9] overflow-hidden rounded-[1.5rem] border border-white/10">
               <video
                 src={previewReel.video}
-                poster={previewReel.poster}
                 className="h-full w-full object-cover"
                 autoPlay
                 loop
