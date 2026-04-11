@@ -164,7 +164,7 @@ export function AppShell({
                   {directMessageThreads.slice(0, 4).map((thread) => (
                     <Link
                       key={thread.id}
-                      href={`/app/messages/${thread.id}`}
+                      href="/app/messages"
                       onClick={() => setIsMessagesOpen(false)}
                       className="flex items-center gap-3 rounded-[0.9rem] px-3 py-2.5 transition hover:bg-white/8"
                     >
