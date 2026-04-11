@@ -44,7 +44,7 @@ export default function FriendsPage() {
                   subtitle={person.headline}
                   action={
                     <div className="flex items-center gap-2">
-                      <Link href={`/app/messages/${person.id}-thread`} className="suzi-secondary-btn px-3 py-2 text-xs">
+                      <Link href="/app/messages" className="suzi-secondary-btn px-3 py-2 text-xs">
                         DM
                       </Link>
                       <Link href={`/app/games/chess?invite=${person.id}`} className="suzi-secondary-btn px-3 py-2 text-xs">
@@ -109,7 +109,7 @@ export default function FriendsPage() {
               ))}
             </div>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <Link href={`/app/messages/${spotlight.id}-thread`} className="suzi-primary-btn px-4 py-3 text-center text-sm">
+              <Link href="/app/messages" className="suzi-primary-btn px-4 py-3 text-center text-sm">
                 Send message
               </Link>
               <Link href={`/app/rooms/general-chat?invite=${spotlight.id}`} className="suzi-secondary-btn px-4 py-3 text-center text-sm">

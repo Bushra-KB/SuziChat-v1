@@ -155,7 +155,7 @@ export function HomeFriendsPanel() {
           filteredPeople.map((person) => (
             <Link
               key={person.id}
-              href={`/app/messages/${person.id}-thread`}
+              href="/app/messages"
               className="flex items-center gap-3 rounded-[1rem] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(32,20,89,0.72),rgba(18,13,65,0.56))] px-3 py-2.5 transition hover:border-cyan-300/44 hover:bg-[linear-gradient(160deg,rgba(45,27,115,0.74),rgba(24,16,82,0.64))]"
             >
               <Image

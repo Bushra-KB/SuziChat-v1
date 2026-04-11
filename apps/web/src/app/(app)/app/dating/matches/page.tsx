@@ -21,7 +21,7 @@ export default function MatchesPage() {
                 </p>
                 <p className="mt-1 text-sm text-slate-400">{profile.location}</p>
               </div>
-              <Link href={`/app/messages/${profile.id}-thread`} className="suzi-primary-btn px-4 py-2.5 text-sm">
+              <Link href="/app/messages" className="suzi-primary-btn px-4 py-2.5 text-sm">
                 Chat
               </Link>
             </div>

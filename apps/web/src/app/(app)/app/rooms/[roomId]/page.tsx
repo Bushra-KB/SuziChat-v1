@@ -111,7 +111,7 @@ export default async function RoomChatPage({
                     person={person}
                     compact
                     action={
-                      <Link href={`/app/messages/${person.id}-thread`} className="suzi-secondary-btn px-3 py-2 text-xs">
+                      <Link href="/app/messages" className="suzi-secondary-btn px-3 py-2 text-xs">
                         DM
                       </Link>
                     }
@@ -131,7 +131,7 @@ export default async function RoomChatPage({
                     person={person}
                     compact
                     action={
-                      <Link href={`/app/messages/${person.id}-thread`} className="suzi-secondary-btn px-3 py-2 text-xs">
+                      <Link href="/app/messages" className="suzi-secondary-btn px-3 py-2 text-xs">
                         DM
                       </Link>
                     }
