@@ -180,7 +180,7 @@ export function HomeChatRoomsPanel() {
           >
             Create Room
           </Link>
-          <Link href="/app/rooms" className="text-sm font-medium text-cyan-100/78 transition hover:text-white">
+          <Link href="/app" className="text-sm font-medium text-cyan-100/78 transition hover:text-white">
             See all
           </Link>
         </div>
