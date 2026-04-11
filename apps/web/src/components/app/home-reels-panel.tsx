@@ -54,7 +54,6 @@ export function HomeReelsPanel() {
             <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-[0.68rem] border border-cyan-300/20">
               <video
                 src={reel.video}
-                poster={reel.poster}
                 className="h-full w-full object-cover"
                 autoPlay
                 loop

@@ -60,7 +60,6 @@ export type Reel = {
   comments: number;
   video: string;
   tone: string;
-  poster: string;
 };
 
 export type NotificationItem = {
@@ -514,7 +513,6 @@ export const reels: Reel[] = [
     comments: 21,
     video: "/reels/reel1.mp4",
     tone: "from-fuchsia-500/34 via-indigo-500/20 to-cyan-400/12",
-    poster: "/snaps/snap6.webp",
   },
   {
     id: "night-drive",
@@ -528,7 +526,6 @@ export const reels: Reel[] = [
     comments: 14,
     video: "/reels/reel2.mp4",
     tone: "from-cyan-400/30 via-violet-500/18 to-pink-500/12",
-    poster: "/snaps/snap05.png",
   },
   {
     id: "game-lobby",
@@ -542,7 +539,6 @@ export const reels: Reel[] = [
     comments: 16,
     video: "/reels/reel3.mp4",
     tone: "from-violet-500/36 via-fuchsia-500/16 to-amber-400/10",
-    poster: "/snaps/snap02.png",
   },
   {
     id: "sunset-therapy",
@@ -554,9 +550,8 @@ export const reels: Reel[] = [
     views: 1500,
     likes: 244,
     comments: 19,
-    video: "/reels/reel1.mp4",
+    video: "/reels/reel4.mp4",
     tone: "from-amber-400/24 via-pink-500/20 to-fuchsia-500/16",
-    poster: "/snaps/snap3.jpeg",
   },
   {
     id: "good-energy",
@@ -568,9 +563,21 @@ export const reels: Reel[] = [
     views: 987,
     likes: 176,
     comments: 11,
-    video: "/reels/reel2.mp4",
+    video: "/reels/reel5.mp4",
     tone: "from-violet-500/36 via-fuchsia-500/16 to-amber-400/10",
-    poster: "/snaps/snap02.png",
+  },
+  {
+    id: "weekend-wave",
+    author: "Lena",
+    handle: "@lena",
+    title: "Weekend wave",
+    avatar: "/ppic/ppic2.png",
+    caption: "Quick glow-up clip before jumping into voice rooms.",
+    views: 1320,
+    likes: 262,
+    comments: 17,
+    video: "/reels/reel6.mp4",
+    tone: "from-cyan-400/28 via-blue-500/18 to-violet-500/12",
   },
 ];
 
