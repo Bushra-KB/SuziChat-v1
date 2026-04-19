@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ChatComposer } from "@/components/app/chat-composer";
+import { ChatMessageRow } from "@/components/app/chat-message-row";
 import { PersonRow } from "@/components/app/v1-blocks";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { people, roomMessages, rooms } from "@/lib/v1-mock-data";
@@ -53,40 +55,17 @@ export default async function RoomChatPage({
         </div>
 
         <div className="suzi-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-5 py-5 sm:px-6">
-          {roomMessages.map((message) => {
-            const mine = message.kind === "mine";
-            return (
-              <div key={message.id} className={cx("flex", mine ? "justify-end" : "justify-start")}>
-                <div
-                  className={cx(
-                    "max-w-[min(36rem,100%)] rounded-[0.85rem] border px-4 py-3 shadow-sm",
-                    mine ? "border-fuchsia-200 bg-fuchsia-50" : "border-slate-200 bg-slate-50",
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-slate-900">{message.author}</p>
-                    <span className="text-xs text-slate-500">{message.time}</span>
-                  </div>
-                  <p className="mt-1.5 text-sm leading-6 text-slate-700">{message.message}</p>
-                </div>
-              </div>
-            );
-          })}
+          {roomMessages.map((message) => (
+            <ChatMessageRow key={message.id} message={message} />
+          ))}
         </div>
 
         <div className="border-t border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-5 py-4 sm:px-6">
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
-            <input
-              className="suzi-input h-11"
-              placeholder="Write your message, invite a friend, or call out a game table"
-            />
-            <button
-              type="button"
-              className="suzi-primary-btn px-4 py-3 text-sm"
-            >
-              Send
-            </button>
-          </div>
+          <ChatComposer
+            attachInputId="room-chat-attachment"
+            placeholder="Write your message, invite a friend, or call out a game table"
+            variant="onDark"
+          />
         </div>
       </Panel>
 

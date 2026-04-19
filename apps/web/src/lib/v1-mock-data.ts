@@ -6,6 +6,14 @@ export type NavItem = {
   isSoon?: boolean;
 };
 
+export type ChatLine = {
+  id: string;
+  senderId: string;
+  kind: "mine" | "other";
+  message: string;
+  time: string;
+};
+
 export type Person = {
   id: string;
   name: string;
@@ -233,6 +241,12 @@ export const people: Person[] = [
   },
 ];
 
+export const mockCurrentUser = {
+  id: "me",
+  name: "Alex Kim",
+  avatar: "/ppic/ppic2.png",
+} as const;
+
 export const rooms: Room[] = [
   {
     id: "general-chat",
@@ -343,153 +357,153 @@ export const directMessageThreads = [
   },
 ];
 
-export const roomMessages = [
+export const roomMessages: ChatLine[] = [
   {
     id: "m1",
-    author: "Alan",
+    senderId: "alan",
     kind: "other" as const,
     message: "The evening room feels quieter now, we can shift into game tables if people want.",
     time: "18:32",
   },
   {
     id: "m2",
-    author: "You",
+    senderId: "me",
     kind: "mine" as const,
     message: "Let’s keep chat open and spin up a chess table on the side for anyone interested.",
     time: "18:35",
   },
   {
     id: "m3",
-    author: "Mary",
+    senderId: "mary",
     kind: "other" as const,
     message: "Pinned the update. Also inviting John and Lisa into the room now.",
     time: "18:37",
   },
   {
     id: "m4",
-    author: "John",
+    senderId: "john",
     kind: "other" as const,
     message: "I can moderate the thread while the quick game starts.",
     time: "18:39",
   },
   {
     id: "m5",
-    author: "You",
+    senderId: "me",
     kind: "mine" as const,
     message: "Great. I’ll keep the main room warm and route game invites here.",
     time: "18:41",
   },
   {
     id: "m6",
-    author: "Nadia",
+    senderId: "nadia",
     kind: "other" as const,
     message: "I’m here too. We can run quick intros for new people joining.",
     time: "18:42",
   },
   {
     id: "m7",
-    author: "Steve",
+    senderId: "steve",
     kind: "other" as const,
     message: "Opened one public table and one private table for overflow.",
     time: "18:44",
   },
   {
     id: "m8",
-    author: "You",
+    senderId: "me",
     kind: "mine" as const,
     message: "Perfect. Share private code only in DM if the lobby gets crowded.",
     time: "18:45",
   },
   {
     id: "m9",
-    author: "Alan",
+    senderId: "alan",
     kind: "other" as const,
     message: "Two new users asked where to start. Sending them to the open table.",
     time: "18:47",
   },
   {
     id: "m10",
-    author: "Mary",
+    senderId: "mary",
     kind: "other" as const,
     message: "Added quick room rules at the top: be respectful and keep it adult.",
     time: "18:49",
   },
   {
     id: "m11",
-    author: "You",
+    senderId: "me",
     kind: "mine" as const,
     message: "Nice. I’ll also pin a short ‘how to join game tables’ message.",
     time: "18:50",
   },
   {
     id: "m12",
-    author: "John",
+    senderId: "john",
     kind: "other" as const,
     message: "Thread is clean right now. No moderation issues so far.",
     time: "18:52",
   },
   {
     id: "m13",
-    author: "Lisa",
+    senderId: "lisa",
     kind: "other" as const,
     message: "I can host a music queue in voice after this round if people want.",
     time: "18:54",
   },
   {
     id: "m14",
-    author: "You",
+    senderId: "me",
     kind: "mine" as const,
     message: "Yes please. Let’s do game round first, then switch into music lounge energy.",
     time: "18:55",
   },
   {
     id: "m15",
-    author: "Steve",
+    senderId: "steve",
     kind: "other" as const,
     message: "Table one finished. Opening rematch slot now.",
     time: "18:57",
   },
   {
     id: "m16",
-    author: "Nadia",
+    senderId: "nadia",
     kind: "other" as const,
     message: "New joiners coming from reels. Welcoming them in chat.",
     time: "18:58",
   },
   {
     id: "m17",
-    author: "You",
+    senderId: "me",
     kind: "mine" as const,
     message: "Thanks all. Keep updates flowing here so everyone sees what’s active.",
     time: "19:00",
   },
   {
     id: "m18",
-    author: "Alan",
+    senderId: "alan",
     kind: "other" as const,
     message: "Copy that. Posting status every few minutes.",
     time: "19:01",
   },
 ];
 
-export const dmMessages = [
+export const dmMessages: ChatLine[] = [
   {
     id: "d1",
-    author: "Alan",
+    senderId: "alan",
     kind: "other" as const,
     message: "Want the private chess table or public lobby tonight?",
     time: "19:14",
   },
   {
     id: "d2",
-    author: "You",
+    senderId: "me",
     kind: "mine" as const,
     message: "Start public. If it gets full, we can move people into a private invite table.",
     time: "19:16",
   },
   {
     id: "d3",
-    author: "Alan",
+    senderId: "alan",
     kind: "other" as const,
     message: "Perfect. I’ll hold table two and call it out in lobby chat.",
     time: "19:18",
