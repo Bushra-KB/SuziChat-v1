@@ -1,5 +1,7 @@
+import { ChatComposer } from "@/components/app/chat-composer";
+import { ChatMessageRow } from "@/components/app/chat-message-row";
 import { PersonRow, ThreadRow } from "@/components/app/v1-blocks";
-import { Panel, SectionHeader, cx } from "@/components/ui/suzi-primitives";
+import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
 import { directMessageThreads, dmMessages, people } from "@/lib/v1-mock-data";
 
 export default function MessagesPage() {
@@ -36,33 +38,12 @@ export default function MessagesPage() {
           />
         </div>
         <div className="suzi-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-6 py-6">
-          {dmMessages.map((message) => {
-            const mine = message.kind === "mine";
-            return (
-              <div key={message.id} className={cx("flex", mine ? "justify-end" : "justify-start")}>
-                <div
-                  className={cx(
-                    "max-w-[min(36rem,100%)] rounded-[0.85rem] border px-4 py-3 shadow-sm",
-                    mine ? "border-fuchsia-200 bg-fuchsia-50" : "border-slate-200 bg-slate-50",
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-slate-900">{message.author}</p>
-                    <span className="text-xs text-slate-500">{message.time}</span>
-                  </div>
-                  <p className="mt-1.5 text-sm leading-6 text-slate-700">{message.message}</p>
-                </div>
-              </div>
-            );
-          })}
+          {dmMessages.map((message) => (
+            <ChatMessageRow key={message.id} message={message} />
+          ))}
         </div>
         <div className="border-t border-white/8 px-6 py-5">
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
-            <input className="suzi-input" placeholder="Write a direct message" />
-            <button type="button" className="suzi-primary-btn px-4 py-3 text-sm">
-              Send
-            </button>
-          </div>
+          <ChatComposer attachInputId="dm-chat-attachment" placeholder="Write a direct message…" variant="onDark" />
         </div>
       </Panel>
 

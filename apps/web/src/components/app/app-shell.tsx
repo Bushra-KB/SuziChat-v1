@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { AuthSession } from "@/lib/auth-client";
 import {
   createMenuItems,
@@ -10,6 +10,18 @@ import {
   notifications,
 } from "@/lib/v1-mock-data";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
+
+const globeIconPath = "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 3v18M3 12h18";
+
+const languages = [
+  { code: "en", label: "English" },
+  { code: "de", label: "Deutsch" },
+  { code: "fr", label: "Français" },
+  { code: "es", label: "Español" },
+  { code: "it", label: "Italiano" },
+  { code: "nl", label: "Nederlands" },
+  { code: "pl", label: "Polski" },
+] as const;
 
 export function AppShell({
   children,
@@ -25,9 +37,12 @@ export function AppShell({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isLanguageOpen, setIsLanguageOpen] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("en");
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const createRef = useRef<HTMLDivElement | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const languageRef = useRef<HTMLDivElement | null>(null);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
   const accountRef = useRef<HTMLDivElement | null>(null);
   const unreadMessages = directMessageThreads.reduce(
@@ -39,26 +54,49 @@ export function AppShell({
   const accountHandle = `@${session.user.username}`;
 
   useEffect(() => {
-    function handlePointerDown(event: MouseEvent) {
-      const target = event.target as Node;
+    function clickInside(ref: RefObject<HTMLDivElement | null>, event: PointerEvent): boolean {
+      const root = ref.current;
+      if (!root) {
+        return false;
+      }
 
-      if (createRef.current && !createRef.current.contains(target)) {
+      const path =
+        typeof event.composedPath === "function"
+          ? event.composedPath()
+          : ([event.target].filter(Boolean) as EventTarget[]);
+
+      return path.some(
+        (node) =>
+          node instanceof Node && (node === root || root.contains(node)),
+      );
+    }
+
+    /** Capture phase so we run before controls that stop propagation; pointer covers mouse + touch. */
+    function handlePointerDownCapture(event: PointerEvent) {
+      if (event.button !== undefined && event.button !== 0) {
+        return;
+      }
+
+      if (!clickInside(createRef, event)) {
         setIsCreateOpen(false);
       }
-      if (messagesRef.current && !messagesRef.current.contains(target)) {
+      if (!clickInside(messagesRef, event)) {
         setIsMessagesOpen(false);
       }
-      if (notificationsRef.current && !notificationsRef.current.contains(target)) {
+      if (!clickInside(notificationsRef, event)) {
         setIsNotificationsOpen(false);
       }
-      if (accountRef.current && !accountRef.current.contains(target)) {
+      if (!clickInside(languageRef, event)) {
+        setIsLanguageOpen(false);
+      }
+      if (!clickInside(accountRef, event)) {
         setIsAccountOpen(false);
       }
     }
 
-    document.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("pointerdown", handlePointerDownCapture, true);
     return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("pointerdown", handlePointerDownCapture, true);
     };
   }, []);
 
@@ -106,6 +144,7 @@ export function AppShell({
                 setIsCreateOpen((v) => !v);
                 setIsMessagesOpen(false);
                 setIsNotificationsOpen(false);
+                setIsLanguageOpen(false);
                 setIsAccountOpen(false);
               }}
               className={cx(
@@ -141,6 +180,7 @@ export function AppShell({
                 setIsMessagesOpen((v) => !v);
                 setIsCreateOpen(false);
                 setIsNotificationsOpen(false);
+                setIsLanguageOpen(false);
                 setIsAccountOpen(false);
               }}
               className={cx(
@@ -202,6 +242,65 @@ export function AppShell({
             ) : null}
           </div>
 
+          <div ref={languageRef} className="relative">
+            <button
+              type="button"
+              aria-label="Language"
+              aria-expanded={isLanguageOpen}
+              aria-haspopup="listbox"
+              onClick={() => {
+                setIsLanguageOpen((v) => !v);
+                setIsCreateOpen(false);
+                setIsMessagesOpen(false);
+                setIsNotificationsOpen(false);
+                setIsAccountOpen(false);
+              }}
+              className={cx(
+                "suzi-icon-btn relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-white/80",
+                isLanguageOpen && "border-fuchsia-300/30 bg-fuchsia-400/12 text-white",
+              )}
+            >
+              <Icon path={globeIconPath} className="h-4 w-4" />
+            </button>
+
+            {isLanguageOpen ? (
+              <div
+                className="suzi-overlay-panel absolute right-0 top-[calc(100%+0.6rem)] z-50 w-56 rounded-[1.15rem] p-2"
+                role="listbox"
+                aria-label="Language"
+              >
+                <p className="px-3 py-2 text-sm font-semibold text-white">Language</p>
+                <div className="max-h-[min(22rem,calc(100vh-8rem))] space-y-1 overflow-y-auto suzi-scrollbar pr-1">
+                  {languages.map((lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      role="option"
+                      aria-selected={selectedLanguage === lang.code}
+                      onClick={() => {
+                        setSelectedLanguage(lang.code);
+                        setIsLanguageOpen(false);
+                      }}
+                      className={cx(
+                        "flex w-full items-center justify-between gap-2 rounded-[0.9rem] px-3 py-2.5 text-left text-sm transition hover:bg-white/8",
+                        selectedLanguage === lang.code
+                          ? "bg-white/12 text-white"
+                          : "text-[var(--text-muted)] hover:text-white",
+                      )}
+                    >
+                      <span className="font-medium">{lang.label}</span>
+                      {selectedLanguage === lang.code ? (
+                        <Icon path="M5 13l4 4L19 7" className="h-4 w-4 shrink-0 text-cyan-200" />
+                      ) : (
+                        <span className="w-4 shrink-0" aria-hidden />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
           <div ref={notificationsRef} className="relative">
             <button
               type="button"
@@ -210,6 +309,7 @@ export function AppShell({
                 setIsNotificationsOpen((v) => !v);
                 setIsCreateOpen(false);
                 setIsMessagesOpen(false);
+                setIsLanguageOpen(false);
                 setIsAccountOpen(false);
               }}
               className={cx(
@@ -267,6 +367,7 @@ export function AppShell({
                 setIsCreateOpen(false);
                 setIsMessagesOpen(false);
                 setIsNotificationsOpen(false);
+                setIsLanguageOpen(false);
               }}
               className={cx(
                 "inline-flex items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-white/5 px-2 py-1.5 transition hover:bg-white/10",
