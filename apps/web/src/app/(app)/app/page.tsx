@@ -11,14 +11,15 @@ import { games } from "@/lib/v1-mock-data";
 export default function AppHomePage() {
   return (
     <section className="space-y-6">
+      {/* Three independent columns: only gap-5 between top & bottom widgets — avoids a shared "tall row" gap */}
       <div className="grid gap-5 xl:grid-cols-[18.75rem_minmax(0,1fr)_20rem]">
-        <div className="space-y-5">
+        <div className="flex min-h-0 min-w-0 flex-col gap-5">
           <HomeFriendsPanel />
           <HomeReelsPanel />
         </div>
 
-        <div className="space-y-5">
-          <HomeChatRoomsPanel />
+        <div className="flex min-h-0 min-w-0 flex-col gap-5">
+          <HomeChatRoomsPanel variant="dashboard" />
 
           <Panel className="p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3">
@@ -69,8 +70,10 @@ export default function AppHomePage() {
           </Panel>
         </div>
 
-        <div className="space-y-5">
-          <HomeSnapsPanel />
+        <div className="flex min-h-0 min-w-0 flex-col gap-5">
+          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden xl:h-[44rem]">
+            <HomeSnapsPanel layout="dashboard" />
+          </div>
 
           <HomeDatingPanel />
         </div>
