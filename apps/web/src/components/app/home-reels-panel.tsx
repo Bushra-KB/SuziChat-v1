@@ -44,7 +44,7 @@ export function HomeReelsPanel() {
         </Link>
       </div>
 
-      <div className="suzi-scrollbar mt-4 h-[24rem] space-y-2 overflow-y-auto pr-1">
+      <div className="suzi-scrollbar mt-4 h-[22rem] space-y-2 overflow-y-auto pr-1">
         {reels.map((reel) => (
           <Link
             key={reel.id}

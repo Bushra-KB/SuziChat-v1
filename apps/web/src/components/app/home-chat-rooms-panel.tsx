@@ -109,7 +109,11 @@ function getTabClasses(active: boolean) {
   );
 }
 
-export function HomeChatRoomsPanel() {
+export function HomeChatRoomsPanel({
+  variant = "default",
+}: {
+  variant?: "default" | "dashboard";
+}) {
   const [activeCategory, setActiveCategory] = useState<"All" | RoomCategory>("All");
   const [query, setQuery] = useState("");
   const [showMoreCategories, setShowMoreCategories] = useState(false);
@@ -261,7 +265,12 @@ export function HomeChatRoomsPanel() {
         </label>
       </div>
 
-      <div className="suzi-scrollbar mt-4 h-[36rem] overflow-y-auto rounded-[1.15rem] border border-cyan-300/22 bg-transparent">
+      <div
+        className={cx(
+          "suzi-scrollbar mt-4 overflow-y-auto rounded-[1.15rem] border border-cyan-300/22 bg-transparent",
+          variant === "dashboard" ? "max-h-[36rem]" : "h-[36rem]",
+        )}
+      >
         {filteredRooms.length > 0 ? (
           filteredRooms.map((room, index) => (
             <article

@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Panel } from "@/components/ui/suzi-primitives";
+import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { snaps } from "@/lib/v1-mock-data";
+
+export type HomeSnapsPanelLayout = "default" | "dashboard";
 
 function getViews(likes: number, comments: number) {
   return likes + comments * 4;
@@ -16,12 +18,25 @@ const trendingItems = [
   { snapId: "city-lights", title: "Late snack", author: "Priya", count: 98 },
 ];
 
-export function HomeSnapsPanel() {
+export function HomeSnapsPanel({
+  layout = "default",
+}: {
+  layout?: HomeSnapsPanelLayout;
+}) {
   const popularSnaps = [...snaps].sort((left, right) => right.likes - left.likes).slice(0, 4);
+  const trendingPreview =
+    layout === "dashboard" ? trendingItems.slice(0, 6) : trendingItems.slice(0, 3);
+
+  const isDashboard = layout === "dashboard";
 
   return (
-    <Panel className="p-4">
-      <div className="flex items-center justify-between gap-3">
+    <Panel
+      className={cx(
+        "p-4",
+        isDashboard && "flex min-h-0 max-h-full w-full flex-1 flex-col overflow-hidden xl:h-full",
+      )}
+    >
+      <div className="flex shrink-0 items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.75rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
             <svg
@@ -46,7 +61,7 @@ export function HomeSnapsPanel() {
         </Link>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2.5">
+      <div className="mt-3 shrink-0 grid grid-cols-2 gap-2.5">
         {popularSnaps.map((snap, index) => {
           const tileImage = index === 3 ? "/snaps/a1.jpg" : snap.image;
 
@@ -56,7 +71,7 @@ export function HomeSnapsPanel() {
               href={`/app/snaps/${snap.id}`}
               className="group relative overflow-hidden rounded-[0.82rem] border border-fuchsia-300/24 bg-[rgba(28,16,72,0.7)]"
             >
-              <div className="relative aspect-square">
+              <div className="relative h-[5.25rem] w-full sm:h-24">
                 <Image src={tileImage} alt={snap.title} fill sizes="(min-width: 1280px) 10vw, 45vw" className="object-cover transition duration-200 group-hover:scale-[1.04]" />
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0.12),rgba(4,8,26,0.64))]" />
               </div>
@@ -94,8 +109,13 @@ export function HomeSnapsPanel() {
         })}
       </div>
 
-      <div className="mt-4 rounded-[1rem] border border-cyan-300/20 bg-[linear-gradient(160deg,rgba(24,14,72,0.72),rgba(16,10,56,0.72))] p-3">
-        <div className="flex items-center justify-between gap-2">
+      <div
+        className={cx(
+          "mt-3 rounded-[1rem] border border-cyan-300/20 bg-[linear-gradient(160deg,rgba(24,14,72,0.72),rgba(16,10,56,0.72))] p-3",
+          isDashboard && "flex min-h-0 flex-1 flex-col",
+        )}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-2">
           <div className="inline-flex items-center gap-2">
             <span className="text-[1rem]">🔥</span>
             <p className="text-[1.1rem] font-semibold text-white">Trending Snaps</p>
@@ -105,8 +125,14 @@ export function HomeSnapsPanel() {
           </Link>
         </div>
 
-        <div className="suzi-scrollbar mt-3 h-52 space-y-2 overflow-y-auto pr-1">
-          {trendingItems.map((item, index) => {
+        <div
+          className={cx(
+            "mt-3 space-y-2",
+            isDashboard &&
+              "suzi-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 xl:min-h-[22rem]",
+          )}
+        >
+          {trendingPreview.map((item, index) => {
             const snap = snaps.find((entry) => entry.id === item.snapId) ?? snaps[index % snaps.length];
             return (
               <Link
