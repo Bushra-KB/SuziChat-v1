@@ -839,7 +839,7 @@ export default function ReelsPage() {
 
                           <div className="pointer-events-auto absolute bottom-[6.2rem] right-2.5 z-30 flex flex-col items-center gap-2.5 sm:right-3.5 sm:bottom-[6.8rem]">
                             <Link
-                              href="/app/profile"
+                              href="/app/profile/bushra"
                               onPointerDown={stopPointerPropagation}
                               onClick={stopClickPropagation}
                               className="relative h-11 w-11 overflow-hidden rounded-full border border-white/45 bg-[rgba(10,12,30,0.74)] shadow-[0_0_16px_rgba(0,0,0,0.3)]"
@@ -897,7 +897,7 @@ export default function ReelsPage() {
                               style={{ backdropFilter: "blur(3px)" }}
                             >
                               <Link
-                                href="/app/profile"
+                                href="/app/profile/bushra"
                                 onPointerDown={stopPointerPropagation}
                                 onClick={stopClickPropagation}
                                 className="inline-block text-[0.95rem] font-semibold text-cyan-100 transition hover:text-white sm:text-[1rem]"

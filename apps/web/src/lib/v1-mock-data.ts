@@ -564,7 +564,7 @@ export const datingProfiles = [
 export const snaps: Snap[] = [
   {
     id: "sunset-walk",
-    author: "Lena Rose",
+    author: "Bushra",
     avatar: "/ppic/ppic2.png",
     title: "Sunset walk",
     caption: "Quiet city light and a slower evening mood.",
@@ -576,7 +576,7 @@ export const snaps: Snap[] = [
   },
   {
     id: "night-friends",
-    author: "Marco",
+    author: "Bushra",
     avatar: "/ppic/ppic1.jpeg",
     title: "Night with friends",
     caption: "Music room energy moved offline for the weekend.",
@@ -588,7 +588,7 @@ export const snaps: Snap[] = [
   },
   {
     id: "ocean-view",
-    author: "Aoife",
+    author: "Bushra",
     avatar: "/ppic/ppic3.jpg",
     title: "Ocean view",
     caption: "A softer reset before jumping back into room chat.",
@@ -600,7 +600,7 @@ export const snaps: Snap[] = [
   },
   {
     id: "city-lights",
-    author: "Priya",
+    author: "Bushra",
     avatar: "/ppic/ppic2.png",
     title: "City cafe vibes",
     caption: "Late snack, quick reel draft, then back to DMs.",
@@ -615,8 +615,8 @@ export const snaps: Snap[] = [
 export const reels: Reel[] = [
   {
     id: "chill-mix",
-    author: "Suzi",
-    handle: "@chloe",
+    author: "Bushra",
+    handle: "@bushra",
     title: "City lights & late nights",
     avatar: "/ppic/ppic2.png",
     caption: "Chillin with my favorite tunes tonight.",
@@ -628,8 +628,8 @@ export const reels: Reel[] = [
   },
   {
     id: "night-drive",
-    author: "Mary",
-    handle: "@sarah",
+    author: "Bushra",
+    handle: "@bushra",
     title: "Ocean breeze",
     avatar: "/ppic/ppic2.png",
     caption: "Night drive and room-cleanup playlist.",
@@ -641,8 +641,8 @@ export const reels: Reel[] = [
   },
   {
     id: "game-lobby",
-    author: "Steve",
-    handle: "@mia",
+    author: "Bushra",
+    handle: "@bushra",
     title: "Dance vibes",
     avatar: "/ppic/ppic1.jpeg",
     caption: "Setting up table lobbies for tonight’s quick matches.",
@@ -654,8 +654,8 @@ export const reels: Reel[] = [
   },
   {
     id: "sunset-therapy",
-    author: "David",
-    handle: "@david",
+    author: "Bushra",
+    handle: "@bushra",
     title: "Sunset therapy",
     avatar: "/ppic/ppic1.jpeg",
     caption: "Sunset walk with mellow beats and soft city glow.",
@@ -667,8 +667,8 @@ export const reels: Reel[] = [
   },
   {
     id: "good-energy",
-    author: "Steve",
-    handle: "@steve",
+    author: "Bushra",
+    handle: "@bushra",
     title: "Good energy only",
     avatar: "/ppic/ppic1.jpeg",
     caption: "Weekend crowd, bright lights, and dance-floor momentum.",
@@ -680,8 +680,8 @@ export const reels: Reel[] = [
   },
   {
     id: "weekend-wave",
-    author: "Lena",
-    handle: "@lena",
+    author: "Bushra",
+    handle: "@bushra",
     title: "Weekend wave",
     avatar: "/ppic/ppic2.png",
     caption: "Quick glow-up clip before jumping into voice rooms.",

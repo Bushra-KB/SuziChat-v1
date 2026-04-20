@@ -1,8 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Chip, Panel, SectionHeader, cx } from "@/components/ui/suzi-primitives";
+import { getStoredAuthSession } from "@/lib/auth-client";
+import {
+  getMyProfile,
+  parseUsersApiError,
+  updateMyProfile,
+} from "@/lib/users-client";
 import { settingsSections } from "@/lib/v1-mock-data";
 
 const SETTINGS_NAV = [
@@ -18,6 +24,70 @@ type SectionId = (typeof SETTINGS_NAV)[number]["id"];
 
 export function SettingsPageClient() {
   const [active, setActive] = useState<SectionId>("privacy");
+  const [form, setForm] = useState({ displayName: "", bio: "", country: "" });
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (active !== "account") {
+      return;
+    }
+    const session = getStoredAuthSession();
+    if (!session) {
+      setLoadState("error");
+      setMessage("Not signed in.");
+      return;
+    }
+    let cancelled = false;
+    setLoadState("loading");
+    setMessage("");
+    void getMyProfile(session.accessToken)
+      .then((profile) => {
+        if (cancelled) {
+          return;
+        }
+        setForm({
+          displayName: profile.displayName ?? "",
+          bio: profile.bio ?? "",
+          country: profile.country ?? "",
+        });
+        setLoadState("ready");
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setLoadState("error");
+          setMessage(parseUsersApiError(e));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [active]);
+
+  async function handleSaveAccountProfile(event: React.FormEvent) {
+    event.preventDefault();
+    const session = getStoredAuthSession();
+    if (!session) {
+      setSaveState("error");
+      setMessage("Not signed in.");
+      return;
+    }
+    setSaveState("saving");
+    setMessage("");
+    try {
+      await updateMyProfile(session.accessToken, {
+        displayName: form.displayName.trim() || undefined,
+        bio: form.bio.trim() || undefined,
+        country: form.country.trim() || undefined,
+      });
+      setSaveState("success");
+      setMessage("Account profile saved.");
+    } catch (e: unknown) {
+      setSaveState("error");
+      setMessage(parseUsersApiError(e));
+    }
+  }
 
   return (
     <section className="grid gap-6 xl:grid-cols-[240px_minmax(0,1fr)_320px]">
@@ -65,18 +135,59 @@ export function SettingsPageClient() {
 
         {active === "account" ? (
           <div className="mt-8 space-y-5 rounded-[1.15rem] border border-white/10 bg-white/5 p-5">
-            <p className="text-sm text-[var(--text-muted)]">
-              Email, username, and password flows stay aligned with auth. Open your profile to change display name,
-              bio, and country stored on the server.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link href="/app/profile" className="suzi-primary-btn px-4 py-3 text-sm">
-                Account profile
-              </Link>
-              <Link href="/forgot-password" className="suzi-secondary-btn px-4 py-3 text-sm">
-                Reset password
-              </Link>
-            </div>
+            {loadState === "loading" ? <p className="text-sm text-[var(--text-muted)]">Loading account profile…</p> : null}
+            {loadState === "error" ? <p className="text-sm text-amber-100">{message || "Could not load profile."}</p> : null}
+            <form onSubmit={handleSaveAccountProfile} className="space-y-4">
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/62">
+                  Display name
+                </label>
+                <input
+                  className="suzi-input"
+                  value={form.displayName}
+                  onChange={(event) => setForm((prev) => ({ ...prev, displayName: event.target.value }))}
+                  maxLength={40}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/62">
+                  Bio
+                </label>
+                <textarea
+                  className="suzi-input min-h-24 resize-none"
+                  value={form.bio}
+                  onChange={(event) => setForm((prev) => ({ ...prev, bio: event.target.value }))}
+                  maxLength={280}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/62">
+                  Country
+                </label>
+                <input
+                  className="suzi-input"
+                  value={form.country}
+                  onChange={(event) => setForm((prev) => ({ ...prev, country: event.target.value }))}
+                  maxLength={60}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <button type="submit" disabled={saveState === "saving"} className="suzi-primary-btn px-4 py-3 text-sm">
+                  {saveState === "saving" ? "Saving..." : "Save account profile"}
+                </button>
+                <Link href="/app/profile" className="suzi-secondary-btn px-4 py-3 text-sm">
+                  Full profile
+                </Link>
+                <Link href="/forgot-password" className="suzi-secondary-btn px-4 py-3 text-sm">
+                  Reset password
+                </Link>
+              </div>
+              {message && saveState !== "saving" ? (
+                <p className={cx("text-sm", saveState === "success" ? "text-emerald-200" : "text-amber-100")}>
+                  {message}
+                </p>
+              ) : null}
+            </form>
           </div>
         ) : null}
 

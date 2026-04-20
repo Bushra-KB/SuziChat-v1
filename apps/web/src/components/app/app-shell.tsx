@@ -8,7 +8,12 @@ import {
   listConversationThreads,
   type ConversationThread,
 } from "@/lib/conversations-client";
-import { listNotifications, type ApiNotification } from "@/lib/notifications-client";
+import {
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type ApiNotification,
+} from "@/lib/notifications-client";
 import { createMenuItems } from "@/lib/v1-mock-data";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
 
@@ -63,6 +68,31 @@ export function AppShell({
   const [shellNotifications, setShellNotifications] = useState<ApiNotification[]>([]);
   const inboxBadgeCount = shellThreads.length;
   const unreadNotifications = shellNotifications.filter((n) => !n.read).length;
+  const refreshShellNotifications = async () => {
+    const list = await listNotifications(session.accessToken);
+    setShellNotifications(list);
+  };
+
+  async function handleMarkNotificationRead(id: string) {
+    setShellNotifications((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, read: true } : item)),
+    );
+    try {
+      await markNotificationRead(session.accessToken, id);
+    } catch {
+      await refreshShellNotifications();
+    }
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    setShellNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
+    try {
+      await markAllNotificationsRead(session.accessToken);
+    } catch {
+      await refreshShellNotifications();
+    }
+  }
+
   const accountName = session.user.displayName ?? session.user.username;
   const accountHandle = `@${session.user.username}`;
 
@@ -369,11 +399,15 @@ export function AppShell({
                     <p className="px-3 py-2 text-xs text-[var(--text-soft)]">No notifications.</p>
                   ) : (
                     shellNotifications.slice(0, 4).map((item) => (
-                      <Link
+                      <button
                         key={item.id}
-                        href="/app/notifications"
-                        onClick={() => setIsNotificationsOpen(false)}
-                        className="flex items-start gap-2 rounded-[0.9rem] px-3 py-2.5 transition hover:bg-white/8"
+                        type="button"
+                        onClick={() => {
+                          void handleMarkNotificationRead(item.id);
+                          setIsNotificationsOpen(false);
+                          window.location.href = "/app/notifications";
+                        }}
+                        className="flex w-full items-start gap-2 rounded-[0.9rem] px-3 py-2.5 text-left transition hover:bg-white/8"
                       >
                         <span
                           className={cx(
@@ -387,18 +421,29 @@ export function AppShell({
                             {formatShortNotifTime(item.createdAt)}
                           </p>
                         </div>
-                      </Link>
+                      </button>
                     ))
                   )}
                 </div>
                 <div className="mt-2 border-t border-[var(--border-soft)] px-3 pt-2">
-                  <Link
-                    href="/app/notifications"
-                    onClick={() => setIsNotificationsOpen(false)}
-                    className="text-sm font-medium text-cyan-100 transition hover:text-white"
-                  >
-                    Open notifications
-                  </Link>
+                  <div className="flex items-center justify-between gap-3">
+                    <Link
+                      href="/app/notifications"
+                      onClick={() => setIsNotificationsOpen(false)}
+                      className="text-sm font-medium text-cyan-100 transition hover:text-white"
+                    >
+                      Open notifications
+                    </Link>
+                    {unreadNotifications > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleMarkAllNotificationsRead()}
+                        className="text-xs font-semibold uppercase tracking-[0.08em] text-fuchsia-100/90 transition hover:text-white"
+                      >
+                        Mark all read
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             ) : null}

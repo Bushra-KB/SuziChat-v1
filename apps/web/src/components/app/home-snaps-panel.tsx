@@ -34,12 +34,12 @@ function getViews(likes: number, comments: number) {
 }
 
 const trendingItems = [
-  { snapId: "sunset-walk", title: "Dreamy sunset", author: "Lena Rose", count: 124 },
-  { snapId: "city-lights", title: "Coffee time", author: "Priya", count: 89 },
-  { snapId: "night-friends", title: "Night motion", author: "Marco", count: 154 },
-  { snapId: "ocean-view", title: "Ocean calm", author: "Aoife", count: 76 },
-  { snapId: "sunset-walk", title: "City twilight", author: "Lena Rose", count: 112 },
-  { snapId: "city-lights", title: "Late snack", author: "Priya", count: 98 },
+  { snapId: "sunset-walk", title: "Dreamy sunset", author: "Bushra", count: 124 },
+  { snapId: "city-lights", title: "Coffee time", author: "Bushra", count: 89 },
+  { snapId: "night-friends", title: "Night motion", author: "Bushra", count: 154 },
+  { snapId: "ocean-view", title: "Ocean calm", author: "Bushra", count: 76 },
+  { snapId: "sunset-walk", title: "City twilight", author: "Bushra", count: 112 },
+  { snapId: "city-lights", title: "Late snack", author: "Bushra", count: 98 },
 ];
 
 export function HomeSnapsPanel({

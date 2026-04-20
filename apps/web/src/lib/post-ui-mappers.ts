@@ -29,14 +29,14 @@ export function avatarForUsername(username: string) {
 }
 
 export function apiPostToSnap(p: ApiPost): Snap {
-  const author = p.author.displayName?.trim() || p.author.username;
+  const author = "Bushra";
   const tone = SNAP_TONES[stableHash(p.id) % SNAP_TONES.length];
   const vis = p.visibility?.toLowerCase() === "friends" ? "Friends" : "Public";
 
   return {
     id: p.id,
     author,
-    avatar: avatarForUsername(p.author.username),
+    avatar: "/ppic/ppic1.jpeg",
     title: p.title?.trim() || "Snap",
     caption: p.caption?.trim() || "",
     visibility: vis as Snap["visibility"],
@@ -48,15 +48,15 @@ export function apiPostToSnap(p: ApiPost): Snap {
 }
 
 export function apiPostToReel(p: ApiPost): Reel {
-  const author = p.author.displayName?.trim() || p.author.username;
+  const author = "Bushra";
   const tone = REEL_TONES[stableHash(p.id) % REEL_TONES.length];
 
   return {
     id: p.id,
     author,
-    handle: `@${p.author.username}`,
+    handle: "@bushra",
     title: p.title?.trim() || "Reel",
-    avatar: avatarForUsername(p.author.username),
+    avatar: "/ppic/ppic1.jpeg",
     caption: p.caption?.trim() || "",
     views: 0,
     likes: 0,
