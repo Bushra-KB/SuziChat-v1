@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -21,6 +22,37 @@ export class FriendsController {
   @Get()
   getSummary(@CurrentUser() user: AuthenticatedUser) {
     return this.friendsService.getSummary(user.id);
+  }
+
+  @Get('suggestions')
+  getSuggestions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('take') take?: string,
+  ) {
+    const parsed = take ? Number.parseInt(take, 10) : 12;
+    return this.friendsService.getSuggestions(
+      user.id,
+      Number.isFinite(parsed) ? Math.min(40, Math.max(1, parsed)) : 12,
+    );
+  }
+
+  @Get('explore')
+  exploreUsers(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('q') query?: string,
+    @Query('take') take?: string,
+  ) {
+    const parsed = take ? Number.parseInt(take, 10) : 24;
+    return this.friendsService.exploreUsers(
+      user.id,
+      query ?? '',
+      Number.isFinite(parsed) ? Math.min(60, Math.max(1, parsed)) : 24,
+    );
+  }
+
+  @Get('blocked')
+  listBlocked(@CurrentUser() user: AuthenticatedUser) {
+    return this.friendsService.listBlockedUsers(user.id);
   }
 
   @Post('requests')
@@ -48,6 +80,30 @@ export class FriendsController {
     @Param('requestId') requestId: string,
   ) {
     return this.friendsService.declineRequest(user.id, requestId);
+  }
+
+  @Delete('requests/:requestId')
+  cancelOutgoingRequest(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('requestId') requestId: string,
+  ) {
+    return this.friendsService.cancelOutgoingRequest(user.id, requestId);
+  }
+
+  @Post('blocked/:blockedId')
+  blockUser(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('blockedId') blockedId: string,
+  ) {
+    return this.friendsService.blockUser(user.id, blockedId);
+  }
+
+  @Delete('blocked/:blockedId')
+  unblockUser(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('blockedId') blockedId: string,
+  ) {
+    return this.friendsService.unblockUser(user.id, blockedId);
   }
 
   @Delete(':friendId')
