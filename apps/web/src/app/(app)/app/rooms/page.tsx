@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { RoomsCatalogPageClient } from "@/components/app/rooms-catalog-page-client";
 
 export default function RoomsPage() {
-  redirect("/app");
+  return <RoomsCatalogPageClient />;
 }

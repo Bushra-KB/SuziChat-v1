@@ -44,3 +44,10 @@ export async function sendDirectMessage(accessToken: string, peerId: string, bod
     },
   );
 }
+
+export async function getConversationPeer(accessToken: string, peerId: string) {
+  return apiJson<PeerSummary>(`/v1/conversations/peers/${encodeURIComponent(peerId)}`, {
+    method: "GET",
+    accessToken,
+  });
+}

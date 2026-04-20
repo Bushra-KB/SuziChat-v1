@@ -30,6 +30,14 @@ export class ConversationsController {
     return this.conversationsService.listMessages(user.id, peerId);
   }
 
+  @Get('peers/:peerId')
+  getPeer(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('peerId') peerId: string,
+  ) {
+    return this.conversationsService.getPeer(user.id, peerId);
+  }
+
   @Post(':peerId/messages')
   sendMessage(
     @CurrentUser() user: AuthenticatedUser,

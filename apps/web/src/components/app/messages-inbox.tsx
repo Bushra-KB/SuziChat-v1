@@ -8,6 +8,7 @@ import { PersonRow, ThreadRow } from "@/components/app/v1-blocks";
 import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import {
+  getConversationPeer,
   listConversationThreads,
   listDirectMessages,
   sendDirectMessage,
@@ -45,6 +46,7 @@ export function MessagesInbox() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<DirectMessageRow[]>([]);
+  const [draftPeer, setDraftPeer] = useState<ConversationThread["peer"] | null>(null);
   const [msgLoading, setMsgLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [meId, setMeId] = useState<string | null>(null);
@@ -87,24 +89,45 @@ export function MessagesInbox() {
   }, [loadThreads]);
 
   const selectedPeerId = useMemo(() => {
-    if (!threads.length) {
-      return null;
-    }
-    if (withParam && threads.some((t) => t.peer.id === withParam)) {
+    if (withParam) {
       return withParam;
     }
     return threads[0]?.peer.id ?? null;
   }, [withParam, threads]);
 
   useEffect(() => {
-    if (!threads.length || !selectedPeerId) {
-      return;
-    }
-    if (withParam === selectedPeerId) {
+    if (!threads.length || !selectedPeerId || withParam) {
       return;
     }
     router.replace(`/app/messages?with=${encodeURIComponent(selectedPeerId)}`, { scroll: false });
   }, [threads, selectedPeerId, withParam, router]);
+
+  useEffect(() => {
+    const s = getStoredAuthSession();
+    if (!s || !selectedPeerId) {
+      setDraftPeer(null);
+      return;
+    }
+    if (threads.some((t) => t.peer.id === selectedPeerId)) {
+      setDraftPeer(null);
+      return;
+    }
+    let cancelled = false;
+    void getConversationPeer(s.accessToken, selectedPeerId)
+      .then((peer) => {
+        if (!cancelled) {
+          setDraftPeer(peer);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDraftPeer(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPeerId, threads]);
 
   useEffect(() => {
     const s = getStoredAuthSession();
@@ -136,10 +159,36 @@ export function MessagesInbox() {
     };
   }, [selectedPeerId]);
 
-  const activeThread = useMemo(
-    () => threads.find((t) => t.peer.id === selectedPeerId) ?? null,
-    [threads, selectedPeerId],
-  );
+  const activeThread = useMemo(() => {
+    const found = threads.find((t) => t.peer.id === selectedPeerId);
+    if (found) {
+      return found;
+    }
+    if (!selectedPeerId || !draftPeer) {
+      return null;
+    }
+    return {
+      peer: draftPeer,
+      lastMessage: { id: "draft", body: "No messages yet", createdAt: new Date().toISOString() },
+    };
+  }, [threads, selectedPeerId, draftPeer]);
+
+  const visibleThreads = useMemo(() => {
+    if (!draftPeer || !selectedPeerId || threads.some((t) => t.peer.id === selectedPeerId)) {
+      return threads;
+    }
+    return [
+      ...threads,
+      {
+        peer: draftPeer,
+        lastMessage: {
+          id: "draft",
+          body: "New conversation",
+          createdAt: new Date().toISOString(),
+        },
+      },
+    ];
+  }, [draftPeer, selectedPeerId, threads]);
 
   async function handleSend(text: string) {
     const s = getStoredAuthSession();
@@ -147,11 +196,26 @@ export function MessagesInbox() {
       return;
     }
     setSending(true);
+    const optimisticId = `optimistic-dm-${Date.now()}`;
+    const optimistic: DirectMessageRow = {
+      id: optimisticId,
+      body: text,
+      createdAt: new Date().toISOString(),
+      sender: {
+        id: s.user.id,
+        username: s.user.username,
+        displayName: s.user.displayName,
+        country: null,
+      },
+      recipient: { id: selectedPeerId },
+    };
+    setMessages((prev) => [...prev, optimistic]);
     try {
       const row = await sendDirectMessage(s.accessToken, selectedPeerId, text);
-      setMessages((prev) => [...prev, row]);
+      setMessages((prev) => prev.map((m) => (m.id === optimisticId ? row : m)));
       await loadThreads();
     } catch (e: unknown) {
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setError(e instanceof Error ? e.message : "Send failed.");
     } finally {
       setSending(false);
@@ -169,12 +233,12 @@ export function MessagesInbox() {
         <div className="suzi-scrollbar mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
           {loading ? (
             <p className="text-sm text-[var(--text-muted)]">Loading conversations…</p>
-          ) : threads.length === 0 ? (
+          ) : visibleThreads.length === 0 ? (
             <p className="text-sm text-[var(--text-muted)]">
               No conversations yet — message someone from Friends.
             </p>
           ) : (
-            threads.map((thread) => (
+            visibleThreads.map((thread) => (
               <ThreadRow
                 key={thread.peer.id}
                 person={peerToPerson(thread.peer)}
@@ -204,6 +268,8 @@ export function MessagesInbox() {
         <div className="suzi-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-6 py-6">
           {msgLoading ? (
             <p className="text-sm text-slate-500">Loading messages…</p>
+          ) : messages.length === 0 ? (
+            <p className="text-sm text-slate-500">No messages yet. Start the conversation.</p>
           ) : (
             messages.map((m) => {
               const mine = meId !== null && m.sender.id === meId;

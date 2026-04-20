@@ -9,6 +9,7 @@ export type ApiRoom = {
   privacy: string;
   createdAt: string;
   owner: { id: string; username: string; displayName: string | null };
+  _count?: { messages: number };
 };
 
 export type ApiRoomMessage = {
@@ -48,4 +49,38 @@ export async function postRoomMessage(accessToken: string, slug: string, body: s
       body: JSON.stringify({ body }),
     },
   );
+}
+
+export async function createRoom(
+  accessToken: string,
+  payload: {
+    name: string;
+    slug?: string;
+    description?: string;
+    category?: string;
+    privacy?: "Public" | "Friends" | "Private";
+  },
+) {
+  return apiJson<ApiRoom>("/v1/rooms", {
+    method: "POST",
+    accessToken,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateRoom(
+  accessToken: string,
+  slug: string,
+  payload: {
+    name?: string;
+    description?: string;
+    category?: string;
+    privacy?: "Public" | "Friends" | "Private";
+  },
+) {
+  return apiJson<ApiRoom>(`/v1/rooms/${encodeURIComponent(slug)}`, {
+    method: "PATCH",
+    accessToken,
+    body: JSON.stringify(payload),
+  });
 }

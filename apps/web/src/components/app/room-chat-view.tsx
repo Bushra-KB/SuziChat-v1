@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChatComposer } from "@/components/app/chat-composer";
 import { ChatMessageRow, type LiveChatMessage } from "@/components/app/chat-message-row";
 import { PersonRow } from "@/components/app/v1-blocks";
@@ -15,7 +15,6 @@ import {
   type ApiRoom,
   type ApiRoomMessage,
 } from "@/lib/rooms-client";
-import { people } from "@/lib/v1-mock-data";
 
 function formatShortTime(iso: string) {
   try {
@@ -72,9 +71,14 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     };
   }, [refresh]);
 
-  const roomHosts = people.slice(0, 2);
-  const roomMembers = people.slice(2);
-  const onlineCount = [...roomHosts, ...roomMembers].filter((person) => person.status === "online").length;
+  const participantRows = useMemo(() => {
+    const map = new Map<string, ApiRoomMessage["sender"]>();
+    for (const message of messages) {
+      map.set(message.sender.id, message.sender);
+    }
+    return [...map.values()];
+  }, [messages]);
+  const onlineCount = participantRows.length;
 
   async function handleSend(body: string) {
     const s = getStoredAuthSession();
@@ -82,10 +86,25 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
       return;
     }
     setSending(true);
+    const optimisticId = `optimistic-${Date.now()}`;
+    const optimisticMessage: ApiRoomMessage = {
+      id: optimisticId,
+      body,
+      createdAt: new Date().toISOString(),
+      sender: {
+        id: s.user.id,
+        username: s.user.username,
+        displayName: s.user.displayName ?? null,
+      },
+    };
+    setMessages((prev) => [...prev, optimisticMessage]);
     try {
       const created = await postRoomMessage(s.accessToken, roomSlug, body);
-      setMessages((prev) => [...prev, created]);
+      setMessages((prev) =>
+        prev.map((row) => (row.id === optimisticId ? created : row)),
+      );
     } catch (e: unknown) {
+      setMessages((prev) => prev.filter((row) => row.id !== optimisticId));
       setError(e instanceof Error ? e.message : "Send failed.");
     } finally {
       setSending(false);
@@ -124,9 +143,11 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
               >
                 {room?.privacy ?? "—"}
               </span>
-              <Link href={`/app/rooms/${roomSlug}/edit`} className="suzi-secondary-btn px-4 py-1.5 text-sm">
-                Edit
-              </Link>
+              {meId && room?.owner.id === meId ? (
+                <Link href={`/app/rooms/${roomSlug}/edit`} className="suzi-secondary-btn px-4 py-1.5 text-sm">
+                  Edit
+                </Link>
+              ) : null}
             </div>
           </div>
         </div>
@@ -176,18 +197,28 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 Room Hosts
               </p>
               <div className="space-y-3">
-                {roomHosts.map((person) => (
+                {room ? (
                   <PersonRow
-                    key={person.id}
-                    person={person}
+                    key={room?.owner.id ?? "owner"}
+                    person={{
+                      id: room?.owner.id ?? "owner",
+                      name: room?.owner.displayName?.trim() || room?.owner.username || "Owner",
+                      handle: `@${room?.owner.username ?? "owner"}`,
+                      avatar: "/ppic/ppic1.jpeg",
+                    }}
                     compact
                     action={
-                      <Link href="/app/messages" className="suzi-secondary-btn px-3 py-2 text-xs">
-                        DM
-                      </Link>
+                      room?.owner.id && room.owner.id !== meId ? (
+                        <Link
+                          href={`/app/messages?with=${encodeURIComponent(room.owner.id)}`}
+                          className="suzi-secondary-btn px-3 py-2 text-xs"
+                        >
+                          DM
+                        </Link>
+                      ) : undefined
                     }
                   />
-                ))}
+                ) : null}
               </div>
             </div>
 
@@ -196,15 +227,25 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 Room Members
               </p>
               <div className="space-y-3">
-                {roomMembers.map((person) => (
+                {participantRows.map((person) => (
                   <PersonRow
                     key={person.id}
-                    person={person}
+                    person={{
+                      id: person.id,
+                      name: person.displayName?.trim() || person.username,
+                      handle: `@${person.username}`,
+                      avatar: "/ppic/ppic1.jpeg",
+                    }}
                     compact
                     action={
-                      <Link href="/app/messages" className="suzi-secondary-btn px-3 py-2 text-xs">
-                        DM
-                      </Link>
+                      person.id !== meId ? (
+                        <Link
+                          href={`/app/messages?with=${encodeURIComponent(person.id)}`}
+                          className="suzi-secondary-btn px-3 py-2 text-xs"
+                        >
+                          DM
+                        </Link>
+                      ) : undefined
                     }
                   />
                 ))}
@@ -219,9 +260,9 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
             <button type="button" className="suzi-secondary-btn px-4 py-3 text-sm">
               Invite friends
             </button>
-            <button type="button" className="suzi-secondary-btn px-4 py-3 text-sm">
-              Report room
-            </button>
+            <Link href="/app/rooms" className="suzi-secondary-btn px-4 py-3 text-center text-sm">
+              Back to rooms
+            </Link>
           </div>
         </Panel>
       </div>

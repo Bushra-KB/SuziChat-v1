@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -7,6 +9,8 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateRoomDto } from './dto/create-room.dto';
+import { UpdateRoomDto } from './dto/update-room.dto';
 
 const senderSelect = {
   id: true,
@@ -126,6 +130,11 @@ export class RoomsService implements OnModuleInit {
         owner: {
           select: { id: true, username: true, displayName: true },
         },
+        _count: {
+          select: {
+            messages: true,
+          },
+        },
       },
     });
   }
@@ -143,6 +152,11 @@ export class RoomsService implements OnModuleInit {
         createdAt: true,
         owner: {
           select: { id: true, username: true, displayName: true },
+        },
+        _count: {
+          select: {
+            messages: true,
+          },
         },
       },
     });
@@ -177,6 +191,104 @@ export class RoomsService implements OnModuleInit {
     });
 
     return messages.reverse();
+  }
+
+  private slugifyRoomName(name: string) {
+    return name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 64);
+  }
+
+  async createRoom(ownerId: string, dto: CreateRoomDto) {
+    const name = dto.name.trim();
+    const slug = (dto.slug?.trim() || this.slugifyRoomName(name)).toLowerCase();
+
+    if (!slug) {
+      throw new BadRequestException('Room slug is required');
+    }
+
+    const owner = await this.prisma.user.findUnique({
+      where: { id: ownerId },
+      select: { id: true },
+    });
+
+    if (!owner) {
+      throw new UnauthorizedException();
+    }
+
+    const exists = await this.prisma.room.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+
+    if (exists) {
+      throw new BadRequestException('Room slug already exists');
+    }
+
+    return this.prisma.room.create({
+      data: {
+        ownerId,
+        slug,
+        name,
+        description: dto.description?.trim() || null,
+        category: dto.category?.trim() || 'Social',
+        privacy: dto.privacy ?? 'Public',
+      },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        category: true,
+        privacy: true,
+        createdAt: true,
+        owner: {
+          select: { id: true, username: true, displayName: true },
+        },
+        _count: { select: { messages: true } },
+      },
+    });
+  }
+
+  async updateRoom(slug: string, userId: string, dto: UpdateRoomDto) {
+    const room = await this.prisma.room.findUnique({
+      where: { slug },
+      select: { id: true, ownerId: true },
+    });
+
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+
+    if (room.ownerId !== userId) {
+      throw new ForbiddenException('Only room owner can edit this room');
+    }
+
+    return this.prisma.room.update({
+      where: { slug },
+      data: {
+        name: dto.name?.trim(),
+        description: dto.description?.trim(),
+        category: dto.category?.trim(),
+        privacy: dto.privacy,
+      },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        category: true,
+        privacy: true,
+        createdAt: true,
+        owner: {
+          select: { id: true, username: true, displayName: true },
+        },
+        _count: { select: { messages: true } },
+      },
+    });
   }
 
   async postMessage(roomSlug: string, senderId: string, body: string) {

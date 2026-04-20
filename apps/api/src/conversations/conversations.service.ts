@@ -16,6 +16,23 @@ const peerSelect = {
 export class ConversationsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getPeer(userId: string, peerId: string) {
+    if (userId === peerId) {
+      throw new ForbiddenException('Cannot message yourself');
+    }
+
+    const peer = await this.prisma.user.findUnique({
+      where: { id: peerId },
+      select: peerSelect,
+    });
+
+    if (!peer) {
+      throw new NotFoundException('User not found');
+    }
+
+    return peer;
+  }
+
   async listThreads(userId: string) {
     const messages = await this.prisma.directMessage.findMany({
       where: {
@@ -54,14 +71,7 @@ export class ConversationsService {
   }
 
   async listMessages(userId: string, peerId: string) {
-    const peer = await this.prisma.user.findUnique({
-      where: { id: peerId },
-      select: { id: true },
-    });
-
-    if (!peer) {
-      throw new NotFoundException('User not found');
-    }
+    await this.getPeer(userId, peerId);
 
     return this.prisma.directMessage.findMany({
       where: {
@@ -82,18 +92,7 @@ export class ConversationsService {
   }
 
   async sendMessage(userId: string, peerId: string, body: string) {
-    if (userId === peerId) {
-      throw new ForbiddenException('Cannot message yourself');
-    }
-
-    const peer = await this.prisma.user.findUnique({
-      where: { id: peerId },
-      select: { id: true },
-    });
-
-    if (!peer) {
-      throw new NotFoundException('User not found');
-    }
+    await this.getPeer(userId, peerId);
 
     return this.prisma.directMessage.create({
       data: {
