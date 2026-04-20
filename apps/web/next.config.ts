@@ -1,11 +1,16 @@
 import type { NextConfig } from "next";
 
+const apiProxyTarget =
+  process.env.API_PROXY_TARGET?.trim() ||
+  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ||
+  "http://127.0.0.1:4000";
+
 const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
         source: "/api/:path*",
-        destination: "http://127.0.0.1:4000/:path*",
+        destination: `${apiProxyTarget.replace(/\/$/, "")}/:path*`,
       },
     ];
   },

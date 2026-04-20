@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
-  getCurrentUser,
   login,
   saveAuthSession,
   type AuthUser,
@@ -42,14 +41,8 @@ export function LoginPanel({
         emailOrUsername,
         password,
       });
-      const currentUser = await getCurrentUser(session.accessToken);
-      const hydratedSession = {
-        ...session,
-        user: currentUser,
-      };
-
-      saveAuthSession(hydratedSession);
-      setUser(currentUser);
+      saveAuthSession(session);
+      setUser(session.user);
       setStatus("success");
       setMessage("Signed in successfully.");
       router.push("/app");

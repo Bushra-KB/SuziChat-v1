@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { AuthSessionRedirect } from "@/components/auth/auth-session-redirect";
 
 const twinkleStars = [
   { left: "11%", top: "18%", size: 6, delay: "0.2s", duration: "2.5s" },
@@ -24,6 +25,7 @@ const shootingStars = [
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main className="suzi-hybrid-bg relative min-h-screen overflow-hidden text-white">
+      <AuthSessionRedirect to="/app" />
       <div className="absolute inset-0 opacity-12 [background-image:radial-gradient(rgba(255,255,255,0.6)_0.7px,transparent_0.7px)] [background-size:28px_28px]" />
       <div className="absolute left-[-8%] top-[-6%] h-[34rem] w-[34rem] rounded-full bg-sky-300/14 blur-[150px]" />
       <div className="absolute right-[-5%] top-[8%] h-[28rem] w-[28rem] rounded-full bg-blue-400/10 blur-[130px]" />

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
-  getCurrentUser,
   register,
   saveAuthSession,
   type AuthUser,
@@ -34,14 +33,8 @@ export default function RegisterPage() {
         password,
         isAdultConfirmed,
       });
-      const currentUser = await getCurrentUser(session.accessToken);
-      const hydratedSession = {
-        ...session,
-        user: currentUser,
-      };
-
-      saveAuthSession(hydratedSession);
-      setUser(currentUser);
+      saveAuthSession(session);
+      setUser(session.user);
       setStatus("success");
       setMessage("Account created and signed in.");
       router.push("/app");
