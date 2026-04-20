@@ -15,6 +15,7 @@ import {
   type ConversationThread,
   type DirectMessageRow,
 } from "@/lib/conversations-client";
+import { getRealtimeSocket } from "@/lib/realtime-client";
 import type { Person } from "@/lib/v1-mock-data";
 
 const defaultAvatar = "/ppic/ppic1.jpeg";
@@ -49,6 +50,7 @@ export function MessagesInbox() {
   const [draftPeer, setDraftPeer] = useState<ConversationThread["peer"] | null>(null);
   const [msgLoading, setMsgLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [socketReady, setSocketReady] = useState(false);
   const [meId, setMeId] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
 
@@ -67,6 +69,28 @@ export function MessagesInbox() {
     const s = getStoredAuthSession();
     setMeId(s?.user.id ?? null);
     setHasSession(!!s?.accessToken);
+  }, []);
+
+  useEffect(() => {
+    const s = getStoredAuthSession();
+    if (!s) {
+      setSocketReady(false);
+      return;
+    }
+    const socket = getRealtimeSocket(s.accessToken);
+    const onConnect = () => setSocketReady(true);
+    const onDisconnect = () => setSocketReady(false);
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    if (socket.connected) {
+      setSocketReady(true);
+    }
+
+    return () => {
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+    };
   }, []);
 
   useEffect(() => {
@@ -159,6 +183,43 @@ export function MessagesInbox() {
     };
   }, [selectedPeerId]);
 
+  useEffect(() => {
+    const s = getStoredAuthSession();
+    if (!s) {
+      return;
+    }
+    const socket = getRealtimeSocket(s.accessToken);
+    const joinSelectedPeer = () => {
+      if (selectedPeerId) {
+        socket.emit("dm:join", { peerId: selectedPeerId });
+      }
+    };
+
+    joinSelectedPeer();
+    socket.on("connect", joinSelectedPeer);
+
+    const onDmMessage = (row: DirectMessageRow) => {
+      setMessages((prev) => {
+        const relevant =
+          row.sender.id === selectedPeerId || row.recipient.id === selectedPeerId;
+        if (!relevant) {
+          return prev;
+        }
+        if (prev.some((m) => m.id === row.id)) {
+          return prev;
+        }
+        return [...prev, row];
+      });
+      void loadThreads();
+    };
+
+    socket.on("dm:message", onDmMessage);
+    return () => {
+      socket.off("connect", joinSelectedPeer);
+      socket.off("dm:message", onDmMessage);
+    };
+  }, [loadThreads, selectedPeerId]);
+
   const activeThread = useMemo(() => {
     const found = threads.find((t) => t.peer.id === selectedPeerId);
     if (found) {
@@ -211,8 +272,31 @@ export function MessagesInbox() {
     };
     setMessages((prev) => [...prev, optimistic]);
     try {
-      const row = await sendDirectMessage(s.accessToken, selectedPeerId, text);
-      setMessages((prev) => prev.map((m) => (m.id === optimisticId ? row : m)));
+      const socket = getRealtimeSocket(s.accessToken);
+      const row = await new Promise<DirectMessageRow>((resolve, reject) => {
+        if (!socket.connected) {
+          void sendDirectMessage(s.accessToken, selectedPeerId, text)
+            .then(resolve)
+            .catch(reject);
+          return;
+        }
+
+        socket.emit(
+          "dm:send",
+          { peerId: selectedPeerId, body: text },
+          (ack: { ok?: boolean; message?: DirectMessageRow; error?: string }) => {
+            if (ack?.ok && ack.message) {
+              resolve(ack.message);
+              return;
+            }
+            reject(new Error(ack?.error || "Send failed."));
+          },
+        );
+      });
+      setMessages((prev) => {
+        const withoutServerDuplicate = prev.filter((m) => m.id !== row.id);
+        return withoutServerDuplicate.map((m) => (m.id === optimisticId ? row : m));
+      });
       await loadThreads();
     } catch (e: unknown) {
       setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
@@ -229,6 +313,9 @@ export function MessagesInbox() {
         <div className="mt-5">
           <input className="suzi-input" placeholder="Search conversations" readOnly disabled />
         </div>
+        <p className="mt-3 text-xs text-cyan-100/70">
+          {socketReady ? "Realtime connected" : "Realtime reconnecting..."}
+        </p>
         {error ? <p className="mt-3 text-sm text-amber-100">{error}</p> : null}
         <div className="suzi-scrollbar mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
           {loading ? (

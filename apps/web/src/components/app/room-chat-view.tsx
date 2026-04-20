@@ -15,6 +15,7 @@ import {
   type ApiRoom,
   type ApiRoomMessage,
 } from "@/lib/rooms-client";
+import { getRealtimeSocket } from "@/lib/realtime-client";
 
 function formatShortTime(iso: string) {
   try {
@@ -33,6 +34,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [socketReady, setSocketReady] = useState(false);
   const [meId, setMeId] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
 
@@ -51,6 +53,47 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     setMeId(s?.user.id ?? null);
     setHasSession(!!s?.accessToken);
   }, []);
+
+  useEffect(() => {
+    const s = getStoredAuthSession();
+    if (!s) {
+      setSocketReady(false);
+      return;
+    }
+    const socket = getRealtimeSocket(s.accessToken);
+    const joinRoom = () => {
+      socket.emit("room:join", { roomSlug });
+    };
+    const onConnect = () => setSocketReady(true);
+    const onDisconnect = () => setSocketReady(false);
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("connect", joinRoom);
+    if (socket.connected) {
+      setSocketReady(true);
+      joinRoom();
+    }
+
+    const onRoomMessage = (payload: { roomSlug: string; message: ApiRoomMessage }) => {
+      if (payload.roomSlug !== roomSlug) {
+        return;
+      }
+      setMessages((prev) => {
+        if (prev.some((row) => row.id === payload.message.id)) {
+          return prev;
+        }
+        return [...prev, payload.message];
+      });
+    };
+
+    socket.on("room:message", onRoomMessage);
+    return () => {
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("connect", joinRoom);
+      socket.off("room:message", onRoomMessage);
+    };
+  }, [roomSlug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,10 +142,30 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     };
     setMessages((prev) => [...prev, optimisticMessage]);
     try {
-      const created = await postRoomMessage(s.accessToken, roomSlug, body);
-      setMessages((prev) =>
-        prev.map((row) => (row.id === optimisticId ? created : row)),
-      );
+      const socket = getRealtimeSocket(s.accessToken);
+      const created = await new Promise<ApiRoomMessage>((resolve, reject) => {
+        if (!socket.connected) {
+          void postRoomMessage(s.accessToken, roomSlug, body)
+            .then(resolve)
+            .catch(reject);
+          return;
+        }
+        socket.emit(
+          "room:send",
+          { roomSlug, body },
+          (ack: { ok?: boolean; message?: ApiRoomMessage; error?: string }) => {
+            if (ack?.ok && ack.message) {
+              resolve(ack.message);
+              return;
+            }
+            reject(new Error(ack?.error || "Send failed."));
+          },
+        );
+      });
+      setMessages((prev) => {
+        const withoutServerDuplicate = prev.filter((row) => row.id !== created.id);
+        return withoutServerDuplicate.map((row) => (row.id === optimisticId ? created : row));
+      });
     } catch (e: unknown) {
       setMessages((prev) => prev.filter((row) => row.id !== optimisticId));
       setError(e instanceof Error ? e.message : "Send failed.");
@@ -119,6 +182,9 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
             <div>
               <p className="text-[0.7rem] font-semibold uppercase tracking-[0.3em] text-cyan-100/64">
                 Room Chat
+              </p>
+              <p className="mt-1 text-xs text-cyan-100/64">
+                {socketReady ? "Realtime connected" : "Realtime reconnecting..."}
               </p>
               <h1 className="mt-1 text-2xl font-semibold text-white">
                 {loading ? "…" : room?.name ?? roomSlug}

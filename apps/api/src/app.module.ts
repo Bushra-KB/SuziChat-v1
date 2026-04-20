@@ -11,6 +11,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { PostsModule } from './posts/posts.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PublicModule } from './public/public.module';
+import { RealtimeModule } from './realtime/realtime.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { UsersModule } from './users/users.module';
 
@@ -28,6 +29,7 @@ import { UsersModule } from './users/users.module';
     PublicModule,
     RoomsModule,
     ConversationsModule,
+    RealtimeModule,
     PostsModule,
     NotificationsModule,
   ],

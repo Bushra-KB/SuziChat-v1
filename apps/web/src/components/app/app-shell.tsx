@@ -14,6 +14,7 @@ import {
   markNotificationRead,
   type ApiNotification,
 } from "@/lib/notifications-client";
+import { getRealtimeSocket } from "@/lib/realtime-client";
 import { createMenuItems } from "@/lib/v1-mock-data";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
 
@@ -160,6 +161,19 @@ export function AppShell({
     ]).catch(() => {});
     return () => {
       cancelled = true;
+    };
+  }, [session.accessToken]);
+
+  useEffect(() => {
+    const socket = getRealtimeSocket(session.accessToken);
+    const refreshThreads = () => {
+      void listConversationThreads(session.accessToken)
+        .then((threads) => setShellThreads(threads))
+        .catch(() => {});
+    };
+    socket.on("dm:message", refreshThreads);
+    return () => {
+      socket.off("dm:message", refreshThreads);
     };
   }, [session.accessToken]);
 
