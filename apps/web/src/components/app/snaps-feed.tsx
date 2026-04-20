@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
+import { listPosts } from "@/lib/posts-client";
+import { apiPostToSnap } from "@/lib/post-ui-mappers";
 import type { Snap } from "@/lib/v1-mock-data";
 import { snaps as initialSnaps } from "@/lib/v1-mock-data";
 
@@ -144,6 +146,39 @@ function formatAuthorLine(author: string) {
 
 const AUTO_ADVANCE_MS = 12_000;
 
+function SnapHeroMedia({
+  src,
+  alt,
+  priority,
+}: {
+  src: string;
+  alt: string;
+  priority?: boolean;
+}) {
+  if (!src.startsWith("/")) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={alt}
+        className="absolute inset-0 h-full w-full bg-[rgba(6,9,28,0.35)] object-cover"
+        draggable={false}
+      />
+    );
+  }
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      sizes="(max-width: 640px) 86vw, 24rem"
+      priority={priority}
+      className="bg-[rgba(6,9,28,0.35)] object-cover"
+      draggable={false}
+    />
+  );
+}
+
 export function SnapsFeed() {
   const [displaySnaps, setDisplaySnaps] = useState<Snap[]>(() => initialSnaps);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -211,6 +246,36 @@ export function SnapsFeed() {
     setCommentSheetOffsetY(0);
     setCommentDraft("");
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    void listPosts("SNAP", 40)
+      .then((rows) => {
+        if (cancelled || rows.length === 0) {
+          return;
+        }
+        const mapped = rows.map(apiPostToSnap);
+        setDisplaySnaps(mapped);
+        setCommentsBySnap(
+          Object.fromEntries(
+            mapped.map((snap) => [
+              snap.id,
+              [
+                { id: `${snap.id}-c1`, author: "River J.", text: "This glow is unreal.", time: "3m" },
+                { id: `${snap.id}-c2`, author: "Tess M.", text: "Love the mood here.", time: "8m" },
+              ],
+            ]),
+          ),
+        );
+        setActiveIndex(0);
+        setLikedBySnap({});
+        setExtraCommentCounts({});
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(
     () => () => {
@@ -627,15 +692,7 @@ export function SnapsFeed() {
                       willChange: "transform, opacity",
                     }}
                   >
-                    <Image
-                      src={snap.image}
-                      alt={`${snap.title} snap`}
-                      fill
-                      sizes="(max-width: 640px) 86vw, 24rem"
-                      priority={layer.isActive}
-                      className="bg-[rgba(6,9,28,0.35)] object-cover"
-                      draggable={false}
-                    />
+                    <SnapHeroMedia src={snap.image} alt={`${snap.title} snap`} priority={layer.isActive} />
 
                     <div
                       className={cx(

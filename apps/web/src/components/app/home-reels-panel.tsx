@@ -1,6 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Panel } from "@/components/ui/suzi-primitives";
-import { reels } from "@/lib/v1-mock-data";
+import { listPosts } from "@/lib/posts-client";
+import { apiPostToReel } from "@/lib/post-ui-mappers";
+import { reels as mockReels } from "@/lib/v1-mock-data";
+import type { Reel } from "@/lib/v1-mock-data";
 
 function formatCompact(value: number) {
   if (value >= 1000) {
@@ -12,6 +18,23 @@ function formatCompact(value: number) {
 }
 
 export function HomeReelsPanel() {
+  const [rows, setRows] = useState<Reel[]>(() => mockReels);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listPosts("REEL", 30)
+      .then((posts) => {
+        if (cancelled || posts.length === 0) {
+          return;
+        }
+        setRows(posts.map(apiPostToReel));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <Panel className="p-4">
       <div className="flex items-center justify-between gap-2.5">
@@ -45,7 +68,7 @@ export function HomeReelsPanel() {
       </div>
 
       <div className="suzi-scrollbar mt-4 h-[22rem] space-y-2 overflow-y-auto pr-1">
-        {reels.map((reel) => (
+        {rows.map((reel) => (
           <Link
             key={reel.id}
             href={`/app/reels?focus=${reel.id}`}

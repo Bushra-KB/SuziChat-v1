@@ -2,13 +2,38 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Panel, StatusDot, cx } from "@/components/ui/suzi-primitives";
-import { people } from "@/lib/v1-mock-data";
+import { getStoredAuthSession } from "@/lib/auth-client";
+import { getFriendsSummary, type FriendsSummary } from "@/lib/friends-client";
+import type { Person } from "@/lib/v1-mock-data";
+
+const defaultAvatar = "/ppic/ppic1.jpeg";
+
+function incomingToPerson(entry: FriendsSummary["incomingRequests"][0]): Person {
+  const u = entry.user;
+  return {
+    id: u.id,
+    name: u.displayName?.trim() || u.username,
+    handle: `@${u.username}`,
+    avatar: defaultAvatar,
+    location: u.country ?? undefined,
+    status: "offline",
+  };
+}
+
+function friendToPerson(entry: FriendsSummary["friends"][0]): Person {
+  return {
+    id: entry.id,
+    name: entry.displayName?.trim() || entry.username,
+    handle: `@${entry.username}`,
+    avatar: defaultAvatar,
+    location: entry.country ?? undefined,
+    status: "offline",
+  };
+}
 
 type FriendsTab = "all" | "online" | "requests";
-
-const requestUserIds = new Set(["john", "nadia"]);
 
 function getTabClasses(active: boolean) {
   return cx(
@@ -31,16 +56,32 @@ function getDisplayName(name: string) {
 export function HomeFriendsPanel() {
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<FriendsTab>("all");
+  const [summary, setSummary] = useState<FriendsSummary | null>(null);
 
-  const requestFriends = useMemo(() => people.filter((person) => requestUserIds.has(person.id)), []);
+  const refresh = useCallback(() => {
+    const s = getStoredAuthSession();
+    if (!s) {
+      setSummary(null);
+      return;
+    }
+    void getFriendsSummary(s.accessToken).then(setSummary).catch(() => setSummary(null));
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const requestFriends = useMemo(() => summary?.incomingRequests.map(incomingToPerson) ?? [], [summary]);
+
+  const friendsPeople = useMemo(() => summary?.friends.map(friendToPerson) ?? [], [summary]);
 
   const filteredPeople = useMemo(() => {
     const baseList =
       activeTab === "online"
-        ? people.filter((person) => person.status === "online")
+        ? friendsPeople.filter((person) => person.status === "online")
         : activeTab === "requests"
           ? requestFriends
-          : people;
+          : friendsPeople;
 
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) {
@@ -52,7 +93,7 @@ export function HomeFriendsPanel() {
         .toLowerCase()
         .includes(normalizedQuery),
     );
-  }, [activeTab, query, requestFriends]);
+  }, [activeTab, query, requestFriends, friendsPeople]);
 
   return (
     <Panel className="p-4">
@@ -155,7 +196,11 @@ export function HomeFriendsPanel() {
           filteredPeople.map((person) => (
             <Link
               key={person.id}
-              href="/app/messages"
+              href={
+                activeTab === "requests"
+                  ? "/app/friends"
+                  : `/app/messages?with=${encodeURIComponent(person.id)}`
+              }
               className="flex items-center gap-3 rounded-[1rem] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(32,20,89,0.72),rgba(18,13,65,0.56))] px-3 py-2.5 transition hover:border-cyan-300/44 hover:bg-[linear-gradient(160deg,rgba(45,27,115,0.74),rgba(24,16,82,0.64))]"
             >
               <Image

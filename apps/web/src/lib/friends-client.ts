@@ -1,6 +1,6 @@
-import { getApiBaseUrl } from "@/lib/api-base-url";
+import { apiJson } from "@/lib/api-auth-request";
 
-export type FriendUser = {
+export type FriendSummaryUser = {
   id: string;
   email: string;
   username: string;
@@ -8,9 +8,9 @@ export type FriendUser = {
   country: string | null;
 };
 
-export type FriendSummary = {
+export type FriendsSummary = {
   friends: Array<
-    FriendUser & {
+    FriendSummaryUser & {
       friendshipId: string;
       createdAt: string;
     }
@@ -18,83 +18,50 @@ export type FriendSummary = {
   incomingRequests: Array<{
     id: string;
     createdAt: string;
-    user: FriendUser;
+    user: FriendSummaryUser;
   }>;
   outgoingRequests: Array<{
     id: string;
     createdAt: string;
-    user: FriendUser;
+    user: FriendSummaryUser;
   }>;
 };
 
-async function request<T>(
-  path: string,
-  accessToken: string,
-  options: RequestInit = {},
-) {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-      ...(options.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    let message = "Request failed";
-
-    try {
-      const payload = (await response.json()) as { message?: string | string[] };
-      message = Array.isArray(payload.message)
-        ? payload.message[0] ?? message
-        : payload.message ?? message;
-    } catch {
-      message = "Request failed";
-    }
-
-    throw new Error(message);
-  }
-
-  return (await response.json()) as T;
-}
-
-export function getFriendSummary(accessToken: string) {
-  return request<FriendSummary>("/v1/friends", accessToken);
-}
-
-export function sendFriendRequest(
-  accessToken: string,
-  usernameOrEmail: string,
-) {
-  return request<{ id: string }>("/v1/friends/requests", accessToken, {
-    method: "POST",
-    body: JSON.stringify({ usernameOrEmail }),
-  });
-}
-
-export function acceptFriendRequest(accessToken: string, requestId: string) {
-  return request<{ message: string }>(
-    `/v1/friends/requests/${requestId}/accept`,
+export async function getFriendsSummary(accessToken: string) {
+  return apiJson<FriendsSummary>("/v1/friends", {
+    method: "GET",
     accessToken,
+  });
+}
+
+export async function sendFriendRequest(accessToken: string, usernameOrEmail: string) {
+  return apiJson<{ id: string; createdAt: string; user: FriendSummaryUser }>(
+    "/v1/friends/requests",
     {
       method: "POST",
+      accessToken,
+      body: JSON.stringify({ usernameOrEmail }),
     },
   );
 }
 
-export function declineFriendRequest(accessToken: string, requestId: string) {
-  return request<{ message: string }>(
-    `/v1/friends/requests/${requestId}/decline`,
-    accessToken,
-    {
-      method: "POST",
-    },
+export async function acceptFriendRequest(accessToken: string, requestId: string) {
+  return apiJson<{ message: string; user: FriendSummaryUser }>(
+    `/v1/friends/requests/${encodeURIComponent(requestId)}/accept`,
+    { method: "POST", accessToken },
   );
 }
 
-export function unfriend(accessToken: string, friendId: string) {
-  return request<{ message: string }>(`/v1/friends/${friendId}`, accessToken, {
+export async function declineFriendRequest(accessToken: string, requestId: string) {
+  return apiJson<{ message: string }>(
+    `/v1/friends/requests/${encodeURIComponent(requestId)}/decline`,
+    { method: "POST", accessToken },
+  );
+}
+
+export async function unfriend(accessToken: string, friendId: string) {
+  return apiJson<{ message: string }>(`/v1/friends/${encodeURIComponent(friendId)}`, {
     method: "DELETE",
+    accessToken,
   });
 }

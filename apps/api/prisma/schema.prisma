@@ -18,26 +18,37 @@ enum FriendRequestStatus {
   CANCELED
 }
 
+enum PostKind {
+  SNAP
+  REEL
+}
+
 model User {
-  id               String    @id @default(cuid())
-  email            String    @unique
-  username         String    @unique
-  displayName      String?
-  bio              String?
-  country          String?
-  passwordHash     String
-  refreshTokenHash String?
-  passwordResetTokenHash String?
+  id                        String    @id @default(cuid())
+  email                     String    @unique
+  username                  String    @unique
+  displayName               String?
+  bio                       String?
+  country                   String?
+  passwordHash              String
+  refreshTokenHash          String?
+  passwordResetTokenHash    String?
   passwordResetTokenExpiresAt DateTime?
-  sentFriendRequests FriendRequest[] @relation("FriendRequestSender")
-  receivedFriendRequests FriendRequest[] @relation("FriendRequestReceiver")
-  friendships Friendship[] @relation("FriendshipUser")
-  friendOf Friendship[] @relation("FriendshipFriend")
-  role             UserRole  @default(USER)
-  isAdultConfirmed Boolean   @default(false)
-  isEmailVerified  Boolean   @default(false)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  sentFriendRequests        FriendRequest[]   @relation("FriendRequestSender")
+  receivedFriendRequests    FriendRequest[]   @relation("FriendRequestReceiver")
+  friendships               Friendship[]      @relation("FriendshipUser")
+  friendOf                  Friendship[]      @relation("FriendshipFriend")
+  role                      UserRole  @default(USER)
+  isAdultConfirmed          Boolean   @default(false)
+  isEmailVerified           Boolean   @default(false)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  roomsOwned                Room[]    @relation("RoomsOwned")
+  roomMessages              RoomMessage[] @relation("RoomMessagesSent")
+  dmsSent                   DirectMessage[] @relation("DmSent")
+  dmsReceived               DirectMessage[] @relation("DmRecv")
+  posts                     Post[]    @relation("PostsAuthored")
+  notifications             Notification[] @relation("UserNotifications")
 }
 
 model FriendRequest {
@@ -62,4 +73,68 @@ model Friendship {
   friend    User     @relation("FriendshipFriend", fields: [friendId], references: [id], onDelete: Cascade)
 
   @@unique([userId, friendId])
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  category    String   @default("Social")
+  privacy     String   @default("Public")
+  ownerId     String
+  owner       User     @relation("RoomsOwned", fields: [ownerId], references: [id], onDelete: Cascade)
+  messages    RoomMessage[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model RoomMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation("RoomMessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([roomId])
+}
+
+model DirectMessage {
+  id          String   @id @default(cuid())
+  senderId    String
+  recipientId String
+  sender      User     @relation("DmSent", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   User     @relation("DmRecv", fields: [recipientId], references: [id], onDelete: Cascade)
+  body        String
+  createdAt   DateTime @default(now())
+
+  @@index([senderId, recipientId])
+}
+
+model Post {
+  id         String   @id @default(cuid())
+  kind       PostKind
+  authorId   String
+  author     User     @relation("PostsAuthored", fields: [authorId], references: [id], onDelete: Cascade)
+  mediaUrl   String
+  title      String?
+  caption    String?
+  visibility String   @default("Public")
+  createdAt  DateTime @default(now())
+
+  @@index([kind, createdAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
 }

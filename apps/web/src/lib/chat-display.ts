@@ -28,10 +28,11 @@ export function resolveChatSender(senderId: string): {
 
   const person = people.find((p) => p.id === senderId);
   if (person) {
+    const slug = person.handle.replace(/^@/, "") || person.id;
     return {
       fullName: person.name,
       avatar: person.avatar,
-      profileHref: `/app/profile/${encodeURIComponent(person.id)}`,
+      profileHref: `/app/profile/${encodeURIComponent(slug)}`,
     };
   }
 

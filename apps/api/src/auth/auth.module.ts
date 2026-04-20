@@ -32,6 +32,6 @@ function toJwtExpiresIn(
   ],
   controllers: [AuthController],
   providers: [AuthService, AccessTokenGuard],
-  exports: [AuthService],
+  exports: [AuthService, AccessTokenGuard],
 })
 export class AuthModule {}

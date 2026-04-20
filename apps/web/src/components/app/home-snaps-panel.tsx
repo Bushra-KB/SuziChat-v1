@@ -1,7 +1,31 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
-import { snaps } from "@/lib/v1-mock-data";
+import { listPosts } from "@/lib/posts-client";
+import { apiPostToSnap } from "@/lib/post-ui-mappers";
+import { snaps as mockSnaps } from "@/lib/v1-mock-data";
+import type { Snap } from "@/lib/v1-mock-data";
+
+function SnapTileMedia({ src, alt }: { src: string; alt: string }) {
+  const local = src.startsWith("/");
+  if (!local) {
+    return (
+      // Remote URLs may not be configured in next/image domains.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={alt}
+        className="absolute inset-0 h-full w-full object-cover transition duration-200 group-hover:scale-[1.04]"
+      />
+    );
+  }
+  return (
+    <Image src={src} alt={alt} fill sizes="(min-width: 1280px) 10vw, 45vw" className="object-cover transition duration-200 group-hover:scale-[1.04]" />
+  );
+}
 
 export type HomeSnapsPanelLayout = "default" | "dashboard";
 
@@ -23,7 +47,28 @@ export function HomeSnapsPanel({
 }: {
   layout?: HomeSnapsPanelLayout;
 }) {
-  const popularSnaps = [...snaps].sort((left, right) => right.likes - left.likes).slice(0, 4);
+  const [catalog, setCatalog] = useState<Snap[]>(() => mockSnaps);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listPosts("SNAP", 40)
+      .then((rows) => {
+        if (cancelled || rows.length === 0) {
+          return;
+        }
+        setCatalog(rows.map(apiPostToSnap));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const popularSnaps = useMemo(
+    () => [...catalog].sort((left, right) => right.likes - left.likes).slice(0, 4),
+    [catalog],
+  );
+
   const trendingPreview =
     layout === "dashboard" ? trendingItems.slice(0, 6) : trendingItems.slice(0, 3);
 
@@ -62,9 +107,7 @@ export function HomeSnapsPanel({
       </div>
 
       <div className="mt-3 shrink-0 grid grid-cols-2 gap-2.5">
-        {popularSnaps.map((snap, index) => {
-          const tileImage = index === 3 ? "/snaps/a1.jpg" : snap.image;
-
+        {popularSnaps.map((snap) => {
           return (
             <Link
               key={snap.id}
@@ -72,7 +115,7 @@ export function HomeSnapsPanel({
               className="group relative overflow-hidden rounded-[0.82rem] border border-fuchsia-300/24 bg-[rgba(28,16,72,0.7)]"
             >
               <div className="relative h-[5.25rem] w-full sm:h-24">
-                <Image src={tileImage} alt={snap.title} fill sizes="(min-width: 1280px) 10vw, 45vw" className="object-cover transition duration-200 group-hover:scale-[1.04]" />
+                <SnapTileMedia src={snap.image} alt={snap.title} />
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0.12),rgba(4,8,26,0.64))]" />
               </div>
               <div className="absolute inset-x-2 bottom-2 flex items-center justify-between text-[0.95rem] font-semibold text-white">
@@ -133,7 +176,7 @@ export function HomeSnapsPanel({
           )}
         >
           {trendingPreview.map((item, index) => {
-            const snap = snaps.find((entry) => entry.id === item.snapId) ?? snaps[index % snaps.length];
+            const snap = catalog.find((entry) => entry.id === item.snapId) ?? catalog[index % catalog.length];
             return (
               <Link
                 key={`${item.title}-${index}`}

@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
+import { stableHash } from "@/lib/post-ui-mappers";
+import { listRooms, type ApiRoom } from "@/lib/rooms-client";
 
 type RoomCategory =
   | "Hobbies"
@@ -29,7 +31,51 @@ type HomeRoom = {
 const primaryCategories = ["All", "Hobbies", "Music", "Sports", "Chill"] as const;
 const extraCategories: RoomCategory[] = ["Dating", "Media", "Travel"];
 
-const homeRooms: HomeRoom[] = [
+const ROOM_COVER_BY_SLUG: Record<string, string> = {
+  "general-chat": "/banner/general_chat_banner.png",
+  "music-lounge": "/banner/Music_lounch_banner.png",
+  "late-night-chat": "/banner/Late_Night_chat_banner.png",
+  "movie-nights": "/banner/hobbies_banner.png",
+  "gaming-hangout": "/banner/gamming_hangout_banner.png",
+};
+
+function mapApiCategoryToHome(cat: string): RoomCategory {
+  const c = cat.toLowerCase();
+  if (c.includes("music")) {
+    return "Music";
+  }
+  if (c.includes("media") || c.includes("movie")) {
+    return "Media";
+  }
+  if (c.includes("dating") || c.includes("late")) {
+    return "Dating";
+  }
+  if (c.includes("sport") || c.includes("game")) {
+    return "Sports";
+  }
+  if (c.includes("travel")) {
+    return "Travel";
+  }
+  if (c.includes("social") || c.includes("general")) {
+    return "Hobbies";
+  }
+  return "Chill";
+}
+
+function apiRoomToHomeRoom(room: ApiRoom): HomeRoom {
+  return {
+    id: room.slug,
+    name: room.name,
+    summary: room.description?.trim() || "Open conversation",
+    detail: undefined,
+    online: 24 + (stableHash(room.slug) % 160),
+    image: ROOM_COVER_BY_SLUG[room.slug] ?? "/banner/general_chat_banner.png",
+    category: mapApiCategoryToHome(room.category),
+    featured: room.slug === "general-chat",
+  };
+}
+
+const FALLBACK_HOME_ROOMS: HomeRoom[] = [
   {
     id: "general-chat",
     name: "Lobby - Chat - Cam - Relaxed",
@@ -118,6 +164,22 @@ export function HomeChatRoomsPanel({
   const [query, setQuery] = useState("");
   const [showMoreCategories, setShowMoreCategories] = useState(false);
   const moreCategoriesRef = useRef<HTMLDivElement>(null);
+  const [sourceRooms, setSourceRooms] = useState<HomeRoom[]>(FALLBACK_HOME_ROOMS);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listRooms()
+      .then((rows) => {
+        if (cancelled || rows.length === 0) {
+          return;
+        }
+        setSourceRooms(rows.map(apiRoomToHomeRoom));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -136,8 +198,8 @@ export function HomeChatRoomsPanel({
   const filteredRooms = useMemo(() => {
     const byCategory =
       activeCategory === "All"
-        ? homeRooms
-        : homeRooms.filter((room) => room.category === activeCategory);
+        ? sourceRooms
+        : sourceRooms.filter((room) => room.category === activeCategory);
 
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) {
@@ -149,7 +211,7 @@ export function HomeChatRoomsPanel({
         .toLowerCase()
         .includes(normalizedQuery),
     );
-  }, [activeCategory, query]);
+  }, [activeCategory, query, sourceRooms]);
 
   const moreCategoryActive =
     activeCategory !== "All" &&
@@ -268,7 +330,7 @@ export function HomeChatRoomsPanel({
       <div
         className={cx(
           "suzi-scrollbar mt-4 overflow-y-auto rounded-[1.15rem] border border-cyan-300/22 bg-transparent",
-          variant === "dashboard" ? "max-h-[36rem]" : "h-[36rem]",
+          variant === "dashboard" ? "max-h-[48rem]" : "h-[48rem]",
         )}
       >
         {filteredRooms.length > 0 ? (

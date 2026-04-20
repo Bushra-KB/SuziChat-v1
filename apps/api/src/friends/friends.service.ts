@@ -182,6 +182,21 @@ export class FriendsService {
           },
         });
 
+    const sender = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true, displayName: true },
+    });
+
+    await this.prisma.notification
+      .create({
+        data: {
+          userId: targetUser.id,
+          title: 'Friend request',
+          body: `${sender?.displayName ?? sender?.username ?? 'Someone'} sent you a friend request`,
+        },
+      })
+      .catch(() => undefined);
+
     return {
       id: friendRequest.id,
       createdAt: friendRequest.createdAt,

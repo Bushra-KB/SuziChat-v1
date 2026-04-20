@@ -23,14 +23,31 @@ import {
   updateMyProfile,
   type UserProfile,
 } from "@/lib/users-client";
-import {
-  datingProfiles,
-  games,
-  people,
-  reels,
-  rooms,
-  snaps,
-} from "@/lib/v1-mock-data";
+import { getFriendsSummary, type FriendsSummary } from "@/lib/friends-client";
+import { listPosts, type ApiPost } from "@/lib/posts-client";
+import { apiPostToReel, apiPostToSnap } from "@/lib/post-ui-mappers";
+import type { ApiRoom } from "@/lib/rooms-client";
+import { listRooms } from "@/lib/rooms-client";
+import { datingProfiles, games } from "@/lib/v1-mock-data";
+import type { Person } from "@/lib/v1-mock-data";
+
+const ACCOUNT_ROOM_COVER: Record<string, string> = {
+  "general-chat": "/banner/general_chat_banner.png",
+  "music-lounge": "/banner/Music_lounch_banner.png",
+  "late-night-chat": "/banner/Late_Night_chat_banner.png",
+  "movie-nights": "/banner/hobbies_banner.png",
+  "gaming-hangout": "/banner/gamming_hangout_banner.png",
+};
+
+function summaryFriendToPerson(entry: FriendsSummary["friends"][0]): Person {
+  return {
+    id: entry.id,
+    name: entry.displayName?.trim() || entry.username,
+    handle: `@${entry.username}`,
+    avatar: "/ppic/ppic1.jpeg",
+    location: entry.country ?? undefined,
+  };
+}
 
 const PROFILE_TABS = [
   { id: "overview", label: "Profile & edit" },
@@ -78,6 +95,10 @@ export function AccountProfilePage() {
     "Default snaps to friends-only": true,
     "Allow room invitations from friends": false,
   });
+  const [dashFriends, setDashFriends] = useState<FriendsSummary | null>(null);
+  const [dashRooms, setDashRooms] = useState<ApiRoom[]>([]);
+  const [dashSnaps, setDashSnaps] = useState<ApiPost[]>([]);
+  const [dashReels, setDashReels] = useState<ApiPost[]>([]);
 
   const displayLabel = useMemo(() => {
     if (!session) {
@@ -125,6 +146,33 @@ export function AccountProfilePage() {
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  useEffect(() => {
+    if (!session || loadState !== "ready") {
+      return;
+    }
+    let cancelled = false;
+    void Promise.all([
+      getFriendsSummary(session.accessToken),
+      listRooms(),
+      listPosts("SNAP", 48),
+      listPosts("REEL", 48),
+    ])
+      .then(([friends, roomList, snapList, reelList]) => {
+        if (cancelled) {
+          return;
+        }
+        setDashFriends(friends);
+        setDashRooms(roomList);
+        setDashSnaps(snapList);
+        setDashReels(reelList);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, loadState]);
+
   function handleSaveProfile(event: React.FormEvent) {
     event.preventDefault();
     const s = sessionFromStorage();
@@ -170,7 +218,7 @@ export function AccountProfilePage() {
         <SectionHeader
           eyebrow="Account"
           title="Your SuziChat profile"
-          copy="Edit how you appear across rooms, messages, and discovery. Feeds below use demo previews until per-user catalogs are wired."
+          copy="Edit how you appear across rooms, messages, and discovery. Live friend, room, and feed counts sync from the API when you are signed in."
           action={
             <Link href="/app/settings" className="suzi-secondary-btn shrink-0 px-4 py-2.5 text-sm">
               App settings
@@ -406,13 +454,13 @@ export function AccountProfilePage() {
           <SectionHeader
             eyebrow="Dashboard"
             title="Your feeds & entry points"
-            copy="Shortcuts mirror the home experience. Full social graph sync is on the roadmap."
+            copy="Shortcuts mirror the home experience with live catalog counts from the API."
           />
           <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard label="Rooms" value={String(rooms.length)} />
+            <MetricCard label="Rooms" value={String(dashRooms.length)} />
             <MetricCard label="Direct threads" value="Live" tone="from-cyan-400/20 to-transparent" />
-            <MetricCard label="Snaps catalog" value={String(snaps.length)} tone="from-pink-400/22 to-transparent" />
-            <MetricCard label="Reels" value={String(reels.length)} tone="from-violet-400/20 to-transparent" />
+            <MetricCard label="Snaps catalog" value={String(dashSnaps.length)} tone="from-pink-400/22 to-transparent" />
+            <MetricCard label="Reels" value={String(dashReels.length)} tone="from-violet-400/20 to-transparent" />
           </div>
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Link href="/app" className="suzi-secondary-btn flex items-center justify-center px-4 py-4 text-sm font-medium">
@@ -430,20 +478,32 @@ export function AccountProfilePage() {
 
       {activeTab === "friends" ? (
         <Panel className="p-6">
-          <SectionHeader eyebrow="Friends" title="People you know" copy="Demo list from mock data." />
+          <SectionHeader eyebrow="Friends" title="People you know" copy="Your accepted friends from the server." />
           <div className="mt-6 space-y-3">
-            {people.map((person) => (
-              <PersonRow
-                key={person.id}
-                person={person}
-                compact
-                action={
-                  <Link href={`/app/profile/${person.id}`} className="suzi-secondary-btn px-3 py-2 text-xs">
-                    Profile
-                  </Link>
-                }
-              />
-            ))}
+            {!dashFriends ? (
+              <p className="text-sm text-[var(--text-muted)]">Loading friends…</p>
+            ) : dashFriends.friends.length === 0 ? (
+              <p className="text-sm text-[var(--text-muted)]">No friends yet. Send invites from the Friends page.</p>
+            ) : (
+              dashFriends.friends.map((entry) => {
+                const person = summaryFriendToPerson(entry);
+                return (
+                  <PersonRow
+                    key={person.id}
+                    person={person}
+                    compact
+                    action={
+                      <Link
+                        href={`/app/profile/${encodeURIComponent(person.handle.replace(/^@/, "") || person.id)}`}
+                        className="suzi-secondary-btn px-3 py-2 text-xs"
+                      >
+                        Profile
+                      </Link>
+                    }
+                  />
+                );
+              })
+            )}
           </div>
           <Link href="/app/friends" className="suzi-secondary-btn mt-6 inline-flex px-4 py-3 text-sm">
             Open friends list
@@ -453,24 +513,32 @@ export function AccountProfilePage() {
 
       {activeTab === "reels" ? (
         <Panel className="p-6">
-          <SectionHeader eyebrow="Reels" title="Your reel activity" copy="Preview uses the global catalog." />
+          <SectionHeader eyebrow="Reels" title="Your reel activity" copy="Recent reels from the global catalog." />
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {reels.slice(0, 6).map((reel) => (
-              <Link
-                key={reel.id}
-                href={`/app/reels?focus=${reel.id}`}
-                className="overflow-hidden rounded-[1.1rem] border border-white/10 bg-white/5 transition hover:border-cyan-300/25 hover:bg-white/8"
-              >
-                <div className="relative aspect-video overflow-hidden bg-black/40">
-                  <Image src={reel.avatar} alt="" fill sizes="33vw" className="object-cover" />
-                  <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent,rgba(8,10,28,0.75))]" />
-                </div>
-                <div className="p-4">
-                  <p className="truncate font-semibold text-white">{reel.title}</p>
-                  <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{reel.caption}</p>
-                </div>
-              </Link>
-            ))}
+            {dashReels.slice(0, 6).map((post) => {
+              const reel = apiPostToReel(post);
+              return (
+                <Link
+                  key={reel.id}
+                  href={`/app/reels?focus=${reel.id}`}
+                  className="overflow-hidden rounded-[1.1rem] border border-white/10 bg-white/5 transition hover:border-cyan-300/25 hover:bg-white/8"
+                >
+                  <div className="relative aspect-video overflow-hidden bg-black/40">
+                    {reel.avatar.startsWith("/") ? (
+                      <Image src={reel.avatar} alt="" fill sizes="33vw" className="object-cover" />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={reel.avatar} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    )}
+                    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent,rgba(8,10,28,0.75))]" />
+                  </div>
+                  <div className="p-4">
+                    <p className="truncate font-semibold text-white">{reel.title}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{reel.caption}</p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
           <Link href="/app/reels" className="suzi-secondary-btn mt-8 inline-flex px-4 py-3 text-sm">
             Open reels
@@ -482,17 +550,29 @@ export function AccountProfilePage() {
         <Panel className="p-6">
           <SectionHeader eyebrow="Snaps" title="Your snaps" copy="Thumbnails from the shared catalog." />
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {snaps.slice(0, 6).map((snap) => (
-              <Link key={snap.id} href={`/app/snaps/${snap.id}`} className="block overflow-hidden rounded-[1.1rem] border border-white/10 bg-white/5 transition hover:border-fuchsia-300/25">
-                <div className="relative aspect-[4/3]">
-                  <Image src={snap.image} alt="" fill sizes="33vw" className="object-cover" />
-                </div>
-                <div className="p-4">
-                  <p className="truncate font-semibold text-white">{snap.title}</p>
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">{snap.likes} likes</p>
-                </div>
-              </Link>
-            ))}
+            {dashSnaps.slice(0, 6).map((post) => {
+              const snap = apiPostToSnap(post);
+              return (
+                <Link
+                  key={snap.id}
+                  href={`/app/snaps/${snap.id}`}
+                  className="block overflow-hidden rounded-[1.1rem] border border-white/10 bg-white/5 transition hover:border-fuchsia-300/25"
+                >
+                  <div className="relative aspect-[4/3]">
+                    {snap.image.startsWith("/") ? (
+                      <Image src={snap.image} alt="" fill sizes="33vw" className="object-cover" />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={snap.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <p className="truncate font-semibold text-white">{snap.title}</p>
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">{snap.likes} likes</p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
           <Link href="/app/snaps" className="suzi-secondary-btn mt-8 inline-flex px-4 py-3 text-sm">
             Open snaps feed
@@ -504,18 +584,24 @@ export function AccountProfilePage() {
         <Panel className="p-6">
           <SectionHeader eyebrow="Rooms" title="Chat rooms" copy="Jump back into community spaces." />
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {rooms.map((room) => (
+            {dashRooms.map((room) => (
               <Link
                 key={room.id}
-                href={`/app/rooms/${room.id}`}
+                href={`/app/rooms/${room.slug}`}
                 className="flex gap-4 rounded-[1.15rem] border border-cyan-300/18 bg-[linear-gradient(155deg,rgba(255,32,121,0.08),rgba(0,229,255,0.06))] p-4 transition hover:border-cyan-300/30"
               >
                 <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-[0.85rem] border border-white/10">
-                  <Image src={room.coverImage} alt="" fill sizes="96px" className="object-cover" />
+                  <Image
+                    src={ACCOUNT_ROOM_COVER[room.slug] ?? "/banner/general_chat_banner.png"}
+                    alt=""
+                    fill
+                    sizes="96px"
+                    className="object-cover"
+                  />
                 </div>
                 <div className="min-w-0">
                   <p className="font-semibold text-white">{room.name}</p>
-                  <p className="mt-1 line-clamp-2 text-sm text-[var(--text-muted)]">{room.description}</p>
+                  <p className="mt-1 line-clamp-2 text-sm text-[var(--text-muted)]">{room.description ?? ""}</p>
                 </div>
               </Link>
             ))}

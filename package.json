@@ -6,5 +6,17 @@
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev:api": "pnpm --filter api start:dev",
+    "dev:web": "pnpm --filter web dev",
+    "start:dev": "pnpm --filter api start:dev",
+    "prisma:generate": "pnpm --filter api prisma:generate",
+    "db:push": "pnpm --filter api db:push",
+    "db:up": "docker compose -f infra/docker/docker-compose.local.yml --env-file infra/docker/.env.example up -d",
+    "db:down": "docker compose -f infra/docker/docker-compose.local.yml down",
+    "db:studio": "pnpm --filter api studio",
+    "build:api": "pnpm --filter api build",
+    "build:web": "pnpm --filter web build"
   }
 }

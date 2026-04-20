@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
+import { listPosts } from "@/lib/posts-client";
+import { apiPostToReel } from "@/lib/post-ui-mappers";
 import { reels } from "@/lib/v1-mock-data";
 
 type DragState = {
@@ -238,6 +240,39 @@ export default function ReelsPage() {
     setCommentSheetOffsetY(0);
     setCommentDraft("");
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    void listPosts("REEL", 40)
+      .then((rows) => {
+        if (cancelled || rows.length === 0) {
+          return;
+        }
+        const mapped = rows.map(apiPostToReel);
+        setDisplayReels(mapped);
+        setCommentsByReel(
+          Object.fromEntries(
+            mapped.map((reel) => [
+              reel.id,
+              [
+                { id: `${reel.id}-c1`, author: "Alan R.", text: "This one looks amazing.", time: "2m" },
+                { id: `${reel.id}-c2`, author: "Mary N.", text: "Keep posting more like this.", time: "7m" },
+              ],
+            ]),
+          ),
+        );
+        setActiveIndex(0);
+        setLikedByReel({});
+        setExtraCommentCounts({});
+        setActiveCurrentTime(0);
+        setActiveDuration(0);
+        setIsActivePlaying(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     audioSettingsRef.current = { isVideoMuted, volumeLevel };

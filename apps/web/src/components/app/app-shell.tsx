@@ -5,13 +5,27 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { AuthSession } from "@/lib/auth-client";
 import {
-  createMenuItems,
-  directMessageThreads,
-  notifications,
-} from "@/lib/v1-mock-data";
+  listConversationThreads,
+  type ConversationThread,
+} from "@/lib/conversations-client";
+import { listNotifications, type ApiNotification } from "@/lib/notifications-client";
+import { createMenuItems } from "@/lib/v1-mock-data";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
 
 const globeIconPath = "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 3v18M3 12h18";
+
+function formatShortNotifTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
 
 const languages = [
   { code: "en", label: "English" },
@@ -45,11 +59,10 @@ export function AppShell({
   const languageRef = useRef<HTMLDivElement | null>(null);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
   const accountRef = useRef<HTMLDivElement | null>(null);
-  const unreadMessages = directMessageThreads.reduce(
-    (total, thread) => total + thread.unread,
-    0,
-  );
-  const unreadNotifications = notifications.filter((item) => item.unread).length;
+  const [shellThreads, setShellThreads] = useState<ConversationThread[]>([]);
+  const [shellNotifications, setShellNotifications] = useState<ApiNotification[]>([]);
+  const inboxBadgeCount = shellThreads.length;
+  const unreadNotifications = shellNotifications.filter((n) => !n.read).length;
   const accountName = session.user.displayName ?? session.user.username;
   const accountHandle = `@${session.user.username}`;
 
@@ -99,6 +112,26 @@ export function AppShell({
       window.removeEventListener("pointerdown", handlePointerDownCapture, true);
     };
   }, []);
+
+  useEffect(() => {
+    const token = session.accessToken;
+    let cancelled = false;
+    void Promise.all([
+      listConversationThreads(token).then((threads) => {
+        if (!cancelled) {
+          setShellThreads(threads);
+        }
+      }),
+      listNotifications(token).then((list) => {
+        if (!cancelled) {
+          setShellNotifications(list);
+        }
+      }),
+    ]).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [session.accessToken]);
 
   return (
     <main className="suzi-hybrid-bg relative min-h-screen overflow-hidden text-white">
@@ -190,9 +223,9 @@ export function AppShell({
               )}
             >
               <Icon path="M4 6h16v10H7l-3 3V6Z" className="h-4 w-4" />
-              {unreadMessages > 0 ? (
+              {inboxBadgeCount > 0 ? (
                 <span className="absolute -right-1 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-fuchsia-500 px-1 text-[0.58rem] font-semibold leading-none text-white">
-                  {unreadMessages > 9 ? "9+" : unreadMessages}
+                  {inboxBadgeCount > 9 ? "9+" : inboxBadgeCount}
                 </span>
               ) : null}
             </button>
@@ -201,33 +234,35 @@ export function AppShell({
               <div className="suzi-overlay-panel absolute right-0 top-[calc(100%+0.6rem)] z-50 w-[22rem] rounded-[1.15rem] p-2">
                 <p className="px-3 py-2 text-sm font-semibold text-white">Inbox</p>
                 <div className="space-y-1">
-                  {directMessageThreads.slice(0, 4).map((thread) => (
-                    <Link
-                      key={thread.id}
-                      href="/app/messages"
-                      onClick={() => setIsMessagesOpen(false)}
-                      className="flex items-center gap-3 rounded-[0.9rem] px-3 py-2.5 transition hover:bg-white/8"
-                    >
-                      <Image
-                        src={thread.person.avatar}
-                        alt={thread.person.name}
-                        width={36}
-                        height={36}
-                        className="h-9 w-9 rounded-full border border-white/10 object-cover"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-white">{thread.person.name}</p>
-                        <p className="truncate text-xs text-[var(--text-soft)]">{thread.preview}</p>
-                      </div>
-                      {thread.unread > 0 ? (
-                        <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-fuchsia-500 px-1.5 text-[0.62rem] font-semibold text-white">
-                          {thread.unread}
+                  {shellThreads.length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-[var(--text-soft)]">No conversations yet.</p>
+                  ) : (
+                    shellThreads.slice(0, 4).map((thread) => (
+                      <Link
+                        key={thread.peer.id}
+                        href={`/app/messages?with=${encodeURIComponent(thread.peer.id)}`}
+                        onClick={() => setIsMessagesOpen(false)}
+                        className="flex items-center gap-3 rounded-[0.9rem] px-3 py-2.5 transition hover:bg-white/8"
+                      >
+                        <Image
+                          src="/ppic/ppic1.jpeg"
+                          alt=""
+                          width={36}
+                          height={36}
+                          className="h-9 w-9 rounded-full border border-white/10 object-cover"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-white">
+                            {thread.peer.displayName ?? thread.peer.username}
+                          </p>
+                          <p className="truncate text-xs text-[var(--text-soft)]">{thread.lastMessage.body}</p>
+                        </div>
+                        <span className="text-[0.68rem] text-[var(--text-soft)]">
+                          {formatShortNotifTime(thread.lastMessage.createdAt)}
                         </span>
-                      ) : (
-                        <span className="text-[0.68rem] text-[var(--text-soft)]">{thread.time}</span>
-                      )}
-                    </Link>
-                  ))}
+                      </Link>
+                    ))
+                  )}
                 </div>
                 <div className="mt-2 border-t border-[var(--border-soft)] px-3 pt-2">
                   <Link
@@ -330,20 +365,31 @@ export function AppShell({
               <div className="suzi-overlay-panel absolute right-0 top-[calc(100%+0.6rem)] z-50 w-[22rem] rounded-[1.15rem] p-2">
                 <p className="px-3 py-2 text-sm font-semibold text-white">Notifications</p>
                 <div className="space-y-1">
-                  {notifications.slice(0, 4).map((item) => (
-                    <Link
-                      key={item.id}
-                      href="/app/notifications"
-                      onClick={() => setIsNotificationsOpen(false)}
-                      className="flex items-start gap-2 rounded-[0.9rem] px-3 py-2.5 transition hover:bg-white/8"
-                    >
-                      <span className="mt-1 h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(82,213,255,0.6)]" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-white">{item.title}</p>
-                        <p className="truncate text-xs text-[var(--text-soft)]">{item.time}</p>
-                      </div>
-                    </Link>
-                  ))}
+                  {shellNotifications.length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-[var(--text-soft)]">No notifications.</p>
+                  ) : (
+                    shellNotifications.slice(0, 4).map((item) => (
+                      <Link
+                        key={item.id}
+                        href="/app/notifications"
+                        onClick={() => setIsNotificationsOpen(false)}
+                        className="flex items-start gap-2 rounded-[0.9rem] px-3 py-2.5 transition hover:bg-white/8"
+                      >
+                        <span
+                          className={cx(
+                            "mt-1 h-2 w-2 rounded-full shadow-[0_0_8px_rgba(82,213,255,0.6)]",
+                            item.read ? "bg-slate-500" : "bg-cyan-300",
+                          )}
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-white">{item.title}</p>
+                          <p className="truncate text-xs text-[var(--text-soft)]">
+                            {formatShortNotifTime(item.createdAt)}
+                          </p>
+                        </div>
+                      </Link>
+                    ))
+                  )}
                 </div>
                 <div className="mt-2 border-t border-[var(--border-soft)] px-3 pt-2">
                   <Link

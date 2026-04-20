@@ -1,0 +1,230 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { ChatComposer } from "@/components/app/chat-composer";
+import { ChatMessageRow, type LiveChatMessage } from "@/components/app/chat-message-row";
+import { PersonRow } from "@/components/app/v1-blocks";
+import { Panel, cx } from "@/components/ui/suzi-primitives";
+import { getStoredAuthSession } from "@/lib/auth-client";
+import {
+  getRoom,
+  listRoomMessages,
+  postRoomMessage,
+  type ApiRoom,
+  type ApiRoomMessage,
+} from "@/lib/rooms-client";
+import { people } from "@/lib/v1-mock-data";
+
+function formatShortTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
+export function RoomChatView({ roomSlug }: { roomSlug: string }) {
+  const [room, setRoom] = useState<ApiRoom | null>(null);
+  const [messages, setMessages] = useState<ApiRoomMessage[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [meId, setMeId] = useState<string | null>(null);
+  const [hasSession, setHasSession] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setError("");
+    const [roomRes, msgRes] = await Promise.all([
+      getRoom(roomSlug),
+      listRoomMessages(roomSlug),
+    ]);
+    setRoom(roomRes);
+    setMessages(msgRes);
+  }, [roomSlug]);
+
+  useEffect(() => {
+    const s = getStoredAuthSession();
+    setMeId(s?.user.id ?? null);
+    setHasSession(!!s?.accessToken);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void refresh()
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Could not load room.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refresh]);
+
+  const roomHosts = people.slice(0, 2);
+  const roomMembers = people.slice(2);
+  const onlineCount = [...roomHosts, ...roomMembers].filter((person) => person.status === "online").length;
+
+  async function handleSend(body: string) {
+    const s = getStoredAuthSession();
+    if (!s) {
+      return;
+    }
+    setSending(true);
+    try {
+      const created = await postRoomMessage(s.accessToken, roomSlug, body);
+      setMessages((prev) => [...prev, created]);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Send failed.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <Panel className="flex h-[75vh] min-h-[32rem] max-h-[75vh] flex-col overflow-hidden border border-cyan-300/24 bg-[linear-gradient(180deg,rgba(36,45,116,0.52),rgba(40,16,117,0.52))] p-0 shadow-[0_14px_38px_rgba(15,23,42,0.2)]">
+        <div className="border-b border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-5 py-4 sm:px-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.3em] text-cyan-100/64">
+                Room Chat
+              </p>
+              <h1 className="mt-1 text-2xl font-semibold text-white">
+                {loading ? "…" : room?.name ?? roomSlug}
+              </h1>
+              <p className="mt-1 max-w-2xl text-sm text-cyan-100/82">
+                {room?.description ?? ""}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex rounded-md border border-cyan-300/35 bg-cyan-400/15 px-3 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-cyan-100">
+                {room?.category ?? "—"}
+              </span>
+              <span
+                className={cx(
+                  "inline-flex rounded-md border px-3 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.12em]",
+                  room?.privacy === "Private"
+                    ? "border-pink-300/35 bg-pink-400/15 text-pink-100"
+                    : room?.privacy === "Friends"
+                      ? "border-violet-300/35 bg-violet-400/15 text-violet-100"
+                      : "border-white/14 bg-white/7 text-cyan-100/86",
+                )}
+              >
+                {room?.privacy ?? "—"}
+              </span>
+              <Link href={`/app/rooms/${roomSlug}/edit`} className="suzi-secondary-btn px-4 py-1.5 text-sm">
+                Edit
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {error ? (
+          <div className="border-b border-red-300/30 bg-red-500/15 px-5 py-3 text-sm text-red-100">{error}</div>
+        ) : null}
+
+        <div className="suzi-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-5 py-5 sm:px-6">
+          {messages.map((m) => {
+            const mine = meId !== null && m.sender.id === meId;
+            const live: LiveChatMessage = {
+              body: m.body,
+              timeLabel: formatShortTime(m.createdAt),
+              isMine: mine,
+              senderUsername: m.sender.username,
+              senderDisplayName: m.sender.displayName ?? m.sender.username,
+              senderAvatarUrl: null,
+            };
+            return <ChatMessageRow key={m.id} variant="live" message={live} />;
+          })}
+        </div>
+
+        <div className="border-t border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-5 py-4 sm:px-6">
+          <ChatComposer
+            attachInputId={`room-chat-attachment-${roomSlug}`}
+            placeholder="Write your message, invite a friend, or call out a game table"
+            variant="onDark"
+            disabled={!hasSession || sending}
+            onSend={handleSend}
+          />
+        </div>
+      </Panel>
+
+      <div className="flex h-[75vh] min-h-[32rem] max-h-[75vh] flex-col gap-6">
+        <Panel className="flex min-h-0 flex-1 flex-col p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-[1.35rem] font-semibold tracking-tight text-white">Room Members</h2>
+            <span className="inline-flex items-center gap-1.5 text-[0.78rem] font-semibold text-emerald-100">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,255,178,0.72)]" />
+              {onlineCount} online
+            </span>
+          </div>
+          <div className="suzi-scrollbar mt-4 min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
+            <div>
+              <p className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
+                Room Hosts
+              </p>
+              <div className="space-y-3">
+                {roomHosts.map((person) => (
+                  <PersonRow
+                    key={person.id}
+                    person={person}
+                    compact
+                    action={
+                      <Link href="/app/messages" className="suzi-secondary-btn px-3 py-2 text-xs">
+                        DM
+                      </Link>
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
+                Room Members
+              </p>
+              <div className="space-y-3">
+                {roomMembers.map((person) => (
+                  <PersonRow
+                    key={person.id}
+                    person={person}
+                    compact
+                    action={
+                      <Link href="/app/messages" className="suzi-secondary-btn px-3 py-2 text-xs">
+                        DM
+                      </Link>
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel className="p-5">
+          <h2 className="text-[1.35rem] font-semibold tracking-tight text-white">Options</h2>
+          <div className="mt-4 grid gap-3">
+            <button type="button" className="suzi-secondary-btn px-4 py-3 text-sm">
+              Invite friends
+            </button>
+            <button type="button" className="suzi-secondary-btn px-4 py-3 text-sm">
+              Report room
+            </button>
+          </div>
+        </Panel>
+      </div>
+    </section>
+  );
+}
