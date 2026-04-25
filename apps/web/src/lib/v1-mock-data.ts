@@ -64,6 +64,7 @@ export type Reel = {
   title: string;
   avatar: string;
   caption: string;
+  visibility?: "Public" | "Friends";
   views: number;
   likes: number;
   comments: number;
@@ -140,7 +141,7 @@ export const createMenuItems = [
     icon: "M12 4v10M8 8l4-4 4 4M5 18h14",
   },
   {
-    href: "/app/reels/upload",
+    href: "/app/reels?create=1",
     label: "Upload Reel",
     icon: "M8 5h8l4 4v10a2 2 0 0 1-2 2H8a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4Z M11 11.5v4l3-2-3-2Z",
   },
