@@ -2,6 +2,7 @@ import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -11,6 +12,8 @@ import type { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { RoomsService } from '../rooms/rooms.service';
+import { RealtimeEventsService } from './realtime-events.service';
+import { RealtimeStateService } from './realtime-state.service';
 
 type AuthSocket = Socket & {
   data: {
@@ -27,12 +30,22 @@ type AuthSocket = Socket & {
 export class RealtimeGateway implements OnGatewayConnection {
   @WebSocketServer()
   server!: Server;
+  private readonly idleAfterMs = 90_000;
+  private readonly activeAtByUserId = new Map<string, number>();
+  private readonly lastPresenceByUserId = new Map<string, 'online' | 'away' | 'offline'>();
+  private readonly presenceTicker: ReturnType<typeof setInterval>;
 
   constructor(
     private readonly authService: AuthService,
     private readonly conversationsService: ConversationsService,
     private readonly roomsService: RoomsService,
-  ) {}
+    private readonly realtimeEvents: RealtimeEventsService,
+    private readonly realtimeState: RealtimeStateService,
+  ) {
+    this.presenceTicker = setInterval(() => {
+      this.emitAllPresenceIfChanged();
+    }, 15_000);
+  }
 
   private getToken(socket: Socket) {
     const authToken =
@@ -66,6 +79,51 @@ export class RealtimeGateway implements OnGatewayConnection {
     return `room:${roomSlug}`;
   }
 
+  private presenceChannel(userId: string) {
+    return `presence:${userId}`;
+  }
+
+  private isUserOnline(userId: string) {
+    const sockets = this.server.sockets.adapter.rooms.get(this.userRoom(userId));
+    return Boolean(sockets && sockets.size > 0);
+  }
+
+  private emitPresence(userId: string) {
+    const status = this.computePresenceStatus(userId);
+    this.lastPresenceByUserId.set(userId, status);
+    this.server.to(this.presenceChannel(userId)).emit('presence:update', {
+      userId,
+      online: status !== 'offline',
+      status,
+    });
+  }
+
+  private computePresenceStatus(userId: string): 'online' | 'away' | 'offline' {
+    if (!this.isUserOnline(userId)) {
+      return 'offline';
+    }
+    const activeAt = this.activeAtByUserId.get(userId) ?? 0;
+    return Date.now() - activeAt > this.idleAfterMs ? 'away' : 'online';
+  }
+
+  private markUserActive(userId: string) {
+    this.activeAtByUserId.set(userId, Date.now());
+    this.emitPresence(userId);
+  }
+
+  private emitAllPresenceIfChanged() {
+    for (const userId of this.activeAtByUserId.keys()) {
+      const next = this.computePresenceStatus(userId);
+      const prev = this.lastPresenceByUserId.get(userId);
+      if (next !== prev) {
+        this.emitPresence(userId);
+      }
+      if (next === 'offline') {
+        this.activeAtByUserId.delete(userId);
+      }
+    }
+  }
+
   async handleConnection(client: AuthSocket) {
     try {
       const token = this.getToken(client);
@@ -77,10 +135,26 @@ export class RealtimeGateway implements OnGatewayConnection {
       const payload = await this.authService.verifyAccessToken(token);
       client.data.userId = payload.sub;
       await client.join(this.userRoom(payload.sub));
+      await client.join(this.presenceChannel(payload.sub));
+      this.markUserActive(payload.sub);
+      this.realtimeEvents.setServer(this.server);
+      const state = await this.realtimeState.buildUserState(payload.sub);
+      client.emit('realtime:state', state);
     } catch {
       client.emit('realtime:error', { message: 'Unauthorized' });
       client.disconnect();
     }
+  }
+
+  handleDisconnect(client: AuthSocket) {
+    const userId = client.data.userId;
+    if (!userId) {
+      return;
+    }
+    // Defer until socket.io updates room membership.
+    setTimeout(() => {
+      this.emitPresence(userId);
+    }, 0);
   }
 
   @SubscribeMessage('dm:join')
@@ -110,10 +184,17 @@ export class RealtimeGateway implements OnGatewayConnection {
     }
 
     const message = await this.conversationsService.sendMessage(userId, peerId, body);
+    this.markUserActive(userId);
     this.server
       .to(this.userRoom(message.sender.id))
       .to(this.userRoom(message.recipient.id))
       .emit('dm:message', message);
+    const [senderState, recipientState] = await Promise.all([
+      this.realtimeState.buildUserState(message.sender.id),
+      this.realtimeState.buildUserState(message.recipient.id),
+    ]);
+    this.realtimeEvents.emitToUser(message.sender.id, 'realtime:state', senderState);
+    this.realtimeEvents.emitToUser(message.recipient.id, 'realtime:state', recipientState);
 
     return { ok: true, message };
   }
@@ -146,11 +227,79 @@ export class RealtimeGateway implements OnGatewayConnection {
     }
 
     const message = await this.roomsService.postMessage(roomSlug, userId, body);
+    this.markUserActive(userId);
     this.server.to(this.roomChannel(roomSlug)).emit('room:message', {
       roomSlug,
       message,
     });
 
     return { ok: true, message };
+  }
+
+  @SubscribeMessage('dm:typing')
+  async onDmTyping(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { peerId?: string; typing?: boolean },
+  ) {
+    const userId = this.getUserId(client);
+    const peerId = payload?.peerId?.trim();
+    if (!peerId) {
+      throw new WsException('peerId is required');
+    }
+    await this.conversationsService.getPeer(userId, peerId);
+    this.markUserActive(userId);
+    this.server.to(this.userRoom(peerId)).emit('dm:typing', {
+      userId,
+      peerId,
+      typing: Boolean(payload?.typing),
+    });
+    return { ok: true };
+  }
+
+  @SubscribeMessage('room:typing')
+  async onRoomTyping(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { roomSlug?: string; typing?: boolean },
+  ) {
+    const userId = this.getUserId(client);
+    const roomSlug = payload?.roomSlug?.trim();
+    if (!roomSlug) {
+      throw new WsException('roomSlug is required');
+    }
+    await this.roomsService.getRoomBySlug(roomSlug);
+    this.markUserActive(userId);
+    this.server.to(this.roomChannel(roomSlug)).emit('room:typing', {
+      roomSlug,
+      userId,
+      typing: Boolean(payload?.typing),
+    });
+    return { ok: true };
+  }
+
+  @SubscribeMessage('realtime:ping')
+  onPing(@ConnectedSocket() client: AuthSocket) {
+    this.getUserId(client);
+    return { ok: true, ts: Date.now() };
+  }
+
+  @SubscribeMessage('presence:watch')
+  async onPresenceWatch(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { userIds?: string[] },
+  ) {
+    const requesterId = this.getUserId(client);
+    const ids = Array.isArray(payload?.userIds)
+      ? [...new Set(payload.userIds.map((id) => id?.trim()).filter((id): id is string => Boolean(id)))]
+      : [];
+    const watchIds = [...new Set([requesterId, ...ids])];
+    await Promise.all(watchIds.map((id) => client.join(this.presenceChannel(id))));
+    const statuses = Object.fromEntries(
+      watchIds.map((id) => [id, this.computePresenceStatus(id)]),
+    ) as Record<string, 'online' | 'away' | 'offline'>;
+    return {
+      ok: true,
+      onlineIds: watchIds.filter((id) => this.isUserOnline(id)),
+      statuses,
+    };
   }
 }

@@ -12,7 +12,7 @@ export default function AppHomePage() {
   return (
     <section className="space-y-6">
       {/* Three independent columns: only gap-5 between top & bottom widgets — avoids a shared "tall row" gap */}
-      <div className="grid gap-5 xl:grid-cols-[18.75rem_minmax(0,1fr)_20rem]">
+      <div className="grid gap-5 xl:grid-cols-[23rem_minmax(0,1fr)_20rem]">
         <div className="flex min-h-0 min-w-0 flex-col gap-5">
           <HomeFriendsPanel />
           <HomeReelsPanel />

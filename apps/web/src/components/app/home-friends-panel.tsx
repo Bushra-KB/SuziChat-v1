@@ -2,38 +2,43 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel, StatusDot, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
-import { getFriendsSummary, type FriendsSummary } from "@/lib/friends-client";
-import type { Person } from "@/lib/v1-mock-data";
+import {
+  acceptFriendRequest,
+  blockPerson,
+  cancelOutgoingFriendRequest,
+  declineFriendRequest,
+  explorePeople,
+  getFriendsSummary,
+  listBlockedPeople,
+  sendFriendRequest,
+  unblockPerson,
+  unfriend,
+  type BlockedUserRow,
+  type FriendSummaryUser,
+  type FriendsSummary,
+} from "@/lib/friends-client";
+import { getRealtimeSocket } from "@/lib/realtime-client";
 
 const defaultAvatar = "/ppic/ppic1.jpeg";
-
-function incomingToPerson(entry: FriendsSummary["incomingRequests"][0]): Person {
-  const u = entry.user;
-  return {
-    id: u.id,
-    name: u.displayName?.trim() || u.username,
-    handle: `@${u.username}`,
-    avatar: defaultAvatar,
-    location: u.country ?? undefined,
-    status: "offline",
-  };
-}
-
-function friendToPerson(entry: FriendsSummary["friends"][0]): Person {
-  return {
-    id: entry.id,
-    name: entry.displayName?.trim() || entry.username,
-    handle: `@${entry.username}`,
-    avatar: defaultAvatar,
-    location: entry.country ?? undefined,
-    status: "offline",
-  };
-}
-
-type FriendsTab = "all" | "online" | "requests";
+type Presence = "online" | "away" | "offline";
+type RelationshipState = "friend" | "incoming" | "outgoing" | "none";
+type PersonRow = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  country: string | null;
+  relationship: RelationshipState;
+  requestId?: string;
+};
+type ProfileUser = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  country: string | null;
+};
 
 function getTabClasses(active: boolean) {
   return cx(
@@ -44,56 +49,243 @@ function getTabClasses(active: boolean) {
   );
 }
 
-function getDisplayName(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length < 2) {
-    return parts[0] ?? name;
-  }
+function displayName(user: { displayName: string | null; username: string }) {
+  return user.displayName?.trim() || user.username;
+}
 
-  return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`;
+function presenceDotClass(status: Presence) {
+  return status === "online"
+    ? "bg-emerald-300 shadow-[0_0_10px_rgba(110,255,178,0.75)]"
+    : status === "away"
+      ? "bg-amber-300 shadow-[0_0_10px_rgba(255,204,110,0.75)]"
+      : "bg-slate-500";
 }
 
 export function HomeFriendsPanel() {
-  const [query, setQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<FriendsTab>("all");
   const [summary, setSummary] = useState<FriendsSummary | null>(null);
+  const [blockedRows, setBlockedRows] = useState<BlockedUserRow[]>([]);
+  const [otherRows, setOtherRows] = useState<FriendSummaryUser[]>([]);
+  const [query, setQuery] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [isRequestsOpen, setIsRequestsOpen] = useState(false);
+  const [isBlockedOpen, setIsBlockedOpen] = useState(false);
+  const [presenceById, setPresenceById] = useState<Record<string, Presence>>({});
+  const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
+  const requestsRef = useRef<HTMLDivElement | null>(null);
+  const blockedRef = useRef<HTMLDivElement | null>(null);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     const s = getStoredAuthSession();
     if (!s) {
       setSummary(null);
+      setBlockedRows([]);
+      setOtherRows([]);
       return;
     }
-    void getFriendsSummary(s.accessToken).then(setSummary).catch(() => setSummary(null));
+    const [nextSummary, nextBlocked, nextOthers] = await Promise.all([
+      getFriendsSummary(s.accessToken),
+      listBlockedPeople(s.accessToken),
+      explorePeople(s.accessToken, query.trim(), 60),
+    ]);
+    setSummary(nextSummary);
+    setBlockedRows(nextBlocked);
+    setOtherRows(nextOthers);
   }, []);
 
   useEffect(() => {
-    refresh();
+    void refresh().catch(() => {
+      setError("Could not load friends data.");
+    });
   }, [refresh]);
 
-  const requestFriends = useMemo(() => summary?.incomingRequests.map(incomingToPerson) ?? [], [summary]);
+  useEffect(() => {
+    const s = getStoredAuthSession();
+    if (!s) {
+      return;
+    }
+    const socket = getRealtimeSocket(s.accessToken);
+    const onFriendsUpdate = () => {
+      void refresh().catch(() => {});
+    };
+    const onPresenceUpdate = (payload: {
+      userId?: string;
+      status?: Presence;
+      online?: boolean;
+    }) => {
+      if (!payload?.userId) {
+        return;
+      }
+      const nextStatus: Presence =
+        payload.status ?? (payload.online ? "online" : "offline");
+      setPresenceById((prev) => ({ ...prev, [payload.userId as string]: nextStatus }));
+    };
+    socket.on("friends:update", onFriendsUpdate);
+    socket.on("presence:update", onPresenceUpdate);
+    return () => {
+      socket.off("friends:update", onFriendsUpdate);
+      socket.off("presence:update", onPresenceUpdate);
+    };
+  }, [refresh]);
 
-  const friendsPeople = useMemo(() => summary?.friends.map(friendToPerson) ?? [], [summary]);
+  const allWatchIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const friend of summary?.friends ?? []) {
+      ids.add(friend.id);
+    }
+    for (const row of summary?.incomingRequests ?? []) {
+      ids.add(row.user.id);
+    }
+    for (const row of summary?.outgoingRequests ?? []) {
+      ids.add(row.user.id);
+    }
+    for (const user of otherRows) {
+      ids.add(user.id);
+    }
+    return [...ids];
+  }, [otherRows, summary]);
 
-  const filteredPeople = useMemo(() => {
-    const baseList =
-      activeTab === "online"
-        ? friendsPeople.filter((person) => person.status === "online")
-        : activeTab === "requests"
-          ? requestFriends
-          : friendsPeople;
+  useEffect(() => {
+    const s = getStoredAuthSession();
+    if (!s || allWatchIds.length === 0) {
+      return;
+    }
+    const socket = getRealtimeSocket(s.accessToken);
+    socket.emit(
+      "presence:watch",
+      { userIds: allWatchIds },
+      (ack?: { ok?: boolean; statuses?: Record<string, Presence> }) => {
+        if (!ack?.ok || !ack.statuses) {
+          return;
+        }
+        setPresenceById((prev) => ({ ...prev, ...ack.statuses }));
+      },
+    );
+  }, [allWatchIds]);
 
+  useEffect(() => {
+    const onWindowClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (requestsRef.current && !requestsRef.current.contains(target)) {
+        setIsRequestsOpen(false);
+      }
+      if (blockedRef.current && !blockedRef.current.contains(target)) {
+        setIsBlockedOpen(false);
+      }
+    };
+    window.addEventListener("click", onWindowClick);
+    return () => {
+      window.removeEventListener("click", onWindowClick);
+    };
+  }, []);
+
+  const friendMap = useMemo(() => {
+    const map = new Map<string, FriendsSummary["friends"][0]>();
+    for (const friend of summary?.friends ?? []) {
+      map.set(friend.id, friend);
+    }
+    return map;
+  }, [summary]);
+  const incomingMap = useMemo(() => {
+    const map = new Map<string, FriendsSummary["incomingRequests"][0]>();
+    for (const row of summary?.incomingRequests ?? []) {
+      map.set(row.user.id, row);
+    }
+    return map;
+  }, [summary]);
+  const outgoingMap = useMemo(() => {
+    const map = new Map<string, FriendsSummary["outgoingRequests"][0]>();
+    for (const row of summary?.outgoingRequests ?? []) {
+      map.set(row.user.id, row);
+    }
+    return map;
+  }, [summary]);
+
+  const allOthers = useMemo<PersonRow[]>(() => {
+    const map = new Map<string, PersonRow>();
+    for (const row of summary?.incomingRequests ?? []) {
+      map.set(row.user.id, {
+        ...row.user,
+        relationship: "incoming",
+        requestId: row.id,
+      });
+    }
+    for (const row of summary?.outgoingRequests ?? []) {
+      map.set(row.user.id, {
+        ...row.user,
+        relationship: "outgoing",
+        requestId: row.id,
+      });
+    }
+    for (const row of otherRows) {
+      if (map.has(row.id)) {
+        continue;
+      }
+      map.set(row.id, {
+        ...row,
+        relationship: "none",
+      });
+    }
+    return [...map.values()];
+  }, [otherRows, summary]);
+
+  const friendRows = useMemo(() => summary?.friends ?? [], [summary]);
+  const filteredFriends = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) {
-      return baseList;
+      return friendRows;
     }
-
-    return baseList.filter((person) =>
-      `${person.name} ${person.handle} ${person.location ?? ""}`
+    return friendRows.filter((person) =>
+      `${displayName(person)} ${person.username} ${person.country ?? ""}`
         .toLowerCase()
         .includes(normalizedQuery),
     );
-  }, [activeTab, query, requestFriends, friendsPeople]);
+  }, [friendRows, query]);
+
+  const filteredOthers = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return allOthers;
+    }
+    return allOthers.filter((person) =>
+      `${displayName(person)} ${person.username} ${person.country ?? ""}`
+        .toLowerCase()
+        .includes(normalizedQuery),
+    );
+  }, [allOthers, query]);
+
+  const friendsOnline = filteredFriends.filter(
+    (f) => (presenceById[f.id] ?? "offline") === "online",
+  );
+  const friendsAway = filteredFriends.filter(
+    (f) => (presenceById[f.id] ?? "offline") === "away",
+  );
+  const friendsOffline = filteredFriends.filter(
+    (f) => (presenceById[f.id] ?? "offline") === "offline",
+  );
+
+  async function runAction(task: () => Promise<unknown>) {
+    setBusy(true);
+    setError("");
+    try {
+      await task();
+      await refresh();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Action failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function profileFromUser(user: ProfileUser) {
+    setProfileUser(user);
+  }
+
+  const incomingCount = summary?.incomingRequests.length ?? 0;
+  const blockedCount = blockedRows.length;
 
   return (
     <Panel className="p-4">
@@ -118,10 +310,6 @@ export function HomeFriendsPanel() {
           </span>
           <h2 className="text-[1.65rem] font-bold tracking-tight text-white">Friends</h2>
         </div>
-
-        <Link href="/app/friends" className="text-[1.05rem] font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100">
-          See all
-        </Link>
       </div>
 
       <div className="mt-4 space-y-3">
@@ -170,75 +358,387 @@ export function HomeFriendsPanel() {
           </button>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <button type="button" className={getTabClasses(activeTab === "all")} onClick={() => setActiveTab("all")}>
+        <div className="relative z-20 flex flex-wrap items-center gap-2 pb-1">
+          <button type="button" className={getTabClasses(true)}>
             All
           </button>
-          <button type="button" className={getTabClasses(activeTab === "online")} onClick={() => setActiveTab("online")}>
-            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,255,178,0.8)]" />
-            Online
-          </button>
-          <button
-            type="button"
-            className={getTabClasses(activeTab === "requests")}
-            onClick={() => setActiveTab("requests")}
-          >
-            Requests
-            <span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-pink-500 px-1 text-[0.62rem] font-semibold leading-none text-white">
-              {requestFriends.length}
-            </span>
-          </button>
+          <div ref={requestsRef} className="relative">
+            <button
+              type="button"
+              className={getTabClasses(isRequestsOpen)}
+              onClick={() => {
+                setIsRequestsOpen((v) => !v);
+                setIsBlockedOpen(false);
+              }}
+            >
+              Requests
+              <span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-pink-500 px-1 text-[0.62rem] font-semibold leading-none text-white">
+                {incomingCount}
+              </span>
+            </button>
+            {isRequestsOpen ? (
+              <div className="suzi-overlay-panel absolute left-0 top-[calc(100%+0.4rem)] z-30 w-72 rounded-[0.9rem] p-2">
+                <p className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">
+                  Incoming Requests
+                </p>
+                <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                  {(summary?.incomingRequests ?? []).map((row) => (
+                    <div key={row.id} className="rounded-[0.7rem] border border-cyan-300/20 bg-[rgba(22,14,72,0.66)] p-2">
+                      <button
+                        type="button"
+                        onClick={() => profileFromUser(row.user)}
+                        className="truncate text-sm font-semibold text-white hover:text-cyan-100"
+                      >
+                        {displayName(row.user)}
+                      </button>
+                      <p className="truncate text-xs text-cyan-100/70">@{row.user.username}</p>
+                      <div className="mt-2 flex gap-1.5">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void runAction(async () => {
+                            const s = getStoredAuthSession();
+                            if (!s) return;
+                            await acceptFriendRequest(s.accessToken, row.id);
+                          })}
+                          className="rounded-full border border-emerald-300/35 bg-emerald-400/20 px-2 py-1 text-[0.68rem] font-semibold text-emerald-50"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void runAction(async () => {
+                            const s = getStoredAuthSession();
+                            if (!s) return;
+                            await declineFriendRequest(s.accessToken, row.id);
+                          })}
+                          className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/20 px-2 py-1 text-[0.68rem] font-semibold text-pink-100"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {(summary?.incomingRequests.length ?? 0) === 0 ? (
+                    <p className="px-2 py-2 text-xs text-cyan-100/66">No incoming requests.</p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <div ref={blockedRef} className="relative">
+            <button
+              type="button"
+              className={getTabClasses(isBlockedOpen)}
+              onClick={() => {
+                setIsBlockedOpen((v) => !v);
+                setIsRequestsOpen(false);
+              }}
+            >
+              Blocked
+              <span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-slate-600 px-1 text-[0.62rem] font-semibold leading-none text-white">
+                {blockedCount}
+              </span>
+            </button>
+            {isBlockedOpen ? (
+              <div className="suzi-overlay-panel absolute right-0 top-[calc(100%+0.4rem)] z-30 w-72 rounded-[0.9rem] p-2">
+                <p className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">
+                  Blocked People
+                </p>
+                <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                  {blockedRows.map((row) => (
+                    <div key={row.id} className="rounded-[0.7rem] border border-cyan-300/20 bg-[rgba(22,14,72,0.66)] p-2">
+                      <button
+                        type="button"
+                        onClick={() => profileFromUser(row.user)}
+                        className="truncate text-sm font-semibold text-white hover:text-cyan-100"
+                      >
+                        {displayName(row.user)}
+                      </button>
+                      <p className="truncate text-xs text-cyan-100/70">@{row.user.username}</p>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void runAction(async () => {
+                          const s = getStoredAuthSession();
+                          if (!s) return;
+                          await unblockPerson(s.accessToken, row.user.id);
+                        })}
+                        className="mt-2 rounded-full border border-cyan-300/30 bg-cyan-400/16 px-2 py-1 text-[0.68rem] font-semibold text-cyan-50"
+                      >
+                        Cancel block
+                      </button>
+                    </div>
+                  ))}
+                  {blockedRows.length === 0 ? (
+                    <p className="px-2 py-2 text-xs text-cyan-100/66">No blocked users.</p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
       <div className="suzi-scrollbar mt-4 h-[24rem] space-y-2 overflow-y-auto pr-1">
-        {filteredPeople.length > 0 ? (
-          filteredPeople.map((person) => (
-            <Link
-              key={person.id}
-              href={
-                activeTab === "requests"
-                  ? "/app/friends"
-                  : `/app/messages?with=${encodeURIComponent(person.id)}`
-              }
-              className="flex items-center gap-3 rounded-[1rem] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(32,20,89,0.72),rgba(18,13,65,0.56))] px-3 py-2.5 transition hover:border-cyan-300/44 hover:bg-[linear-gradient(160deg,rgba(45,27,115,0.74),rgba(24,16,82,0.64))]"
-            >
+        {error ? (
+          <div className="rounded-[0.9rem] border border-pink-400/20 bg-pink-500/10 px-3 py-2 text-xs text-pink-100">
+            {error}
+          </div>
+        ) : null}
+
+        {[...friendsOnline, ...friendsAway, ...friendsOffline].length === 0 ? (
+          <div className="rounded-[0.8rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-2 text-xs text-cyan-100/56">
+            You have no friends yet. Explore people below and send friend requests.
+          </div>
+        ) : (
+          [...friendsOnline, ...friendsAway, ...friendsOffline].map((friend) => {
+            const status = presenceById[friend.id] ?? "offline";
+            return (
+              <div
+                key={friend.id}
+                className="flex items-center gap-3 rounded-[1rem] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(32,20,89,0.72),rgba(18,13,65,0.56))] px-3 py-2.5"
+              >
+                <div className="relative h-11 w-11 shrink-0">
+                  <Image
+                    src={defaultAvatar}
+                    alt={displayName(friend)}
+                    width={44}
+                    height={44}
+                    className="h-11 w-11 rounded-full border border-white/14 object-cover"
+                  />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[rgba(24,16,82,0.95)] bg-[rgba(24,16,82,0.95)]">
+                    <span className={cx("block h-full w-full rounded-full", presenceDotClass(status))} />
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => profileFromUser(friend)}
+                      className="truncate text-[1.05rem] font-semibold leading-tight text-white hover:text-cyan-100"
+                    >
+                      {displayName(friend)}
+                    </button>
+                  </div>
+                  <p className="mt-1 truncate text-[0.86rem] leading-none text-cyan-100/66">
+                    @{friend.username}
+                  </p>
+                </div>
+                <Link
+                  href={`/app/messages?with=${encodeURIComponent(friend.id)}`}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-[0.8rem] border border-fuchsia-300/22 bg-[linear-gradient(150deg,rgba(86,30,173,0.54),rgba(46,17,111,0.74))] text-cyan-100/88 transition hover:border-fuchsia-300/42 hover:text-white"
+                  aria-label={`Message ${displayName(friend)}`}
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.85"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M4 6h16v10H8l-4 4V6Z" />
+                  </svg>
+                </Link>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void runAction(async () => {
+                      const s = getStoredAuthSession();
+                      if (!s) return;
+                      await unfriend(s.accessToken, friend.id);
+                    })
+                  }
+                  className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-2 py-1 text-[0.66rem] font-semibold text-pink-100"
+                >
+                  Unfriend
+                </button>
+              </div>
+            );
+          })
+        )}
+
+        <div className="space-y-2 pt-1">
+          <p className="px-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-cyan-100/70">
+            Other People On SuziChat
+          </p>
+          {filteredOthers.length > 0 ? (
+            filteredOthers.map((person) => {
+              const status = presenceById[person.id] ?? "offline";
+              return (
+                <div
+                  key={person.id}
+                  className="flex items-center gap-3 rounded-[1rem] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(32,20,89,0.72),rgba(18,13,65,0.56))] px-3 py-2.5"
+                >
+                  <div className="relative h-11 w-11 shrink-0">
+                    <Image
+                      src={defaultAvatar}
+                      alt={displayName(person)}
+                      width={44}
+                      height={44}
+                      className="h-11 w-11 rounded-full border border-white/14 object-cover"
+                    />
+                    <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[rgba(24,16,82,0.95)] bg-[rgba(24,16,82,0.95)]">
+                      <span className={cx("block h-full w-full rounded-full", presenceDotClass(status))} />
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => profileFromUser(person)}
+                        className="truncate text-[1.05rem] font-semibold leading-tight text-white hover:text-cyan-100"
+                      >
+                        {displayName(person)}
+                      </button>
+                    </div>
+                    <p className="mt-1 truncate text-[0.86rem] leading-none text-cyan-100/66">
+                      @{person.username}
+                    </p>
+                  </div>
+                  {person.relationship === "incoming" ? (
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          void runAction(async () => {
+                            const s = getStoredAuthSession();
+                            if (!s || !person.requestId) return;
+                            await acceptFriendRequest(s.accessToken, person.requestId);
+                          })
+                        }
+                        className="rounded-full border border-emerald-300/35 bg-emerald-400/20 px-2 py-1 text-[0.66rem] font-semibold text-emerald-50"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          void runAction(async () => {
+                            const s = getStoredAuthSession();
+                            if (!s || !person.requestId) return;
+                            await declineFriendRequest(s.accessToken, person.requestId);
+                          })
+                        }
+                        className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-2 py-1 text-[0.66rem] font-semibold text-pink-100"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  ) : person.relationship === "outgoing" ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        void runAction(async () => {
+                          const s = getStoredAuthSession();
+                          if (!s || !person.requestId) return;
+                          await cancelOutgoingFriendRequest(s.accessToken, person.requestId);
+                        })
+                      }
+                      className="rounded-full border border-cyan-300/30 bg-cyan-400/16 px-2 py-1 text-[0.66rem] font-semibold text-cyan-50"
+                    >
+                      Cancel request
+                    </button>
+                  ) : (
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          void runAction(async () => {
+                            const s = getStoredAuthSession();
+                            if (!s) return;
+                            await sendFriendRequest(s.accessToken, person.username);
+                          })
+                        }
+                        className="rounded-full border border-emerald-300/35 bg-emerald-400/20 px-2 py-1 text-[0.66rem] font-semibold text-emerald-50"
+                      >
+                        Add friend
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          void runAction(async () => {
+                            const s = getStoredAuthSession();
+                            if (!s) return;
+                            await blockPerson(s.accessToken, person.id);
+                          })
+                        }
+                        className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-2 py-1 text-[0.66rem] font-semibold text-pink-100"
+                      >
+                        Block
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="flex h-full items-center rounded-[0.9rem] border border-cyan-300/16 bg-[rgba(17,12,58,0.54)] px-3 py-4 text-sm text-cyan-100/70">
+              No users match this search.
+            </div>
+          )}
+        </div>
+
+      {profileUser ? (
+        <div className="fixed inset-0 z-[260] flex items-center justify-center bg-[rgba(6,10,28,0.72)] p-4">
+          <div className="w-full max-w-md rounded-[1.1rem] border border-cyan-300/24 bg-[linear-gradient(160deg,rgba(34,20,101,0.96),rgba(20,14,76,0.94))] p-4 shadow-[0_20px_60px_rgba(7,11,30,0.62)]">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-lg font-semibold text-white">Profile</h3>
+              <button
+                type="button"
+                onClick={() => setProfileUser(null)}
+                className="rounded-full border border-cyan-300/30 bg-cyan-400/16 px-2 py-1 text-xs font-semibold text-cyan-100"
+              >
+                Close
+              </button>
+            </div>
+            <div className="mt-3 flex items-center gap-3 rounded-[0.9rem] border border-cyan-300/16 bg-[rgba(20,13,62,0.55)] p-3">
               <Image
-                src={person.avatar}
-                alt={person.name}
-                width={44}
-                height={44}
-                className="h-11 w-11 rounded-full border border-white/14 object-cover"
+                src={defaultAvatar}
+                alt={displayName(profileUser)}
+                width={56}
+                height={56}
+                className="h-14 w-14 rounded-full border border-white/14 object-cover"
               />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-[1.1rem] font-semibold leading-tight text-white">{getDisplayName(person.name)}</p>
-                  <StatusDot status={person.status} />
-                </div>
-                <p className="mt-1 truncate text-[0.9rem] leading-none text-cyan-100/66">
-                  {person.location ?? person.handle}
-                </p>
+                <p className="truncate text-lg font-semibold text-white">{displayName(profileUser)}</p>
+                <p className="truncate text-sm text-cyan-100/74">@{profileUser.username}</p>
+                {profileUser.country ? (
+                  <p className="truncate text-xs text-cyan-100/62">{profileUser.country}</p>
+                ) : null}
               </div>
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-[0.8rem] border border-fuchsia-300/22 bg-[linear-gradient(150deg,rgba(86,30,173,0.54),rgba(46,17,111,0.74))] text-cyan-100/88 transition hover:border-fuchsia-300/42 hover:text-white">
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.85"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M4 6h16v10H8l-4 4V6Z" />
-                </svg>
-              </span>
-            </Link>
-          ))
-        ) : (
-          <div className="flex h-full items-center rounded-[0.9rem] border border-cyan-300/16 bg-[rgba(17,12,58,0.54)] px-3 py-4 text-sm text-cyan-100/70">
-            No friends match this filter.
+              <StatusDot status={presenceById[profileUser.id] ?? "offline"} />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                href={`/app/messages?with=${encodeURIComponent(profileUser.id)}`}
+                className="rounded-full border border-cyan-300/30 bg-cyan-400/16 px-3 py-1.5 text-xs font-semibold text-cyan-50"
+                onClick={() => setProfileUser(null)}
+              >
+                DM
+              </Link>
+              <Link
+                href={`/app/profile/${encodeURIComponent(profileUser.username)}`}
+                className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-3 py-1.5 text-xs font-semibold text-pink-100"
+                onClick={() => setProfileUser(null)}
+              >
+                Open full profile
+              </Link>
+            </div>
           </div>
+        </div>
+        ) : (
+          null
         )}
       </div>
     </Panel>

@@ -43,6 +43,32 @@ const languages = [
   { code: "pl", label: "Polski" },
 ] as const;
 
+function readSeenInboxMessageIds(userId: string) {
+  if (typeof window === "undefined") {
+    return new Set<string>();
+  }
+  try {
+    const raw = window.localStorage.getItem(`suzi:seen-inbox:${userId}`);
+    if (!raw) {
+      return new Set<string>();
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return new Set<string>();
+    }
+    return new Set(parsed.filter((id): id is string => typeof id === "string"));
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function writeSeenInboxMessageIds(userId: string, ids: Set<string>) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.setItem(`suzi:seen-inbox:${userId}`, JSON.stringify([...ids]));
+}
+
 export function AppShell({
   children,
   pathname,
@@ -67,8 +93,19 @@ export function AppShell({
   const accountRef = useRef<HTMLDivElement | null>(null);
   const [shellThreads, setShellThreads] = useState<ConversationThread[]>([]);
   const [shellNotifications, setShellNotifications] = useState<ApiNotification[]>([]);
-  const inboxBadgeCount = shellThreads.length;
-  const unreadNotifications = shellNotifications.filter((n) => !n.read).length;
+  const [seenInboxMessageIds, setSeenInboxMessageIds] = useState<Set<string>>(new Set());
+  const [liveState, setLiveState] = useState<{
+    inboxCount: number;
+    unreadNotifications: number;
+    incomingFriendRequests: number;
+    outgoingFriendRequests: number;
+  } | null>(null);
+  const inboxBadgeCount = shellThreads.filter((thread) => {
+    const isIncoming = thread.lastMessage.senderId === thread.peer.id;
+    return isIncoming && !seenInboxMessageIds.has(thread.lastMessage.id);
+  }).length;
+  const unreadNotifications =
+    liveState?.unreadNotifications ?? shellNotifications.filter((n) => !n.read).length;
   const refreshShellNotifications = async () => {
     const list = await listNotifications(session.accessToken);
     setShellNotifications(list);
@@ -96,6 +133,30 @@ export function AppShell({
 
   const accountName = session.user.displayName ?? session.user.username;
   const accountHandle = `@${session.user.username}`;
+
+  useEffect(() => {
+    setSeenInboxMessageIds(readSeenInboxMessageIds(session.user.id));
+  }, [session.user.id]);
+
+  useEffect(() => {
+    writeSeenInboxMessageIds(session.user.id, seenInboxMessageIds);
+  }, [seenInboxMessageIds, session.user.id]);
+
+  useEffect(() => {
+    if (!pathname.startsWith("/app/messages")) {
+      return;
+    }
+    setSeenInboxMessageIds((prev) => {
+      const next = new Set(prev);
+      for (const thread of shellThreads) {
+        const isIncoming = thread.lastMessage.senderId === thread.peer.id;
+        if (isIncoming) {
+          next.add(thread.lastMessage.id);
+        }
+      }
+      return next;
+    });
+  }, [pathname, shellThreads]);
 
   useEffect(() => {
     function clickInside(ref: RefObject<HTMLDivElement | null>, event: PointerEvent): boolean {
@@ -171,9 +232,26 @@ export function AppShell({
         .then((threads) => setShellThreads(threads))
         .catch(() => {});
     };
+    const refreshNotifications = () => {
+      void listNotifications(session.accessToken)
+        .then((list) => setShellNotifications(list))
+        .catch(() => {});
+    };
+    const onRealtimeState = (payload: {
+      inboxCount: number;
+      unreadNotifications: number;
+      incomingFriendRequests: number;
+      outgoingFriendRequests: number;
+    }) => {
+      setLiveState(payload);
+    };
     socket.on("dm:message", refreshThreads);
+    socket.on("notifications:update", refreshNotifications);
+    socket.on("realtime:state", onRealtimeState);
     return () => {
       socket.off("dm:message", refreshThreads);
+      socket.off("notifications:update", refreshNotifications);
+      socket.off("realtime:state", onRealtimeState);
     };
   }, [session.accessToken]);
 
@@ -197,7 +275,7 @@ export function AppShell({
       </div>
 
       <div className="relative mx-auto w-full max-w-[1460px] px-3 pb-10 pt-6 sm:px-4 lg:px-5">
-        <div className="pointer-events-auto absolute left-1/2 top-3 z-40 -translate-x-1/2 sm:top-3.5 lg:top-4">
+        <div className="pointer-events-auto absolute left-1/2 top-3 z-[220] -translate-x-1/2 sm:top-3.5 lg:top-4">
           <Link href="/app" className="block">
             <span className="relative block h-[3rem] w-[9.8rem] overflow-hidden xs:h-[3.4rem] xs:w-[11.2rem] sm:h-[4.4rem] sm:w-[14.4rem] md:h-[5.3rem] md:w-[17.6rem] lg:h-[6rem] lg:w-[19.8rem]">
               <Image
@@ -212,7 +290,7 @@ export function AppShell({
           </Link>
         </div>
 
-        <div className="pointer-events-auto absolute right-3 top-4 z-40 flex items-center gap-2 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(140deg,rgba(15,13,43,0.76),rgba(34,18,79,0.56))] px-2 py-2 backdrop-blur-md sm:right-4 lg:right-5">
+        <div className="pointer-events-auto absolute right-3 top-4 z-[220] flex items-center gap-2 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(140deg,rgba(15,13,43,0.76),rgba(34,18,79,0.56))] px-2 py-2 backdrop-blur-md sm:right-4 lg:right-5">
           <div ref={createRef} className="relative">
             <button
               type="button"
@@ -285,7 +363,14 @@ export function AppShell({
                       <Link
                         key={thread.peer.id}
                         href={`/app/messages?with=${encodeURIComponent(thread.peer.id)}`}
-                        onClick={() => setIsMessagesOpen(false)}
+                        onClick={() => {
+                          setSeenInboxMessageIds((prev) => {
+                            const next = new Set(prev);
+                            next.add(thread.lastMessage.id);
+                            return next;
+                          });
+                          setIsMessagesOpen(false);
+                        }}
                         className="flex items-center gap-3 rounded-[0.9rem] px-3 py-2.5 transition hover:bg-white/8"
                       >
                         <Image

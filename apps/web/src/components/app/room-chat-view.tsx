@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer } from "@/components/app/chat-composer";
 import { ChatMessageRow, type LiveChatMessage } from "@/components/app/chat-message-row";
 import { PersonRow } from "@/components/app/v1-blocks";
@@ -35,8 +35,13 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [socketReady, setSocketReady] = useState(false);
+  const [typingName, setTypingName] = useState<string | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
+  const messagesScrollRef = useRef<HTMLDivElement | null>(null);
+  const typingHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingAtRef = useRef(0);
+  const lastTypingValueRef = useRef(false);
 
   const refresh = useCallback(async () => {
     setError("");
@@ -85,15 +90,66 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         return [...prev, payload.message];
       });
     };
+    const onRoomTyping = (payload: { roomSlug?: string; userId?: string; typing?: boolean }) => {
+      if (!payload?.roomSlug || payload.roomSlug !== roomSlug) {
+        return;
+      }
+      if (!payload.userId || payload.userId === meId) {
+        return;
+      }
+      if (!payload.typing) {
+        setTypingName(null);
+        if (typingHideTimerRef.current) {
+          clearTimeout(typingHideTimerRef.current);
+          typingHideTimerRef.current = null;
+        }
+        return;
+      }
+      const person = messages.find((row) => row.sender.id === payload.userId)?.sender;
+      const name = person?.displayName?.trim() || person?.username || "Someone";
+      setTypingName(name);
+      if (typingHideTimerRef.current) {
+        clearTimeout(typingHideTimerRef.current);
+      }
+      typingHideTimerRef.current = setTimeout(() => {
+        setTypingName(null);
+      }, 2000);
+    };
 
     socket.on("room:message", onRoomMessage);
+    socket.on("room:typing", onRoomTyping);
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.off("connect", joinRoom);
       socket.off("room:message", onRoomMessage);
+      socket.off("room:typing", onRoomTyping);
     };
+  }, [meId, messages, roomSlug]);
+
+  useEffect(() => {
+    setTypingName(null);
+    if (typingHideTimerRef.current) {
+      clearTimeout(typingHideTimerRef.current);
+      typingHideTimerRef.current = null;
+    }
   }, [roomSlug]);
+
+  useEffect(() => {
+    const root = messagesScrollRef.current;
+    if (!root) {
+      return;
+    }
+    root.scrollTop = root.scrollHeight;
+  }, [messages, loading]);
+
+  useEffect(() => {
+    return () => {
+      if (typingHideTimerRef.current) {
+        clearTimeout(typingHideTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,6 +199,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     setMessages((prev) => [...prev, optimisticMessage]);
     try {
       const socket = getRealtimeSocket(s.accessToken);
+      socket.emit("room:typing", { roomSlug, typing: false });
       const created = await new Promise<ApiRoomMessage>((resolve, reject) => {
         if (!socket.connected) {
           void postRoomMessage(s.accessToken, roomSlug, body)
@@ -222,7 +279,10 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
           <div className="border-b border-red-300/30 bg-red-500/15 px-5 py-3 text-sm text-red-100">{error}</div>
         ) : null}
 
-        <div className="suzi-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-5 py-5 sm:px-6">
+        <div
+          ref={messagesScrollRef}
+          className="suzi-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-5 py-5 sm:px-6"
+        >
           {messages.map((m) => {
             const mine = meId !== null && m.sender.id === meId;
             const live: LiveChatMessage = {
@@ -238,11 +298,34 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         </div>
 
         <div className="border-t border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-5 py-4 sm:px-6">
+          {typingName ? (
+            <p className="mb-2 text-xs font-medium text-cyan-100/85">{typingName} is typing...</p>
+          ) : null}
           <ChatComposer
             attachInputId={`room-chat-attachment-${roomSlug}`}
             placeholder="Write your message, invite a friend, or call out a game table"
             variant="onDark"
             disabled={!hasSession || sending}
+            onTyping={(text) => {
+              const s = getStoredAuthSession();
+              if (!s) {
+                return;
+              }
+              const nextTyping = text.trim().length > 0;
+              const now = Date.now();
+              if (
+                nextTyping === lastTypingValueRef.current &&
+                now - lastTypingAtRef.current < 800
+              ) {
+                return;
+              }
+              lastTypingValueRef.current = nextTyping;
+              lastTypingAtRef.current = now;
+              getRealtimeSocket(s.accessToken).emit("room:typing", {
+                roomSlug,
+                typing: nextTyping,
+              });
+            }}
             onSend={handleSend}
           />
         </div>

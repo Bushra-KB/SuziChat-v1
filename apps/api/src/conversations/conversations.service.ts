@@ -48,7 +48,7 @@ export class ConversationsService {
     const seen = new Set<string>();
     const threads: Array<{
       peer: (typeof messages)[0]['sender'];
-      lastMessage: { id: string; body: string; createdAt: Date };
+      lastMessage: { id: string; body: string; createdAt: Date; senderId: string };
     }> = [];
 
     for (const m of messages) {
@@ -63,6 +63,7 @@ export class ConversationsService {
           id: m.id,
           body: m.body,
           createdAt: m.createdAt,
+          senderId: m.senderId,
         },
       });
     }

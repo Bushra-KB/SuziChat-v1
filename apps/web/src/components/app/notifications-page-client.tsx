@@ -9,6 +9,7 @@ import {
   markNotificationRead,
   type ApiNotification,
 } from "@/lib/notifications-client";
+import { getRealtimeSocket } from "@/lib/realtime-client";
 
 export function NotificationsPageClient() {
   const [items, setItems] = useState<ApiNotification[]>([]);
@@ -42,6 +43,21 @@ export function NotificationsPageClient() {
       });
     return () => {
       cancelled = true;
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    const s = getStoredAuthSession();
+    if (!s) {
+      return;
+    }
+    const socket = getRealtimeSocket(s.accessToken);
+    const onNotificationsUpdate = () => {
+      void refresh().catch(() => {});
+    };
+    socket.on("notifications:update", onNotificationsUpdate);
+    return () => {
+      socket.off("notifications:update", onNotificationsUpdate);
     };
   }, [refresh]);
 

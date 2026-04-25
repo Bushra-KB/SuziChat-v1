@@ -20,6 +20,7 @@ import {
   type FriendSummaryUser,
   type FriendsSummary,
 } from "@/lib/friends-client";
+import { getRealtimeSocket } from "@/lib/realtime-client";
 
 const defaultAvatar = "/ppic/ppic1.jpeg";
 type FriendsTab = "friends" | "connect" | "explore" | "blocked";
@@ -53,9 +54,11 @@ function TabGlowUnderline({ active }: { active: boolean }) {
 
 function FriendRow({
   user,
+  isOnline = false,
   controls,
 }: {
   user: FriendSummaryUser;
+  isOnline?: boolean;
   controls?: React.ReactNode;
 }) {
   return (
@@ -65,6 +68,14 @@ function FriendRow({
           src={defaultAvatar}
           alt={displayName(user)}
           className="h-11 w-11 rounded-full border border-cyan-200/26 object-cover"
+        />
+        <span
+          className={cx(
+            "ml-[-1.2rem] mt-6 inline-flex h-2.5 w-2.5 rounded-full border border-[rgba(7,10,28,0.85)]",
+            isOnline ? "bg-emerald-400 shadow-[0_0_10px_rgba(74,222,128,0.82)]" : "bg-slate-500/70",
+          )}
+          title={isOnline ? "Online" : "Offline"}
+          aria-label={isOnline ? "Online" : "Offline"}
         />
         <div className="min-w-0 flex-1 leading-tight">
           <Link
@@ -93,6 +104,7 @@ export function FriendsPageClient() {
   const [exploreQuery, setExploreQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [activeTab, setActiveTab] = useState<FriendsTab>("friends");
+  const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
     const s = getStoredAuthSession();
@@ -129,6 +141,63 @@ export function FriendsPageClient() {
       cancelled = true;
     };
   }, [refresh]);
+
+  useEffect(() => {
+    const s = getStoredAuthSession();
+    if (!s) {
+      return;
+    }
+    const socket = getRealtimeSocket(s.accessToken);
+    const onFriendsUpdate = () => {
+      void refresh().catch(() => {});
+    };
+    socket.on("friends:update", onFriendsUpdate);
+    return () => {
+      socket.off("friends:update", onFriendsUpdate);
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    const s = getStoredAuthSession();
+    if (!s) {
+      return;
+    }
+    const socket = getRealtimeSocket(s.accessToken);
+    const watchedIds = new Set<string>([
+      ...(summary?.friends.map((f) => f.id) ?? []),
+      ...(summary?.incomingRequests.map((r) => r.user.id) ?? []),
+      ...(summary?.outgoingRequests.map((r) => r.user.id) ?? []),
+    ]);
+    const ids = [...watchedIds];
+    if (ids.length === 0) {
+      setOnlineIds(new Set());
+      return;
+    }
+    socket.emit("presence:watch", { userIds: ids }, (ack?: { ok?: boolean; onlineIds?: string[] }) => {
+      if (!ack?.ok) {
+        return;
+      }
+      setOnlineIds(new Set(ack.onlineIds ?? []));
+    });
+    const onPresenceUpdate = (payload: { userId?: string; online?: boolean }) => {
+      if (!payload?.userId) {
+        return;
+      }
+      setOnlineIds((prev) => {
+        const next = new Set(prev);
+        if (payload.online) {
+          next.add(payload.userId as string);
+        } else {
+          next.delete(payload.userId as string);
+        }
+        return next;
+      });
+    };
+    socket.on("presence:update", onPresenceUpdate);
+    return () => {
+      socket.off("presence:update", onPresenceUpdate);
+    };
+  }, [summary]);
 
   async function handleInviteByIdentifier(e: React.FormEvent) {
     e.preventDefault();
@@ -302,6 +371,7 @@ export function FriendsPageClient() {
                     <FriendRow
                       key={friend.friendshipId}
                       user={friend}
+                      isOnline={onlineIds.has(friend.id)}
                       controls={
                         <div className="flex items-center gap-1.5">
                           <Link
@@ -350,6 +420,7 @@ export function FriendsPageClient() {
                       <FriendRow
                         key={req.id}
                         user={req.user}
+                        isOnline={onlineIds.has(req.user.id)}
                         controls={
                           <div className="flex items-center gap-1.5">
                             <ActionButton
@@ -395,6 +466,7 @@ export function FriendsPageClient() {
                       <FriendRow
                         key={req.id}
                         user={req.user}
+                        isOnline={onlineIds.has(req.user.id)}
                         controls={
                           <ActionButton
                             onClick={() =>
@@ -430,6 +502,7 @@ export function FriendsPageClient() {
                     <FriendRow
                       key={req.id}
                       user={req.user}
+                      isOnline={onlineIds.has(req.user.id)}
                       controls={
                         <div className="flex items-center gap-1.5">
                           <ActionButton
@@ -487,6 +560,7 @@ export function FriendsPageClient() {
                     <FriendRow
                       key={req.id}
                       user={req.user}
+                      isOnline={onlineIds.has(req.user.id)}
                       controls={
                         <ActionButton
                           onClick={() =>

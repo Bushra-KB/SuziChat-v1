@@ -10,6 +10,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
+import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { CreateRoomMessageDto } from './dto/create-room-message.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
@@ -17,7 +18,10 @@ import { RoomsService } from './rooms.service';
 
 @Controller('v1/rooms')
 export class RoomsController {
-  constructor(private readonly roomsService: RoomsService) {}
+  constructor(
+    private readonly roomsService: RoomsService,
+    private readonly realtimeEvents: RealtimeEventsService,
+  ) {}
 
   @Get()
   listRooms() {
@@ -60,6 +64,9 @@ export class RoomsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateRoomMessageDto,
   ) {
-    return this.roomsService.postMessage(slug, user.id, dto.body);
+    return this.roomsService.postMessage(slug, user.id, dto.body).then((message) => {
+      this.realtimeEvents.emitRoom(slug, 'room:message', { roomSlug: slug, message });
+      return message;
+    });
   }
 }

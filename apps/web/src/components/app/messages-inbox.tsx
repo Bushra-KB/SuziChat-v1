@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer } from "@/components/app/chat-composer";
 import { ChatMessageRow, type LiveChatMessage } from "@/components/app/chat-message-row";
 import { PersonRow, ThreadRow } from "@/components/app/v1-blocks";
@@ -51,8 +51,13 @@ export function MessagesInbox() {
   const [msgLoading, setMsgLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [socketReady, setSocketReady] = useState(false);
+  const [typingName, setTypingName] = useState<string | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
+  const messagesScrollRef = useRef<HTMLDivElement | null>(null);
+  const typingHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingAtRef = useRef(0);
+  const lastTypingValueRef = useRef(false);
 
   const loadThreads = useCallback(async () => {
     const s = getStoredAuthSession();
@@ -212,13 +217,66 @@ export function MessagesInbox() {
       });
       void loadThreads();
     };
+    const onDmTyping = (payload: { userId?: string; peerId?: string; typing?: boolean }) => {
+      if (!payload?.userId || payload.userId !== selectedPeerId) {
+        return;
+      }
+      if (!payload.typing) {
+        setTypingName(null);
+        if (typingHideTimerRef.current) {
+          clearTimeout(typingHideTimerRef.current);
+          typingHideTimerRef.current = null;
+        }
+        return;
+      }
+      const threadPeer = threads.find((t) => t.peer.id === selectedPeerId)?.peer;
+      const personName =
+        threadPeer?.displayName?.trim() ||
+        threadPeer?.username ||
+        draftPeer?.displayName?.trim() ||
+        draftPeer?.username ||
+        "Someone";
+      setTypingName(personName);
+      if (typingHideTimerRef.current) {
+        clearTimeout(typingHideTimerRef.current);
+      }
+      typingHideTimerRef.current = setTimeout(() => {
+        setTypingName(null);
+      }, 2000);
+    };
 
     socket.on("dm:message", onDmMessage);
+    socket.on("dm:typing", onDmTyping);
     return () => {
       socket.off("connect", joinSelectedPeer);
       socket.off("dm:message", onDmMessage);
+      socket.off("dm:typing", onDmTyping);
     };
-  }, [loadThreads, selectedPeerId]);
+  }, [draftPeer, loadThreads, selectedPeerId, threads]);
+
+  useEffect(() => {
+    setTypingName(null);
+    if (typingHideTimerRef.current) {
+      clearTimeout(typingHideTimerRef.current);
+      typingHideTimerRef.current = null;
+    }
+  }, [selectedPeerId]);
+
+  useEffect(() => {
+    const root = messagesScrollRef.current;
+    if (!root) {
+      return;
+    }
+    root.scrollTop = root.scrollHeight;
+  }, [messages, msgLoading]);
+
+  useEffect(() => {
+    return () => {
+      if (typingHideTimerRef.current) {
+        clearTimeout(typingHideTimerRef.current);
+      }
+    };
+  }, []);
 
   const activeThread = useMemo(() => {
     const found = threads.find((t) => t.peer.id === selectedPeerId);
@@ -230,7 +288,12 @@ export function MessagesInbox() {
     }
     return {
       peer: draftPeer,
-      lastMessage: { id: "draft", body: "No messages yet", createdAt: new Date().toISOString() },
+      lastMessage: {
+        id: "draft",
+        body: "No messages yet",
+        createdAt: new Date().toISOString(),
+        senderId: draftPeer.id,
+      },
     };
   }, [threads, selectedPeerId, draftPeer]);
 
@@ -246,6 +309,7 @@ export function MessagesInbox() {
           id: "draft",
           body: "New conversation",
           createdAt: new Date().toISOString(),
+          senderId: draftPeer.id,
         },
       },
     ];
@@ -273,6 +337,7 @@ export function MessagesInbox() {
     setMessages((prev) => [...prev, optimistic]);
     try {
       const socket = getRealtimeSocket(s.accessToken);
+      socket.emit("dm:typing", { peerId: selectedPeerId, typing: false });
       const row = await new Promise<DirectMessageRow>((resolve, reject) => {
         if (!socket.connected) {
           void sendDirectMessage(s.accessToken, selectedPeerId, text)
@@ -352,7 +417,10 @@ export function MessagesInbox() {
             copy={activeThread?.peer.country ?? ""}
           />
         </div>
-        <div className="suzi-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-6 py-6">
+        <div
+          ref={messagesScrollRef}
+          className="suzi-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-6 py-6"
+        >
           {msgLoading ? (
             <p className="text-sm text-slate-500">Loading messages…</p>
           ) : messages.length === 0 ? (
@@ -373,11 +441,34 @@ export function MessagesInbox() {
           )}
         </div>
         <div className="border-t border-white/8 px-6 py-5">
+          {typingName ? (
+            <p className="mb-2 text-xs font-medium text-cyan-100/85">{typingName} is typing...</p>
+          ) : null}
           <ChatComposer
             attachInputId="dm-chat-attachment"
             placeholder="Write a direct message…"
             variant="onDark"
             disabled={!hasSession || !selectedPeerId || sending}
+            onTyping={(text) => {
+              const s = getStoredAuthSession();
+              if (!s || !selectedPeerId) {
+                return;
+              }
+              const nextTyping = text.trim().length > 0;
+              const now = Date.now();
+              if (
+                nextTyping === lastTypingValueRef.current &&
+                now - lastTypingAtRef.current < 800
+              ) {
+                return;
+              }
+              lastTypingValueRef.current = nextTyping;
+              lastTypingAtRef.current = now;
+              getRealtimeSocket(s.accessToken).emit("dm:typing", {
+                peerId: selectedPeerId,
+                typing: nextTyping,
+              });
+            }}
             onSend={handleSend}
           />
         </div>

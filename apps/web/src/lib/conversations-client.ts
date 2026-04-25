@@ -9,7 +9,7 @@ export type PeerSummary = {
 
 export type ConversationThread = {
   peer: PeerSummary;
-  lastMessage: { id: string; body: string; createdAt: string };
+  lastMessage: { id: string; body: string; createdAt: string; senderId: string };
 };
 
 export type DirectMessageRow = {
