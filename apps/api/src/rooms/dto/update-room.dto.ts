@@ -18,6 +18,11 @@ export class UpdateRoomDto {
 
   @IsOptional()
   @IsString()
+  @Length(0, 200000)
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
   @IsIn(['Public', 'Friends', 'Private'])
   privacy?: 'Public' | 'Friends' | 'Private';
 }

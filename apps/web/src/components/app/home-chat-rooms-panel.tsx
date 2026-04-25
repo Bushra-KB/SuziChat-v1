@@ -1,20 +1,20 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
+import { getStoredAuthSession } from "@/lib/auth-client";
 import { stableHash } from "@/lib/post-ui-mappers";
-import { listRooms, type ApiRoom } from "@/lib/rooms-client";
-
-type RoomCategory =
-  | "Hobbies"
-  | "Music"
-  | "Sports"
-  | "Chill"
-  | "Dating"
-  | "Media"
-  | "Travel";
+import { getRealtimeSocket } from "@/lib/realtime-client";
+import {
+  createRoom,
+  joinRoom,
+  listRoomCategories,
+  listRooms,
+  listRoomsForMe,
+  requestRoomAccess,
+  type ApiRoom,
+} from "@/lib/rooms-client";
 
 type HomeRoom = {
   id: string;
@@ -22,14 +22,18 @@ type HomeRoom = {
   emoji?: string;
   summary: string;
   detail?: string;
-  online: number;
+  onlineUsers: number;
+  totalMembers: number;
   image: string;
-  category: RoomCategory;
+  category: string;
+  privacy: string;
+  action: "open" | "join" | "request" | "requested";
   featured?: boolean;
 };
 
 const primaryCategories = ["All", "Hobbies", "Music", "Sports", "Chill"] as const;
-const extraCategories: RoomCategory[] = ["Dating", "Media", "Travel"];
+const extraCategories = ["Dating", "Media", "Travel"];
+const PRIVACY_OPTIONS = ["Public", "Friends", "Private"] as const;
 
 const ROOM_COVER_BY_SLUG: Record<string, string> = {
   "general-chat": "/banner/general_chat_banner.png",
@@ -39,7 +43,7 @@ const ROOM_COVER_BY_SLUG: Record<string, string> = {
   "gaming-hangout": "/banner/gamming_hangout_banner.png",
 };
 
-function mapApiCategoryToHome(cat: string): RoomCategory {
+function mapApiCategoryToHome(cat: string): string {
   const c = cat.toLowerCase();
   if (c.includes("music")) {
     return "Music";
@@ -68,9 +72,12 @@ function apiRoomToHomeRoom(room: ApiRoom): HomeRoom {
     name: room.name,
     summary: room.description?.trim() || "Open conversation",
     detail: undefined,
-    online: 24 + (stableHash(room.slug) % 160),
-    image: ROOM_COVER_BY_SLUG[room.slug] ?? "/banner/general_chat_banner.png",
+    onlineUsers: 0,
+    totalMembers: room._count?.memberships ?? 0,
+    image: room.imageUrl?.trim() || ROOM_COVER_BY_SLUG[room.slug] || "/banner/general_chat_banner.png",
     category: mapApiCategoryToHome(room.category),
+    privacy: room.privacy,
+    action: room.actor?.action ?? (room.privacy.toLowerCase() === "public" ? "join" : "request"),
     featured: room.slug === "general-chat",
   };
 }
@@ -82,67 +89,91 @@ const FALLBACK_HOME_ROOMS: HomeRoom[] = [
     emoji: "📌",
     summary: "Adults chatting friendly",
     detail: "Be kind and have fun.",
-    online: 142,
+    onlineUsers: 142,
+    totalMembers: 416,
     image: "/random/r0.jpg",
     category: "Hobbies",
+    privacy: "Public",
+    action: "join",
     featured: true,
   },
   {
     id: "music-lounge",
     name: "Music Lounge",
     summary: "Share tunes & chat",
-    online: 98,
+    onlineUsers: 98,
+    totalMembers: 231,
     image: "/random/r1.png",
     category: "Music",
+    privacy: "Public",
+    action: "join",
   },
   {
     id: "late-night-chat",
     name: "Late Night Chat",
     emoji: "🌙",
     summary: "18+ only · Good vibes",
-    online: 76,
+    onlineUsers: 76,
+    totalMembers: 181,
     image: "/random/r2.png",
     category: "Chill",
+    privacy: "Friends",
+    action: "request",
   },
   {
     id: "gaming-hangout",
     name: "Gamers Unite",
     summary: "Games, chill, good vibes",
-    online: 64,
+    onlineUsers: 64,
+    totalMembers: 147,
     image: "/random/r3.jpeg",
     category: "Sports",
+    privacy: "Public",
+    action: "join",
   },
   {
     id: "movie-nights",
     name: "Deep Conversations",
     summary: "Thoughtful talks",
-    online: 42,
+    onlineUsers: 42,
+    totalMembers: 99,
     image: "/random/r4.png",
     category: "Dating",
+    privacy: "Private",
+    action: "request",
   },
   {
     id: "chill-zone",
     name: "Chill Zone",
     summary: "Relax, talk, unwind",
-    online: 38,
+    onlineUsers: 38,
+    totalMembers: 92,
     image: "/random/r5.png",
     category: "Chill",
+    privacy: "Public",
+    action: "join",
   },
   {
     id: "anime-manga",
     name: "Anime & Manga",
     summary: "Fans united",
-    online: 31,
+    onlineUsers: 31,
+    totalMembers: 85,
     image: "/random/r6.jpg",
     category: "Media",
+    privacy: "Public",
+    action: "join",
   },
   {
     id: "global-hangout",
     name: "Global Hangout",
     summary: "Meet people worldwide",
-    online: 29,
+    onlineUsers: 29,
+    totalMembers: 80,
     image: "/random/r7.png",
     category: "Travel",
+    privacy: "Public",
+    action: "join",
   },
 ];
 
@@ -156,24 +187,103 @@ function getTabClasses(active: boolean) {
 }
 
 export function HomeChatRoomsPanel({
-  variant = "default",
+  variant: _variant = "default",
 }: {
   variant?: "default" | "dashboard";
 }) {
-  const [activeCategory, setActiveCategory] = useState<"All" | RoomCategory>("All");
+  const [activeCategory, setActiveCategory] = useState("All");
   const [query, setQuery] = useState("");
   const [showMoreCategories, setShowMoreCategories] = useState(false);
   const moreCategoriesRef = useRef<HTMLDivElement>(null);
   const [sourceRooms, setSourceRooms] = useState<HomeRoom[]>(FALLBACK_HOME_ROOMS);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [createDescription, setCreateDescription] = useState("");
+  const [createCategory, setCreateCategory] = useState("Social");
+  const [createPrivacy, setCreatePrivacy] = useState<(typeof PRIVACY_OPTIONS)[number]>("Public");
+  const [roomCategories, setRoomCategories] = useState<string[]>(["Social"]);
+  const [createImageUrl, setCreateImageUrl] = useState("");
+  const [createError, setCreateError] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [actingRoomId, setActingRoomId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void listRooms()
+    const session = getStoredAuthSession();
+    const loader = session?.accessToken ? listRoomsForMe(session.accessToken) : listRooms();
+    void loader
       .then((rows) => {
         if (cancelled || rows.length === 0) {
           return;
         }
-        setSourceRooms(rows.map(apiRoomToHomeRoom));
+        setSourceRooms(
+          rows.map((row) => {
+            const mapped = apiRoomToHomeRoom(row);
+            return {
+              ...mapped,
+              onlineUsers: 16 + (stableHash(row.slug) % 120),
+            };
+          }),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      return;
+    }
+    const socket = getRealtimeSocket(session.accessToken);
+    const watchRooms = () => {
+      for (const room of sourceRooms) {
+        socket.emit("room:watch", { roomSlug: room.id });
+      }
+    };
+    const onStats = (payload: { roomSlug?: string; onlineUsers?: number; totalMembers?: number }) => {
+      if (!payload.roomSlug) {
+        return;
+      }
+      setSourceRooms((prev) =>
+        prev.map((room) =>
+          room.id === payload.roomSlug
+            ? {
+                ...room,
+                onlineUsers: typeof payload.onlineUsers === "number" ? payload.onlineUsers : room.onlineUsers,
+                totalMembers: typeof payload.totalMembers === "number" ? payload.totalMembers : room.totalMembers,
+              }
+            : room,
+        ),
+      );
+    };
+    socket.on("connect", watchRooms);
+    socket.on("room:stats", onStats);
+    if (socket.connected) {
+      watchRooms();
+    }
+    return () => {
+      socket.off("connect", watchRooms);
+      socket.off("room:stats", onStats);
+    };
+  }, [sourceRooms]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listRoomCategories()
+      .then((rows) => {
+        if (cancelled || rows.length === 0) {
+          return;
+        }
+        const normalized = rows
+          .map((row) => row.trim())
+          .filter((row, index, arr) => row.length > 0 && arr.indexOf(row) === index);
+        if (normalized.length > 0) {
+          setRoomCategories(normalized);
+          setCreateCategory((prev) => (normalized.includes(prev) ? prev : normalized[0] ?? "Social"));
+        }
       })
       .catch(() => {});
     return () => {
@@ -215,7 +325,106 @@ export function HomeChatRoomsPanel({
 
   const moreCategoryActive =
     activeCategory !== "All" &&
-    extraCategories.includes(activeCategory as RoomCategory);
+    extraCategories.includes(activeCategory);
+
+  async function handleChooseRoomImage(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setCreateError("Please choose an image file.");
+      return;
+    }
+    setCreateError("");
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("Failed to read image"));
+      reader.readAsDataURL(file);
+    }).catch(() => "");
+    if (dataUrl) {
+      setCreateImageUrl(dataUrl);
+    } else {
+      setCreateError("Could not load selected image.");
+    }
+    event.currentTarget.value = "";
+  }
+
+  async function handleCreateRoom(event: React.FormEvent) {
+    event.preventDefault();
+    const s = getStoredAuthSession();
+    if (!s) {
+      setCreateError("Not signed in.");
+      return;
+    }
+    setCreateError("");
+    setCreating(true);
+    try {
+      const room = await createRoom(s.accessToken, {
+        name: createName.trim(),
+        description: createDescription.trim(),
+        category: createCategory.trim(),
+        imageUrl: createImageUrl.trim() || undefined,
+        privacy: createPrivacy,
+      });
+      const mapped = apiRoomToHomeRoom(room);
+      setSourceRooms((prev) => {
+        const next = [mapped, ...prev.filter((row) => row.id !== mapped.id)];
+        return next;
+      });
+      setActiveCategory("All");
+      setQuery("");
+      setIsCreateOpen(false);
+      setCreateName("");
+      setCreateDescription("");
+      setCreateCategory(roomCategories[0] ?? "Social");
+      setCreatePrivacy("Public");
+      setCreateImageUrl("");
+    } catch (e: unknown) {
+      setCreateError(e instanceof Error ? e.message : "Could not create room.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleRoomAction(room: HomeRoom) {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      return;
+    }
+    if (room.action === "open") {
+      window.location.href = `/app/rooms/${encodeURIComponent(room.id)}`;
+      return;
+    }
+    if (room.action === "requested") {
+      return;
+    }
+    setActingRoomId(room.id);
+    try {
+      if (room.action === "join") {
+        await joinRoom(session.accessToken, room.id);
+        setSourceRooms((prev) =>
+          prev.map((row) =>
+            row.id === room.id
+              ? { ...row, action: "open", totalMembers: row.totalMembers + 1 }
+              : row,
+          ),
+        );
+        return;
+      }
+      await requestRoomAccess(session.accessToken, room.id);
+      setSourceRooms((prev) =>
+        prev.map((row) =>
+          row.id === room.id
+            ? { ...row, action: "requested" }
+            : row,
+        ),
+      );
+    } finally {
+      setActingRoomId(null);
+    }
+  }
 
   return (
     <Panel className="overflow-hidden p-4 sm:p-5">
@@ -240,20 +449,18 @@ export function HomeChatRoomsPanel({
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/app/rooms/create"
+          <button
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
             className="inline-flex items-center rounded-full border border-fuchsia-200/44 bg-[linear-gradient(90deg,#ff2da7,#ce2fff)] px-4 py-1.5 text-[0.85rem] font-semibold text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_0_14px_rgba(255,45,167,0.56),0_8px_22px_rgba(101,24,194,0.45)] transition hover:brightness-110"
           >
-            Create Room
-          </Link>
-          <Link href="/app" className="text-sm font-medium text-cyan-100/78 transition hover:text-white">
-            See all
-          </Link>
+            + Create Room
+          </button>
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="mt-4 flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <div className="suzi-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto pb-1 pr-1">
             {primaryCategories.map((category) => (
               <button
@@ -302,7 +509,7 @@ export function HomeChatRoomsPanel({
           </div>
         </div>
 
-        <label className="relative w-full sm:ml-auto sm:w-60">
+        <label className="relative ml-auto w-52 shrink-0">
           <span className="pointer-events-none absolute inset-y-0 left-3 inline-flex items-center text-cyan-100/58">
             <svg
               aria-hidden="true"
@@ -330,7 +537,7 @@ export function HomeChatRoomsPanel({
       <div
         className={cx(
           "suzi-scrollbar mt-4 overflow-y-auto rounded-[1.15rem] border border-cyan-300/22 bg-transparent",
-          variant === "dashboard" ? "max-h-[48rem]" : "h-[48rem]",
+          "h-[550px]",
         )}
       >
         {filteredRooms.length > 0 ? (
@@ -343,7 +550,7 @@ export function HomeChatRoomsPanel({
               )}
             >
               <Link href={`/app/rooms/${room.id}`} className="relative h-20 w-24 shrink-0 overflow-hidden rounded-[0.85rem] border border-cyan-300/24">
-                <Image src={room.image} alt={`${room.name} cover`} fill sizes="120px" className="object-cover" />
+                <img src={room.image} alt={`${room.name} cover`} className="h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0.05),rgba(4,8,26,0.42))]" />
               </Link>
 
@@ -364,6 +571,18 @@ export function HomeChatRoomsPanel({
                 </div>
 
                 <p className="mt-1 truncate text-[0.95rem] text-cyan-50/86">{room.summary}</p>
+                <div className="mt-1 flex items-center gap-2 text-[0.72rem] text-cyan-100/76">
+                  <span className="rounded-full border border-white/15 bg-white/10 px-2 py-0.5">
+                    {room.category}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span aria-hidden="true">
+                      {room.privacy.toLowerCase() === "public" ? "🌐" : "🔒"}
+                    </span>
+                    {room.privacy}
+                  </span>
+                  <span>{room.totalMembers} members</span>
+                </div>
                 {room.detail ? (
                   <p className="mt-1 truncate text-[0.88rem] text-cyan-100/64">{room.detail}</p>
                 ) : null}
@@ -372,20 +591,29 @@ export function HomeChatRoomsPanel({
               <div className="ml-auto flex items-center gap-3">
                 <p className="inline-flex items-center gap-2 text-[0.95rem] text-cyan-100/76">
                   <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(92,255,190,0.78)]" />
-                  {room.online} online
+                  {room.onlineUsers} online
                 </p>
 
-                <Link
-                  href={`/app/rooms/${room.id}`}
+                <button
+                  type="button"
+                  disabled={actingRoomId === room.id || room.action === "requested"}
+                  onClick={() => void handleRoomAction(room)}
                   className={cx(
                     "inline-flex h-10 min-w-10 items-center justify-center rounded-[0.8rem] border text-[1rem] font-semibold transition",
+                    room.action === "requested" && "cursor-not-allowed opacity-70",
                     room.featured
                       ? "border-fuchsia-300/45 bg-[linear-gradient(90deg,rgba(157,78,221,0.8),rgba(255,32,121,0.76))] px-3 text-white hover:border-fuchsia-200/72"
                       : "border-fuchsia-300/28 bg-[rgba(67,28,155,0.52)] text-cyan-100/92 hover:border-fuchsia-300/50",
                   )}
                 >
-                  {room.featured ? "Join" : "+"}
-                </Link>
+                  {room.action === "open"
+                    ? "Open"
+                    : room.action === "join"
+                      ? "Join"
+                      : room.action === "request"
+                        ? "Request"
+                        : "Requested"}
+                </button>
               </div>
             </article>
           ))
@@ -395,6 +623,125 @@ export function HomeChatRoomsPanel({
           </div>
         )}
       </div>
+
+      {isCreateOpen ? (
+        <div className="fixed inset-0 z-[260] flex items-center justify-center bg-[rgba(6,10,28,0.72)] p-4">
+          <div className="w-full max-w-lg rounded-[1.1rem] border border-cyan-300/24 bg-[linear-gradient(160deg,rgba(34,20,101,0.96),rgba(20,14,76,0.94))] p-4 shadow-[0_20px_60px_rgba(7,11,30,0.62)] sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-xl font-semibold text-white">Create Room</h3>
+              <button
+                type="button"
+                onClick={() => setIsCreateOpen(false)}
+                className="rounded-full border border-cyan-300/30 bg-cyan-400/16 px-2 py-1 text-xs font-semibold text-cyan-100"
+              >
+                Close
+              </button>
+            </div>
+            <form onSubmit={handleCreateRoom} className="mt-4 space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">
+                  Room name
+                </label>
+                <input
+                  required
+                  value={createName}
+                  onChange={(event) => setCreateName(event.target.value)}
+                  placeholder="Movie Nights"
+                  className="h-10 w-full rounded-[0.72rem] border border-cyan-300/24 bg-[rgba(20,13,62,0.66)] px-3 text-sm text-cyan-50 placeholder:text-cyan-100/45 focus:border-fuchsia-300/52 focus:outline-none"
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">
+                    Category
+                  </label>
+                  <select
+                    value={createCategory}
+                    onChange={(event) => setCreateCategory(event.target.value)}
+                    className="h-10 w-full rounded-[0.72rem] border border-cyan-300/24 bg-[rgba(20,13,62,0.66)] px-3 text-sm text-cyan-50 focus:border-fuchsia-300/52 focus:outline-none"
+                  >
+                    {roomCategories.map((category) => (
+                      <option key={category} value={category} className="text-slate-900">
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">
+                    Privacy
+                  </label>
+                  <select
+                    value={createPrivacy}
+                    onChange={(event) =>
+                      setCreatePrivacy(event.target.value as (typeof PRIVACY_OPTIONS)[number])
+                    }
+                    className="h-10 w-full rounded-[0.72rem] border border-cyan-300/24 bg-[rgba(20,13,62,0.66)] px-3 text-sm text-cyan-50 focus:border-fuchsia-300/52 focus:outline-none"
+                  >
+                    {PRIVACY_OPTIONS.map((option) => (
+                      <option key={option} value={option} className="text-slate-900">
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">
+                  Room image / icon / logo
+                </label>
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <input
+                    value={createImageUrl}
+                    onChange={(event) => setCreateImageUrl(event.target.value)}
+                    placeholder="https://example.com/room-image.png"
+                    className="h-10 w-full rounded-[0.72rem] border border-cyan-300/24 bg-[rgba(20,13,62,0.66)] px-3 text-sm text-cyan-50 placeholder:text-cyan-100/45 focus:border-fuchsia-300/52 focus:outline-none"
+                  />
+                  <label className="inline-flex cursor-pointer items-center justify-center rounded-[0.72rem] border border-cyan-300/28 bg-cyan-400/14 px-3 text-xs font-semibold text-cyan-50">
+                    Upload
+                    <input type="file" accept="image/*" onChange={handleChooseRoomImage} className="hidden" />
+                  </label>
+                </div>
+                {createImageUrl ? (
+                  <div className="mt-2 inline-flex h-14 w-14 overflow-hidden rounded-[0.65rem] border border-cyan-300/24">
+                    <img src={createImageUrl} alt="Room preview" className="h-full w-full object-cover" />
+                  </div>
+                ) : null}
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">
+                  Description
+                </label>
+                <textarea
+                  value={createDescription}
+                  onChange={(event) => setCreateDescription(event.target.value)}
+                  placeholder="Describe room purpose and vibe"
+                  className="min-h-24 w-full resize-none rounded-[0.72rem] border border-cyan-300/24 bg-[rgba(20,13,62,0.66)] px-3 py-2 text-sm text-cyan-50 placeholder:text-cyan-100/45 focus:border-fuchsia-300/52 focus:outline-none"
+                />
+              </div>
+              {createError ? (
+                <p className="text-xs text-pink-100">{createError}</p>
+              ) : null}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateOpen(false)}
+                  className="rounded-full border border-cyan-300/28 bg-cyan-400/16 px-3 py-1.5 text-xs font-semibold text-cyan-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="rounded-full border border-fuchsia-200/44 bg-[linear-gradient(90deg,#ff2da7,#ce2fff)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                >
+                  {creating ? "Creating..." : "Create room"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </Panel>
   );
 }

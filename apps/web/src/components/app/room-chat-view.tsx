@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer } from "@/components/app/chat-composer";
@@ -9,10 +8,23 @@ import { PersonRow } from "@/components/app/v1-blocks";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import {
+  approveRoomJoinRequest,
+  banRoomMember,
   getRoom,
+  getRoomAccess,
+  getRoomManagement,
+  joinRoom,
   listRoomMessages,
+  listMyRoomMessages,
   postRoomMessage,
+  rejectRoomJoinRequest,
+  removeRoomMember,
+  requestRoomAccess,
+  unbanRoomMember,
+  updateRoom,
   type ApiRoom,
+  type ApiRoomAccess,
+  type ApiRoomManagement,
   type ApiRoomMessage,
 } from "@/lib/rooms-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
@@ -38,6 +50,15 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const [typingName, setTypingName] = useState<string | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
+  const [access, setAccess] = useState<ApiRoomAccess | null>(null);
+  const [management, setManagement] = useState<ApiRoomManagement | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showManageModal, setShowManageModal] = useState(false);
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editCategory, setEditCategory] = useState("Social");
+  const [editPrivacy, setEditPrivacy] = useState<"Public" | "Friends" | "Private">("Public");
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const typingHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingAtRef = useRef(0);
@@ -45,11 +66,19 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
 
   const refresh = useCallback(async () => {
     setError("");
-    const [roomRes, msgRes] = await Promise.all([
-      getRoom(roomSlug),
-      listRoomMessages(roomSlug),
-    ]);
+    const session = getStoredAuthSession();
+    const [roomRes, accessRes] = session?.accessToken
+      ? await Promise.all([getRoom(roomSlug), getRoomAccess(session.accessToken, roomSlug)])
+      : await Promise.all([getRoom(roomSlug), Promise.resolve<ApiRoomAccess | null>(null)]);
+    const msgRes = session?.accessToken
+      ? await listMyRoomMessages(session.accessToken, roomSlug).catch(() => [])
+      : await listRoomMessages(roomSlug);
     setRoom(roomRes);
+    setAccess(accessRes);
+    setEditName(roomRes.name);
+    setEditDescription(roomRes.description ?? "");
+    setEditCategory(roomRes.category);
+    setEditPrivacy((roomRes.privacy as "Public" | "Friends" | "Private") ?? "Public");
     setMessages(msgRes);
   }, [roomSlug]);
 
@@ -231,6 +260,73 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     }
   }
 
+  async function handleRoomJoinOrRequest() {
+    const s = getStoredAuthSession();
+    if (!s?.accessToken || !room) {
+      return;
+    }
+    setActionBusyId("join");
+    try {
+      if (access?.privacy?.toLowerCase() === "public") {
+        await joinRoom(s.accessToken, room.slug);
+      } else {
+        await requestRoomAccess(s.accessToken, room.slug);
+      }
+      await refresh();
+    } finally {
+      setActionBusyId(null);
+    }
+  }
+
+  async function refreshManagement() {
+    const s = getStoredAuthSession();
+    if (!s?.accessToken || !room) {
+      return;
+    }
+    const data = await getRoomManagement(s.accessToken, room.slug);
+    setManagement(data);
+  }
+
+  async function handleOwnerAction(action: "approve" | "reject" | "ban" | "remove" | "unban", userId: string) {
+    const s = getStoredAuthSession();
+    if (!s?.accessToken || !room) {
+      return;
+    }
+    setActionBusyId(`${action}-${userId}`);
+    try {
+      if (action === "approve") await approveRoomJoinRequest(s.accessToken, room.slug, userId);
+      if (action === "reject") await rejectRoomJoinRequest(s.accessToken, room.slug, userId);
+      if (action === "ban") await banRoomMember(s.accessToken, room.slug, userId);
+      if (action === "remove") await removeRoomMember(s.accessToken, room.slug, userId);
+      if (action === "unban") await unbanRoomMember(s.accessToken, room.slug, userId);
+      await refresh();
+      await refreshManagement();
+    } finally {
+      setActionBusyId(null);
+    }
+  }
+
+  async function handleSaveRoomEdit(event: React.FormEvent) {
+    event.preventDefault();
+    const s = getStoredAuthSession();
+    if (!s?.accessToken || !room) {
+      return;
+    }
+    setActionBusyId("save-room");
+    try {
+      await updateRoom(s.accessToken, room.slug, {
+        name: editName.trim(),
+        description: editDescription.trim(),
+        category: editCategory.trim(),
+        privacy: editPrivacy,
+      });
+      await refresh();
+      setShowEditModal(false);
+    } finally {
+      setActionBusyId(null);
+    }
+  }
+
   return (
     <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Panel className="flex h-[75vh] min-h-[32rem] max-h-[75vh] flex-col overflow-hidden border border-cyan-300/24 bg-[linear-gradient(180deg,rgba(36,45,116,0.52),rgba(40,16,117,0.52))] p-0 shadow-[0_14px_38px_rgba(15,23,42,0.2)]">
@@ -267,9 +363,25 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 {room?.privacy ?? "—"}
               </span>
               {meId && room?.owner.id === meId ? (
-                <Link href={`/app/rooms/${roomSlug}/edit`} className="suzi-secondary-btn px-4 py-1.5 text-sm">
-                  Edit
-                </Link>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditModal(true)}
+                    className="suzi-secondary-btn px-4 py-1.5 text-sm"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowManageModal(true);
+                      void refreshManagement();
+                    }}
+                    className="suzi-secondary-btn px-4 py-1.5 text-sm"
+                  >
+                    Manage
+                  </button>
+                </>
               ) : null}
             </div>
           </div>
@@ -279,23 +391,47 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
           <div className="border-b border-red-300/30 bg-red-500/15 px-5 py-3 text-sm text-red-100">{error}</div>
         ) : null}
 
-        <div
-          ref={messagesScrollRef}
-          className="suzi-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-5 py-5 sm:px-6"
-        >
-          {messages.map((m) => {
-            const mine = meId !== null && m.sender.id === meId;
-            const live: LiveChatMessage = {
-              body: m.body,
-              timeLabel: formatShortTime(m.createdAt),
-              isMine: mine,
-              senderUsername: m.sender.username,
-              senderDisplayName: m.sender.displayName ?? m.sender.username,
-              senderAvatarUrl: null,
-            };
-            return <ChatMessageRow key={m.id} variant="live" message={live} />;
-          })}
-        </div>
+        {!access?.canOpen && hasSession ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center bg-white px-6">
+            <div className="max-w-md text-center">
+              <p className="text-sm text-slate-600">
+                {access?.isBlocked
+                  ? "You are blocked from this room."
+                  : access?.hasPendingRequest
+                    ? "Your join request is pending approval."
+                    : "You are not a member of this room yet."}
+              </p>
+              {!access?.isBlocked && !access?.hasPendingRequest ? (
+                <button
+                  type="button"
+                  disabled={actionBusyId === "join"}
+                  onClick={() => void handleRoomJoinOrRequest()}
+                  className="suzi-primary-btn mt-3 px-4 py-2 text-sm"
+                >
+                  {access?.privacy?.toLowerCase() === "public" ? "Join room" : "Request access"}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div
+            ref={messagesScrollRef}
+            className="suzi-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-5 py-5 sm:px-6"
+          >
+            {messages.map((m) => {
+              const mine = meId !== null && m.sender.id === meId;
+              const live: LiveChatMessage = {
+                body: m.body,
+                timeLabel: formatShortTime(m.createdAt),
+                isMine: mine,
+                senderUsername: m.sender.username,
+                senderDisplayName: m.sender.displayName ?? m.sender.username,
+                senderAvatarUrl: null,
+              };
+              return <ChatMessageRow key={m.id} variant="live" message={live} />;
+            })}
+          </div>
+        )}
 
         <div className="border-t border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-5 py-4 sm:px-6">
           {typingName ? (
@@ -305,7 +441,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
             attachInputId={`room-chat-attachment-${roomSlug}`}
             placeholder="Write your message, invite a friend, or call out a game table"
             variant="onDark"
-            disabled={!hasSession || sending}
+            disabled={!hasSession || sending || !access?.canPost}
             onTyping={(text) => {
               const s = getStoredAuthSession();
               if (!s) {
@@ -415,6 +551,107 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
           </div>
         </Panel>
       </div>
+
+      {showEditModal ? (
+        <div className="fixed inset-0 z-[270] flex items-center justify-center bg-[rgba(6,10,28,0.72)] p-4">
+          <div className="w-full max-w-lg rounded-[1.1rem] border border-cyan-300/24 bg-[linear-gradient(160deg,rgba(34,20,101,0.96),rgba(20,14,76,0.94))] p-4 shadow-[0_20px_60px_rgba(7,11,30,0.62)] sm:p-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-white">Edit Room</h3>
+              <button type="button" onClick={() => setShowEditModal(false)} className="suzi-secondary-btn px-3 py-1.5 text-xs">
+                Close
+              </button>
+            </div>
+            <form onSubmit={handleSaveRoomEdit} className="mt-4 space-y-3">
+              <input value={editName} onChange={(e) => setEditName(e.target.value)} className="suzi-input" required />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="suzi-input" />
+                <select
+                  value={editPrivacy}
+                  onChange={(e) => setEditPrivacy(e.target.value as "Public" | "Friends" | "Private")}
+                  className="suzi-input"
+                >
+                  <option value="Public">Public</option>
+                  <option value="Friends">Friends</option>
+                  <option value="Private">Private</option>
+                </select>
+              </div>
+              <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="suzi-input min-h-24 resize-none" />
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setShowEditModal(false)} className="suzi-secondary-btn px-3 py-1.5 text-xs">
+                  Cancel
+                </button>
+                <button type="submit" disabled={actionBusyId === "save-room"} className="suzi-primary-btn px-3 py-1.5 text-xs">
+                  {actionBusyId === "save-room" ? "Saving..." : "Save changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {showManageModal ? (
+        <div className="fixed inset-0 z-[270] flex items-center justify-center bg-[rgba(6,10,28,0.72)] p-4">
+          <div className="w-full max-w-2xl rounded-[1.1rem] border border-cyan-300/24 bg-[linear-gradient(160deg,rgba(34,20,101,0.96),rgba(20,14,76,0.94))] p-4 shadow-[0_20px_60px_rgba(7,11,30,0.62)] sm:p-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-white">Manage Members</h3>
+              <button type="button" onClick={() => setShowManageModal(false)} className="suzi-secondary-btn px-3 py-1.5 text-xs">
+                Close
+              </button>
+            </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">Requests</p>
+                <div className="space-y-2">
+                  {management?.pendingRequests.map((row) => (
+                    <div key={row.userId} className="rounded border border-cyan-300/20 p-2 text-xs text-cyan-50">
+                      <p>{row.user.displayName?.trim() || row.user.username}</p>
+                      <div className="mt-1 flex gap-1">
+                        <button type="button" onClick={() => void handleOwnerAction("approve", row.userId)} className="suzi-primary-btn px-2 py-1 text-[11px]">
+                          Approve
+                        </button>
+                        <button type="button" onClick={() => void handleOwnerAction("reject", row.userId)} className="suzi-secondary-btn px-2 py-1 text-[11px]">
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">Members</p>
+                <div className="space-y-2">
+                  {management?.members.map((row) => (
+                    <div key={row.userId} className="rounded border border-cyan-300/20 p-2 text-xs text-cyan-50">
+                      <p>{row.user.displayName?.trim() || row.user.username}</p>
+                      <div className="mt-1 flex gap-1">
+                        <button type="button" onClick={() => void handleOwnerAction("remove", row.userId)} className="suzi-secondary-btn px-2 py-1 text-[11px]">
+                          Remove
+                        </button>
+                        <button type="button" onClick={() => void handleOwnerAction("ban", row.userId)} className="suzi-secondary-btn px-2 py-1 text-[11px]">
+                          Ban
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">Banned</p>
+                <div className="space-y-2">
+                  {management?.bannedUsers.map((row) => (
+                    <div key={row.userId} className="rounded border border-cyan-300/20 p-2 text-xs text-cyan-50">
+                      <p>{row.user.displayName?.trim() || row.user.username}</p>
+                      <button type="button" onClick={() => void handleOwnerAction("unban", row.userId)} className="suzi-secondary-btn mt-1 px-2 py-1 text-[11px]">
+                        Unban
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

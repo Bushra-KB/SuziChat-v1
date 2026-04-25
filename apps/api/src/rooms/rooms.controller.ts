@@ -23,14 +23,45 @@ export class RoomsController {
     private readonly realtimeEvents: RealtimeEventsService,
   ) {}
 
+  private async emitRoomStats(slug: string) {
+    const room = await this.roomsService.getRoomBySlug(slug);
+    this.realtimeEvents.emitToChannel(`roomstats:${slug}`, 'room:stats', {
+      roomSlug: slug,
+      totalMembers: room._count?.memberships ?? 0,
+    });
+  }
+
   @Get()
   listRooms() {
     return this.roomsService.listRooms();
   }
 
+  @Get('me/list')
+  @UseGuards(AccessTokenGuard)
+  listRoomsForMe(@CurrentUser() user: AuthenticatedUser) {
+    return this.roomsService.listRoomsForUser(user.id);
+  }
+
+  @Get('categories')
+  listCategories() {
+    return this.roomsService.listCategories();
+  }
+
   @Get(':slug/messages')
   listMessages(@Param('slug') slug: string) {
     return this.roomsService.listMessages(slug);
+  }
+
+  @Get(':slug/me/access')
+  @UseGuards(AccessTokenGuard)
+  getMyAccess(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.roomsService.getRoomAccess(slug, user.id);
+  }
+
+  @Get(':slug/me/messages')
+  @UseGuards(AccessTokenGuard)
+  listMessagesForMe(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.roomsService.listMessagesForUser(slug, user.id);
   }
 
   @Get(':slug')
@@ -68,5 +99,84 @@ export class RoomsController {
       this.realtimeEvents.emitRoom(slug, 'room:message', { roomSlug: slug, message });
       return message;
     });
+  }
+
+  @Post(':slug/join')
+  @UseGuards(AccessTokenGuard)
+  async joinRoom(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.roomsService.joinRoom(slug, user.id);
+    await this.emitRoomStats(slug);
+    return result;
+  }
+
+  @Post(':slug/request-access')
+  @UseGuards(AccessTokenGuard)
+  async requestAccess(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.roomsService.requestAccess(slug, user.id);
+  }
+
+  @Get(':slug/manage')
+  @UseGuards(AccessTokenGuard)
+  getRoomManagement(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.roomsService.getRoomManagement(slug, user.id);
+  }
+
+  @Post(':slug/manage/requests/:userId/approve')
+  @UseGuards(AccessTokenGuard)
+  approveJoinRequest(
+    @Param('slug') slug: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.roomsService.approveJoinRequest(slug, user.id, userId).then(async (result) => {
+      await this.emitRoomStats(slug);
+      return result;
+    });
+  }
+
+  @Post(':slug/manage/requests/:userId/reject')
+  @UseGuards(AccessTokenGuard)
+  rejectJoinRequest(
+    @Param('slug') slug: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.roomsService.rejectJoinRequest(slug, user.id, userId);
+  }
+
+  @Post(':slug/manage/members/:userId/remove')
+  @UseGuards(AccessTokenGuard)
+  removeMember(
+    @Param('slug') slug: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.roomsService.removeMember(slug, user.id, userId).then(async (result) => {
+      await this.emitRoomStats(slug);
+      return result;
+    });
+  }
+
+  @Post(':slug/manage/members/:userId/ban')
+  @UseGuards(AccessTokenGuard)
+  banMember(
+    @Param('slug') slug: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.roomsService.banMember(slug, user.id, userId).then(async (result) => {
+      await this.emitRoomStats(slug);
+      return result;
+    });
+  }
+
+  @Post(':slug/manage/bans/:userId/unban')
+  @UseGuards(AccessTokenGuard)
+  unbanMember(
+    @Param('slug') slug: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.roomsService.unbanMember(slug, user.id, userId);
   }
 }

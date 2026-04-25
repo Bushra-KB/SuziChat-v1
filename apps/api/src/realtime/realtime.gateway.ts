@@ -79,6 +79,23 @@ export class RealtimeGateway implements OnGatewayConnection {
     return `room:${roomSlug}`;
   }
 
+  private roomStatsChannel(roomSlug: string) {
+    return `roomstats:${roomSlug}`;
+  }
+
+  private getRoomOnlineCount(roomSlug: string) {
+    const sockets = this.server.sockets.adapter.rooms.get(this.roomChannel(roomSlug));
+    return sockets?.size ?? 0;
+  }
+
+  private emitRoomStats(roomSlug: string, totalMembers?: number) {
+    this.server.to(this.roomStatsChannel(roomSlug)).emit('room:stats', {
+      roomSlug,
+      onlineUsers: this.getRoomOnlineCount(roomSlug),
+      totalMembers,
+    });
+  }
+
   private presenceChannel(userId: string) {
     return `presence:${userId}`;
   }
@@ -154,6 +171,12 @@ export class RealtimeGateway implements OnGatewayConnection {
     // Defer until socket.io updates room membership.
     setTimeout(() => {
       this.emitPresence(userId);
+      const joinedRoomStats = [...client.rooms]
+        .filter((name) => name.startsWith('room:'))
+        .map((name) => name.slice('room:'.length));
+      for (const roomSlug of joinedRoomStats) {
+        this.emitRoomStats(roomSlug);
+      }
     }, 0);
   }
 
@@ -211,6 +234,24 @@ export class RealtimeGateway implements OnGatewayConnection {
     }
     await this.roomsService.getRoomBySlug(roomSlug);
     await client.join(this.roomChannel(roomSlug));
+    await client.join(this.roomStatsChannel(roomSlug));
+    this.emitRoomStats(roomSlug);
+    return { ok: true };
+  }
+
+  @SubscribeMessage('room:watch')
+  async onRoomWatch(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { roomSlug?: string },
+  ) {
+    this.getUserId(client);
+    const roomSlug = payload?.roomSlug?.trim();
+    if (!roomSlug) {
+      throw new WsException('roomSlug is required');
+    }
+    const room = await this.roomsService.getRoomBySlug(roomSlug);
+    await client.join(this.roomStatsChannel(roomSlug));
+    this.emitRoomStats(roomSlug, room._count?.memberships ?? undefined);
     return { ok: true };
   }
 

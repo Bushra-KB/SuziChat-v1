@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Panel } from "@/components/ui/suzi-primitives";
-import { listRooms, type ApiRoom } from "@/lib/rooms-client";
+import { getStoredAuthSession } from "@/lib/auth-client";
+import { getRealtimeSocket } from "@/lib/realtime-client";
+import { joinRoom, listRooms, listRoomsForMe, requestRoomAccess, type ApiRoom } from "@/lib/rooms-client";
 
 function formatPrivacyLabel(privacy: string) {
   if (privacy.toLowerCase() === "friends") {
@@ -20,11 +22,15 @@ export function RoomsCatalogPageClient() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [onlineBySlug, setOnlineBySlug] = useState<Record<string, number>>({});
+  const [actingSlug, setActingSlug] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    void listRooms()
+    const session = getStoredAuthSession();
+    const loader = session?.accessToken ? listRoomsForMe(session.accessToken) : listRooms();
+    void loader
       .then((rows) => {
         if (!cancelled) {
           setRooms(rows);
@@ -45,6 +51,80 @@ export function RoomsCatalogPageClient() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken || rooms.length === 0) {
+      return;
+    }
+    const socket = getRealtimeSocket(session.accessToken);
+    const watch = () => {
+      for (const room of rooms) {
+        socket.emit("room:watch", { roomSlug: room.slug });
+      }
+    };
+    const onStats = (payload: { roomSlug?: string; onlineUsers?: number }) => {
+      if (!payload.roomSlug || typeof payload.onlineUsers !== "number") {
+        return;
+      }
+      setOnlineBySlug((prev) => ({ ...prev, [payload.roomSlug as string]: payload.onlineUsers as number }));
+    };
+    socket.on("connect", watch);
+    socket.on("room:stats", onStats);
+    if (socket.connected) {
+      watch();
+    }
+    return () => {
+      socket.off("connect", watch);
+      socket.off("room:stats", onStats);
+    };
+  }, [rooms]);
+
+  async function handleAction(room: ApiRoom) {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      return;
+    }
+    const action = room.actor?.action ?? (room.privacy.toLowerCase() === "public" ? "join" : "request");
+    if (action === "open") {
+      window.location.href = `/app/rooms/${encodeURIComponent(room.slug)}`;
+      return;
+    }
+    if (action === "requested") {
+      return;
+    }
+    setActingSlug(room.slug);
+    try {
+      if (action === "join") {
+        await joinRoom(session.accessToken, room.slug);
+        setRooms((prev) =>
+          prev.map((row) =>
+            row.slug === room.slug
+              ? {
+                  ...row,
+                  actor: { isMember: true, hasPendingRequest: false, action: "open" },
+                  _count: { messages: row._count?.messages ?? 0, memberships: (row._count?.memberships ?? 0) + 1 },
+                }
+              : row,
+          ),
+        );
+      } else {
+        await requestRoomAccess(session.accessToken, room.slug);
+        setRooms((prev) =>
+          prev.map((row) =>
+            row.slug === room.slug
+              ? {
+                  ...row,
+                  actor: { isMember: false, hasPendingRequest: true, action: "requested" },
+                }
+              : row,
+          ),
+        );
+      }
+    } finally {
+      setActingSlug(null);
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -94,7 +174,14 @@ export function RoomsCatalogPageClient() {
                 key={room.id}
                 className="rounded-[1rem] border border-cyan-300/16 bg-[linear-gradient(160deg,rgba(29,17,88,0.72),rgba(17,12,58,0.6))] p-4"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[0.7rem] border border-cyan-300/20">
+                    <img
+                      src={room.imageUrl?.trim() || "/banner/general_chat_banner.png"}
+                      alt={`${room.name} cover`}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
                   <div className="min-w-0">
                     <Link
                       href={`/app/rooms/${encodeURIComponent(room.slug)}`}
@@ -102,26 +189,37 @@ export function RoomsCatalogPageClient() {
                     >
                       {room.name}
                     </Link>
+                    <div className="mt-1 flex items-center gap-2 text-[11px] text-cyan-100/70">
+                      <span className="rounded-full border border-white/14 bg-white/8 px-2 py-0.5">
+                        {room.category}
+                      </span>
+                      <span>
+                        {room.privacy.toLowerCase() === "public" ? "🌐" : "🔒"} {formatPrivacyLabel(room.privacy)}
+                      </span>
+                    </div>
                     <p className="mt-1 text-sm text-cyan-100/74">{room.description ?? "No description"}</p>
                   </div>
-                  <span className="rounded-full border border-cyan-300/24 bg-cyan-400/12 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-50">
-                    {formatPrivacyLabel(room.privacy)}
-                  </span>
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-cyan-100/66">
-                  <span className="rounded-full border border-white/14 bg-white/8 px-2 py-1">
-                    {room.category}
-                  </span>
                   <span>Owner: @{room.owner.username}</span>
-                  <span>Messages: {room._count?.messages ?? 0}</span>
+                  <span>{room._count?.memberships ?? 0} members</span>
+                  <span>{onlineBySlug[room.slug] ?? 0} online</span>
                 </div>
                 <div className="mt-4 flex items-center gap-2">
-                  <Link
-                    href={`/app/rooms/${encodeURIComponent(room.slug)}`}
-                    className="suzi-primary-btn px-3 py-2 text-xs"
+                  <button
+                    type="button"
+                    disabled={actingSlug === room.slug || room.actor?.action === "requested"}
+                    onClick={() => void handleAction(room)}
+                    className="suzi-primary-btn px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    Join room
-                  </Link>
+                    {room.actor?.action === "open"
+                      ? "Open room"
+                      : room.actor?.action === "requested"
+                        ? "Requested"
+                        : room.actor?.action === "request"
+                          ? "Request access"
+                          : "Join room"}
+                  </button>
                   <Link
                     href={`/app/rooms/${encodeURIComponent(room.slug)}/edit`}
                     className="suzi-secondary-btn px-3 py-2 text-xs"

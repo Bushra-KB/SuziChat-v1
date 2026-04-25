@@ -16,4 +16,8 @@ export class RealtimeEventsService {
   emitRoom(roomSlug: string, event: string, payload: unknown) {
     this.server?.to(`room:${roomSlug}`).emit(event, payload);
   }
+
+  emitToChannel(channel: string, event: string, payload: unknown) {
+    this.server?.to(channel).emit(event, payload);
+  }
 }
