@@ -93,11 +93,6 @@ export const appNavItems: NavItem[] = [
     icon: "M4 6h16v10H8l-4 4V6Z",
   },
   {
-    href: "/app/friends",
-    label: "Friends",
-    icon: "M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M17 11a3 3 0 1 0 0-6M21 21v-2a3 3 0 0 0-2-2.85",
-  },
-  {
     href: "/app/dating",
     label: "Dating",
     icon: "M12 20s-6.5-4.3-8.6-7.4C.8 9.4 2 4.9 6.3 4.3 8.7 4 10.5 5.2 12 7c1.5-1.8 3.3-3 5.7-2.7 4.3.6 5.5 5.1 2.9 8.3C18.5 15.7 12 20 12 20Z",
@@ -132,9 +127,9 @@ export const appNavItems: NavItem[] = [
 export const mobileNavItems: NavItem[] = [
   appNavItems[0],
   appNavItems[1],
-  appNavItems[4],
   appNavItems[3],
-  appNavItems[6],
+  appNavItems[2],
+  appNavItems[5],
 ];
 
 export const createMenuItems = [

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -88,6 +89,12 @@ export class RoomsController {
     return this.roomsService.updateRoom(slug, user.id, dto);
   }
 
+  @Delete(':slug')
+  @UseGuards(AccessTokenGuard)
+  deleteRoom(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.roomsService.deleteRoom(slug, user.id);
+  }
+
   @Post(':slug/messages')
   @UseGuards(AccessTokenGuard)
   postMessage(
@@ -113,6 +120,12 @@ export class RoomsController {
   @UseGuards(AccessTokenGuard)
   async requestAccess(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
     return this.roomsService.requestAccess(slug, user.id);
+  }
+
+  @Post(':slug/cancel-request')
+  @UseGuards(AccessTokenGuard)
+  async cancelJoinRequest(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.roomsService.cancelJoinRequest(slug, user.id);
   }
 
   @Post(':slug/leave')
