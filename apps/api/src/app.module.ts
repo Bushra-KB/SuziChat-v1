@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ConversationsModule } from './conversations/conversations.module';
+import { DatingModule } from './dating/dating.module';
 import { FriendsModule } from './friends/friends.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PostsModule } from './posts/posts.module';
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
     RealtimeModule,
     PostsModule,
     NotificationsModule,
+    DatingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -10,6 +10,7 @@ import {
 } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
+import { DatingService } from '../dating/dating.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { PostsService } from '../posts/posts.service';
 import { RoomsService } from '../rooms/rooms.service';
@@ -43,6 +44,7 @@ export class RealtimeGateway implements OnGatewayConnection {
     private readonly roomsService: RoomsService,
     private readonly realtimeEvents: RealtimeEventsService,
     private readonly realtimeState: RealtimeStateService,
+    private readonly datingService: DatingService,
   ) {
     this.presenceTicker = setInterval(() => {
       this.emitAllPresenceIfChanged();
@@ -342,6 +344,22 @@ export class RealtimeGateway implements OnGatewayConnection {
   onPing(@ConnectedSocket() client: AuthSocket) {
     this.getUserId(client);
     return { ok: true, ts: Date.now() };
+  }
+
+  @SubscribeMessage('dating:typing')
+  async onDatingTyping(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { matchId?: string; typing?: boolean },
+  ) {
+    const userId = this.getUserId(client);
+    const matchId = payload?.matchId?.trim();
+    if (!matchId) {
+      throw new WsException('matchId is required');
+    }
+    const { peerId } = await this.datingService.assertMatchParticipant(userId, matchId);
+    this.markUserActive(userId);
+    this.datingService.emitTyping(userId, matchId, peerId, Boolean(payload?.typing));
+    return { ok: true };
   }
 
   @SubscribeMessage('presence:watch')

@@ -30,6 +30,11 @@ enum RoomJoinRequestStatus {
   CANCELED
 }
 
+enum DatingSwipeAction {
+  LIKE
+  PASS
+}
+
 model User {
   id                        String    @id @default(cuid())
   email                     String    @unique
@@ -65,6 +70,71 @@ model User {
   notifications             Notification[] @relation("UserNotifications")
   blockedUsers             UserBlock[] @relation("UserBlocksSent")
   blockedByUsers           UserBlock[] @relation("UserBlocksReceived")
+  datingProfile            DatingProfile?
+  datingSwipesFrom         DatingSwipe[] @relation("DatingSwipeFrom")
+  datingSwipesTo           DatingSwipe[] @relation("DatingSwipeTo")
+  datingMatchesA           DatingMatch[] @relation("DatingMatchUserA")
+  datingMatchesB           DatingMatch[] @relation("DatingMatchUserB")
+  datingMessagesSent       DatingMessage[] @relation("DatingMessageSender")
+}
+
+model DatingProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  age            Int?
+  gender         String?
+  headline       String?
+  datingBio      String?
+  interests      Json?
+  photoUrl       String?
+  minAgePref     Int      @default(18)
+  maxAgePref     Int      @default(99)
+  seekGender     String   @default("any")
+  isDiscoverable Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([isDiscoverable, updatedAt])
+}
+
+model DatingSwipe {
+  id         String            @id @default(cuid())
+  fromUserId String
+  toUserId   String
+  action     DatingSwipeAction
+  createdAt  DateTime          @default(now())
+  fromUser   User              @relation("DatingSwipeFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User              @relation("DatingSwipeTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId])
+  @@index([toUserId, action])
+}
+
+model DatingMatch {
+  id        String          @id @default(cuid())
+  userAId   String
+  userBId   String
+  userA     User            @relation("DatingMatchUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User            @relation("DatingMatchUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  messages  DatingMessage[]
+  createdAt DateTime        @default(now())
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+}
+
+model DatingMessage {
+  id        String      @id @default(cuid())
+  matchId   String
+  senderId  String
+  body      String
+  match     DatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  sender    User        @relation("DatingMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@index([matchId, createdAt])
 }
 
 model FriendRequest {
