@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer } from "@/components/app/chat-composer";
 import { ChatMessageRow, type LiveChatMessage } from "@/components/app/chat-message-row";
@@ -10,6 +11,7 @@ import { getStoredAuthSession } from "@/lib/auth-client";
 import {
   approveRoomJoinRequest,
   banRoomMember,
+  deleteRoom,
   getRoom,
   getRoomAccess,
   getRoomManagement,
@@ -42,6 +44,7 @@ function formatShortTime(iso: string) {
 }
 
 export function RoomChatView({ roomSlug }: { roomSlug: string }) {
+  const router = useRouter();
   const [room, setRoom] = useState<ApiRoom | null>(null);
   const [messages, setMessages] = useState<ApiRoomMessage[]>([]);
   const [error, setError] = useState("");
@@ -55,6 +58,8 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const [management, setManagement] = useState<ApiRoomManagement | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
+  const [showDeleteRoomModal, setShowDeleteRoomModal] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -348,6 +353,28 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     try {
       await leaveRoom(s.accessToken, room.slug);
       await refresh();
+    } finally {
+      setActionBusyId(null);
+    }
+  }
+
+  async function handleDeleteRoomConfirm() {
+    const s = getStoredAuthSession();
+    if (!s?.accessToken || !room) {
+      return;
+    }
+    if (deleteConfirmName.trim() !== room.name.trim()) {
+      return;
+    }
+    setActionBusyId("delete-room");
+    setError("");
+    try {
+      await deleteRoom(s.accessToken, room.slug);
+      setShowDeleteRoomModal(false);
+      setDeleteConfirmName("");
+      router.replace("/app");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Could not delete room.");
     } finally {
       setActionBusyId(null);
     }
@@ -702,6 +729,18 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 {actionBusyId === "leave-room" ? "Leaving..." : "Leave room"}
               </button>
             ) : null}
+            {access?.isOwner ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteConfirmName("");
+                  setShowDeleteRoomModal(true);
+                }}
+                className="rounded-[0.75rem] border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100/95 transition hover:border-red-300/55 hover:bg-red-500/18"
+              >
+                Delete room…
+              </button>
+            ) : null}
           </div>
         </Panel>
       </div>
@@ -761,6 +800,49 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {showDeleteRoomModal && room ? (
+        <div className="fixed inset-0 z-[275] flex items-center justify-center bg-[rgba(6,10,28,0.72)] p-4">
+          <div className="w-full max-w-md rounded-[1.1rem] border border-red-400/30 bg-[linear-gradient(160deg,rgba(50,18,40,0.97),rgba(20,12,48,0.95))] p-4 shadow-[0_20px_60px_rgba(7,11,30,0.62)] sm:p-5">
+            <h3 className="text-xl font-semibold text-white">Delete this room?</h3>
+            <p className="mt-2 text-sm text-cyan-100/80">
+              This permanently removes the room, all messages, members, and join requests. This cannot be undone.
+            </p>
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-100/64">
+              Type the room name to confirm
+            </p>
+            <input
+              value={deleteConfirmName}
+              onChange={(e) => setDeleteConfirmName(e.target.value)}
+              placeholder={room.name}
+              className="suzi-input mt-1.5 w-full"
+              autoComplete="off"
+            />
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteRoomModal(false);
+                  setDeleteConfirmName("");
+                }}
+                className="suzi-secondary-btn px-3 py-1.5 text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={
+                  actionBusyId === "delete-room" || deleteConfirmName.trim() !== room.name.trim()
+                }
+                onClick={() => void handleDeleteRoomConfirm()}
+                className="rounded-full border border-red-400/50 bg-red-600/85 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {actionBusyId === "delete-room" ? "Deleting…" : "Delete room permanently"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

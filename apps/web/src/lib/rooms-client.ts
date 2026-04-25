@@ -14,7 +14,8 @@ export type ApiRoom = {
   actor?: {
     isMember: boolean;
     hasPendingRequest: boolean;
-    action: "open" | "join" | "request" | "requested";
+    isBlocked?: boolean;
+    action: "open" | "join" | "request" | "requested" | "blocked";
   };
 };
 
@@ -144,6 +145,16 @@ export async function requestRoomAccess(accessToken: string, slug: string) {
   );
 }
 
+export async function cancelRoomJoinRequest(accessToken: string, slug: string) {
+  return apiJson<{ status: "cancelled" | "none" | "member" }>(
+    `/v1/rooms/${encodeURIComponent(slug)}/cancel-request`,
+    {
+      method: "POST",
+      accessToken,
+    },
+  );
+}
+
 export async function leaveRoom(accessToken: string, slug: string) {
   return apiJson<{ status: "left" }>(`/v1/rooms/${encodeURIComponent(slug)}/leave`, {
     method: "POST",
@@ -215,5 +226,12 @@ export async function updateRoom(
     method: "PATCH",
     accessToken,
     body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteRoom(accessToken: string, slug: string) {
+  return apiJson<{ status: "deleted" }>(`/v1/rooms/${encodeURIComponent(slug)}`, {
+    method: "DELETE",
+    accessToken,
   });
 }

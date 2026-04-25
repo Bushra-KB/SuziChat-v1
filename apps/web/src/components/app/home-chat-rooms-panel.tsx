@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
-import { stableHash } from "@/lib/post-ui-mappers";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 import {
+  cancelRoomJoinRequest,
   createRoom,
   joinRoom,
+  leaveRoom,
   listRoomCategories,
   listRooms,
   listRoomsForMe,
@@ -27,21 +28,75 @@ type HomeRoom = {
   image: string;
   category: string;
   privacy: string;
-  action: "open" | "join" | "request" | "requested";
+  action: "open" | "join" | "request" | "requested" | "blocked";
   featured?: boolean;
+  ownerId: string;
+  isOwner: boolean;
+  isMember: boolean;
+  hasPendingRequest: boolean;
+  isBlocked: boolean;
 };
 
 const primaryCategories = ["All", "Hobbies", "Music", "Sports", "Chill"] as const;
 const extraCategories = ["Dating", "Media", "Travel"];
 const PRIVACY_OPTIONS = ["Public", "Friends", "Private"] as const;
 
-const ROOM_COVER_BY_SLUG: Record<string, string> = {
-  "general-chat": "/banner/general_chat_banner.png",
-  "music-lounge": "/banner/Music_lounch_banner.png",
-  "late-night-chat": "/banner/Late_Night_chat_banner.png",
-  "movie-nights": "/banner/hobbies_banner.png",
-  "gaming-hangout": "/banner/gamming_hangout_banner.png",
-};
+const DEFAULT_ROOM_COVER = "/banner/general_chat_banner.png";
+
+const MAX_IMAGE_EDGE = 1400;
+const JPEG_QUALITY = 0.82;
+
+/** Resize so the longest side is at most `MAX_IMAGE_EDGE` and re-encode as JPEG. */
+async function compressImageDataUrl(input: string): Promise<string> {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return "";
+  }
+  let objectUrl: string | undefined;
+  try {
+    let loadSrc = trimmed;
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      const res = await fetch(trimmed, { mode: "cors" });
+      if (!res.ok) {
+        return trimmed;
+      }
+      const blob = await res.blob();
+      objectUrl = URL.createObjectURL(blob);
+      loadSrc = objectUrl;
+    }
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.crossOrigin = "anonymous";
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("Failed to load image"));
+      el.src = loadSrc;
+    });
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    if (w === 0 || h === 0) {
+      return trimmed;
+    }
+    const maxEdge = Math.max(w, h);
+    const scale = Math.min(1, MAX_IMAGE_EDGE / maxEdge);
+    const tw = Math.round(w * scale);
+    const th = Math.round(h * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = tw;
+    canvas.height = th;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return trimmed;
+    }
+    ctx.drawImage(img, 0, 0, tw, th);
+    return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+  } catch {
+    return trimmed;
+  } finally {
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+}
 
 function mapApiCategoryToHome(cat: string): string {
   const c = cat.toLowerCase();
@@ -66,7 +121,20 @@ function mapApiCategoryToHome(cat: string): string {
   return "Chill";
 }
 
-function apiRoomToHomeRoom(room: ApiRoom): HomeRoom {
+function apiRoomToHomeRoom(room: ApiRoom, myUserId?: string): HomeRoom {
+  const privacy = room.privacy.toLowerCase();
+  const actor = room.actor;
+  const isOwner = Boolean(myUserId && room.owner.id === myUserId);
+  const isBlocked = Boolean(actor?.isBlocked);
+  const isMember = Boolean(isOwner || actor?.isMember);
+  const hasPendingRequest = Boolean(actor?.hasPendingRequest);
+  const action: HomeRoom["action"] = isOwner
+    ? "open"
+    : isBlocked || actor?.action === "blocked"
+      ? "blocked"
+      : actor?.action ??
+        (privacy === "public" ? "join" : hasPendingRequest ? "requested" : "request");
+
   return {
     id: room.slug,
     name: room.name,
@@ -74,108 +142,26 @@ function apiRoomToHomeRoom(room: ApiRoom): HomeRoom {
     detail: undefined,
     onlineUsers: 0,
     totalMembers: room._count?.memberships ?? 0,
-    image: room.imageUrl?.trim() || ROOM_COVER_BY_SLUG[room.slug] || "/banner/general_chat_banner.png",
+    image: room.imageUrl?.trim() || DEFAULT_ROOM_COVER,
     category: mapApiCategoryToHome(room.category),
     privacy: room.privacy,
-    action: room.actor?.action ?? (room.privacy.toLowerCase() === "public" ? "join" : "request"),
+    action,
     featured: room.slug === "general-chat",
+    ownerId: room.owner.id,
+    isOwner,
+    isMember,
+    hasPendingRequest,
+    isBlocked: action === "blocked" || isBlocked,
   };
 }
 
-const FALLBACK_HOME_ROOMS: HomeRoom[] = [
-  {
-    id: "general-chat",
-    name: "Lobby - Chat - Cam - Relaxed",
-    emoji: "📌",
-    summary: "Adults chatting friendly",
-    detail: "Be kind and have fun.",
-    onlineUsers: 142,
-    totalMembers: 416,
-    image: "/random/r0.jpg",
-    category: "Hobbies",
-    privacy: "Public",
-    action: "join",
-    featured: true,
-  },
-  {
-    id: "music-lounge",
-    name: "Music Lounge",
-    summary: "Share tunes & chat",
-    onlineUsers: 98,
-    totalMembers: 231,
-    image: "/random/r1.png",
-    category: "Music",
-    privacy: "Public",
-    action: "join",
-  },
-  {
-    id: "late-night-chat",
-    name: "Late Night Chat",
-    emoji: "🌙",
-    summary: "18+ only · Good vibes",
-    onlineUsers: 76,
-    totalMembers: 181,
-    image: "/random/r2.png",
-    category: "Chill",
-    privacy: "Friends",
-    action: "request",
-  },
-  {
-    id: "gaming-hangout",
-    name: "Gamers Unite",
-    summary: "Games, chill, good vibes",
-    onlineUsers: 64,
-    totalMembers: 147,
-    image: "/random/r3.jpeg",
-    category: "Sports",
-    privacy: "Public",
-    action: "join",
-  },
-  {
-    id: "movie-nights",
-    name: "Deep Conversations",
-    summary: "Thoughtful talks",
-    onlineUsers: 42,
-    totalMembers: 99,
-    image: "/random/r4.png",
-    category: "Dating",
-    privacy: "Private",
-    action: "request",
-  },
-  {
-    id: "chill-zone",
-    name: "Chill Zone",
-    summary: "Relax, talk, unwind",
-    onlineUsers: 38,
-    totalMembers: 92,
-    image: "/random/r5.png",
-    category: "Chill",
-    privacy: "Public",
-    action: "join",
-  },
-  {
-    id: "anime-manga",
-    name: "Anime & Manga",
-    summary: "Fans united",
-    onlineUsers: 31,
-    totalMembers: 85,
-    image: "/random/r6.jpg",
-    category: "Media",
-    privacy: "Public",
-    action: "join",
-  },
-  {
-    id: "global-hangout",
-    name: "Global Hangout",
-    summary: "Meet people worldwide",
-    onlineUsers: 29,
-    totalMembers: 80,
-    image: "/random/r7.png",
-    category: "Travel",
-    privacy: "Public",
-    action: "join",
-  },
-];
+function nextGuestAction(room: Pick<HomeRoom, "privacy" | "hasPendingRequest">): HomeRoom["action"] {
+  const privacy = room.privacy.toLowerCase();
+  if (privacy === "public") {
+    return "join";
+  }
+  return room.hasPendingRequest ? "requested" : "request";
+}
 
 function getTabClasses(active: boolean) {
   return cx(
@@ -183,6 +169,35 @@ function getTabClasses(active: boolean) {
     active
       ? "border-fuchsia-300/50 bg-[linear-gradient(90deg,rgba(157,78,221,0.95),rgba(255,32,121,0.85))] text-white shadow-[0_0_16px_rgba(255,32,121,0.28)]"
       : "border-cyan-300/20 bg-[rgba(26,18,74,0.66)] text-cyan-100/78 hover:border-cyan-300/36 hover:text-white",
+  );
+}
+
+function RoomSectionHeader({ title }: { title: string }) {
+  return (
+    <div
+      className={cx(
+        "sticky top-0 z-10 flex items-center gap-2.5 px-3 py-2.5 sm:px-4",
+        "border-b border-cyan-300/15",
+        "bg-[linear-gradient(105deg,rgba(157,78,221,0.28),rgba(67,28,155,0.38)_48%,rgba(14,165,233,0.12))]",
+        "backdrop-blur-md",
+        "shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_24px_rgba(6,4,20,0.35)]",
+      )}
+    >
+      <span
+        className="h-5 w-0.5 shrink-0 rounded-full bg-gradient-to-b from-fuchsia-300 to-cyan-300/70 shadow-[0_0_12px_rgba(236,72,153,0.55)]"
+        aria-hidden
+      />
+      <span className="text-[0.84rem] font-semibold tracking-tight text-white/95">{title}</span>
+    </div>
+  );
+}
+
+function roomGroupShellClassName() {
+  return cx(
+    "overflow-hidden rounded-[0.95rem]",
+    "border border-cyan-300/16",
+    "bg-[linear-gradient(165deg,rgba(42,26,108,0.45),rgba(18,11,46,0.42))]",
+    "shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_22px_rgba(8,6,34,0.28)]",
   );
 }
 
@@ -195,7 +210,9 @@ export function HomeChatRoomsPanel({
   const [query, setQuery] = useState("");
   const [showMoreCategories, setShowMoreCategories] = useState(false);
   const moreCategoriesRef = useRef<HTMLDivElement>(null);
-  const [sourceRooms, setSourceRooms] = useState<HomeRoom[]>(FALLBACK_HOME_ROOMS);
+  const [sourceRooms, setSourceRooms] = useState<HomeRoom[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [roomsError, setRoomsError] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createDescription, setCreateDescription] = useState("");
@@ -206,27 +223,37 @@ export function HomeChatRoomsPanel({
   const [createError, setCreateError] = useState("");
   const [creating, setCreating] = useState(false);
   const [actingRoomId, setActingRoomId] = useState<string | null>(null);
+  const [viewerId, setViewerId] = useState<string | undefined>(undefined);
+
+  const roomSlugKey = useMemo(() => sourceRooms.map((room) => room.id).join("\0"), [sourceRooms]);
 
   useEffect(() => {
     let cancelled = false;
     const session = getStoredAuthSession();
+    setViewerId(session?.user.id);
+    setRoomsLoading(true);
+    setRoomsError("");
     const loader = session?.accessToken ? listRoomsForMe(session.accessToken) : listRooms();
     void loader
       .then((rows) => {
-        if (cancelled || rows.length === 0) {
+        if (cancelled) {
           return;
         }
-        setSourceRooms(
-          rows.map((row) => {
-            const mapped = apiRoomToHomeRoom(row);
-            return {
-              ...mapped,
-              onlineUsers: 16 + (stableHash(row.slug) % 120),
-            };
-          }),
-        );
+        const myId = session?.user.id;
+        setSourceRooms(rows.map((row) => apiRoomToHomeRoom(row, myId)));
       })
-      .catch(() => {});
+      .catch((e: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        setRoomsError(e instanceof Error ? e.message : "Could not load rooms.");
+        setSourceRooms([]);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setRoomsLoading(false);
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -238,9 +265,10 @@ export function HomeChatRoomsPanel({
       return;
     }
     const socket = getRealtimeSocket(session.accessToken);
+    const slugs = sourceRooms.map((room) => room.id);
     const watchRooms = () => {
-      for (const room of sourceRooms) {
-        socket.emit("room:watch", { roomSlug: room.id });
+      for (const slug of slugs) {
+        socket.emit("room:watch", { roomSlug: slug });
       }
     };
     const onStats = (payload: { roomSlug?: string; onlineUsers?: number; totalMembers?: number }) => {
@@ -268,7 +296,7 @@ export function HomeChatRoomsPanel({
       socket.off("connect", watchRooms);
       socket.off("room:stats", onStats);
     };
-  }, [sourceRooms]);
+  }, [roomSlugKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -323,6 +351,31 @@ export function HomeChatRoomsPanel({
     );
   }, [activeCategory, query, sourceRooms]);
 
+  const groupedFilteredRooms = useMemo(() => {
+    const myUserId = viewerId ?? getStoredAuthSession()?.user.id;
+    if (!myUserId) {
+      return { mine: [] as HomeRoom[], joined: [] as HomeRoom[], other: filteredRooms };
+    }
+
+    const mine: HomeRoom[] = [];
+    const joined: HomeRoom[] = [];
+    const other: HomeRoom[] = [];
+
+    for (const room of filteredRooms) {
+      if (room.ownerId === myUserId) {
+        mine.push(room);
+        continue;
+      }
+      if (room.isMember) {
+        joined.push(room);
+        continue;
+      }
+      other.push(room);
+    }
+
+    return { mine, joined, other };
+  }, [filteredRooms, viewerId]);
+
   const moreCategoryActive =
     activeCategory !== "All" &&
     extraCategories.includes(activeCategory);
@@ -345,7 +398,8 @@ export function HomeChatRoomsPanel({
       reader.readAsDataURL(file);
     }).catch(() => "");
     if (dataUrl) {
-      setCreateImageUrl(dataUrl);
+      const compressed = await compressImageDataUrl(dataUrl);
+      setCreateImageUrl(compressed);
     } else {
       setCreateError("Could not load selected image.");
     }
@@ -362,14 +416,17 @@ export function HomeChatRoomsPanel({
     setCreateError("");
     setCreating(true);
     try {
+      const raw = createImageUrl.trim();
+      const imageUrl =
+        raw.length > 0 ? await compressImageDataUrl(raw) : undefined;
       const room = await createRoom(s.accessToken, {
         name: createName.trim(),
         description: createDescription.trim(),
         category: createCategory.trim(),
-        imageUrl: createImageUrl.trim() || undefined,
+        imageUrl,
         privacy: createPrivacy,
       });
-      const mapped = apiRoomToHomeRoom(room);
+      const mapped = apiRoomToHomeRoom(room, s.user.id);
       setSourceRooms((prev) => {
         const next = [mapped, ...prev.filter((row) => row.id !== mapped.id)];
         return next;
@@ -392,13 +449,14 @@ export function HomeChatRoomsPanel({
   async function handleRoomAction(room: HomeRoom) {
     const session = getStoredAuthSession();
     if (!session?.accessToken) {
+      window.alert("Sign in to use room actions.");
       return;
     }
     if (room.action === "open") {
       window.location.href = `/app/rooms/${encodeURIComponent(room.id)}`;
       return;
     }
-    if (room.action === "requested") {
+    if (room.action === "blocked" || room.action === "requested") {
       return;
     }
     setActingRoomId(room.id);
@@ -408,23 +466,228 @@ export function HomeChatRoomsPanel({
         setSourceRooms((prev) =>
           prev.map((row) =>
             row.id === room.id
-              ? { ...row, action: "open", totalMembers: row.totalMembers + 1 }
+              ? {
+                  ...row,
+                  action: "open",
+                  isMember: true,
+                  isOwner: row.ownerId === session.user.id,
+                  hasPendingRequest: false,
+                  totalMembers: row.totalMembers + 1,
+                }
               : row,
           ),
         );
         return;
       }
-      await requestRoomAccess(session.accessToken, room.id);
+      const result = await requestRoomAccess(session.accessToken, room.id);
       setSourceRooms((prev) =>
-        prev.map((row) =>
-          row.id === room.id
-            ? { ...row, action: "requested" }
-            : row,
-        ),
+        prev.map((row) => {
+          if (row.id !== room.id) {
+            return row;
+          }
+          if (result.status === "member") {
+            return {
+              ...row,
+              action: "open",
+              isMember: true,
+              isOwner: row.ownerId === session.user.id,
+              hasPendingRequest: false,
+              totalMembers: row.totalMembers + 1,
+            };
+          }
+          return {
+            ...row,
+            action: "requested",
+            hasPendingRequest: true,
+          };
+        }),
       );
     } finally {
       setActingRoomId(null);
     }
+  }
+
+  async function handleCancelRoomRequest(room: HomeRoom) {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      return;
+    }
+    setActingRoomId(room.id);
+    try {
+      const result = await cancelRoomJoinRequest(session.accessToken, room.id);
+      setSourceRooms((prev) =>
+        prev.map((row) => {
+          if (row.id !== room.id) {
+            return row;
+          }
+          if (result.status === "member") {
+            return {
+              ...row,
+              action: "open",
+              isMember: true,
+              isOwner: row.ownerId === session.user.id,
+              hasPendingRequest: false,
+              totalMembers: row.totalMembers + 1,
+            };
+          }
+          return {
+            ...row,
+            hasPendingRequest: false,
+            action: nextGuestAction({
+              privacy: row.privacy,
+              hasPendingRequest: false,
+            }),
+          };
+        }),
+      );
+    } finally {
+      setActingRoomId(null);
+    }
+  }
+
+  async function handleLeaveRoom(room: HomeRoom) {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      return;
+    }
+    if (room.isOwner) {
+      return;
+    }
+    setActingRoomId(room.id);
+    try {
+      await leaveRoom(session.accessToken, room.id);
+      setSourceRooms((prev) =>
+        prev.map((row) => {
+          if (row.id !== room.id) {
+            return row;
+          }
+          return {
+            ...row,
+            isMember: false,
+            isOwner: false,
+            hasPendingRequest: false,
+            totalMembers: Math.max(0, row.totalMembers - 1),
+            action: nextGuestAction({
+              privacy: row.privacy,
+              hasPendingRequest: false,
+            }),
+          };
+        }),
+      );
+    } finally {
+      setActingRoomId(null);
+    }
+  }
+
+  function primaryActionLabel(room: HomeRoom) {
+    if (room.action === "open") {
+      return "Open";
+    }
+    if (room.action === "join") {
+      return "Join";
+    }
+    if (room.action === "request") {
+      return "Request";
+    }
+    if (room.action === "requested") {
+      return "Pending";
+    }
+    return "Blocked";
+  }
+
+  function renderRoomRow(room: HomeRoom, index: number) {
+    const busy = actingRoomId === room.id;
+    const showLeave = room.isMember && !room.isOwner && !room.isBlocked;
+    const showCancelRequest = room.hasPendingRequest && !room.isMember && !room.isBlocked;
+
+    return (
+      <article
+        key={room.id}
+        className={cx(
+          "flex items-center gap-3.5 px-3 py-3 sm:px-4 sm:py-3.5",
+          index > 0 && "border-t border-cyan-300/12",
+        )}
+      >
+        <Link href={`/app/rooms/${room.id}`} className="relative h-20 w-24 shrink-0 overflow-hidden rounded-[0.85rem] border border-cyan-300/24">
+          <img src={room.image} alt={`${room.name} cover`} className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0.05),rgba(4,8,26,0.42))]" />
+        </Link>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <Link
+              href={`/app/rooms/${room.id}`}
+              className="truncate text-[1.1rem] font-semibold leading-tight text-white transition hover:text-cyan-50"
+            >
+              {room.name}
+              {room.emoji ? ` ${room.emoji}` : ""}
+            </Link>
+            {room.featured ? (
+              <span className="inline-flex items-center rounded-full bg-fuchsia-500/86 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white">
+                Featured
+              </span>
+            ) : null}
+          </div>
+
+          <p className="mt-1 truncate text-[0.95rem] text-cyan-50/86">{room.summary}</p>
+          <div className="mt-1 flex items-center gap-2 text-[0.72rem] text-cyan-100/76">
+            <span className="rounded-full border border-white/15 bg-white/10 px-2 py-0.5">{room.category}</span>
+            <span className="inline-flex items-center gap-1">
+              <span aria-hidden="true">{room.privacy.toLowerCase() === "public" ? "🌐" : "🔒"}</span>
+              {room.privacy}
+            </span>
+            <span>{room.totalMembers} members</span>
+          </div>
+          {room.detail ? <p className="mt-1 truncate text-[0.88rem] text-cyan-100/64">{room.detail}</p> : null}
+        </div>
+
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+          <p className="inline-flex items-center gap-2 text-[0.95rem] text-cyan-100/76">
+            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(92,255,190,0.78)]" />
+            {room.onlineUsers} online
+          </p>
+
+          {showCancelRequest ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void handleCancelRoomRequest(room)}
+              className="inline-flex h-10 items-center justify-center rounded-[0.8rem] border border-cyan-300/28 bg-[rgba(26,18,74,0.66)] px-3 text-[0.85rem] font-semibold text-cyan-50 transition hover:border-cyan-300/50 disabled:opacity-60"
+            >
+              Cancel request
+            </button>
+          ) : null}
+
+          {showLeave ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void handleLeaveRoom(room)}
+              className="inline-flex h-10 items-center justify-center rounded-[0.8rem] border border-cyan-300/28 bg-[rgba(26,18,74,0.66)] px-3 text-[0.85rem] font-semibold text-cyan-50 transition hover:border-cyan-300/50 disabled:opacity-60"
+            >
+              Leave
+            </button>
+          ) : null}
+
+          {!showCancelRequest ? (
+            <button
+              type="button"
+              disabled={busy || room.action === "requested" || room.action === "blocked"}
+              onClick={() => void handleRoomAction(room)}
+              className={cx(
+                "inline-flex h-10 min-w-10 items-center justify-center rounded-[0.8rem] border text-[1rem] font-semibold transition",
+                (room.action === "requested" || room.action === "blocked") && "cursor-not-allowed opacity-70",
+                room.featured
+                  ? "border-fuchsia-300/45 bg-[linear-gradient(90deg,rgba(157,78,221,0.8),rgba(255,32,121,0.76))] px-3 text-white hover:border-fuchsia-200/72"
+                  : "border-fuchsia-300/28 bg-[rgba(67,28,155,0.52)] text-cyan-100/92 hover:border-fuchsia-300/50",
+              )}
+            >
+              {primaryActionLabel(room)}
+            </button>
+          ) : null}
+        </div>
+      </article>
+    );
   }
 
   return (
@@ -541,86 +804,36 @@ export function HomeChatRoomsPanel({
           "h-[550px]",
         )}
       >
-        {filteredRooms.length > 0 ? (
-          filteredRooms.map((room, index) => (
-            <article
-              key={room.id}
-              className={cx(
-                "flex items-center gap-3.5 px-3 py-3 sm:px-4 sm:py-3.5",
-                index > 0 && "border-t border-cyan-300/12",
-              )}
-            >
-              <Link href={`/app/rooms/${room.id}`} className="relative h-20 w-24 shrink-0 overflow-hidden rounded-[0.85rem] border border-cyan-300/24">
-                <img src={room.image} alt={`${room.name} cover`} className="h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0.05),rgba(4,8,26,0.42))]" />
-              </Link>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <Link
-                    href={`/app/rooms/${room.id}`}
-                    className="truncate text-[1.1rem] font-semibold leading-tight text-white transition hover:text-cyan-50"
-                  >
-                    {room.name}
-                    {room.emoji ? ` ${room.emoji}` : ""}
-                  </Link>
-                  {room.featured ? (
-                    <span className="inline-flex items-center rounded-full bg-fuchsia-500/86 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white">
-                      Featured
-                    </span>
-                  ) : null}
-                </div>
-
-                <p className="mt-1 truncate text-[0.95rem] text-cyan-50/86">{room.summary}</p>
-                <div className="mt-1 flex items-center gap-2 text-[0.72rem] text-cyan-100/76">
-                  <span className="rounded-full border border-white/15 bg-white/10 px-2 py-0.5">
-                    {room.category}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <span aria-hidden="true">
-                      {room.privacy.toLowerCase() === "public" ? "🌐" : "🔒"}
-                    </span>
-                    {room.privacy}
-                  </span>
-                  <span>{room.totalMembers} members</span>
-                </div>
-                {room.detail ? (
-                  <p className="mt-1 truncate text-[0.88rem] text-cyan-100/64">{room.detail}</p>
-                ) : null}
-              </div>
-
-              <div className="ml-auto flex items-center gap-3">
-                <p className="inline-flex items-center gap-2 text-[0.95rem] text-cyan-100/76">
-                  <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(92,255,190,0.78)]" />
-                  {room.onlineUsers} online
-                </p>
-
-                <button
-                  type="button"
-                  disabled={actingRoomId === room.id || room.action === "requested"}
-                  onClick={() => void handleRoomAction(room)}
-                  className={cx(
-                    "inline-flex h-10 min-w-10 items-center justify-center rounded-[0.8rem] border text-[1rem] font-semibold transition",
-                    room.action === "requested" && "cursor-not-allowed opacity-70",
-                    room.featured
-                      ? "border-fuchsia-300/45 bg-[linear-gradient(90deg,rgba(157,78,221,0.8),rgba(255,32,121,0.76))] px-3 text-white hover:border-fuchsia-200/72"
-                      : "border-fuchsia-300/28 bg-[rgba(67,28,155,0.52)] text-cyan-100/92 hover:border-fuchsia-300/50",
-                  )}
-                >
-                  {room.action === "open"
-                    ? "Open"
-                    : room.action === "join"
-                      ? "Join"
-                      : room.action === "request"
-                        ? "Request"
-                        : "Requested"}
-                </button>
-              </div>
-            </article>
-          ))
-        ) : (
+        {roomsLoading ? (
+          <div className="flex h-full items-center justify-center px-4 text-sm text-cyan-100/66">Loading rooms…</div>
+        ) : roomsError ? (
+          <div className="flex h-full items-center justify-center px-4 text-center text-sm text-pink-100">{roomsError}</div>
+        ) : filteredRooms.length === 0 ? (
           <div className="flex h-full items-center justify-center px-4 text-sm text-cyan-100/66">
             No rooms match this filter.
+          </div>
+        ) : (
+          <div className="space-y-2.5 p-1 sm:p-1.5">
+            {groupedFilteredRooms.mine.length > 0 ? (
+              <section className={roomGroupShellClassName()}>
+                <RoomSectionHeader title="My rooms" />
+                {groupedFilteredRooms.mine.map((room, index) => renderRoomRow(room, index))}
+              </section>
+            ) : null}
+
+            {groupedFilteredRooms.joined.length > 0 ? (
+              <section className={roomGroupShellClassName()}>
+                <RoomSectionHeader title="Joined" />
+                {groupedFilteredRooms.joined.map((room, index) => renderRoomRow(room, index))}
+              </section>
+            ) : null}
+
+            {groupedFilteredRooms.other.length > 0 ? (
+              <section className={roomGroupShellClassName()}>
+                <RoomSectionHeader title="Other rooms" />
+                {groupedFilteredRooms.other.map((room, index) => renderRoomRow(room, index))}
+              </section>
+            ) : null}
           </div>
         )}
       </div>

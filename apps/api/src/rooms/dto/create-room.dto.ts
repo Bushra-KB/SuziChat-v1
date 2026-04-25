@@ -25,7 +25,7 @@ export class CreateRoomDto {
 
   @IsOptional()
   @IsString()
-  @Length(0, 200000)
+  @Length(0, 4_000_000)
   imageUrl?: string;
 
   @IsOptional()

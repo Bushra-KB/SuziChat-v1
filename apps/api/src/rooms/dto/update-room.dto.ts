@@ -18,7 +18,7 @@ export class UpdateRoomDto {
 
   @IsOptional()
   @IsString()
-  @Length(0, 200000)
+  @Length(0, 4_000_000)
   imageUrl?: string;
 
   @IsOptional()

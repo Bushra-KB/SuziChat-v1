@@ -62,7 +62,7 @@ const DEFAULT_ROOM_CATEGORIES = ['Social', 'Music', 'Sports', 'Chill', 'Dating',
 type RoomListActorState = {
   isMember: boolean;
   hasPendingRequest: boolean;
-  action: 'open' | 'join' | 'request' | 'requested';
+  action: 'open' | 'join' | 'request' | 'requested' | 'blocked';
 };
 
 type RoomAccessState = {
@@ -216,7 +216,7 @@ export class RoomsService implements OnModuleInit {
       const isBlocked = row.bans.length > 0;
       const privacy = row.privacy.toLowerCase();
       const action: RoomListActorState['action'] = isBlocked
-        ? 'requested'
+        ? 'blocked'
         : isMember
         ? 'open'
         : privacy === 'public'
@@ -238,10 +238,26 @@ export class RoomsService implements OnModuleInit {
         actor: {
           isMember,
           hasPendingRequest,
+          isBlocked,
           action,
         },
       };
     });
+  }
+
+  async cancelJoinRequest(slug: string, userId: string) {
+    const access = await this.resolveAccessState(slug, userId);
+    if (access.isMember) {
+      return { status: 'member' as const };
+    }
+    const deleted = await this.prisma.roomJoinRequest.deleteMany({
+      where: {
+        roomId: access.roomId,
+        userId,
+        status: RoomJoinRequestStatus.PENDING,
+      },
+    });
+    return { status: deleted.count > 0 ? ('cancelled' as const) : ('none' as const) };
   }
 
   private async resolveAccessState(slug: string, userId: string): Promise<RoomAccessState> {
@@ -683,5 +699,11 @@ export class RoomsService implements OnModuleInit {
     const room = await this.ensureOwner(slug, ownerId);
     await this.prisma.roomBan.deleteMany({ where: { roomId: room.id, userId } });
     return { status: 'unbanned' as const };
+  }
+
+  async deleteRoom(slug: string, ownerId: string) {
+    const room = await this.ensureOwner(slug, ownerId);
+    await this.prisma.room.delete({ where: { id: room.id } });
+    return { status: 'deleted' as const };
   }
 }
