@@ -7,6 +7,7 @@ const userProfileSelect = {
   email: true,
   username: true,
   displayName: true,
+  avatarUrl: true,
   bio: true,
   country: true,
   role: true,
@@ -53,6 +54,10 @@ export class UsersService {
         country:
           updateProfileDto.country !== undefined
             ? normalizeOptionalString(updateProfileDto.country)
+            : undefined,
+        avatarUrl:
+          updateProfileDto.avatarUrl !== undefined
+            ? normalizeOptionalString(updateProfileDto.avatarUrl)
             : undefined,
       },
       select: userProfileSelect,

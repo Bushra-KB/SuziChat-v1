@@ -5,6 +5,7 @@ export type UserProfile = {
   email: string;
   username: string;
   displayName: string | null;
+  avatarUrl: string | null;
   bio: string | null;
   country: string | null;
   role: "USER" | "ADMIN";
@@ -54,7 +55,7 @@ export async function getMyProfile(accessToken: string) {
 
 export async function updateMyProfile(
   accessToken: string,
-  payload: { displayName?: string; bio?: string; country?: string },
+  payload: { displayName?: string; bio?: string; country?: string; avatarUrl?: string },
 ) {
   return authedRequest<UserProfile>("/v1/users/me/profile", accessToken, {
     method: "PATCH",

@@ -37,6 +37,7 @@ describe('UsersService', () => {
       email: 'profile@example.com',
       username: 'profileuser',
       displayName: 'Profile User',
+      avatarUrl: null,
       bio: 'Hello world',
       country: 'Ethiopia',
       role: 'USER',
@@ -66,6 +67,7 @@ describe('UsersService', () => {
       email: 'profile@example.com',
       username: 'profileuser',
       displayName: 'Updated User',
+      avatarUrl: null,
       bio: 'Updated bio',
       country: 'Ireland',
       role: 'USER',
@@ -94,6 +96,7 @@ describe('UsersService', () => {
             displayName: string;
             bio: string;
             country: string;
+            avatarUrl?: string | null;
           };
           select: {
             id: true;

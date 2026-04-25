@@ -5,6 +5,7 @@ export type AuthUser = {
   email: string;
   username: string;
   displayName: string | null;
+  avatarUrl: string | null;
   role: "USER" | "ADMIN";
   isAdultConfirmed: boolean;
   isEmailVerified: boolean;

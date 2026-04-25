@@ -15,4 +15,9 @@ export class UpdateProfileDto {
   @IsString()
   @MaxLength(60)
   country?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4_000_000)
+  avatarUrl?: string;
 }
