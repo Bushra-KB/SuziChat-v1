@@ -189,7 +189,7 @@ export function ChatBubble({
 
 export function SnapCard({
   snap,
-  href = `/app/snaps/${snap.id}`,
+  href = `/app/snaps?focus=${encodeURIComponent(snap.id)}`,
 }: {
   snap: Snap;
   href?: string;

@@ -2,10 +2,22 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
-import { listPosts } from "@/lib/posts-client";
+import { getStoredAuthSession } from "@/lib/auth-client";
+import {
+  createPost,
+  createPostComment,
+  getPostEngagement,
+  listMyPosts,
+  listPostComments,
+  listPosts,
+  togglePostLike,
+  trackPostView,
+} from "@/lib/posts-client";
 import { apiPostToSnap } from "@/lib/post-ui-mappers";
+import { getRealtimeSocket } from "@/lib/realtime-client";
 import type { Snap } from "@/lib/v1-mock-data";
 import { snaps as initialSnaps } from "@/lib/v1-mock-data";
 
@@ -26,6 +38,7 @@ type SnapLayer = {
 
 type SnapComment = {
   id: string;
+  authorId?: string;
   author: string;
   text: string;
   time: string;
@@ -36,6 +49,8 @@ type CommentSheetDragState = {
   startY: number;
   dragging: boolean;
 };
+
+type SnapCreateVisibility = "Public" | "Friends";
 
 function getCircularOffset(index: number, activeIndex: number, total: number) {
   let offset = index - activeIndex;
@@ -117,6 +132,24 @@ function ShareIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
   );
 }
 
+function EyeIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="2.5" />
+    </svg>
+  );
+}
+
 function CameraIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg
@@ -180,30 +213,28 @@ function SnapHeroMedia({
 }
 
 export function SnapsFeed() {
+  const searchParams = useSearchParams();
   const [displaySnaps, setDisplaySnaps] = useState<Snap[]>(() => initialSnaps);
   const [activeIndex, setActiveIndex] = useState(0);
   const [autoScrollMode, setAutoScrollMode] = useState(true);
   const [advanceProgress, setAdvanceProgress] = useState(0);
   const [likedBySnap, setLikedBySnap] = useState<Record<string, boolean>>({});
-  const [commentsBySnap, setCommentsBySnap] = useState<Record<string, SnapComment[]>>(() =>
-    Object.fromEntries(
-      initialSnaps.map((snap) => [
-        snap.id,
-        [
-          { id: `${snap.id}-c1`, author: "River J.", text: "This glow is unreal.", time: "3m" },
-          { id: `${snap.id}-c2`, author: "Tess M.", text: "Love the mood here.", time: "8m" },
-        ],
-      ]),
-    ),
-  );
-  const [extraCommentCounts, setExtraCommentCounts] = useState<Record<string, number>>({});
+  const [commentsBySnap, setCommentsBySnap] = useState<Record<string, SnapComment[]>>({});
   const [commentDraft, setCommentDraft] = useState("");
   const [isCommentSheetOpen, setIsCommentSheetOpen] = useState(false);
   const [commentSheetOffsetY, setCommentSheetOffsetY] = useState(0);
   const [isCommentSheetDragging, setIsCommentSheetDragging] = useState(false);
   const [sharedSnapId, setSharedSnapId] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createMediaUrl, setCreateMediaUrl] = useState("");
+  const [createCaption, setCreateCaption] = useState("");
+  const [createVisibility, setCreateVisibility] = useState<SnapCreateVisibility>("Public");
+  const [createBusy, setCreateBusy] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [dragOverCreate, setDragOverCreate] = useState(false);
   const suppressClickTimerRef = useRef<number | null>(null);
   const shareStatusTimerRef = useRef<number | null>(null);
+  const createFileInputRef = useRef<HTMLInputElement | null>(null);
   const commentSheetDragRef = useRef<CommentSheetDragState>({ pointerId: null, startY: 0, dragging: false });
   const dragState = useRef<DragState>({ pointerId: null, lastX: 0, dragging: false, didMove: false, suppressClick: false });
   const wheelLockRef = useRef(0);
@@ -249,33 +280,44 @@ export function SnapsFeed() {
 
   useEffect(() => {
     let cancelled = false;
-    void listPosts("SNAP", 40)
+    const session = getStoredAuthSession();
+    const loader = session?.accessToken ? listMyPosts(session.accessToken, "SNAP", 40) : listPosts("SNAP", 40);
+    void loader
       .then((rows) => {
-        if (cancelled || rows.length === 0) {
+        if (cancelled) {
           return;
         }
         const mapped = rows.map(apiPostToSnap);
-        setDisplaySnaps(mapped);
-        setCommentsBySnap(
-          Object.fromEntries(
-            mapped.map((snap) => [
-              snap.id,
-              [
-                { id: `${snap.id}-c1`, author: "River J.", text: "This glow is unreal.", time: "3m" },
-                { id: `${snap.id}-c2`, author: "Tess M.", text: "Love the mood here.", time: "8m" },
-              ],
-            ]),
-          ),
-        );
+        if (mapped.length > 0) {
+          setDisplaySnaps(mapped);
+        }
         setActiveIndex(0);
         setLikedBySnap({});
-        setExtraCommentCounts({});
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const focusId = searchParams.get("focus");
+    if (!focusId || displaySnaps.length === 0) {
+      return;
+    }
+    const index = displaySnaps.findIndex((snap) => snap.id === focusId);
+    if (index >= 0) {
+      setActiveIndex(index);
+      setAutoScrollMode(false);
+      setAdvanceProgress(0);
+    }
+  }, [displaySnaps, searchParams]);
+
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setShowCreateModal(true);
+    }
+  }, [searchParams]);
 
   useEffect(
     () => () => {
@@ -474,9 +516,175 @@ export function SnapsFeed() {
     setCommentSheetOffsetY(0);
   };
 
-  const handleLikeToggle = (event: React.MouseEvent<HTMLButtonElement>, snapId: string) => {
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken || !activeSnap) {
+      return;
+    }
+    void trackPostView(session.accessToken, activeSnap.id)
+      .then((engagement) => {
+        setDisplaySnaps((prev) =>
+          prev.map((snap) =>
+            snap.id === engagement.postId
+              ? {
+                  ...snap,
+                  likes: engagement.likes,
+                  comments: engagement.comments,
+                  views: engagement.views,
+                }
+              : snap,
+          ),
+        );
+      })
+      .catch(() => {});
+  }, [activeSnap?.id]);
+
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken || !activeSnap) {
+      return;
+    }
+    void getPostEngagement(session.accessToken, activeSnap.id)
+      .then((engagement) => {
+        setLikedBySnap((prev) => ({ ...prev, [activeSnap.id]: Boolean(engagement.likedByMe) }));
+        setDisplaySnaps((prev) =>
+          prev.map((snap) =>
+            snap.id === engagement.postId
+              ? {
+                  ...snap,
+                  likes: engagement.likes,
+                  comments: engagement.comments,
+                  views: engagement.views,
+                }
+              : snap,
+          ),
+        );
+      })
+      .catch(() => {});
+  }, [activeSnap?.id]);
+
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    if (!activeSnap || !session?.accessToken) {
+      return;
+    }
+    void listPostComments(session.accessToken, activeSnap.id, 80)
+      .then((rows) => {
+        setCommentsBySnap((prev) => ({
+          ...prev,
+          [activeSnap.id]: rows.map((row) => ({
+            id: row.id,
+            authorId: row.user.id,
+            author: row.user.displayName?.trim() || row.user.username,
+            text: row.body,
+            time: "now",
+          })),
+        }));
+      })
+      .catch(() => {});
+  }, [activeSnap?.id]);
+
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken || displaySnaps.length === 0) {
+      return;
+    }
+    const socket = getRealtimeSocket(session.accessToken);
+    const watch = () => {
+      for (const snap of displaySnaps) {
+        socket.emit("post:watch", { postId: snap.id });
+      }
+    };
+    const onEngagement = (payload: {
+      postId?: string;
+      likes?: number;
+      comments?: number;
+      views?: number;
+    }) => {
+      if (!payload?.postId) {
+        return;
+      }
+      setDisplaySnaps((prev) =>
+        prev.map((snap) =>
+          snap.id === payload.postId
+            ? {
+                ...snap,
+                likes: typeof payload.likes === "number" ? payload.likes : snap.likes,
+                comments: typeof payload.comments === "number" ? payload.comments : snap.comments,
+                views: typeof payload.views === "number" ? payload.views : snap.views,
+              }
+            : snap,
+        ),
+      );
+    };
+    const onComment = (payload: {
+      postId?: string;
+      comment?: { id?: string; body?: string; user?: { id?: string; username?: string; displayName?: string | null } };
+    }) => {
+      const postId = payload?.postId;
+      const comment = payload?.comment;
+      const commentId = comment?.id;
+      const commentBody = comment?.body;
+      if (!postId || !commentId || !commentBody) {
+        return;
+      }
+      setCommentsBySnap((prev) => {
+        const existing = prev[postId] ?? [];
+        if (existing.some((row) => row.id === commentId)) {
+          return prev;
+        }
+        const author =
+          comment.user?.displayName?.trim() ||
+          comment.user?.username ||
+          "User";
+        const nextComment: SnapComment = {
+          id: commentId,
+          authorId: comment.user?.id,
+          author,
+          text: commentBody,
+          time: "now",
+        };
+        return {
+          ...prev,
+          [postId]: [nextComment, ...existing],
+        };
+      });
+    };
+    socket.on("connect", watch);
+    socket.on("post:engagement", onEngagement);
+    socket.on("post:comment", onComment);
+    if (socket.connected) {
+      watch();
+    }
+    return () => {
+      socket.off("connect", watch);
+      socket.off("post:engagement", onEngagement);
+      socket.off("post:comment", onComment);
+    };
+  }, [displaySnaps]);
+
+  const handleLikeToggle = async (event: React.MouseEvent<HTMLButtonElement>, snapId: string) => {
     stopClickPropagation(event);
-    setLikedBySnap((previous) => ({ ...previous, [snapId]: !previous[snapId] }));
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      return;
+    }
+    try {
+      const engagement = await togglePostLike(session.accessToken, snapId);
+      setLikedBySnap((previous) => ({
+        ...previous,
+        [snapId]: Boolean(engagement.likedByMe),
+      }));
+      setDisplaySnaps((prev) =>
+        prev.map((snap) =>
+          snap.id === snapId
+            ? { ...snap, likes: engagement.likes, comments: engagement.comments }
+            : snap,
+        ),
+      );
+    } catch {
+      // no-op
+    }
   };
 
   const handleOpenComments = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -519,9 +727,10 @@ export function SnapsFeed() {
     }, 1600);
   };
 
-  const handleCommentSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleCommentSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!activeSnap) {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken || !activeSnap) {
       return;
     }
     const text = commentDraft.trim();
@@ -529,22 +738,36 @@ export function SnapsFeed() {
       return;
     }
 
-    const nextComment: SnapComment = {
-      id: `${activeSnap.id}-${Date.now()}`,
-      author: "You",
-      text,
-      time: "now",
-    };
-
-    setCommentsBySnap((previous) => ({
-      ...previous,
-      [activeSnap.id]: [nextComment, ...(previous[activeSnap.id] ?? [])],
-    }));
-    setExtraCommentCounts((previous) => ({
-      ...previous,
-      [activeSnap.id]: (previous[activeSnap.id] ?? 0) + 1,
-    }));
-    setCommentDraft("");
+    try {
+      const created = await createPostComment(session.accessToken, activeSnap.id, text);
+      setCommentsBySnap((previous) => ({
+        ...previous,
+        [activeSnap.id]: [
+          {
+            id: created.comment.id,
+            authorId: created.comment.user.id,
+            author: created.comment.user.displayName?.trim() || created.comment.user.username,
+            text: created.comment.body,
+            time: "now",
+          },
+          ...(previous[activeSnap.id] ?? []),
+        ],
+      }));
+      setDisplaySnaps((prev) =>
+        prev.map((snap) =>
+          snap.id === activeSnap.id
+            ? {
+                ...snap,
+                likes: created.engagement.likes,
+                comments: created.engagement.comments,
+              }
+            : snap,
+        ),
+      );
+      setCommentDraft("");
+    } catch {
+      // no-op
+    }
   };
 
   const handleCardActivate = (index: number) => {
@@ -564,6 +787,65 @@ export function SnapsFeed() {
     setAutoScrollMode(false);
   };
 
+  const handleCreateFile = async (file: File | null) => {
+    if (!file) {
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setCreateError("Please choose an image file.");
+      return;
+    }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsDataURL(file);
+    }).catch(() => "");
+    if (dataUrl) {
+      setCreateMediaUrl(dataUrl);
+      setCreateError("");
+    } else {
+      setCreateError("Could not read image.");
+    }
+  };
+
+  const handleCreateDrop = (event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    setDragOverCreate(false);
+    const file = event.dataTransfer.files?.[0] ?? null;
+    void handleCreateFile(file);
+  };
+
+  const handleCreateSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const session = getStoredAuthSession();
+    if (!session?.accessToken || !createMediaUrl.trim()) {
+      setCreateError("Sign in and add an image.");
+      return;
+    }
+    setCreateBusy(true);
+    setCreateError("");
+    try {
+      const created = await createPost(session.accessToken, {
+        kind: "SNAP",
+        mediaUrl: createMediaUrl.trim(),
+        caption: createCaption.trim() || undefined,
+        visibility: createVisibility,
+      });
+      const mapped = apiPostToSnap(created);
+      setDisplaySnaps((prev) => [mapped, ...prev]);
+      setActiveIndex(0);
+      setShowCreateModal(false);
+      setCreateMediaUrl("");
+      setCreateCaption("");
+      setCreateVisibility("Public");
+    } catch (e: unknown) {
+      setCreateError(e instanceof Error ? e.message : "Could not create snap.");
+    } finally {
+      setCreateBusy(false);
+    }
+  };
+
   return (
     <section className="space-y-6">
       <Panel className="[background:transparent] border-cyan-300/24 p-4 shadow-none sm:p-5">
@@ -581,12 +863,13 @@ export function SnapsFeed() {
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <Link
-              href="/app/snaps/create"
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(true)}
               className="inline-flex items-center gap-2 rounded-full border border-fuchsia-300/36 bg-fuchsia-500/14 px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.1em] text-fuchsia-100 transition hover:border-fuchsia-200/55 hover:bg-fuchsia-500/22 hover:text-white"
             >
               Create Snap
-            </Link>
+            </button>
 
             <div className="hidden items-center gap-4 rounded-[0.9rem] border border-cyan-300/22 bg-[rgba(18,12,56,0.56)] px-3 py-2 sm:flex">
               <div>
@@ -661,8 +944,9 @@ export function SnapsFeed() {
                 return null;
               }
               const isLiked = Boolean(likedBySnap[snap.id]);
-              const likeCount = snap.likes + (isLiked ? 1 : 0);
-              const commentCount = snap.comments + (extraCommentCounts[snap.id] ?? 0);
+              const likeCount = snap.likes;
+              const commentCount = snap.comments;
+              const viewCount = snap.views ?? 0;
               const isShared = sharedSnapId === snap.id;
 
               return (
@@ -673,6 +957,7 @@ export function SnapsFeed() {
                   <div
                     role="button"
                     tabIndex={0}
+                    data-snap-card="true"
                     onClick={() => handleCardActivate(index)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
@@ -711,7 +996,7 @@ export function SnapsFeed() {
                             {snap.visibility}
                           </span>
                           <Link
-                            href={`/app/snaps/${snap.id}`}
+                            href={`/app/snaps?focus=${encodeURIComponent(snap.id)}`}
                             onPointerDown={stopPointerPropagation}
                             onClick={stopClickPropagation}
                             className="text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-fuchsia-200/90 transition hover:text-white"
@@ -719,6 +1004,24 @@ export function SnapsFeed() {
                             Open
                           </Link>
                         </div>
+                        <button
+                          type="button"
+                          onPointerDown={stopPointerPropagation}
+                          onClick={(event) => {
+                            stopClickPropagation(event);
+                            const card = (event.currentTarget.closest("[data-snap-card='true']") ??
+                              null) as HTMLElement | null;
+                            if (card?.requestFullscreen) {
+                              void card.requestFullscreen().catch(() => {});
+                            }
+                          }}
+                          className="pointer-events-auto absolute right-2.5 top-2.5 z-30 inline-flex h-8 w-8 items-center justify-center rounded-full border border-cyan-300/36 bg-[rgba(8,12,30,0.7)] text-cyan-100/90 shadow-[0_0_14px_rgba(34,211,238,0.2)] transition hover:text-white"
+                          aria-label="View full screen"
+                        >
+                          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5" />
+                          </svg>
+                        </button>
 
                         <div className="pointer-events-auto absolute bottom-[6.2rem] right-2.5 z-30 flex flex-col items-center gap-2.5 sm:right-3.5 sm:bottom-[6.8rem]">
                           <Link
@@ -744,6 +1047,14 @@ export function SnapsFeed() {
                             <HeartIcon className="h-7 w-7" />
                             <span className="text-[0.8rem] font-semibold text-white">{formatCompact(likeCount)}</span>
                           </button>
+
+                          <div
+                            className="inline-flex flex-col items-center gap-1 text-white/88"
+                            aria-label={`${formatCompact(viewCount)} views`}
+                          >
+                            <EyeIcon className="h-7 w-7" />
+                            <span className="text-[0.8rem] font-semibold text-white">{formatCompact(viewCount)}</span>
+                          </div>
 
                           <button
                             type="button"
@@ -916,6 +1227,105 @@ export function SnapsFeed() {
           </button>
         </div>
       </Panel>
+
+      {showCreateModal ? (
+        <div className="fixed inset-0 z-[280] flex items-center justify-center bg-[rgba(6,10,28,0.72)] p-4">
+          <div className="w-full max-w-xl rounded-[1.1rem] border border-cyan-300/24 bg-[linear-gradient(160deg,rgba(34,20,101,0.96),rgba(20,14,76,0.94))] p-4 shadow-[0_20px_60px_rgba(7,11,30,0.62)] sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-xl font-semibold text-white">Post Snap</h3>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="rounded-full border border-cyan-300/30 bg-cyan-400/16 px-2 py-1 text-xs font-semibold text-cyan-100"
+              >
+                Close
+              </button>
+            </div>
+            <form onSubmit={handleCreateSubmit} className="mt-4 space-y-3">
+              <label
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDragOverCreate(true);
+                }}
+                onDragLeave={() => setDragOverCreate(false)}
+                onDrop={handleCreateDrop}
+                className={cx(
+                  "flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-[0.9rem] border border-dashed px-4 text-center transition",
+                  dragOverCreate
+                    ? "border-cyan-200/70 bg-cyan-400/12"
+                    : "border-cyan-300/28 bg-[rgba(20,13,62,0.66)]",
+                )}
+              >
+                {createMediaUrl ? (
+                  <img src={createMediaUrl} alt="Snap preview" className="max-h-48 rounded-[0.8rem] object-cover" />
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-cyan-50">Browse, drag & drop, or paste URL</p>
+                    <p className="mt-1 text-xs text-cyan-100/70">Images only</p>
+                  </>
+                )}
+                <input
+                  ref={createFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0] ?? null;
+                    void handleCreateFile(file);
+                    event.currentTarget.value = "";
+                  }}
+                />
+              </label>
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                <input
+                  value={createMediaUrl}
+                  onChange={(e) => setCreateMediaUrl(e.target.value)}
+                  placeholder="https://example.com/snap.jpg"
+                  className="suzi-input"
+                />
+                <button type="button" onClick={() => createFileInputRef.current?.click()} className="suzi-secondary-btn px-3 py-2 text-xs">
+                  Browse
+                </button>
+                <button type="button" onClick={() => setCreateMediaUrl("")} className="suzi-secondary-btn px-3 py-2 text-xs">
+                  Clear
+                </button>
+              </div>
+              <textarea
+                value={createCaption}
+                onChange={(e) => setCreateCaption(e.target.value)}
+                placeholder="Caption"
+                className="suzi-input min-h-24 resize-none"
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                {(["Public", "Friends"] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setCreateVisibility(v)}
+                    className={cx(
+                      "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] transition",
+                      createVisibility === v
+                        ? "border-fuchsia-300/45 bg-fuchsia-400/18 text-fuchsia-100"
+                        : "border-white/14 bg-white/7 text-cyan-100/84",
+                    )}
+                  >
+                    {v === "Friends" ? "Friends only" : "Public"}
+                  </button>
+                ))}
+              </div>
+              {createError ? <p className="text-xs text-pink-100">{createError}</p> : null}
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setShowCreateModal(false)} className="suzi-secondary-btn px-3 py-1.5 text-xs">
+                  Cancel
+                </button>
+                <button type="submit" disabled={createBusy} className="suzi-primary-btn px-3 py-1.5 text-xs disabled:opacity-60">
+                  {createBusy ? "Posting..." : "Post Snap"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
