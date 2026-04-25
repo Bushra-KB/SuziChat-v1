@@ -532,6 +532,17 @@ export class RoomsService implements OnModuleInit {
     return { status: 'requested' as const };
   }
 
+  async leaveRoom(slug: string, userId: string) {
+    const access = await this.resolveAccessState(slug, userId);
+    if (access.isOwner) {
+      throw new BadRequestException('Owner cannot leave their own room');
+    }
+    await this.prisma.roomMembership.deleteMany({
+      where: { roomId: access.roomId, userId },
+    });
+    return { status: 'left' as const };
+  }
+
   async postMessage(roomSlug: string, senderId: string, body: string) {
     const access = await this.resolveAccessState(roomSlug, senderId);
     if (access.isBlocked) {

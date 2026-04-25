@@ -115,6 +115,14 @@ export class RoomsController {
     return this.roomsService.requestAccess(slug, user.id);
   }
 
+  @Post(':slug/leave')
+  @UseGuards(AccessTokenGuard)
+  async leaveRoom(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.roomsService.leaveRoom(slug, user.id);
+    await this.emitRoomStats(slug);
+    return result;
+  }
+
   @Get(':slug/manage')
   @UseGuards(AccessTokenGuard)
   getRoomManagement(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {

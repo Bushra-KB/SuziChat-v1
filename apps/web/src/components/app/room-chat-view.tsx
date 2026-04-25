@@ -16,6 +16,7 @@ import {
   joinRoom,
   listRoomMessages,
   listMyRoomMessages,
+  leaveRoom,
   postRoomMessage,
   rejectRoomJoinRequest,
   removeRoomMember,
@@ -59,6 +60,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const [editDescription, setEditDescription] = useState("");
   const [editCategory, setEditCategory] = useState("Social");
   const [editPrivacy, setEditPrivacy] = useState<"Public" | "Friends" | "Private">("Public");
+  const [editImageUrl, setEditImageUrl] = useState("");
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const typingHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingAtRef = useRef(0);
@@ -79,6 +81,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     setEditDescription(roomRes.description ?? "");
     setEditCategory(roomRes.category);
     setEditPrivacy((roomRes.privacy as "Public" | "Friends" | "Private") ?? "Public");
+    setEditImageUrl(roomRes.imageUrl ?? "");
     setMessages(msgRes);
   }, [roomSlug]);
 
@@ -199,6 +202,14 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     };
   }, [refresh]);
 
+  useEffect(() => {
+    if (!room || room.owner.id !== meId) {
+      setManagement(null);
+      return;
+    }
+    void refreshManagement();
+  }, [meId, room?.owner.id]);
+
   const participantRows = useMemo(() => {
     const map = new Map<string, ApiRoomMessage["sender"]>();
     for (const message of messages) {
@@ -318,6 +329,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         name: editName.trim(),
         description: editDescription.trim(),
         category: editCategory.trim(),
+        imageUrl: editImageUrl.trim() || undefined,
         privacy: editPrivacy,
       });
       await refresh();
@@ -325,6 +337,42 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     } finally {
       setActionBusyId(null);
     }
+  }
+
+  async function handleLeaveRoom() {
+    const s = getStoredAuthSession();
+    if (!s?.accessToken || !room) {
+      return;
+    }
+    setActionBusyId("leave-room");
+    try {
+      await leaveRoom(s.accessToken, room.slug);
+      await refresh();
+    } finally {
+      setActionBusyId(null);
+    }
+  }
+
+  async function handleChooseEditImage(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file.");
+      return;
+    }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("Failed to read image"));
+      reader.readAsDataURL(file);
+    }).catch(() => "");
+    if (dataUrl) {
+      setEditImageUrl(dataUrl);
+    }
+    input.value = "";
   }
 
   return (
@@ -512,7 +560,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 Room Members
               </p>
               <div className="space-y-3">
-                {participantRows.map((person) => (
+                {(room?.owner.id === meId ? management?.members.map((row) => row.user) ?? [] : participantRows).map((person) => (
                   <PersonRow
                     key={person.id}
                     person={{
@@ -524,18 +572,117 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                     compact
                     action={
                       person.id !== meId ? (
-                        <Link
-                          href={`/app/messages?with=${encodeURIComponent(person.id)}`}
-                          className="suzi-secondary-btn px-3 py-2 text-xs"
-                        >
-                          DM
-                        </Link>
+                        <div className="flex gap-1">
+                          <Link
+                            href={`/app/messages?with=${encodeURIComponent(person.id)}`}
+                            className="suzi-secondary-btn px-3 py-2 text-xs"
+                          >
+                            DM
+                          </Link>
+                          {room?.owner.id === meId ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => void handleOwnerAction("remove", person.id)}
+                                disabled={actionBusyId === `remove-${person.id}`}
+                                className="suzi-secondary-btn px-2 py-2 text-[11px]"
+                              >
+                                Remove
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleOwnerAction("ban", person.id)}
+                                disabled={actionBusyId === `ban-${person.id}`}
+                                className="suzi-secondary-btn px-2 py-2 text-[11px]"
+                              >
+                                Ban
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
                       ) : undefined
                     }
                   />
                 ))}
               </div>
             </div>
+
+            {room?.owner.id === meId ? (
+              <>
+                <div>
+                  <p className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
+                    Pending Requests
+                  </p>
+                  <div className="space-y-3">
+                    {management?.pendingRequests.length ? management.pendingRequests.map((row) => (
+                      <PersonRow
+                        key={`req-${row.userId}`}
+                        person={{
+                          id: row.user.id,
+                          name: row.user.displayName?.trim() || row.user.username,
+                          handle: `@${row.user.username}`,
+                          avatar: "/ppic/ppic1.jpeg",
+                        }}
+                        compact
+                        action={
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => void handleOwnerAction("approve", row.userId)}
+                              disabled={actionBusyId === `approve-${row.userId}`}
+                              className="suzi-primary-btn px-2 py-2 text-[11px]"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleOwnerAction("reject", row.userId)}
+                              disabled={actionBusyId === `reject-${row.userId}`}
+                              className="suzi-secondary-btn px-2 py-2 text-[11px]"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        }
+                      />
+                    )) : (
+                      <p className="text-xs text-cyan-100/64">No pending requests.</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
+                    Banned Users
+                  </p>
+                  <div className="space-y-3">
+                    {management?.bannedUsers.length ? management.bannedUsers.map((row) => (
+                      <PersonRow
+                        key={`ban-${row.userId}`}
+                        person={{
+                          id: row.user.id,
+                          name: row.user.displayName?.trim() || row.user.username,
+                          handle: `@${row.user.username}`,
+                          avatar: "/ppic/ppic1.jpeg",
+                        }}
+                        compact
+                        action={
+                          <button
+                            type="button"
+                            onClick={() => void handleOwnerAction("unban", row.userId)}
+                            disabled={actionBusyId === `unban-${row.userId}`}
+                            className="suzi-secondary-btn px-2 py-2 text-[11px]"
+                          >
+                            Unban
+                          </button>
+                        }
+                      />
+                    )) : (
+                      <p className="text-xs text-cyan-100/64">No banned users.</p>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : null}
           </div>
         </Panel>
 
@@ -545,9 +692,16 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
             <button type="button" className="suzi-secondary-btn px-4 py-3 text-sm">
               Invite friends
             </button>
-            <Link href="/app/rooms" className="suzi-secondary-btn px-4 py-3 text-center text-sm">
-              Back to rooms
-            </Link>
+            {access?.isMember && !access?.isOwner ? (
+              <button
+                type="button"
+                onClick={() => void handleLeaveRoom()}
+                disabled={actionBusyId === "leave-room"}
+                className="suzi-secondary-btn px-4 py-3 text-sm"
+              >
+                {actionBusyId === "leave-room" ? "Leaving..." : "Leave room"}
+              </button>
+            ) : null}
           </div>
         </Panel>
       </div>
@@ -574,6 +728,28 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                   <option value="Friends">Friends</option>
                   <option value="Private">Private</option>
                 </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">
+                  Room image / icon / logo
+                </label>
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <input
+                    value={editImageUrl}
+                    onChange={(e) => setEditImageUrl(e.target.value)}
+                    placeholder="https://example.com/room-image.png"
+                    className="suzi-input"
+                  />
+                  <label className="inline-flex cursor-pointer items-center justify-center rounded-[0.72rem] border border-cyan-300/28 bg-cyan-400/14 px-3 text-xs font-semibold text-cyan-50">
+                    Upload
+                    <input type="file" accept="image/*" onChange={handleChooseEditImage} className="hidden" />
+                  </label>
+                </div>
+                {editImageUrl ? (
+                  <div className="mt-2 inline-flex h-14 w-14 overflow-hidden rounded-[0.65rem] border border-cyan-300/24">
+                    <img src={editImageUrl} alt="Room preview" className="h-full w-full object-cover" />
+                  </div>
+                ) : null}
               </div>
               <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="suzi-input min-h-24 resize-none" />
               <div className="flex justify-end gap-2">

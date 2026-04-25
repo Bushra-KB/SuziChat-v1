@@ -144,6 +144,13 @@ export async function requestRoomAccess(accessToken: string, slug: string) {
   );
 }
 
+export async function leaveRoom(accessToken: string, slug: string) {
+  return apiJson<{ status: "left" }>(`/v1/rooms/${encodeURIComponent(slug)}/leave`, {
+    method: "POST",
+    accessToken,
+  });
+}
+
 export async function getRoomAccess(accessToken: string, slug: string) {
   return apiJson<ApiRoomAccess>(`/v1/rooms/${encodeURIComponent(slug)}/me/access`, {
     method: "GET",

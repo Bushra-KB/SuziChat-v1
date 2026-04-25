@@ -88,11 +88,6 @@ export const appNavItems: NavItem[] = [
     exact: true,
   },
   {
-    href: "/app/rooms",
-    label: "Rooms",
-    icon: "M4 7h16M4 12h10M4 17h13M18 10l3 2-3 2",
-  },
-  {
     href: "/app/messages",
     label: "Messages",
     icon: "M4 6h16v10H8l-4 4V6Z",
@@ -137,17 +132,12 @@ export const appNavItems: NavItem[] = [
 export const mobileNavItems: NavItem[] = [
   appNavItems[0],
   appNavItems[1],
-  appNavItems[5],
   appNavItems[4],
-  appNavItems[7],
+  appNavItems[3],
+  appNavItems[6],
 ];
 
 export const createMenuItems = [
-  {
-    href: "/app/rooms/create",
-    label: "Create Room",
-    icon: "M12 5v14M5 12h14",
-  },
   {
     href: "/app/snaps/create",
     label: "Post Snap",

@@ -328,7 +328,8 @@ export function HomeChatRoomsPanel({
     extraCategories.includes(activeCategory);
 
   async function handleChooseRoomImage(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+    const input = event.currentTarget;
+    const file = input.files?.[0];
     if (!file) {
       return;
     }
@@ -348,7 +349,7 @@ export function HomeChatRoomsPanel({
     } else {
       setCreateError("Could not load selected image.");
     }
-    event.currentTarget.value = "";
+    input.value = "";
   }
 
   async function handleCreateRoom(event: React.FormEvent) {
