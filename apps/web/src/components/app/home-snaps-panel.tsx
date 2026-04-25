@@ -4,9 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
-import { listPosts } from "@/lib/posts-client";
+import { getStoredAuthSession } from "@/lib/auth-client";
+import { listMyPosts, listPosts } from "@/lib/posts-client";
 import { apiPostToSnap } from "@/lib/post-ui-mappers";
-import { snaps as mockSnaps } from "@/lib/v1-mock-data";
 import type { Snap } from "@/lib/v1-mock-data";
 
 function SnapTileMedia({ src, alt }: { src: string; alt: string }) {
@@ -29,48 +29,77 @@ function SnapTileMedia({ src, alt }: { src: string; alt: string }) {
 
 export type HomeSnapsPanelLayout = "default" | "dashboard";
 
-function getViews(likes: number, comments: number) {
-  return likes + comments * 4;
+function getViews(snap: Snap) {
+  return snap.views ?? snap.likes + snap.comments * 4;
 }
 
-const trendingItems = [
-  { snapId: "sunset-walk", title: "Dreamy sunset", author: "Bushra", count: 124 },
-  { snapId: "city-lights", title: "Coffee time", author: "Bushra", count: 89 },
-  { snapId: "night-friends", title: "Night motion", author: "Bushra", count: 154 },
-  { snapId: "ocean-view", title: "Ocean calm", author: "Bushra", count: 76 },
-  { snapId: "sunset-walk", title: "City twilight", author: "Bushra", count: 112 },
-  { snapId: "city-lights", title: "Late snack", author: "Bushra", count: 98 },
-];
+function fillToCount(items: Snap[], count: number): Snap[] {
+  if (items.length === 0) {
+    return [];
+  }
+  if (items.length >= count) {
+    return items.slice(0, count);
+  }
+  const next = [...items];
+  let i = 0;
+  while (next.length < count) {
+    next.push(items[i % items.length] as Snap);
+    i += 1;
+  }
+  return next;
+}
 
 export function HomeSnapsPanel({
   layout = "default",
 }: {
   layout?: HomeSnapsPanelLayout;
 }) {
-  const [catalog, setCatalog] = useState<Snap[]>(() => mockSnaps);
+  const [catalog, setCatalog] = useState<Snap[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    void listPosts("SNAP", 40)
+    const session = getStoredAuthSession();
+    const loader = session?.accessToken ? listMyPosts(session.accessToken, "SNAP", 40) : listPosts("SNAP", 40);
+    void loader
       .then((rows) => {
-        if (cancelled || rows.length === 0) {
+        if (cancelled) {
           return;
         }
         setCatalog(rows.map(apiPostToSnap));
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const popularSnaps = useMemo(
-    () => [...catalog].sort((left, right) => right.likes - left.likes).slice(0, 4),
-    [catalog],
-  );
+  const popularSlots = useMemo(() => {
+    if (loading && catalog.length === 0) {
+      return Array.from({ length: 4 }, (_, index) => ({ kind: "skeleton" as const, key: `popular-sk-${index}` }));
+    }
+    if (!loading && catalog.length === 0) {
+      return Array.from({ length: 4 }, (_, index) => ({ kind: "empty" as const, key: `popular-empty-${index}` }));
+    }
+    const ranked = [...catalog].sort((left, right) => getViews(right) - getViews(left));
+    return fillToCount(ranked, 4).map((snap, index) => ({ kind: "snap" as const, snap, key: `popular-${snap.id}-${index}` }));
+  }, [catalog, loading]);
 
-  const trendingPreview =
-    layout === "dashboard" ? trendingItems.slice(0, 6) : trendingItems.slice(0, 3);
+  const trendingSlots = useMemo(() => {
+    if (loading && catalog.length === 0) {
+      return Array.from({ length: 6 }, (_, index) => ({ kind: "skeleton" as const, key: `trend-sk-${index}` }));
+    }
+    if (!loading && catalog.length === 0) {
+      return Array.from({ length: 6 }, (_, index) => ({ kind: "empty" as const, key: `trend-empty-${index}` }));
+    }
+    const ranked = [...catalog].sort((left, right) => getViews(right) - getViews(left));
+    return fillToCount(ranked, 6).map((snap, index) => ({ kind: "snap" as const, snap, key: `trend-${snap.id}-${index}` }));
+  }, [catalog, loading]);
 
   const isDashboard = layout === "dashboard";
 
@@ -106,12 +135,43 @@ export function HomeSnapsPanel({
         </Link>
       </div>
 
-      <div className="mt-3 shrink-0 grid grid-cols-2 gap-2.5">
-        {popularSnaps.map((snap) => {
+      <div className="mt-3 shrink-0 grid min-h-[12rem] grid-cols-2 gap-2.5">
+        {popularSlots.map((slot) => {
+          if (slot.kind === "skeleton") {
+            return (
+              <div
+                key={slot.key}
+                className="relative overflow-hidden rounded-[0.82rem] border border-fuchsia-300/16 bg-[rgba(28,16,72,0.45)]"
+              >
+                <div className="relative h-[5.25rem] w-full animate-pulse bg-white/8 sm:h-24" />
+                <div className="absolute inset-x-2 bottom-2 flex items-center justify-between">
+                  <span className="h-3 w-10 rounded bg-white/10" />
+                  <span className="h-3 w-8 rounded bg-white/10" />
+                </div>
+              </div>
+            );
+          }
+          if (slot.kind === "empty") {
+            return (
+              <div
+                key={slot.key}
+                className="relative overflow-hidden rounded-[0.82rem] border border-dashed border-cyan-300/22 bg-[rgba(20,13,62,0.35)]"
+              >
+                <div className="flex h-[5.25rem] w-full items-center justify-center sm:h-24">
+                  <span className="text-[0.78rem] text-cyan-100/55">No snap</span>
+                </div>
+                <div className="absolute inset-x-2 bottom-2 flex items-center justify-between text-[0.85rem] font-medium text-cyan-100/40">
+                  <span>—</span>
+                  <span>—</span>
+                </div>
+              </div>
+            );
+          }
+          const { snap } = slot;
           return (
             <Link
-              key={snap.id}
-              href={`/app/snaps/${snap.id}`}
+              key={slot.key}
+              href={`/app/snaps?focus=${encodeURIComponent(snap.id)}`}
               className="group relative overflow-hidden rounded-[0.82rem] border border-fuchsia-300/24 bg-[rgba(28,16,72,0.7)]"
             >
               <div className="relative h-[5.25rem] w-full sm:h-24">
@@ -133,7 +193,7 @@ export function HomeSnapsPanel({
                     <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
                     <circle cx="12" cy="12" r="2.5" />
                   </svg>
-                  {getViews(snap.likes, snap.comments)}
+                  {getViews(snap)}
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-pink-100">
                   <svg
@@ -163,36 +223,65 @@ export function HomeSnapsPanel({
             <span className="text-[1rem]">🔥</span>
             <p className="text-[1.1rem] font-semibold text-white">Trending Snaps</p>
           </div>
-          <Link href="/app/snaps" className="text-sm font-medium text-fuchsia-200/86 transition hover:text-white">
-            See all
-          </Link>
         </div>
 
         <div
           className={cx(
-            "mt-3 space-y-2",
+            "mt-3 space-y-2 min-h-[16.5rem]",
             isDashboard &&
               "suzi-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 xl:min-h-[22rem]",
           )}
         >
-          {trendingPreview.map((item, index) => {
-            const snap = catalog.find((entry) => entry.id === item.snapId) ?? catalog[index % catalog.length];
+          {trendingSlots.map((slot) => {
+            if (slot.kind === "skeleton") {
+              return (
+                <div
+                  key={slot.key}
+                  className="flex items-center gap-2.5 rounded-[0.75rem] border border-cyan-300/12 bg-[rgba(20,13,62,0.4)] px-2.5 py-2"
+                >
+                  <div className="h-8.5 w-8.5 shrink-0 animate-pulse rounded-full bg-white/10" />
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="h-3.5 max-w-[10rem] w-[60%] animate-pulse rounded bg-white/10" />
+                    <div className="h-3 max-w-[7rem] w-[40%] animate-pulse rounded bg-white/8" />
+                  </div>
+                  <div className="h-3.5 w-8 shrink-0 animate-pulse rounded bg-white/10" />
+                </div>
+              );
+            }
+            if (slot.kind === "empty") {
+              return (
+                <div
+                  key={slot.key}
+                  className="flex items-center gap-2.5 rounded-[0.75rem] border border-dashed border-cyan-300/18 bg-[rgba(20,13,62,0.32)] px-2.5 py-2"
+                >
+                  <div className="flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-full border border-cyan-300/20 bg-[rgba(12,10,40,0.5)] text-[0.65rem] text-cyan-100/45">
+                    —
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[0.88rem] text-cyan-100/45">No snap</p>
+                    <p className="truncate text-[0.78rem] text-cyan-100/35">—</p>
+                  </div>
+                  <p className="shrink-0 text-[0.82rem] text-cyan-100/40">—</p>
+                </div>
+              );
+            }
+            const { snap } = slot;
             return (
               <Link
-                key={`${item.title}-${index}`}
-                href={`/app/snaps/${snap.id}`}
+                key={slot.key}
+                href={`/app/snaps?focus=${encodeURIComponent(snap.id)}`}
                 className="flex items-center gap-2.5 rounded-[0.75rem] border border-cyan-300/14 bg-[rgba(20,13,62,0.56)] px-2.5 py-2 transition hover:border-cyan-300/32"
               >
                 <Image
                   src={snap.avatar}
-                  alt={item.author}
+                  alt={snap.author}
                   width={34}
                   height={34}
                   className="h-8.5 w-8.5 rounded-full border border-white/20 object-cover"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[0.95rem] font-medium text-white">{item.title}</p>
-                  <p className="truncate text-[0.82rem] text-cyan-100/64">By {item.author}</p>
+                  <p className="truncate text-[0.95rem] font-medium text-white">{snap.title}</p>
+                  <p className="truncate text-[0.82rem] text-cyan-100/64">By {snap.author}</p>
                 </div>
                 <p className="inline-flex items-center gap-1 text-[0.88rem] font-semibold text-cyan-100/80">
                   <svg
@@ -208,7 +297,7 @@ export function HomeSnapsPanel({
                     <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
                     <circle cx="12" cy="12" r="2.5" />
                   </svg>
-                  {item.count}
+                  {getViews(snap)}
                 </p>
               </Link>
             );

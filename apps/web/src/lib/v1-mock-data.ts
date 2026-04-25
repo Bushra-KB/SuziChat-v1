@@ -50,6 +50,7 @@ export type Snap = {
   title: string;
   caption: string;
   visibility: "Public" | "Friends";
+  views?: number;
   likes: number;
   comments: number;
   tone: string;
@@ -134,7 +135,7 @@ export const mobileNavItems: NavItem[] = [
 
 export const createMenuItems = [
   {
-    href: "/app/snaps/create",
+    href: "/app/snaps?create=1",
     label: "Post Snap",
     icon: "M12 4v10M8 8l4-4 4 4M5 18h14",
   },

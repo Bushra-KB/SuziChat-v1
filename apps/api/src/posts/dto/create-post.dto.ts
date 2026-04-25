@@ -7,7 +7,7 @@ export class CreatePostDto {
 
   @IsString()
   @MinLength(1)
-  @MaxLength(2048)
+  @MaxLength(4_000_000)
   mediaUrl!: string;
 
   @IsOptional()

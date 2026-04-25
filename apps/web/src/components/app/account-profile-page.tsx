@@ -24,7 +24,7 @@ import {
   type UserProfile,
 } from "@/lib/users-client";
 import { getFriendsSummary, type FriendsSummary } from "@/lib/friends-client";
-import { listPosts, type ApiPost } from "@/lib/posts-client";
+import { listMyPosts, type ApiPost } from "@/lib/posts-client";
 import { apiPostToReel, apiPostToSnap } from "@/lib/post-ui-mappers";
 import type { ApiRoom } from "@/lib/rooms-client";
 import { listRooms } from "@/lib/rooms-client";
@@ -154,8 +154,8 @@ export function AccountProfilePage() {
     void Promise.all([
       getFriendsSummary(session.accessToken),
       listRooms(),
-      listPosts("SNAP", 48),
-      listPosts("REEL", 48),
+      listMyPosts(session.accessToken, "SNAP", 48),
+      listMyPosts(session.accessToken, "REEL", 48),
     ])
       .then(([friends, roomList, snapList, reelList]) => {
         if (cancelled) {
@@ -555,7 +555,7 @@ export function AccountProfilePage() {
               return (
                 <Link
                   key={snap.id}
-                  href={`/app/snaps/${snap.id}`}
+                  href={`/app/snaps?focus=${encodeURIComponent(snap.id)}`}
                   className="block overflow-hidden rounded-[1.1rem] border border-white/10 bg-white/5 transition hover:border-fuchsia-300/25"
                 >
                   <div className="relative aspect-[4/3]">

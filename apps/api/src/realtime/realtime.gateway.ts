@@ -11,6 +11,7 @@ import {
 import type { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { ConversationsService } from '../conversations/conversations.service';
+import { PostsService } from '../posts/posts.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { RealtimeEventsService } from './realtime-events.service';
 import { RealtimeStateService } from './realtime-state.service';
@@ -38,6 +39,7 @@ export class RealtimeGateway implements OnGatewayConnection {
   constructor(
     private readonly authService: AuthService,
     private readonly conversationsService: ConversationsService,
+    private readonly postsService: PostsService,
     private readonly roomsService: RoomsService,
     private readonly realtimeEvents: RealtimeEventsService,
     private readonly realtimeState: RealtimeStateService,
@@ -81,6 +83,10 @@ export class RealtimeGateway implements OnGatewayConnection {
 
   private roomStatsChannel(roomSlug: string) {
     return `roomstats:${roomSlug}`;
+  }
+
+  private postChannel(postId: string) {
+    return `post:${postId}`;
   }
 
   private getRoomOnlineCount(roomSlug: string) {
@@ -314,6 +320,21 @@ export class RealtimeGateway implements OnGatewayConnection {
       userId,
       typing: Boolean(payload?.typing),
     });
+    return { ok: true };
+  }
+
+  @SubscribeMessage('post:watch')
+  async onPostWatch(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { postId?: string },
+  ) {
+    this.getUserId(client);
+    const postId = payload?.postId?.trim();
+    if (!postId) {
+      throw new WsException('postId is required');
+    }
+    await this.postsService.getPostById(postId, this.getUserId(client));
+    await client.join(this.postChannel(postId));
     return { ok: true };
   }
 
