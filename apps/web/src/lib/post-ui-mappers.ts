@@ -51,6 +51,7 @@ export function apiPostToSnap(p: ApiPost): Snap {
 export function apiPostToReel(p: ApiPost): Reel {
   const author = p.author.displayName?.trim() || p.author.username;
   const tone = REEL_TONES[stableHash(p.id) % REEL_TONES.length];
+  const vis = p.visibility?.toLowerCase() === "friends" ? "Friends" : "Public";
 
   return {
     id: p.id,
@@ -59,6 +60,7 @@ export function apiPostToReel(p: ApiPost): Reel {
     title: p.title?.trim() || "Reel",
     avatar: avatarForUsername(p.author.username),
     caption: p.caption?.trim() || "",
+    visibility: vis as Reel["visibility"],
     views: p._count?.views ?? 0,
     likes: p._count?.likes ?? 0,
     comments: p._count?.comments ?? 0,

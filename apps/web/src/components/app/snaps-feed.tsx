@@ -570,15 +570,24 @@ export function SnapsFeed() {
     }
     void listPostComments(session.accessToken, activeSnap.id, 80)
       .then((rows) => {
-        setCommentsBySnap((prev) => ({
-          ...prev,
-          [activeSnap.id]: rows.map((row) => ({
+        const seen = new Set<string>();
+        const mapped: SnapComment[] = [];
+        for (const row of rows) {
+          if (seen.has(row.id)) {
+            continue;
+          }
+          seen.add(row.id);
+          mapped.push({
             id: row.id,
             authorId: row.user.id,
             author: row.user.displayName?.trim() || row.user.username,
             text: row.body,
             time: "now",
-          })),
+          });
+        }
+        setCommentsBySnap((prev) => ({
+          ...prev,
+          [activeSnap.id]: mapped,
         }));
       })
       .catch(() => {});
@@ -740,19 +749,26 @@ export function SnapsFeed() {
 
     try {
       const created = await createPostComment(session.accessToken, activeSnap.id, text);
-      setCommentsBySnap((previous) => ({
-        ...previous,
-        [activeSnap.id]: [
-          {
-            id: created.comment.id,
-            authorId: created.comment.user.id,
-            author: created.comment.user.displayName?.trim() || created.comment.user.username,
-            text: created.comment.body,
-            time: "now",
-          },
-          ...(previous[activeSnap.id] ?? []),
-        ],
-      }));
+      const newId = created.comment.id;
+      setCommentsBySnap((previous) => {
+        const list = previous[activeSnap.id] ?? [];
+        if (list.some((row) => row.id === newId)) {
+          return previous;
+        }
+        return {
+          ...previous,
+          [activeSnap.id]: [
+            {
+              id: newId,
+              authorId: created.comment.user.id,
+              author: created.comment.user.displayName?.trim() || created.comment.user.username,
+              text: created.comment.body,
+              time: "now",
+            },
+            ...list,
+          ],
+        };
+      });
       setDisplaySnaps((prev) =>
         prev.map((snap) =>
           snap.id === activeSnap.id
