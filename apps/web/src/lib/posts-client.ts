@@ -14,6 +14,7 @@ export type ApiPost = {
     id: string;
     username: string;
     displayName: string | null;
+    avatarUrl?: string | null;
   };
   _count?: {
     likes: number;

@@ -19,7 +19,6 @@ import {
 import { apiPostToSnap } from "@/lib/post-ui-mappers";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 import type { Snap } from "@/lib/v1-mock-data";
-import { snaps as initialSnaps } from "@/lib/v1-mock-data";
 
 type DragState = {
   pointerId: number | null;
@@ -183,18 +182,23 @@ function SnapHeroMedia({
   src,
   alt,
   priority,
+  fit = "cover",
+  sizes = "(max-width: 640px) 86vw, 24rem",
 }: {
   src: string;
   alt: string;
   priority?: boolean;
+  fit?: "cover" | "contain";
+  sizes?: string;
 }) {
+  const objectClass = fit === "contain" ? "object-contain" : "object-cover";
   if (!src.startsWith("/")) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt={alt}
-        className="absolute inset-0 h-full w-full bg-[rgba(6,9,28,0.35)] object-cover"
+        className={cx("absolute inset-0 h-full w-full bg-[rgba(6,9,28,0.35)]", objectClass)}
         draggable={false}
       />
     );
@@ -204,9 +208,9 @@ function SnapHeroMedia({
       src={src}
       alt={alt}
       fill
-      sizes="(max-width: 640px) 86vw, 24rem"
+      sizes={sizes}
       priority={priority}
-      className="bg-[rgba(6,9,28,0.35)] object-cover"
+      className={cx("bg-[rgba(6,9,28,0.35)]", objectClass)}
       draggable={false}
     />
   );
@@ -214,7 +218,7 @@ function SnapHeroMedia({
 
 export function SnapsFeed() {
   const searchParams = useSearchParams();
-  const [displaySnaps, setDisplaySnaps] = useState<Snap[]>(() => initialSnaps);
+  const [displaySnaps, setDisplaySnaps] = useState<Snap[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [autoScrollMode, setAutoScrollMode] = useState(true);
   const [advanceProgress, setAdvanceProgress] = useState(0);
@@ -232,14 +236,17 @@ export function SnapsFeed() {
   const [createBusy, setCreateBusy] = useState(false);
   const [createError, setCreateError] = useState("");
   const [dragOverCreate, setDragOverCreate] = useState(false);
+  const [isFullscreenCard, setIsFullscreenCard] = useState(false);
   const suppressClickTimerRef = useRef<number | null>(null);
   const shareStatusTimerRef = useRef<number | null>(null);
   const createFileInputRef = useRef<HTMLInputElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const commentSheetDragRef = useRef<CommentSheetDragState>({ pointerId: null, startY: 0, dragging: false });
   const dragState = useRef<DragState>({ pointerId: null, lastX: 0, dragging: false, didMove: false, suppressClick: false });
   const wheelLockRef = useRef(0);
   const advanceTimerRef = useRef<number | null>(null);
   const progressRafRef = useRef<number | null>(null);
+  const appliedFocusIdRef = useRef<string | null>(null);
 
   const activeSnap = displaySnaps[activeIndex] ?? null;
   const activeComments = activeSnap ? commentsBySnap[activeSnap.id] ?? [] : [];
@@ -254,6 +261,9 @@ export function SnapsFeed() {
   );
 
   const rotateBy = useCallback((step: number) => {
+    if (displaySnaps.length === 0) {
+      return;
+    }
     setAdvanceProgress(0);
     setIsCommentSheetOpen(false);
     setCommentSheetOffsetY(0);
@@ -288,9 +298,7 @@ export function SnapsFeed() {
           return;
         }
         const mapped = rows.map(apiPostToSnap);
-        if (mapped.length > 0) {
-          setDisplaySnaps(mapped);
-        }
+        setDisplaySnaps(mapped);
         setActiveIndex(0);
         setLikedBySnap({});
       })
@@ -302,6 +310,13 @@ export function SnapsFeed() {
 
   useEffect(() => {
     const focusId = searchParams.get("focus");
+    if (!focusId) {
+      appliedFocusIdRef.current = null;
+      return;
+    }
+    if (appliedFocusIdRef.current === focusId) {
+      return;
+    }
     if (!focusId || displaySnaps.length === 0) {
       return;
     }
@@ -310,6 +325,7 @@ export function SnapsFeed() {
       setActiveIndex(index);
       setAutoScrollMode(false);
       setAdvanceProgress(0);
+      appliedFocusIdRef.current = focusId;
     }
   }, [displaySnaps, searchParams]);
 
@@ -336,6 +352,26 @@ export function SnapsFeed() {
     },
     [],
   );
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (typeof document === "undefined") {
+        return;
+      }
+      const fullscreenEl = document.fullscreenElement;
+      const stageEl = stageRef.current;
+      if (!fullscreenEl) {
+        setIsFullscreenCard(false);
+        return;
+      }
+      setIsFullscreenCard(Boolean(stageEl && (fullscreenEl === stageEl || stageEl.contains(fullscreenEl))));
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    onFullscreenChange();
+    return () => {
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+    };
+  }, [activeIndex, displaySnaps.length]);
 
   useEffect(() => {
     if (advanceTimerRef.current !== null) {
@@ -463,6 +499,22 @@ export function SnapsFeed() {
 
   const stopClickPropagation = (event: React.MouseEvent<HTMLElement>) => {
     event.stopPropagation();
+  };
+
+  const toggleCardFullscreen = (event: React.MouseEvent<HTMLElement>) => {
+    stopClickPropagation(event);
+    const stageEl = stageRef.current;
+    if (!stageEl || typeof document === "undefined") {
+      return;
+    }
+    const fullscreenEl = document.fullscreenElement;
+    if (fullscreenEl && (fullscreenEl === stageEl || stageEl.contains(fullscreenEl))) {
+      void document.exitFullscreen?.().catch(() => {});
+      return;
+    }
+    if (stageEl.requestFullscreen) {
+      void stageEl.requestFullscreen().catch(() => {});
+    }
   };
 
   const closeCommentSheet = () => {
@@ -803,6 +855,25 @@ export function SnapsFeed() {
     setAutoScrollMode(false);
   };
 
+  const handleFullscreenCardWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (!isFullscreenCard) {
+      return;
+    }
+    const now = Date.now();
+    if (now - wheelLockRef.current < 220) {
+      return;
+    }
+    const dominantDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+    if (Math.abs(dominantDelta) < 8) {
+      return;
+    }
+    wheelLockRef.current = now;
+    setAutoScrollMode(false);
+    rotateBy(dominantDelta > 0 ? 1 : -1);
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   const handleCreateFile = async (file: File | null) => {
     if (!file) {
       return;
@@ -899,7 +970,7 @@ export function SnapsFeed() {
               <div>
                 <p className="text-[0.62rem] uppercase tracking-[0.14em] text-cyan-100/58">Active</p>
                 <p className="text-sm font-semibold text-white">
-                  {activeIndex + 1}/{displaySnaps.length}
+                  {displaySnaps.length > 0 ? activeIndex + 1 : 0}/{displaySnaps.length}
                 </p>
               </div>
               <button
@@ -944,7 +1015,13 @@ export function SnapsFeed() {
         </div>
 
         <div
-          className="relative isolate mt-5 h-[27.5rem] overflow-hidden rounded-[1.05rem] border border-cyan-300/16 bg-transparent [perspective:1200px] sm:h-[39rem]"
+          ref={stageRef}
+          className={cx(
+            "relative isolate overflow-hidden border border-cyan-300/16 [perspective:1200px]",
+            isFullscreenCard
+              ? "mt-0 h-[100dvh] w-full max-w-none rounded-none bg-black sm:h-[100dvh]"
+              : "mt-5 h-[27.5rem] rounded-[1.05rem] bg-transparent sm:h-[39rem]",
+          )}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerEnd}
@@ -974,6 +1051,8 @@ export function SnapsFeed() {
                     role="button"
                     tabIndex={0}
                     data-snap-card="true"
+                    data-active={layer.isActive ? "true" : "false"}
+                    onWheel={handleFullscreenCardWheel}
                     onClick={() => handleCardActivate(index)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
@@ -982,7 +1061,10 @@ export function SnapsFeed() {
                       }
                     }}
                     className={cx(
-                      "pointer-events-auto relative h-[84%] max-h-[40rem] w-auto max-w-[86vw] aspect-[9/16] overflow-hidden rounded-[1.45rem] border text-left transition-all duration-500 ease-in-out sm:max-w-[24rem]",
+                      "pointer-events-auto relative aspect-[9/16] overflow-hidden rounded-[1.45rem] border text-left transition-all duration-500 ease-in-out",
+                      layer.isActive && isFullscreenCard
+                        ? "h-auto max-h-[100dvh] w-[min(100dvw,calc(100dvh*9/16))] max-w-[100dvw] sm:max-w-none"
+                        : "h-[84%] max-h-[40rem] w-auto max-w-[86vw] sm:max-w-[24rem]",
                       layer.isActive ? "border-cyan-300/72 shadow-[0_0_52px_rgba(0,229,255,0.34)]" : "border-cyan-300/20",
                     )}
                     style={{
@@ -993,7 +1075,13 @@ export function SnapsFeed() {
                       willChange: "transform, opacity",
                     }}
                   >
-                    <SnapHeroMedia src={snap.image} alt={`${snap.title} snap`} priority={layer.isActive} />
+                    <SnapHeroMedia
+                      src={snap.image}
+                      alt={`${snap.title} snap`}
+                      priority={layer.isActive}
+                      fit={layer.isActive && isFullscreenCard ? "contain" : "cover"}
+                      sizes={layer.isActive && isFullscreenCard ? "100vw" : "(max-width: 640px) 86vw, 24rem"}
+                    />
 
                     <div
                       className={cx(
@@ -1023,21 +1111,44 @@ export function SnapsFeed() {
                         <button
                           type="button"
                           onPointerDown={stopPointerPropagation}
-                          onClick={(event) => {
-                            stopClickPropagation(event);
-                            const card = (event.currentTarget.closest("[data-snap-card='true']") ??
-                              null) as HTMLElement | null;
-                            if (card?.requestFullscreen) {
-                              void card.requestFullscreen().catch(() => {});
-                            }
-                          }}
+                          onClick={toggleCardFullscreen}
                           className="pointer-events-auto absolute right-2.5 top-2.5 z-30 inline-flex h-8 w-8 items-center justify-center rounded-full border border-cyan-300/36 bg-[rgba(8,12,30,0.7)] text-cyan-100/90 shadow-[0_0_14px_rgba(34,211,238,0.2)] transition hover:text-white"
-                          aria-label="View full screen"
+                          aria-label={isFullscreenCard ? "Exit full screen" : "View full screen"}
                         >
                           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5" />
+                            {isFullscreenCard ? (
+                              <path d="M9 9H4V4M15 9h5V4M9 15H4v5M20 20h-5v-5" />
+                            ) : (
+                              <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5" />
+                            )}
                           </svg>
                         </button>
+                        {isFullscreenCard ? (
+                          <>
+                            <button
+                              type="button"
+                              onPointerDown={stopPointerPropagation}
+                              onClick={(event) => handleArrowClick(event, -1)}
+                              className="pointer-events-auto absolute left-2 top-1/2 z-40 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-cyan-300/34 bg-[rgba(9,10,31,0.62)] text-cyan-100/90 transition hover:border-cyan-200/62 hover:text-white"
+                              aria-label="Previous snap"
+                            >
+                              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="m15 6-6 6 6 6" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onPointerDown={stopPointerPropagation}
+                              onClick={(event) => handleArrowClick(event, 1)}
+                              className="pointer-events-auto absolute right-2 top-1/2 z-40 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-cyan-300/34 bg-[rgba(9,10,31,0.62)] text-cyan-100/90 transition hover:border-cyan-200/62 hover:text-white"
+                              aria-label="Next snap"
+                            >
+                              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="m9 6 6 6-6 6" />
+                              </svg>
+                            </button>
+                          </>
+                        ) : null}
 
                         <div className="pointer-events-auto absolute bottom-[6.2rem] right-2.5 z-30 flex flex-col items-center gap-2.5 sm:right-3.5 sm:bottom-[6.8rem]">
                           <Link

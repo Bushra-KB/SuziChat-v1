@@ -2,11 +2,13 @@
 
 import { io, type Socket } from "socket.io-client";
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import { clearAuthSession, getStoredAuthSession, refresh, saveAuthSession } from "@/lib/auth-client";
 
 let sharedSocket: Socket | null = null;
 let sharedToken: string | null = null;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let missedHeartbeats = 0;
+let reconnectRefreshInFlight = false;
 
 function stopHeartbeat() {
   if (!heartbeatTimer) {
@@ -65,6 +67,31 @@ export function getRealtimeSocket(accessToken: string) {
   });
   sharedSocket.on("disconnect", () => {
     stopHeartbeat();
+  });
+  sharedSocket.on("connect_error", () => {
+    if (reconnectRefreshInFlight) {
+      return;
+    }
+    const session = getStoredAuthSession();
+    if (!session?.refreshToken) {
+      return;
+    }
+    reconnectRefreshInFlight = true;
+    void refresh({ refreshToken: session.refreshToken })
+      .then((next) => {
+        saveAuthSession(next);
+        sharedToken = next.accessToken;
+        if (sharedSocket) {
+          sharedSocket.auth = { token: next.accessToken };
+          sharedSocket.connect();
+        }
+      })
+      .catch(() => {
+        clearAuthSession();
+      })
+      .finally(() => {
+        reconnectRefreshInFlight = false;
+      });
   });
   sharedToken = accessToken;
   return sharedSocket;

@@ -24,7 +24,7 @@ type SectionId = (typeof SETTINGS_NAV)[number]["id"];
 
 export function SettingsPageClient() {
   const [active, setActive] = useState<SectionId>("privacy");
-  const [form, setForm] = useState({ displayName: "", bio: "", country: "" });
+  const [form, setForm] = useState({ displayName: "", bio: "", country: "", avatarUrl: "" });
   const [loadState, setLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -51,6 +51,7 @@ export function SettingsPageClient() {
           displayName: profile.displayName ?? "",
           bio: profile.bio ?? "",
           country: profile.country ?? "",
+          avatarUrl: profile.avatarUrl ?? "",
         });
         setLoadState("ready");
       })
@@ -80,6 +81,7 @@ export function SettingsPageClient() {
         displayName: form.displayName.trim() || undefined,
         bio: form.bio.trim() || undefined,
         country: form.country.trim() || undefined,
+        avatarUrl: form.avatarUrl.trim() || undefined,
       });
       setSaveState("success");
       setMessage("Account profile saved.");
@@ -138,6 +140,54 @@ export function SettingsPageClient() {
             {loadState === "loading" ? <p className="text-sm text-[var(--text-muted)]">Loading account profile…</p> : null}
             {loadState === "error" ? <p className="text-sm text-amber-100">{message || "Could not load profile."}</p> : null}
             <form onSubmit={handleSaveAccountProfile} className="space-y-4">
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/62">
+                  Profile image URL
+                </label>
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <input
+                    className="suzi-input"
+                    value={form.avatarUrl}
+                    onChange={(event) => setForm((prev) => ({ ...prev, avatarUrl: event.target.value }))}
+                    placeholder="https://example.com/avatar.jpg or data:image/..."
+                    maxLength={4_000_000}
+                  />
+                  <label className="suzi-secondary-btn cursor-pointer px-4 py-3 text-sm">
+                    Upload
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
+                        if (!file) {
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          const result = String(reader.result ?? "");
+                          setForm((prev) => ({ ...prev, avatarUrl: result }));
+                        };
+                        reader.readAsDataURL(file);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
+                {form.avatarUrl ? (
+                  <div className="mt-3 flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={form.avatarUrl} alt="Profile preview" className="h-12 w-12 rounded-full border border-white/15 object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, avatarUrl: "" }))}
+                      className="suzi-secondary-btn px-3 py-2 text-xs"
+                    >
+                      Remove image
+                    </button>
+                  </div>
+                ) : null}
+              </div>
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/62">
                   Display name
