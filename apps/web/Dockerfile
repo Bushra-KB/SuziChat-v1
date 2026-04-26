@@ -26,4 +26,4 @@ COPY --from=builder /app/apps/web/next.config.ts ./apps/web/next.config.ts
 COPY --from=builder /app/apps/web/next-env.d.ts ./apps/web/next-env.d.ts
 COPY --from=builder /app/apps/web/src ./apps/web/src
 EXPOSE 3000
-CMD ["pnpm", "--filter", "web", "start", "--", "-p", "3000"]
+CMD ["pnpm", "--filter", "web", "exec", "next", "start", "-p", "3000"]
