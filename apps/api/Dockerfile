@@ -22,5 +22,9 @@ RUN pnpm install --frozen-lockfile --prod
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
+# Prod install does not copy generated client from the builder graph; regenerate here (needs `prisma` CLI in deps).
+ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/suzi_chat"
+RUN pnpm --filter api exec prisma generate --schema prisma/schema.prisma
+ENV DATABASE_URL=
 EXPOSE 4000
 CMD ["pnpm", "--filter", "api", "start:prod"]
