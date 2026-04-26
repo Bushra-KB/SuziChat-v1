@@ -1,9 +1,16 @@
 import { registerAs } from '@nestjs/config';
 
+function requireEnv(name: string, fallback?: string) {
+  const value = process.env[name]?.trim() || fallback;
+  if (!value) {
+    throw new Error(`${name} is required`);
+  }
+  return value;
+}
+
 export default registerAs('auth', () => ({
-  accessTokenSecret: process.env.JWT_ACCESS_SECRET ?? 'change-me-access-secret',
-  refreshTokenSecret:
-    process.env.JWT_REFRESH_SECRET ?? 'change-me-refresh-secret',
+  accessTokenSecret: requireEnv('JWT_ACCESS_SECRET'),
+  refreshTokenSecret: requireEnv('JWT_REFRESH_SECRET'),
   accessTokenTtl: process.env.JWT_ACCESS_TTL ?? '15m',
   refreshTokenTtl: process.env.JWT_REFRESH_TTL ?? '7d',
   passwordResetTtlMinutes: Number.parseInt(

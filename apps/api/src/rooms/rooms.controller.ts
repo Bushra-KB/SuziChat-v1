@@ -49,8 +49,9 @@ export class RoomsController {
   }
 
   @Get(':slug/messages')
-  listMessages(@Param('slug') slug: string) {
-    return this.roomsService.listMessages(slug);
+  @UseGuards(AccessTokenGuard)
+  listMessages(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.roomsService.listMessagesForUser(slug, user.id);
   }
 
   @Get(':slug/me/access')

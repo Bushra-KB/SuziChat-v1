@@ -1,4 +1,7 @@
 import {
+  OnModuleDestroy,
+} from '@nestjs/common';
+import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
@@ -29,7 +32,7 @@ type AuthSocket = Socket & {
     credentials: false,
   },
 })
-export class RealtimeGateway implements OnGatewayConnection {
+export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
   @WebSocketServer()
   server!: Server;
   private readonly idleAfterMs = 90_000;
@@ -49,6 +52,10 @@ export class RealtimeGateway implements OnGatewayConnection {
     this.presenceTicker = setInterval(() => {
       this.emitAllPresenceIfChanged();
     }, 15_000);
+  }
+
+  onModuleDestroy() {
+    clearInterval(this.presenceTicker);
   }
 
   private getToken(socket: Socket) {
@@ -235,12 +242,15 @@ export class RealtimeGateway implements OnGatewayConnection {
     @ConnectedSocket() client: AuthSocket,
     @MessageBody() payload: { roomSlug?: string },
   ) {
-    this.getUserId(client);
+    const userId = this.getUserId(client);
     const roomSlug = payload?.roomSlug?.trim();
     if (!roomSlug) {
       throw new WsException('roomSlug is required');
     }
-    await this.roomsService.getRoomBySlug(roomSlug);
+    const access = await this.roomsService.getRoomAccess(roomSlug, userId);
+    if (!access.canOpen) {
+      throw new WsException('You are not allowed to open this room');
+    }
     await client.join(this.roomChannel(roomSlug));
     await client.join(this.roomStatsChannel(roomSlug));
     this.emitRoomStats(roomSlug);
@@ -252,10 +262,14 @@ export class RealtimeGateway implements OnGatewayConnection {
     @ConnectedSocket() client: AuthSocket,
     @MessageBody() payload: { roomSlug?: string },
   ) {
-    this.getUserId(client);
+    const userId = this.getUserId(client);
     const roomSlug = payload?.roomSlug?.trim();
     if (!roomSlug) {
       throw new WsException('roomSlug is required');
+    }
+    const access = await this.roomsService.getRoomAccess(roomSlug, userId);
+    if (access.isBlocked) {
+      throw new WsException('You are blocked from this room');
     }
     const room = await this.roomsService.getRoomBySlug(roomSlug);
     await client.join(this.roomStatsChannel(roomSlug));
