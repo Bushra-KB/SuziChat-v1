@@ -2,6 +2,8 @@
 
 This guide deploys a fresh, stable stack with Docker Compose: `web + api + postgres + caddy`.
 
+**Branching:** deploy from **`main`**. Do feature work on a branch, open a PR, merge to `main` when approved, then deploy that `main` tip (prefer **`git pull` on the server** so the tree always matches Git).
+
 ## 1) Server prerequisites
 
 - Ubuntu 22.04+ (or similar)
@@ -62,6 +64,26 @@ docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.
 docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod up -d
 docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod exec api pnpm --filter api db:migrate:deploy
 ```
+
+## 6b) Optional: rsync from your laptop instead of `git pull`
+
+Prefer **`git pull` on the server`** so you never ship a partial or wrong branch by accident.
+
+If you still use `rsync`:
+
+- **Do not use `--delete`** unless your laptop copy is a **complete** superset of what must exist on the server (same branch as production, fully up to date). Otherwise you can delete Dockerfiles, compose files, and **`infra/docker/.env.prod`**.
+- **Secrets:** production `.env` files are **gitignored** on purpose. Keeping real secrets **only on the server** is safest. If you keep a copy on your laptop to `scp`/`rsync`, treat that machine like production: disk encryption, no accidental sharing, rotate if exposed.
+- If you use `--delete`, protect server-only files, for example:
+
+```bash
+rsync -avz --delete \
+  --filter='P infra/docker/.env.prod' \
+  --exclude node_modules --exclude '.git' \
+  --exclude apps/web/.next --exclude apps/api/dist \
+  ./ user@server:~/apps/suzi-chat/
+```
+
+(`P` = do not delete that path on the server when it is missing from the laptop.)
 
 ## 7) Rollback
 
