@@ -15,6 +15,31 @@ export function NotificationsPageClient() {
   const [items, setItems] = useState<ApiNotification[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "mentions" | "requests" | "social">("all");
+
+  const classify = (item: ApiNotification) => {
+    const title = item.title.toLowerCase();
+    const body = item.body.toLowerCase();
+    if (title.includes("mention") || body.includes("mention")) {
+      return "mentions" as const;
+    }
+    if (title.includes("request") || body.includes("request")) {
+      return "requests" as const;
+    }
+    return "social" as const;
+  };
+
+  const unreadCount = items.reduce((sum, item) => sum + (item.read ? 0 : 1), 0);
+  const filteredItems = items.filter((item) => {
+    if (activeFilter === "all") {
+      return true;
+    }
+    if (activeFilter === "unread") {
+      return !item.read;
+    }
+    return classify(item) === activeFilter;
+  });
 
   const refresh = useCallback(async () => {
     const s = getStoredAuthSession();
@@ -66,8 +91,13 @@ export function NotificationsPageClient() {
     if (!s) {
       return;
     }
-    await markAllNotificationsRead(s.accessToken);
-    await refresh();
+    setBusy(true);
+    try {
+      await markAllNotificationsRead(s.accessToken);
+      setItems((prev) => prev.map((item) => ({ ...item, read: true })));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleOpen(item: ApiNotification) {
@@ -75,8 +105,16 @@ export function NotificationsPageClient() {
     if (!s || item.read) {
       return;
     }
-    await markNotificationRead(s.accessToken, item.id);
-    await refresh();
+    setItems((prev) =>
+      prev.map((entry) => (entry.id === item.id ? { ...entry, read: true } : entry)),
+    );
+    try {
+      await markNotificationRead(s.accessToken, item.id);
+    } catch {
+      setItems((prev) =>
+        prev.map((entry) => (entry.id === item.id ? { ...entry, read: false } : entry)),
+      );
+    }
   }
 
   return (
@@ -90,19 +128,35 @@ export function NotificationsPageClient() {
               type="button"
               className="suzi-secondary-btn px-4 py-2.5 text-sm"
               onClick={() => void handleMarkAll()}
+              disabled={busy || unreadCount === 0}
             >
-              Mark all read
+              {busy ? "Updating…" : "Mark all read"}
             </button>
           }
         />
 
         <div className="mt-6 flex flex-wrap gap-2">
-          <Chip active tone="pink">
-            All
-          </Chip>
-          <Chip>Mentions</Chip>
-          <Chip>Requests</Chip>
-          <Chip tone="cyan">Social</Chip>
+          <button type="button" onClick={() => setActiveFilter("all")}>
+            <Chip active={activeFilter === "all"} tone="pink">
+              All ({items.length})
+            </Chip>
+          </button>
+          <button type="button" onClick={() => setActiveFilter("unread")}>
+            <Chip active={activeFilter === "unread"} tone="cyan">
+              Unread ({unreadCount})
+            </Chip>
+          </button>
+          <button type="button" onClick={() => setActiveFilter("mentions")}>
+            <Chip active={activeFilter === "mentions"}>Mentions</Chip>
+          </button>
+          <button type="button" onClick={() => setActiveFilter("requests")}>
+            <Chip active={activeFilter === "requests"}>Requests</Chip>
+          </button>
+          <button type="button" onClick={() => setActiveFilter("social")}>
+            <Chip active={activeFilter === "social"} tone="cyan">
+              Social
+            </Chip>
+          </button>
         </div>
 
         {error ? <p className="mt-4 text-sm text-amber-100">{error}</p> : null}
@@ -110,10 +164,10 @@ export function NotificationsPageClient() {
         <div className="mt-6 space-y-4">
           {loading ? (
             <p className="text-sm text-[var(--text-muted)]">Loading…</p>
-          ) : items.length === 0 ? (
+          ) : filteredItems.length === 0 ? (
             <p className="text-sm text-[var(--text-muted)]">You&apos;re all caught up.</p>
           ) : (
-            items.map((item) => (
+            filteredItems.map((item) => (
               <button
                 key={item.id}
                 type="button"

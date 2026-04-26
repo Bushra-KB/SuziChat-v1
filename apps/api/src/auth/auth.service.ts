@@ -219,7 +219,6 @@ export class AuthService {
     return {
       message:
         'If an account exists for this email, a password reset flow will be sent.',
-      resetTokenPreview: resetToken,
       resetTokenExpiresAt: expiresAt.toISOString(),
     };
   }

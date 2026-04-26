@@ -1,0 +1,24 @@
+{$SUZI_DOMAIN} {
+  encode zstd gzip
+
+  @api path /api/*
+  handle @api {
+    uri strip_prefix /api
+    reverse_proxy api:4000
+  }
+
+  @socket path /socket.io/*
+  handle @socket {
+    reverse_proxy api:4000
+  }
+
+  @socketproxy path /api/socket.io/*
+  handle @socketproxy {
+    uri strip_prefix /api
+    reverse_proxy api:4000
+  }
+
+  handle {
+    reverse_proxy web:3000
+  }
+}

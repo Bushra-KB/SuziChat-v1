@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
@@ -13,6 +13,14 @@ export class UsersController {
   @Get('me/profile')
   getMyProfile(@CurrentUser() user: AuthenticatedUser) {
     return this.usersService.getMyProfile(user.id);
+  }
+
+  @Get(':username/profile')
+  getProfileByUsername(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('username') username: string,
+  ) {
+    return this.usersService.getProfileByUsername(user.id, username);
   }
 
   @Patch('me/profile')

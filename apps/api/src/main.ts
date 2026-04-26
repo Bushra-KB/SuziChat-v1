@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { Request, Response, NextFunction } from 'express';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { loadEnvBeforeNestBootstrap } from './load-env';
@@ -10,9 +11,53 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   app.use(json({ limit: '15mb' }));
   app.use(urlencoded({ limit: '15mb', extended: true }));
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    if (process.env.NODE_ENV === 'production') {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+  });
   app.enableShutdownHooks();
+  const fallbackOrigins =
+    process.env.NODE_ENV === 'production'
+      ? ''
+      : 'http://localhost:3000,http://127.0.0.1:3000';
+  const allowlist = (process.env.CORS_ORIGINS ?? fallbackOrigins)
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
+  const corsOrigin = (
+    origin: string | undefined,
+    callback: (err: Error | null, allow?: boolean) => void,
+  ) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (allowlist.length === 0 && process.env.NODE_ENV === 'production') {
+        callback(
+          new Error(
+            'CORS blocked: CORS_ORIGINS is empty. Set allowed origins explicitly.',
+          ),
+        );
+        return;
+      }
+      if (allowlist.length === 0) {
+        callback(null, true);
+        return;
+      }
+      if (allowlist.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+  };
   app.enableCors({
-    origin: true,
+    origin: corsOrigin,
     credentials: false,
   });
   app.useGlobalPipes(

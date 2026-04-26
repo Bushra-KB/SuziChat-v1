@@ -15,6 +15,26 @@ export type UserProfile = {
   updatedAt: string;
 };
 
+export type ProfileRelationship =
+  | { kind: "self" }
+  | { kind: "none" }
+  | { kind: "blocked_by_me" }
+  | { kind: "blocked_you" }
+  | { kind: "friends"; friendsSince: string }
+  | { kind: "outgoing_request"; requestId: string; createdAt: string }
+  | { kind: "incoming_request"; requestId: string; createdAt: string };
+
+export type UserProfileView = {
+  profile: UserProfile;
+  relationship: ProfileRelationship;
+  counts: {
+    friends: number;
+    rooms: number;
+    snaps: number;
+    reels: number;
+  };
+};
+
 function normalizeErrorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message;
@@ -61,6 +81,14 @@ export async function updateMyProfile(
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+}
+
+export async function getUserProfileView(accessToken: string, username: string) {
+  return authedRequest<UserProfileView>(
+    `/v1/users/${encodeURIComponent(username)}/profile`,
+    accessToken,
+    { method: "GET" },
+  );
 }
 
 export function parseUsersApiError(error: unknown): string {

@@ -51,13 +51,19 @@ export function getRealtimeSocket(accessToken: string) {
     sharedToken = null;
   }
 
-  sharedSocket = io(getApiBaseUrl(), {
+  const baseUrl = getApiBaseUrl();
+  const useApiProxyPath = /\/api\/?$/.test(baseUrl);
+  const socketOrigin = useApiProxyPath ? baseUrl.replace(/\/api\/?$/, "") : baseUrl;
+  const socketPath = useApiProxyPath ? "/api/socket.io" : "/socket.io";
+
+  sharedSocket = io(socketOrigin, {
     transports: ["websocket", "polling"],
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 6000,
     timeout: 10000,
+    path: socketPath,
     auth: {
       token: accessToken,
     },
