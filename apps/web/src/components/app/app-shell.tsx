@@ -94,6 +94,7 @@ export function AppShell({
   const [shellThreads, setShellThreads] = useState<ConversationThread[]>([]);
   const [shellNotifications, setShellNotifications] = useState<ApiNotification[]>([]);
   const [seenInboxMessageIds, setSeenInboxMessageIds] = useState<Set<string>>(new Set());
+  const [seenInboxHydrated, setSeenInboxHydrated] = useState(false);
   const [liveState, setLiveState] = useState<{
     inboxCount: number;
     unreadNotifications: number;
@@ -135,12 +136,17 @@ export function AppShell({
   const accountHandle = `@${session.user.username}`;
 
   useEffect(() => {
+    setSeenInboxHydrated(false);
     setSeenInboxMessageIds(readSeenInboxMessageIds(session.user.id));
+    setSeenInboxHydrated(true);
   }, [session.user.id]);
 
   useEffect(() => {
+    if (!seenInboxHydrated) {
+      return;
+    }
     writeSeenInboxMessageIds(session.user.id, seenInboxMessageIds);
-  }, [seenInboxMessageIds, session.user.id]);
+  }, [seenInboxHydrated, seenInboxMessageIds, session.user.id]);
 
   useEffect(() => {
     if (!pathname.startsWith("/app/messages")) {
