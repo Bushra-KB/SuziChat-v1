@@ -94,6 +94,32 @@ body {
   min-height: 100vh;
 }
 
+/* Locked app shell: document does not scroll; regions scroll inside [data-suzi-app-frame] */
+html.suzi-app-frame-lock,
+html.suzi-app-frame-lock body {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Route root: fill shell content area (flex child). */
+.suzi-app-frame-fill {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Primary scrollport for a full route (profile, notifications, etc.). */
+.suzi-app-frame-scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 a {
   text-decoration: none;
 }

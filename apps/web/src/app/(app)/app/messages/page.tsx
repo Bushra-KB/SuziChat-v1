@@ -4,10 +4,12 @@ import { Panel } from "@/components/ui/suzi-primitives";
 
 function InboxFallback() {
   return (
-    <section className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)_300px]">
-      <Panel className="p-6">
-        <p className="text-sm text-[var(--text-muted)]">Loading inbox…</p>
-      </Panel>
+    <section className="suzi-app-frame-fill">
+      <div className="grid min-h-0 flex-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_300px]">
+        <Panel className="p-6">
+          <p className="text-sm text-[var(--text-muted)]">Loading inbox…</p>
+        </Panel>
+      </div>
     </section>
   );
 }

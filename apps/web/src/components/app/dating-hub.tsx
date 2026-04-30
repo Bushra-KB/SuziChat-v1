@@ -559,7 +559,8 @@ export function DatingHub() {
 
   if (!accessToken) {
     return (
-      <section className="space-y-6">
+      <section className="suzi-app-frame-fill">
+        <div className="suzi-app-frame-scroll suzi-scrollbar pr-1">
         <Panel className="p-6 sm:p-7">
           <SectionHeader
             eyebrow="Dating"
@@ -572,12 +573,14 @@ export function DatingHub() {
             }
           />
         </Panel>
+        </div>
       </section>
     );
   }
 
   return (
-    <section className="space-y-6">
+    <section className="suzi-app-frame-fill">
+      <div className="suzi-app-frame-scroll suzi-scrollbar pr-1">
       <Panel className="[background:transparent] border-fuchsia-300/22 p-4 shadow-none sm:p-5">
         <SectionHeader
           eyebrow="Dating"
@@ -775,6 +778,7 @@ export function DatingHub() {
           </div>
         </div>
       </Panel>
+      </div>
 
       {showPreviewModal && previewProfile ? (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/55 p-4 sm:items-center">

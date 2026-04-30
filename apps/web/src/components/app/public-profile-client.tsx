@@ -256,7 +256,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center px-6">
+      <div className="suzi-app-frame-fill flex items-center justify-center px-6">
         <div className="text-center">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-200" />
           <p className="mt-4 text-sm text-[var(--text-muted)]">Loading profile…</p>
@@ -267,6 +267,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
 
   if (!profileView) {
     return (
+      <div className="suzi-app-frame-fill flex items-center justify-center px-4 py-6">
       <Panel className="border border-amber-300/22 bg-amber-500/10 p-8">
         <p className="text-lg font-semibold text-amber-100">{error || "Profile not found."}</p>
         <p className="mt-2 text-sm text-[var(--text-muted)]">Check the username or try again later.</p>
@@ -274,12 +275,13 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
           Back to home
         </Link>
       </Panel>
+      </div>
     );
   }
 
   if (profileView.relationship.kind === "self") {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center px-6">
+      <div className="suzi-app-frame-fill flex items-center justify-center px-6">
         <p className="text-sm text-[var(--text-muted)]">Opening your profile…</p>
       </div>
     );
@@ -313,7 +315,8 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
   const showCancelRequest = relation.kind === "outgoing_request";
 
   return (
-    <section className="space-y-6 pb-14">
+    <section className="suzi-app-frame-fill">
+      <div className="suzi-app-frame-scroll suzi-scrollbar space-y-6 pb-12 pr-1">
       {/* Cover + identity */}
       <div className="overflow-hidden rounded-[1.35rem] border border-white/10 bg-[linear-gradient(135deg,rgba(72,28,140,0.55),rgba(10,14,42,0.95))] shadow-[0_28px_70px_rgba(6,8,28,0.55)]">
         <div className="relative h-36 sm:h-44 md:h-52">
@@ -532,6 +535,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
           </Link>
         </div>
       </Panel>
+      </div>
     </section>
   );
 }

@@ -3,7 +3,8 @@ import { adminReports, adminRoomRows, adminStats } from "@/lib/v1-mock-data";
 
 export default function AdminPage() {
   return (
-    <section className="space-y-6">
+    <section className="suzi-app-frame-fill">
+      <div className="suzi-app-frame-scroll suzi-scrollbar space-y-6 pr-1">
       <Panel className="p-6 sm:p-7">
         <SectionHeader
           eyebrow="Admin Panel"
@@ -78,6 +79,7 @@ export default function AdminPage() {
             </div>
           </Panel>
         </div>
+      </div>
       </div>
     </section>
   );

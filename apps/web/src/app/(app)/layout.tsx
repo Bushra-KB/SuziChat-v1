@@ -76,7 +76,7 @@ export default function ProtectedAppLayout({
 
   if (!isReady || !session) {
     return (
-      <main className="suzi-hybrid-bg relative flex min-h-screen items-center justify-center px-6 text-white">
+      <main className="suzi-hybrid-bg relative flex h-[100dvh] min-h-0 items-center justify-center overflow-hidden px-6 text-white">
         <div className="suzi-panel max-w-xl px-8 py-9 text-center">
           <p className="text-[0.7rem] font-semibold uppercase tracking-[0.34em] text-cyan-100/64">
             Protected Area

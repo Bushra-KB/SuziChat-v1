@@ -10,7 +10,9 @@ export default async function GameLobbyPage({
   const game = games.find((entry) => entry.id === gameId) ?? games[0];
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <section className="suzi-app-frame-fill">
+      <div className="suzi-app-frame-scroll suzi-scrollbar pr-1">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="space-y-6">
         <Panel className="p-6 sm:p-7">
           <SectionHeader
@@ -73,6 +75,8 @@ export default async function GameLobbyPage({
             </button>
           </div>
         </Panel>
+      </div>
+      </div>
       </div>
     </section>
   );

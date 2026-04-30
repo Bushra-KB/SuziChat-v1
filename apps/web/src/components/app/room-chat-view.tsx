@@ -406,8 +406,9 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   }
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <Panel className="flex h-[75vh] min-h-[32rem] max-h-[75vh] flex-col overflow-hidden border border-cyan-300/24 bg-[linear-gradient(180deg,rgba(36,45,116,0.52),rgba(40,16,117,0.52))] p-0 shadow-[0_14px_38px_rgba(15,23,42,0.2)]">
+    <section className="suzi-app-frame-fill">
+      <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto suzi-scrollbar xl:grid-cols-[minmax(0,1fr)_340px] xl:overflow-hidden xl:pr-1">
+      <Panel className="flex min-h-[22rem] flex-col overflow-hidden border border-cyan-300/24 bg-[linear-gradient(180deg,rgba(36,45,116,0.52),rgba(40,16,117,0.52))] p-0 shadow-[0_14px_38px_rgba(15,23,42,0.2)] xl:h-full xl:min-h-0">
         <div className="border-b border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-5 py-4 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -546,7 +547,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         </div>
       </Panel>
 
-      <div className="flex h-[75vh] min-h-[32rem] max-h-[75vh] flex-col gap-6">
+      <div className="flex min-h-[22rem] flex-col gap-6 xl:h-full xl:min-h-0 xl:overflow-hidden">
         <Panel className="flex min-h-0 flex-1 flex-col p-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-[1.35rem] font-semibold tracking-tight text-white">Room Members</h2>
@@ -747,6 +748,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
             ) : null}
           </div>
         </Panel>
+      </div>
       </div>
 
       {showEditModal ? (

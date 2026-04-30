@@ -375,8 +375,9 @@ export function MessagesInbox() {
   const myAvatarUrl = authSnap?.user.avatarUrl?.trim() || null;
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)_300px]">
-      <Panel className="flex h-[75vh] min-h-[32rem] max-h-[75vh] flex-col p-5">
+    <section className="suzi-app-frame-fill">
+      <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto suzi-scrollbar xl:grid-cols-[320px_minmax(0,1fr)_300px] xl:overflow-hidden xl:pr-1">
+      <Panel className="flex min-h-[22rem] flex-col p-5 xl:h-full xl:min-h-0 xl:overflow-hidden">
         <SectionHeader eyebrow="Inbox" title="Direct messages" />
         <div className="mt-5">
           <input className="suzi-input" placeholder="Search conversations" readOnly disabled />
@@ -408,7 +409,7 @@ export function MessagesInbox() {
         </div>
       </Panel>
 
-      <Panel className="flex h-[75vh] min-h-[32rem] max-h-[75vh] flex-col overflow-hidden p-0">
+      <Panel className="flex min-h-[22rem] flex-col overflow-hidden p-0 xl:h-full xl:min-h-0">
         <div className="border-b border-white/8 px-6 py-5">
           <SectionHeader
             eyebrow="Conversation"
@@ -510,6 +511,7 @@ export function MessagesInbox() {
           ) : null}
         </div>
       </Panel>
+      </div>
     </section>
   );
 }

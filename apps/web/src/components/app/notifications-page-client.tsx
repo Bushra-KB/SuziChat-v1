@@ -118,7 +118,8 @@ export function NotificationsPageClient() {
   }
 
   return (
-    <section className="space-y-6">
+    <section className="suzi-app-frame-fill">
+      <div className="suzi-app-frame-scroll suzi-scrollbar pr-1">
       <Panel className="p-6 sm:p-7">
         <SectionHeader
           eyebrow="Notifications"
@@ -194,6 +195,7 @@ export function NotificationsPageClient() {
           )}
         </div>
       </Panel>
+      </div>
     </section>
   );
 }

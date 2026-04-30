@@ -358,7 +358,8 @@ export function AccountProfilePage() {
   const avatarSrc = resolveAvatarSrc(profile, session);
 
   return (
-    <section className="space-y-5 pb-10">
+    <section className="suzi-app-frame-fill">
+      <div className="suzi-app-frame-scroll suzi-scrollbar space-y-5 pb-8 pr-1">
       {/* Hero */}
       <div className="overflow-hidden rounded-[1.35rem] border border-white/10 bg-[linear-gradient(135deg,rgba(56,20,120,0.55),rgba(12,18,48,0.92))] shadow-[0_24px_60px_rgba(8,6,28,0.55)]">
         <div className="relative px-5 pb-6 pt-8 sm:px-8 sm:pb-8 sm:pt-10">
@@ -788,6 +789,7 @@ export function AccountProfilePage() {
           ) : null}
         </Panel>
       ) : null}
+      </div>
     </section>
   );
 }

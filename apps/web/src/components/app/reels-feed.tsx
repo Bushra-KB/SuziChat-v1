@@ -1088,9 +1088,9 @@ export function ReelsFeed() {
   };
 
   return (
-    <section className="space-y-6">
-      <Panel className="[background:transparent] border-cyan-300/24 p-4 shadow-none sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+    <section className="suzi-app-frame-fill">
+      <Panel className="flex min-h-0 flex-1 flex-col overflow-hidden [background:transparent] border-cyan-300/24 p-4 shadow-none sm:p-5">
+        <div className="flex shrink-0 flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-[0.8rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
@@ -1182,10 +1182,10 @@ export function ReelsFeed() {
         <div
           ref={stageRef}
           className={cx(
-            "relative isolate overflow-hidden border border-cyan-300/16 [perspective:1200px]",
+            "relative isolate min-h-0 overflow-hidden border border-cyan-300/16 [perspective:1200px]",
             isFullscreenCard
               ? "mt-0 h-[100dvh] w-full max-w-none rounded-none bg-black sm:h-[100dvh]"
-              : "mt-5 h-[27.5rem] rounded-[1.05rem] bg-transparent sm:h-[39rem]",
+              : "mt-5 min-h-[15rem] flex-1 rounded-[1.05rem] bg-transparent sm:min-h-[20rem]",
           )}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}

@@ -263,13 +263,22 @@ export function AppShell({
     };
   }, [session.accessToken]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add("suzi-app-frame-lock");
+    return () => root.classList.remove("suzi-app-frame-lock");
+  }, []);
+
   return (
-    <main className="suzi-hybrid-bg relative min-h-screen overflow-hidden text-white">
-      <div className="absolute inset-0 opacity-12 [background-image:radial-gradient(rgba(255,255,255,0.6)_0.7px,transparent_0.7px)] [background-size:28px_28px]" />
-      <div className="absolute left-[-8%] top-[-6%] h-[34rem] w-[34rem] rounded-full bg-sky-300/14 blur-[150px]" />
-      <div className="absolute right-[-5%] top-[8%] h-[28rem] w-[28rem] rounded-full bg-blue-400/10 blur-[130px]" />
-      <div className="absolute bottom-[-8%] left-[18%] h-[26rem] w-[26rem] rounded-full bg-indigo-500/14 blur-[140px]" />
-      <div className="suzi-bottom-stars" aria-hidden="true">
+    <main
+      data-suzi-app-frame
+      className="suzi-hybrid-bg relative flex h-[100dvh] min-h-0 flex-col overflow-hidden text-white"
+    >
+      <div className="pointer-events-none absolute inset-0 opacity-12 [background-image:radial-gradient(rgba(255,255,255,0.6)_0.7px,transparent_0.7px)] [background-size:28px_28px]" />
+      <div className="pointer-events-none absolute left-[-8%] top-[-6%] h-[34rem] w-[34rem] rounded-full bg-sky-300/14 blur-[150px]" />
+      <div className="pointer-events-none absolute right-[-5%] top-[8%] h-[28rem] w-[28rem] rounded-full bg-blue-400/10 blur-[130px]" />
+      <div className="pointer-events-none absolute bottom-[-8%] left-[18%] h-[26rem] w-[26rem] rounded-full bg-indigo-500/14 blur-[140px]" />
+      <div className="suzi-bottom-stars pointer-events-none" aria-hidden="true">
         <span className="suzi-bottom-star suzi-bottom-star-1" />
         <span className="suzi-bottom-star suzi-bottom-star-2" />
         <span className="suzi-bottom-star suzi-bottom-star-3" />
@@ -282,8 +291,9 @@ export function AppShell({
         <span className="suzi-bottom-star suzi-bottom-star-10" />
       </div>
 
-      <div className="relative mx-auto w-full max-w-[1460px] px-3 pb-10 pt-6 sm:px-4 lg:px-5">
-        <div className="pointer-events-auto absolute left-1/2 top-3 z-[220] -translate-x-1/2 sm:top-3.5 lg:top-4">
+      <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-[1460px] flex-1 flex-col px-3 pb-2 pt-5 sm:px-4 sm:pb-3 lg:px-5">
+        <header className="relative z-[220] mb-1 shrink-0">
+        <div className="pointer-events-auto absolute left-1/2 top-0 z-[221] -translate-x-1/2">
           <Link href="/app" className="block">
             <span className="relative block h-[3rem] w-[9.8rem] overflow-hidden xs:h-[3.4rem] xs:w-[11.2rem] sm:h-[4.4rem] sm:w-[14.4rem] md:h-[5.3rem] md:w-[17.6rem] lg:h-[6rem] lg:w-[19.8rem]">
               <Image
@@ -298,7 +308,7 @@ export function AppShell({
           </Link>
         </div>
 
-        <div className="pointer-events-auto absolute right-3 top-4 z-[220] flex items-center gap-2 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(140deg,rgba(15,13,43,0.76),rgba(34,18,79,0.56))] px-2 py-2 backdrop-blur-md sm:right-4 lg:right-5">
+        <div className="pointer-events-auto absolute right-0 top-0 z-[221] flex items-center gap-2 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(140deg,rgba(15,13,43,0.76),rgba(34,18,79,0.56))] px-2 py-2 backdrop-blur-md">
           <div ref={createRef} className="relative">
             <button
               type="button"
@@ -442,7 +452,7 @@ export function AppShell({
                 aria-label="Language"
               >
                 <p className="px-3 py-2 text-sm font-semibold text-white">Language</p>
-                <div className="max-h-[min(22rem,calc(100vh-8rem))] space-y-1 overflow-y-auto suzi-scrollbar pr-1">
+                <div className="max-h-[min(22rem,calc(100dvh-8rem))] space-y-1 overflow-y-auto suzi-scrollbar pr-1">
                   {languages.map((lang) => (
                     <button
                       key={lang.code}
@@ -632,12 +642,15 @@ export function AppShell({
             ) : null}
           </div>
         </div>
+        </header>
 
-        <div className="pt-[6.1rem] sm:pt-[6.7rem] md:pt-[7.2rem]">{children}</div>
+        <div className="suzi-app-frame-fill pt-[5.1rem] xs:pt-[5.35rem] sm:pt-[5.9rem] md:pt-[6.45rem] lg:pt-[7.15rem]">
+          {children}
+        </div>
 
-        <footer className="mt-8 pb-3">
+        <footer className="mt-auto shrink-0 border-t border-white/10 pt-2 pb-1">
           <div className="h-px w-full bg-[linear-gradient(90deg,rgba(165,243,252,0.06),rgba(165,243,252,0.72),rgba(165,243,252,0.06))]" />
-          <p className="mt-3 text-center text-[0.9rem] font-medium tracking-[0.12em] text-cyan-100/82">
+          <p className="mt-2 text-center text-[0.72rem] font-medium tracking-[0.14em] text-cyan-100/78 sm:text-[0.78rem]">
             © Suzi Chat. All rights reserved.
           </p>
         </footer>
