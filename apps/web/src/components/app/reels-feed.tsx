@@ -15,6 +15,7 @@ import {
   listPosts,
   togglePostLike,
   trackPostView,
+  uploadReelVideo,
 } from "@/lib/posts-client";
 import { apiPostToReel } from "@/lib/post-ui-mappers";
 import { getRealtimeSocket } from "@/lib/realtime-client";
@@ -44,6 +45,35 @@ type ReelComment = {
 };
 
 type ReelCreateVisibility = "Public" | "Friends";
+
+/** Must match API `REEL_UPLOAD_MAX_BYTES`. */
+const REEL_MAX_FILE_BYTES = 5 * 1024 * 1024;
+
+const VIDEO_FILE_ACCEPT =
+  "video/*,.mp4,.m4v,.mov,.webm,.mkv,.avi,.3gp,.mpeg,.mpg,.ogv,video/quicktime";
+
+function isProbablyVideoFile(file: File): boolean {
+  const t = (file.type ?? "").toLowerCase();
+  if (t.startsWith("video/")) {
+    return true;
+  }
+  const name = file.name ?? "";
+  const dot = name.lastIndexOf(".");
+  const ext = dot >= 0 ? name.slice(dot).toLowerCase() : "";
+  return [
+    ".mp4",
+    ".m4v",
+    ".mov",
+    ".webm",
+    ".mkv",
+    ".avi",
+    ".3gp",
+    ".mpeg",
+    ".mpg",
+    ".ogv",
+    ".flv",
+  ].includes(ext);
+}
 
 type CommentSheetDragState = {
   pointerId: number | null;
@@ -894,21 +924,28 @@ export function ReelsFeed() {
     if (!file) {
       return;
     }
-    if (!file.type.startsWith("video/")) {
-      setCreateError("Please choose a video file (MP4, WebM, etc.).");
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      setCreateError("Sign in to upload a video.");
       return;
     }
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result ?? ""));
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsDataURL(file);
-    }).catch(() => "");
-    if (dataUrl) {
-      setCreateMediaUrl(dataUrl);
-      setCreateError("");
-    } else {
-      setCreateError("Could not read video.");
+    if (!isProbablyVideoFile(file)) {
+      setCreateError("Please choose a supported video (MP4, MOV, WebM, M4V, etc.).");
+      return;
+    }
+    if (file.size > REEL_MAX_FILE_BYTES) {
+      setCreateError(`Video must be ${REEL_MAX_FILE_BYTES / (1024 * 1024)} MB or smaller.`);
+      return;
+    }
+    setCreateBusy(true);
+    setCreateError("");
+    try {
+      const { mediaUrl } = await uploadReelVideo(session.accessToken, file);
+      setCreateMediaUrl(mediaUrl);
+    } catch (e: unknown) {
+      setCreateError(e instanceof Error ? e.message : "Upload failed.");
+    } finally {
+      setCreateBusy(false);
     }
   };
 
@@ -927,10 +964,11 @@ export function ReelsFeed() {
       setCreateError("Sign in and add a video URL or file.");
       return;
     }
-    const looksLikeVideo =
-      url.startsWith("data:video/") ||
-      url.startsWith("blob:") ||
-      /^https?:\/\//i.test(url);
+    if (url.startsWith("data:")) {
+      setCreateError("Paste an https:// video link, or use Browse to upload (no pasted base64).");
+      return;
+    }
+    const looksLikeVideo = url.startsWith("blob:") || /^https?:\/\//i.test(url);
     if (!looksLikeVideo) {
       setCreateError("Add a direct https video URL, or upload a file.");
       return;
@@ -1554,7 +1592,8 @@ export function ReelsFeed() {
               </button>
             </div>
             <p className="mt-2 text-xs text-cyan-100/65">
-              Short clips work best. Large uploads may be slow—prefer a hosted MP4 link when possible.
+              Max {REEL_MAX_FILE_BYTES / (1024 * 1024)} MB per upload. MP4, MOV, WebM, M4V, and other common
+              formats. Or paste a direct https:// link to a video file.
             </p>
             <form onSubmit={handleCreateSubmit} className="mt-4 space-y-3">
               <label
@@ -1589,7 +1628,7 @@ export function ReelsFeed() {
                 <input
                   ref={createFileInputRef}
                   type="file"
-                  accept="video/*"
+                  accept={VIDEO_FILE_ACCEPT}
                   className="hidden"
                   onChange={(event) => {
                     const file = event.currentTarget.files?.[0] ?? null;

@@ -73,3 +73,48 @@ export async function apiJson<T>(
 
   return (await response.json()) as T;
 }
+
+/** Multipart or non-JSON body; omits Content-Type so the browser sets the boundary. */
+export async function apiFormJson<T>(
+  path: string,
+  formData: FormData,
+  init: { accessToken?: string | null } = {},
+): Promise<T> {
+  const { accessToken } = init;
+
+  const run = async (token?: string | null) => {
+    const headers: HeadersInit = {};
+    if (token) {
+      (headers as Record<string, string>).Authorization = `Bearer ${token}`;
+    }
+    return fetch(`${getApiBaseUrl()}${path}`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+  };
+
+  let response = await run(accessToken);
+  if (response.status === 401 && accessToken) {
+    const nextToken = await refreshAccessToken();
+    if (nextToken) {
+      response = await run(nextToken);
+    }
+  }
+
+  if (!response.ok) {
+    let message = "Request failed";
+    try {
+      const payload = (await response.json()) as { message?: string | string[] };
+      const m = Array.isArray(payload?.message) ? payload?.message[0] : payload?.message;
+      if (m) {
+        message = m;
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return (await response.json()) as T;
+}

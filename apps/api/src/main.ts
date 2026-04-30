@@ -1,14 +1,24 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Request, Response, NextFunction } from 'express';
-import { json, urlencoded } from 'express';
+import express, { json, urlencoded } from 'express';
+import { existsSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { AppModule } from './app.module';
 import { loadEnvBeforeNestBootstrap } from './load-env';
 
 loadEnvBeforeNestBootstrap();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
+  const reelsDir = join(process.cwd(), 'uploads', 'reels');
+  if (!existsSync(reelsDir)) {
+    mkdirSync(reelsDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
   app.use(json({ limit: '15mb' }));
   app.use(urlencoded({ limit: '15mb', extended: true }));
   app.use((_req: Request, res: Response, next: NextFunction) => {
