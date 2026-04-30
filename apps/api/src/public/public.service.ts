@@ -16,9 +16,14 @@ export class PublicService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getUserByUsername(username: string) {
-    const normalized = username.trim().toLowerCase();
+    const trimmed = username.trim();
+    if (!trimmed) {
+      throw new NotFoundException('User not found');
+    }
     const user = await this.prisma.user.findFirst({
-      where: { username: normalized },
+      where: {
+        username: { equals: trimmed, mode: 'insensitive' },
+      },
       select: publicUserSelect,
     });
 

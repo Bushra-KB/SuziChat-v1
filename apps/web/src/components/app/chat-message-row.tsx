@@ -3,13 +3,15 @@ import Link from "next/link";
 import type { ChatLine } from "@/lib/v1-mock-data";
 import { cx } from "@/components/ui/suzi-primitives";
 import { formatFirstNameLastInitial, resolveChatSender } from "@/lib/chat-display";
-
-const defaultAvatar = "/ppic/ppic1.jpeg";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
+import { publicProfileHref } from "@/lib/profile-links";
 
 export type LiveChatMessage = {
   body: string;
   timeLabel: string;
   isMine: boolean;
+  /** Prefer for profile links — avoids mixing display names into /profile/[slug]. */
+  senderId?: string;
   senderUsername: string;
   senderDisplayName: string;
   senderAvatarUrl?: string | null;
@@ -71,8 +73,10 @@ export function ChatMessageRow(props: ChatMessageRowProps) {
 
   const { message: live } = props;
   const mine = live.isMine;
-  const href = `/app/profile/${encodeURIComponent(live.senderUsername)}`;
-  const avatarSrc = live.senderAvatarUrl?.trim() || defaultAvatar;
+  const href = publicProfileHref(live.senderUsername, {
+    userId: live.senderId,
+  });
+  const avatarSrc = resolveUserAvatarUrl(live.senderAvatarUrl);
   const shortLabel = formatFirstNameLastInitial(live.senderDisplayName || live.senderUsername);
 
   const nameClass = mine

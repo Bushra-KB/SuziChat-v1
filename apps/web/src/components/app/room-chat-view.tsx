@@ -30,6 +30,7 @@ import {
   type ApiRoomManagement,
   type ApiRoomMessage,
 } from "@/lib/rooms-client";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 
 function formatShortTime(iso: string) {
@@ -223,6 +224,8 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     return [...map.values()];
   }, [messages]);
   const onlineCount = participantRows.length;
+  const authSnap = getStoredAuthSession();
+  const myAvatarUrl = authSnap?.user.avatarUrl?.trim() || null;
 
   async function handleSend(body: string) {
     const s = getStoredAuthSession();
@@ -499,9 +502,10 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 body: m.body,
                 timeLabel: formatShortTime(m.createdAt),
                 isMine: mine,
+                senderId: mine ? undefined : m.sender.id,
                 senderUsername: m.sender.username,
                 senderDisplayName: m.sender.displayName ?? m.sender.username,
-                senderAvatarUrl: null,
+                senderAvatarUrl: mine ? myAvatarUrl : m.sender.avatarUrl?.trim() || null,
               };
               return <ChatMessageRow key={m.id} variant="live" message={live} />;
             })}
@@ -564,7 +568,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                       id: room?.owner.id ?? "owner",
                       name: room?.owner.displayName?.trim() || room?.owner.username || "Owner",
                       handle: `@${room?.owner.username ?? "owner"}`,
-                      avatar: "/ppic/ppic1.jpeg",
+                      avatar: resolveUserAvatarUrl(room?.owner.avatarUrl),
                     }}
                     compact
                     action={
@@ -594,7 +598,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                       id: person.id,
                       name: person.displayName?.trim() || person.username,
                       handle: `@${person.username}`,
-                      avatar: "/ppic/ppic1.jpeg",
+                      avatar: resolveUserAvatarUrl(person.avatarUrl),
                     }}
                     compact
                     action={
@@ -648,7 +652,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                           id: row.user.id,
                           name: row.user.displayName?.trim() || row.user.username,
                           handle: `@${row.user.username}`,
-                          avatar: "/ppic/ppic1.jpeg",
+                          avatar: resolveUserAvatarUrl(row.user.avatarUrl),
                         }}
                         compact
                         action={
@@ -689,7 +693,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                           id: row.user.id,
                           name: row.user.displayName?.trim() || row.user.username,
                           handle: `@${row.user.username}`,
-                          avatar: "/ppic/ppic1.jpeg",
+                          avatar: resolveUserAvatarUrl(row.user.avatarUrl),
                         }}
                         compact
                         action={

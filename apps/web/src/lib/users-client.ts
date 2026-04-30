@@ -1,3 +1,4 @@
+import { apiFormJson } from "@/lib/api-auth-request";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 
 export type UserProfile = {
@@ -83,9 +84,25 @@ export async function updateMyProfile(
   });
 }
 
+export async function uploadProfileAvatar(accessToken: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFormJson<UserProfile>("/v1/users/me/profile/avatar", form, {
+    accessToken,
+  });
+}
+
 export async function getUserProfileView(accessToken: string, username: string) {
   return authedRequest<UserProfileView>(
     `/v1/users/${encodeURIComponent(username)}/profile`,
+    accessToken,
+    { method: "GET" },
+  );
+}
+
+export async function getUserProfileViewByUserId(accessToken: string, userId: string) {
+  return authedRequest<UserProfileView>(
+    `/v1/users/u/${encodeURIComponent(userId)}/profile`,
     accessToken,
     { method: "GET" },
   );

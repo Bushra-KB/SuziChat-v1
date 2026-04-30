@@ -39,6 +39,6 @@ export function resolveChatSender(senderId: string): {
   return {
     fullName: "Member",
     avatar: "/ppic/ppic1.jpeg",
-    profileHref: "/app/friends",
+    profileHref: "/app/profile",
   };
 }

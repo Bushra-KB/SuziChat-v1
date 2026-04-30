@@ -10,6 +10,7 @@ const peerSelect = {
   username: true,
   displayName: true,
   country: true,
+  avatarUrl: true,
 } as const;
 
 @Injectable()

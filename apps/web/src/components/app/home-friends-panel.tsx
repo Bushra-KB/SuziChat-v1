@@ -728,11 +728,11 @@ export function HomeFriendsPanel() {
                 DM
               </Link>
               <Link
-                href={`/app/profile/${encodeURIComponent(profileUser.username)}`}
+                href={`/app/profile/u/${encodeURIComponent(profileUser.id)}`}
                 className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-3 py-1.5 text-xs font-semibold text-pink-100"
                 onClick={() => setProfileUser(null)}
               >
-                Open full profile
+                View full profile
               </Link>
             </div>
           </div>

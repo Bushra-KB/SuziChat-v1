@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseEnumPipe,
@@ -61,6 +62,30 @@ export class PostsController {
       kind,
       Number.isFinite(n) ? Math.min(80, Math.max(1, n)) : 40,
     );
+  }
+
+  @Get('me/authored')
+  @UseGuards(AccessTokenGuard)
+  listMyAuthoredPosts(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('kind', new ParseEnumPipe(PostKind)) kind: PostKind,
+    @Query('take') take?: string,
+  ) {
+    const n = take ? Number.parseInt(take, 10) : 40;
+    return this.postsService.listAuthoredPosts(
+      user.id,
+      kind,
+      Number.isFinite(n) ? Math.min(80, Math.max(1, n)) : 40,
+    );
+  }
+
+  @Delete(':id')
+  @UseGuards(AccessTokenGuard)
+  deleteMyPost(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.postsService.deletePostAsAuthor(id, user.id);
   }
 
   @Get(':id')

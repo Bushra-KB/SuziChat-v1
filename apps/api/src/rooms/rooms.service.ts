@@ -12,10 +12,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 
-const senderSelect = {
+/** User fields exposed on messages, members, and room owners. */
+const userPublicSelect = {
   id: true,
   username: true,
   displayName: true,
+  avatarUrl: true,
 } as const;
 
 const DEFAULT_ROOMS: Array<{
@@ -158,7 +160,7 @@ export class RoomsService implements OnModuleInit {
         privacy: true,
         createdAt: true,
         owner: {
-          select: { id: true, username: true, displayName: true },
+          select: userPublicSelect,
         },
         _count: {
           select: {
@@ -184,7 +186,7 @@ export class RoomsService implements OnModuleInit {
         createdAt: true,
         ownerId: true,
         owner: {
-          select: { id: true, username: true, displayName: true },
+          select: userPublicSelect,
         },
         memberships: {
           where: { userId },
@@ -327,7 +329,7 @@ export class RoomsService implements OnModuleInit {
         privacy: true,
         createdAt: true,
         owner: {
-          select: { id: true, username: true, displayName: true },
+          select: userPublicSelect,
         },
         _count: {
           select: {
@@ -363,7 +365,7 @@ export class RoomsService implements OnModuleInit {
         id: true,
         body: true,
         createdAt: true,
-        sender: { select: senderSelect },
+        sender: { select: userPublicSelect },
       },
     });
 
@@ -436,7 +438,7 @@ export class RoomsService implements OnModuleInit {
         privacy: true,
         createdAt: true,
         owner: {
-          select: { id: true, username: true, displayName: true },
+          select: userPublicSelect,
         },
         _count: { select: { messages: true } },
       },
@@ -476,7 +478,7 @@ export class RoomsService implements OnModuleInit {
         privacy: true,
         createdAt: true,
         owner: {
-          select: { id: true, username: true, displayName: true },
+          select: userPublicSelect,
         },
         _count: { select: { messages: true } },
       },
@@ -587,7 +589,7 @@ export class RoomsService implements OnModuleInit {
         id: true,
         body: true,
         createdAt: true,
-        sender: { select: senderSelect },
+        sender: { select: userPublicSelect },
       },
     });
   }
@@ -616,7 +618,7 @@ export class RoomsService implements OnModuleInit {
           userId: true,
           role: true,
           joinedAt: true,
-          user: { select: senderSelect },
+          user: { select: userPublicSelect },
         },
       }),
       this.prisma.roomJoinRequest.findMany({
@@ -625,7 +627,7 @@ export class RoomsService implements OnModuleInit {
         select: {
           userId: true,
           createdAt: true,
-          user: { select: senderSelect },
+          user: { select: userPublicSelect },
         },
       }),
       this.prisma.roomBan.findMany({
@@ -635,7 +637,7 @@ export class RoomsService implements OnModuleInit {
           userId: true,
           reason: true,
           createdAt: true,
-          user: { select: senderSelect },
+          user: { select: userPublicSelect },
         },
       }),
     ]);

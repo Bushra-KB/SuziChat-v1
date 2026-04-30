@@ -1,5 +1,5 @@
-import { SettingsPageClient } from "@/components/app/settings-page";
+import { redirect } from "next/navigation";
 
-export default function SettingsPage() {
-  return <SettingsPageClient />;
+export default function LegacySettingsRoutePage() {
+  redirect("/app/profile");
 }

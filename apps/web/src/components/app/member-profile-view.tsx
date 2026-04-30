@@ -47,8 +47,8 @@ export function MemberProfileView({
               <Link href="/app/messages" className="suzi-primary-btn px-4 py-2.5 text-sm">
                 Message
               </Link>
-              <Link href="/app/friends" className="suzi-secondary-btn px-4 py-2.5 text-sm">
-                Friends
+              <Link href="/app/profile" className="suzi-secondary-btn px-4 py-2.5 text-sm">
+                My profile
               </Link>
             </div>
           </div>

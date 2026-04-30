@@ -15,6 +15,7 @@ import {
   type ApiNotification,
 } from "@/lib/notifications-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { createMenuItems } from "@/lib/v1-mock-data";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
 
@@ -134,6 +135,7 @@ export function AppShell({
 
   const accountName = session.user.displayName ?? session.user.username;
   const accountHandle = `@${session.user.username}`;
+  const accountAvatarSrc = resolveUserAvatarUrl(session.user.avatarUrl);
 
   useEffect(() => {
     setSeenInboxHydrated(false);
@@ -380,7 +382,7 @@ export function AppShell({
                         className="flex items-center gap-3 rounded-[0.9rem] px-3 py-2.5 transition hover:bg-white/8"
                       >
                         <Image
-                          src="/ppic/ppic1.jpeg"
+                          src={resolveUserAvatarUrl(thread.peer.avatarUrl)}
                           alt=""
                           width={36}
                           height={36}
@@ -571,7 +573,7 @@ export function AppShell({
               )}
             >
               <Image
-                src="/ppic/ppic1.jpeg"
+                src={accountAvatarSrc}
                 alt={`${accountName} avatar`}
                 width={34}
                 height={34}
@@ -616,14 +618,6 @@ export function AppShell({
                 >
                   <Icon path="M4 6h16v10H7l-3 3V6Z" className="h-4 w-4 text-cyan-100" />
                   <span>Inbox</span>
-                </Link>
-                <Link
-                  href="/app/settings"
-                  onClick={() => setIsAccountOpen(false)}
-                  className="flex items-center gap-2 rounded-[0.85rem] px-3 py-2.5 text-sm text-[var(--text-muted)] transition hover:bg-white/8 hover:text-white"
-                >
-                  <Icon path="M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8" className="h-4 w-4 text-cyan-100" />
-                  <span>Settings</span>
                 </Link>
                 <div className="my-2 h-px bg-[var(--border-soft)]" />
                 <button

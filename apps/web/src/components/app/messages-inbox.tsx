@@ -15,17 +15,16 @@ import {
   type ConversationThread,
   type DirectMessageRow,
 } from "@/lib/conversations-client";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 import type { Person } from "@/lib/v1-mock-data";
-
-const defaultAvatar = "/ppic/ppic1.jpeg";
 
 function peerToPerson(peer: ConversationThread["peer"]): Person {
   return {
     id: peer.id,
     name: peer.displayName?.trim() || peer.username,
     handle: `@${peer.username}`,
-    avatar: defaultAvatar,
+    avatar: resolveUserAvatarUrl(peer.avatarUrl),
     location: peer.country ?? undefined,
   };
 }
@@ -331,6 +330,7 @@ export function MessagesInbox() {
         username: s.user.username,
         displayName: s.user.displayName,
         country: null,
+        avatarUrl: s.user.avatarUrl,
       },
       recipient: { id: selectedPeerId },
     };
@@ -370,6 +370,9 @@ export function MessagesInbox() {
       setSending(false);
     }
   }
+
+  const authSnap = getStoredAuthSession();
+  const myAvatarUrl = authSnap?.user.avatarUrl?.trim() || null;
 
   return (
     <section className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)_300px]">
@@ -432,9 +435,10 @@ export function MessagesInbox() {
                 body: m.body,
                 timeLabel: shortTime(m.createdAt),
                 isMine: mine,
+                senderId: mine ? undefined : m.sender.id,
                 senderUsername: m.sender.username,
                 senderDisplayName: m.sender.displayName ?? m.sender.username,
-                senderAvatarUrl: null,
+                senderAvatarUrl: mine ? myAvatarUrl : m.sender.avatarUrl?.trim() || null,
               };
               return <ChatMessageRow key={m.id} variant="live" message={live} />;
             })
@@ -500,7 +504,7 @@ export function MessagesInbox() {
           ))}
           {threads.length === 0 ? (
             <p className="text-sm text-[var(--text-muted)]">
-              Start from <a className="text-cyan-200 underline" href="/app/friends">Friends</a> after you connect with
+              Start from <a className="text-cyan-200 underline" href="/app/profile">your profile</a> after you connect with
               someone.
             </p>
           ) : null}
