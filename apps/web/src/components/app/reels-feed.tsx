@@ -49,7 +49,7 @@ type ReelComment = {
 type ReelCreateVisibility = "Public" | "Friends";
 
 /** Must match API `REEL_UPLOAD_MAX_BYTES`. */
-const REEL_MAX_FILE_BYTES = 5 * 1024 * 1024;
+const REEL_MAX_FILE_BYTES = 600 * 1024 * 1024;
 
 const VIDEO_FILE_ACCEPT =
   "video/*,.mp4,.m4v,.mov,.webm,.mkv,.avi,.3gp,.mpeg,.mpg,.ogv,video/quicktime";
