@@ -1123,32 +1123,6 @@ export function SnapsFeed() {
                             )}
                           </svg>
                         </button>
-                        {isFullscreenCard ? (
-                          <>
-                            <button
-                              type="button"
-                              onPointerDown={stopPointerPropagation}
-                              onClick={(event) => handleArrowClick(event, -1)}
-                              className="pointer-events-auto absolute left-2 top-1/2 z-40 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-cyan-300/34 bg-[rgba(9,10,31,0.62)] text-cyan-100/90 transition hover:border-cyan-200/62 hover:text-white"
-                              aria-label="Previous snap"
-                            >
-                              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="m15 6-6 6 6 6" />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              onPointerDown={stopPointerPropagation}
-                              onClick={(event) => handleArrowClick(event, 1)}
-                              className="pointer-events-auto absolute right-2 top-1/2 z-40 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-cyan-300/34 bg-[rgba(9,10,31,0.62)] text-cyan-100/90 transition hover:border-cyan-200/62 hover:text-white"
-                              aria-label="Next snap"
-                            >
-                              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="m9 6 6 6-6 6" />
-                              </svg>
-                            </button>
-                          </>
-                        ) : null}
 
                         <div className="pointer-events-auto absolute bottom-[6.2rem] right-2.5 z-30 flex flex-col items-center gap-2.5 sm:right-3.5 sm:bottom-[6.8rem]">
                           <Link
