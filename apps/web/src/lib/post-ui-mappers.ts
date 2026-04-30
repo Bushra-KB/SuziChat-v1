@@ -47,6 +47,7 @@ export function apiPostToSnap(p: ApiPost): Snap {
 
   return {
     id: p.id,
+    authorId: p.author.id,
     authorUsername: p.author.username,
     author,
     avatar: p.author.avatarUrl?.trim() || avatarForUsername(p.author.username),
@@ -68,6 +69,7 @@ export function apiPostToReel(p: ApiPost): Reel {
 
   return {
     id: p.id,
+    authorId: p.author.id,
     authorUsername: p.author.username,
     author,
     handle: `@${p.author.username}`,

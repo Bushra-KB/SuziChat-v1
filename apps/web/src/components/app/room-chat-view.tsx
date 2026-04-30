@@ -502,6 +502,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 body: m.body,
                 timeLabel: formatShortTime(m.createdAt),
                 isMine: mine,
+                senderId: mine ? undefined : m.sender.id,
                 senderUsername: m.sender.username,
                 senderDisplayName: m.sender.displayName ?? m.sender.username,
                 senderAvatarUrl: mine ? myAvatarUrl : m.sender.avatarUrl?.trim() || null,

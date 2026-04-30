@@ -45,6 +45,8 @@ export type Room = {
 
 export type Snap = {
   id: string;
+  /** Stable id for `/app/profile/u/[userId]` when mapped from API. */
+  authorId?: string;
   /** Username for `/app/profile/[username]` links; set when mapped from API posts. */
   authorUsername?: string;
   author: string;
@@ -61,6 +63,7 @@ export type Snap = {
 
 export type Reel = {
   id: string;
+  authorId?: string;
   /** Username for `/app/profile/[username]` links; set when mapped from API posts. */
   authorUsername?: string;
   author: string;

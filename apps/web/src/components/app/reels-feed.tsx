@@ -1495,9 +1495,11 @@ export function ReelsFeed() {
                                     className="rounded-[0.9rem] border border-cyan-300/16 bg-[rgba(10,12,34,0.55)] px-3 py-2"
                                   >
                                     <div className="flex items-center justify-between gap-2">
-                                      {comment.authorUsername ? (
+                                      {comment.authorId || comment.authorUsername ? (
                                         <Link
-                                          href={publicProfileHref(comment.authorUsername)}
+                                          href={publicProfileHref(comment.authorUsername ?? "", {
+                                            userId: comment.authorId,
+                                          })}
                                           onPointerDown={stopPointerPropagation}
                                           onClick={stopClickPropagation}
                                           className="text-[0.84rem] font-semibold text-cyan-50 transition hover:text-white"

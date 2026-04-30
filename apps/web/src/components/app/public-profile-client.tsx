@@ -17,7 +17,12 @@ import {
 } from "@/lib/friends-client";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { listRooms } from "@/lib/rooms-client";
-import { getUserProfileView, parseUsersApiError, type UserProfileView } from "@/lib/users-client";
+import {
+  getUserProfileView,
+  getUserProfileViewByUserId,
+  parseUsersApiError,
+  type UserProfileView,
+} from "@/lib/users-client";
 
 function formatJoined(iso: string) {
   try {
@@ -60,7 +65,8 @@ function StatCard({
   );
 }
 
-export function PublicProfileClient({ username }: { username: string }) {
+export function PublicProfileClient(props: { username?: string; userId?: string }) {
+  const { username, userId } = props;
   const router = useRouter();
   const [profileView, setProfileView] = useState<UserProfileView | null>(null);
   const [hostedRooms, setHostedRooms] = useState<Array<{ id: string; slug: string; name: string; description: string | null }>>(
@@ -77,8 +83,17 @@ export function PublicProfileClient({ username }: { username: string }) {
       setProfileView(null);
       return;
     }
+    const id = userId?.trim();
+    const slug = username?.trim();
+    if (!id && !slug) {
+      setError("Missing profile.");
+      setProfileView(null);
+      return;
+    }
     const [view, rooms] = await Promise.all([
-      getUserProfileView(s.accessToken, username),
+      id
+        ? getUserProfileViewByUserId(s.accessToken, id)
+        : getUserProfileView(s.accessToken, slug!),
       listRooms(),
     ]);
     setProfileView(view);
@@ -92,7 +107,7 @@ export function PublicProfileClient({ username }: { username: string }) {
           description: room.description,
         })),
     );
-  }, [username]);
+  }, [username, userId]);
 
   useEffect(() => {
     let cancelled = false;

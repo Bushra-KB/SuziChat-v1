@@ -100,6 +100,14 @@ export async function getUserProfileView(accessToken: string, username: string) 
   );
 }
 
+export async function getUserProfileViewByUserId(accessToken: string, userId: string) {
+  return authedRequest<UserProfileView>(
+    `/v1/users/u/${encodeURIComponent(userId)}/profile`,
+    accessToken,
+    { method: "GET" },
+  );
+}
+
 export function parseUsersApiError(error: unknown): string {
   return normalizeErrorMessage(error);
 }

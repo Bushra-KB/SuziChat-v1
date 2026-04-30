@@ -35,6 +35,15 @@ export class UsersController {
     return this.usersService.getMyProfile(user.id);
   }
 
+  /** Prefer this for deep links: stable id, never confused with display names. */
+  @Get('u/:userId/profile')
+  getProfileByUserId(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('userId') userId: string,
+  ) {
+    return this.usersService.getProfileByUserId(user.id, userId);
+  }
+
   @Get(':username/profile')
   getProfileByUsername(
     @CurrentUser() user: AuthenticatedUser,

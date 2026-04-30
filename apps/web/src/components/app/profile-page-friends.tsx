@@ -181,7 +181,7 @@ export function ProfilePageFriendsSection({
                 </div>
                 <div className="min-w-0 flex-1">
                   <Link
-                    href={`/app/profile/${encodeURIComponent(friend.username)}`}
+                    href={`/app/profile/u/${encodeURIComponent(friend.id)}`}
                     className="block truncate text-[1.05rem] font-semibold leading-tight text-white hover:text-cyan-100"
                   >
                     {displayName(friend)}

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { FriendRequestStatus, PostKind } from '@prisma/client';
+import { FriendRequestStatus, PostKind, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -17,6 +17,8 @@ const userProfileSelect = {
   createdAt: true,
   updatedAt: true,
 } as const;
+
+type UserProfileRow = Prisma.UserGetPayload<{ select: typeof userProfileSelect }>;
 
 function normalizeOptionalString(value?: string) {
   const normalized = value?.trim();
@@ -92,6 +94,28 @@ export class UsersService {
       throw new NotFoundException('User profile not found');
     }
 
+    return this.buildUserProfileView(viewerId, target);
+  }
+
+  async getProfileByUserId(viewerId: string, userId: string) {
+    const id = userId.trim();
+    if (!id) {
+      throw new NotFoundException('User profile not found');
+    }
+
+    const target = await this.prisma.user.findUnique({
+      where: { id },
+      select: userProfileSelect,
+    });
+
+    if (!target) {
+      throw new NotFoundException('User profile not found');
+    }
+
+    return this.buildUserProfileView(viewerId, target);
+  }
+
+  private async buildUserProfileView(viewerId: string, target: UserProfileRow) {
     const isSelf = target.id === viewerId;
     const [
       friendship,
