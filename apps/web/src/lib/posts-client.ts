@@ -1,4 +1,4 @@
-import { apiJson } from "@/lib/api-auth-request";
+import { apiFormJson, apiJson } from "@/lib/api-auth-request";
 
 export type PostKind = "SNAP" | "REEL";
 
@@ -74,6 +74,14 @@ export async function createPost(
     method: "POST",
     accessToken,
     body: JSON.stringify(payload),
+  });
+}
+
+export async function uploadReelVideo(accessToken: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFormJson<{ mediaUrl: string }>("/v1/posts/upload/reel", form, {
+    accessToken,
   });
 }
 

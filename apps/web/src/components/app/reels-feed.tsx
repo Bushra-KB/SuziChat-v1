@@ -15,6 +15,7 @@ import {
   listPosts,
   togglePostLike,
   trackPostView,
+  uploadReelVideo,
 } from "@/lib/posts-client";
 import { apiPostToReel } from "@/lib/post-ui-mappers";
 import { getRealtimeSocket } from "@/lib/realtime-client";
@@ -44,6 +45,35 @@ type ReelComment = {
 };
 
 type ReelCreateVisibility = "Public" | "Friends";
+
+/** Must match API `REEL_UPLOAD_MAX_BYTES`. */
+const REEL_MAX_FILE_BYTES = 5 * 1024 * 1024;
+
+const VIDEO_FILE_ACCEPT =
+  "video/*,.mp4,.m4v,.mov,.webm,.mkv,.avi,.3gp,.mpeg,.mpg,.ogv,video/quicktime";
+
+function isProbablyVideoFile(file: File): boolean {
+  const t = (file.type ?? "").toLowerCase();
+  if (t.startsWith("video/")) {
+    return true;
+  }
+  const name = file.name ?? "";
+  const dot = name.lastIndexOf(".");
+  const ext = dot >= 0 ? name.slice(dot).toLowerCase() : "";
+  return [
+    ".mp4",
+    ".m4v",
+    ".mov",
+    ".webm",
+    ".mkv",
+    ".avi",
+    ".3gp",
+    ".mpeg",
+    ".mpg",
+    ".ogv",
+    ".flv",
+  ].includes(ext);
+}
 
 type CommentSheetDragState = {
   pointerId: number | null;
@@ -894,21 +924,28 @@ export function ReelsFeed() {
     if (!file) {
       return;
     }
-    if (!file.type.startsWith("video/")) {
-      setCreateError("Please choose a video file (MP4, WebM, etc.).");
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      setCreateError("Sign in to upload a video.");
       return;
     }
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result ?? ""));
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsDataURL(file);
-    }).catch(() => "");
-    if (dataUrl) {
-      setCreateMediaUrl(dataUrl);
-      setCreateError("");
-    } else {
-      setCreateError("Could not read video.");
+    if (!isProbablyVideoFile(file)) {
+      setCreateError("Please choose a supported video (MP4, MOV, WebM, M4V, etc.).");
+      return;
+    }
+    if (file.size > REEL_MAX_FILE_BYTES) {
+      setCreateError(`Video must be ${REEL_MAX_FILE_BYTES / (1024 * 1024)} MB or smaller.`);
+      return;
+    }
+    setCreateBusy(true);
+    setCreateError("");
+    try {
+      const { mediaUrl } = await uploadReelVideo(session.accessToken, file);
+      setCreateMediaUrl(mediaUrl);
+    } catch (e: unknown) {
+      setCreateError(e instanceof Error ? e.message : "Upload failed.");
+    } finally {
+      setCreateBusy(false);
     }
   };
 
@@ -927,12 +964,17 @@ export function ReelsFeed() {
       setCreateError("Sign in and add a video URL or file.");
       return;
     }
+    if (url.startsWith("data:")) {
+      setCreateError("Paste an https:// video link, or use Browse to upload (no pasted base64).");
+      return;
+    }
+    const isUploadedReelPath = url.startsWith("/api/uploads/reels/");
     const looksLikeVideo =
-      url.startsWith("data:video/") ||
+      isUploadedReelPath ||
       url.startsWith("blob:") ||
       /^https?:\/\//i.test(url);
     if (!looksLikeVideo) {
-      setCreateError("Add a direct https video URL, or upload a file.");
+      setCreateError("Add a direct https:// video link, or upload a file.");
       return;
     }
     setCreateBusy(true);
@@ -1281,32 +1323,6 @@ export function ReelsFeed() {
                               )}
                             </svg>
                           </button>
-                          {isFullscreenCard ? (
-                            <>
-                              <button
-                                type="button"
-                                onPointerDown={stopPointerPropagation}
-                                onClick={(event) => handleArrowClick(event, -1)}
-                                className="pointer-events-auto absolute left-2 top-1/2 z-40 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-cyan-300/34 bg-[rgba(9,10,31,0.62)] text-cyan-100/90 transition hover:border-cyan-200/62 hover:text-white"
-                                aria-label="Previous reel"
-                              >
-                                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="m15 6-6 6 6 6" />
-                                </svg>
-                              </button>
-                              <button
-                                type="button"
-                                onPointerDown={stopPointerPropagation}
-                                onClick={(event) => handleArrowClick(event, 1)}
-                                className="pointer-events-auto absolute right-2 top-1/2 z-40 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-cyan-300/34 bg-[rgba(9,10,31,0.62)] text-cyan-100/90 transition hover:border-cyan-200/62 hover:text-white"
-                                aria-label="Next reel"
-                              >
-                                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="m9 6 6 6-6 6" />
-                                </svg>
-                              </button>
-                            </>
-                          ) : null}
 
                           <div className="pointer-events-auto absolute bottom-[6.2rem] right-2.5 z-30 flex flex-col items-center gap-2.5 sm:right-3.5 sm:bottom-[6.8rem]">
                             <Link
@@ -1554,7 +1570,8 @@ export function ReelsFeed() {
               </button>
             </div>
             <p className="mt-2 text-xs text-cyan-100/65">
-              Short clips work best. Large uploads may be slow—prefer a hosted MP4 link when possible.
+              Max {REEL_MAX_FILE_BYTES / (1024 * 1024)} MB per upload. MP4, MOV, WebM, M4V, and other common
+              formats. Or paste a direct https:// link to a video file.
             </p>
             <form onSubmit={handleCreateSubmit} className="mt-4 space-y-3">
               <label
@@ -1589,7 +1606,7 @@ export function ReelsFeed() {
                 <input
                   ref={createFileInputRef}
                   type="file"
-                  accept="video/*"
+                  accept={VIDEO_FILE_ACCEPT}
                   className="hidden"
                   onChange={(event) => {
                     const file = event.currentTarget.files?.[0] ?? null;

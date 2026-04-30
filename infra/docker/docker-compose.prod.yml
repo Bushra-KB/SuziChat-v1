@@ -36,6 +36,8 @@ services:
       ARGON2_MEMORY_COST: ${ARGON2_MEMORY_COST:-65536}
       ARGON2_PARALLELISM: ${ARGON2_PARALLELISM:-1}
       CORS_ORIGINS: ${CORS_ORIGINS}
+    volumes:
+      - suzi_chat_api_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,5 +75,6 @@ services:
 
 volumes:
   suzi_chat_postgres_data:
+  suzi_chat_api_uploads:
   caddy_data:
   caddy_config:
