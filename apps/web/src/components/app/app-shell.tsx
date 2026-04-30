@@ -81,6 +81,16 @@ export function AppShell({
   session: AuthSession;
   onLogout: () => void;
 }) {
+  const [gameInvites, setGameInvites] = useState<
+    Array<{
+      lobbyId: string;
+      fromUserId: string;
+      gameType: string;
+      title: string;
+      deepLink: string;
+      sentAt: string;
+    }>
+  >([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -256,10 +266,37 @@ export function AppShell({
     socket.on("dm:message", refreshThreads);
     socket.on("notifications:update", refreshNotifications);
     socket.on("realtime:state", onRealtimeState);
+    socket.on("game:invite", (payload: {
+      lobbyId?: string;
+      fromUserId?: string;
+      gameType?: string;
+      title?: string;
+      deepLink?: string;
+      sentAt?: string;
+    }) => {
+      if (!payload.lobbyId || !payload.deepLink) {
+        return;
+      }
+      setGameInvites((prev) => {
+        const next = [
+          {
+            lobbyId: payload.lobbyId as string,
+            fromUserId: String(payload.fromUserId ?? ""),
+            gameType: String(payload.gameType ?? ""),
+            title: String(payload.title ?? "Game Invite"),
+            deepLink: String(payload.deepLink ?? "/app/games"),
+            sentAt: String(payload.sentAt ?? new Date().toISOString()),
+          },
+          ...prev.filter((entry) => entry.lobbyId !== payload.lobbyId),
+        ];
+        return next.slice(0, 4);
+      });
+    });
     return () => {
       socket.off("dm:message", refreshThreads);
       socket.off("notifications:update", refreshNotifications);
       socket.off("realtime:state", onRealtimeState);
+      socket.off("game:invite");
     };
   }, [session.accessToken]);
 
@@ -643,6 +680,29 @@ export function AppShell({
           </div>
         </div>
         </header>
+
+        {gameInvites.length > 0 ? (
+          <div className="pointer-events-auto absolute right-3 top-[4.8rem] z-[219] w-[min(26rem,calc(100vw-1.5rem))] space-y-2 sm:right-4 sm:top-[5.35rem]">
+            {gameInvites.map((invite) => (
+              <div key={invite.lobbyId} className="rounded-xl border border-cyan-300/28 bg-[linear-gradient(155deg,rgba(30,18,84,0.94),rgba(20,12,60,0.92))] px-3 py-2.5 shadow-[0_10px_30px_rgba(6,9,28,0.48)]">
+                <p className="text-xs uppercase tracking-[0.14em] text-cyan-100/72">Game Invite</p>
+                <p className="mt-1 text-sm font-semibold text-white">{invite.title}</p>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <Link href={invite.deepLink} className="suzi-primary-btn px-3 py-1.5 text-xs">
+                    Join now
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setGameInvites((prev) => prev.filter((item) => item.lobbyId !== invite.lobbyId))}
+                    className="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-100/78 transition hover:text-white"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <div className="suzi-app-frame-fill pt-[5.1rem] xs:pt-[5.35rem] sm:pt-[5.9rem] md:pt-[6.45rem] lg:pt-[7.15rem]">
           {children}

@@ -35,6 +35,72 @@ enum DatingSwipeAction {
   PASS
 }
 
+enum GameType {
+  CHESS
+  CHECKERS
+  CONNECT4
+  POKER_HOLDEM
+}
+
+enum GameLobbyStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum GameSessionStatus {
+  WAITING
+  ACTIVE
+  FINISHED
+  CANCELED
+}
+
+enum GameSeatStatus {
+  OPEN
+  RESERVED
+  OCCUPIED
+  FOLDED
+  ELIMINATED
+}
+
+enum GameEventType {
+  SYSTEM
+  CHAT
+  INVITE
+  STATE
+  ACTION
+  ERROR
+}
+
+enum MoveKind {
+  MOVE
+  RESIGN
+  DRAW_OFFER
+  DRAW_ACCEPT
+  TIMEOUT
+  POKER_ACTION
+}
+
+enum PokerRound {
+  PREFLOP
+  FLOP
+  TURN
+  RIVER
+  SHOWDOWN
+  COMPLETE
+}
+
+enum PokerActionKind {
+  FOLD
+  CHECK
+  CALL
+  BET
+  RAISE
+  ALL_IN
+  POST_SMALL_BLIND
+  POST_BIG_BLIND
+}
+
 model User {
   id                        String    @id @default(cuid())
   email                     String    @unique
@@ -76,6 +142,144 @@ model User {
   datingMatchesA           DatingMatch[] @relation("DatingMatchUserA")
   datingMatchesB           DatingMatch[] @relation("DatingMatchUserB")
   datingMessagesSent       DatingMessage[] @relation("DatingMessageSender")
+  ownedGameLobbies         GameLobby[] @relation("GameLobbyOwner")
+  gameSeats                GameSeat[]
+  gameSessionsTurn         GameSession[] @relation("GameSessionTurnUser")
+  gameSessionsWon          GameSession[] @relation("GameSessionWinnerUser")
+  gameMoves                GameMove[]
+  gameEvents               GameEvent[]
+  pokerActions             PokerAction[]
+}
+
+model GameLobby {
+  id          String          @id @default(cuid())
+  slug        String          @unique
+  gameType    GameType
+  title       String
+  isPrivate   Boolean         @default(false)
+  ownerId     String
+  owner       User            @relation("GameLobbyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  status      GameLobbyStatus @default(OPEN)
+  maxSeats    Int             @default(2)
+  settings    Json?
+  seats       GameSeat[]
+  sessions    GameSession[]
+  events      GameEvent[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([gameType, status])
+  @@index([ownerId, createdAt])
+}
+
+model GameSeat {
+  id          String         @id @default(cuid())
+  lobbyId     String
+  lobby       GameLobby      @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  seatIndex   Int
+  status      GameSeatStatus @default(OPEN)
+  stackChips  Int            @default(0)
+  joinedAt    DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([lobbyId, seatIndex])
+  @@unique([lobbyId, userId])
+  @@index([userId, updatedAt])
+}
+
+model GameSession {
+  id           String            @id @default(cuid())
+  lobbyId      String
+  lobby        GameLobby         @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
+  gameType     GameType
+  status       GameSessionStatus @default(WAITING)
+  state        Json
+  turnUserId   String?
+  turnUser     User?             @relation("GameSessionTurnUser", fields: [turnUserId], references: [id], onDelete: SetNull)
+  winnerUserId String?
+  winnerUser   User?             @relation("GameSessionWinnerUser", fields: [winnerUserId], references: [id], onDelete: SetNull)
+  startedAt    DateTime?
+  endedAt      DateTime?
+  moves        GameMove[]
+  events       GameEvent[]
+  pokerHand    PokerHandState?
+  pokerActions PokerAction[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([lobbyId, createdAt])
+  @@index([status, updatedAt])
+}
+
+model GameMove {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      MoveKind @default(MOVE)
+  ply       Int
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model GameEvent {
+  id        String      @id @default(cuid())
+  lobbyId   String?
+  lobby     GameLobby?  @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
+  sessionId String?
+  session   GameSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type      GameEventType
+  payload   Json
+  createdAt DateTime    @default(now())
+
+  @@index([lobbyId, createdAt])
+  @@index([sessionId, createdAt])
+}
+
+model PokerHandState {
+  id                    String     @id @default(cuid())
+  sessionId             String     @unique
+  session               GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  dealerSeatIndex       Int
+  smallBlindSeatIndex   Int
+  bigBlindSeatIndex     Int
+  pot                   Int        @default(0)
+  communityCards        Json
+  round                 PokerRound @default(PREFLOP)
+  currentBet            Int        @default(0)
+  minRaise              Int        @default(0)
+  actionSeatIndex       Int
+  lastAggressorSeatIndex Int?
+  actions               PokerAction[]
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+}
+
+model PokerAction {
+  id          String          @id @default(cuid())
+  handStateId String
+  handState   PokerHandState  @relation(fields: [handStateId], references: [id], onDelete: Cascade)
+  sessionId   String
+  session     GameSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  seatIndex   Int
+  kind        PokerActionKind
+  amount      Int             @default(0)
+  contribution Int            @default(0)
+  isAllIn     Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+
+  @@index([handStateId, createdAt])
+  @@index([sessionId, createdAt])
 }
 
 model DatingProfile {

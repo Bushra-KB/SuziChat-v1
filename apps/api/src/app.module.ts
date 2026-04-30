@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { DatingModule } from './dating/dating.module';
 import { FriendsModule } from './friends/friends.module';
+import { GamesModule } from './games/games.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PostsModule } from './posts/posts.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -30,6 +31,7 @@ import { UsersModule } from './users/users.module';
     PublicModule,
     RoomsModule,
     ConversationsModule,
+    GamesModule,
     RealtimeModule,
     PostsModule,
     NotificationsModule,

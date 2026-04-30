@@ -15,6 +15,7 @@ import type { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { DatingService } from '../dating/dating.service';
 import { ConversationsService } from '../conversations/conversations.service';
+import { GamesService } from '../games/games.service';
 import { PostsService } from '../posts/posts.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { RealtimeEventsService } from './realtime-events.service';
@@ -45,6 +46,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
     private readonly conversationsService: ConversationsService,
     private readonly postsService: PostsService,
     private readonly roomsService: RoomsService,
+    private readonly gamesService: GamesService,
     private readonly realtimeEvents: RealtimeEventsService,
     private readonly realtimeState: RealtimeStateService,
     private readonly datingService: DatingService,
@@ -96,6 +98,14 @@ export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
 
   private postChannel(postId: string) {
     return `post:${postId}`;
+  }
+
+  private gameLobbyChannel(lobbyId: string) {
+    return `game:lobby:${lobbyId}`;
+  }
+
+  private gameSessionChannel(sessionId: string) {
+    return `game:session:${sessionId}`;
   }
 
   private getRoomOnlineCount(roomSlug: string) {
@@ -358,6 +368,54 @@ export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
   onPing(@ConnectedSocket() client: AuthSocket) {
     this.getUserId(client);
     return { ok: true, ts: Date.now() };
+  }
+
+  @SubscribeMessage('game:lobby:join')
+  async onGameLobbyJoin(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { lobbyId?: string },
+  ) {
+    this.getUserId(client);
+    const lobbyId = payload?.lobbyId?.trim();
+    if (!lobbyId) {
+      throw new WsException('lobbyId is required');
+    }
+    await this.gamesService.getLobby(lobbyId);
+    await client.join(this.gameLobbyChannel(lobbyId));
+    return { ok: true };
+  }
+
+  @SubscribeMessage('game:session:join')
+  async onGameSessionJoin(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { sessionId?: string },
+  ) {
+    this.getUserId(client);
+    const sessionId = payload?.sessionId?.trim();
+    if (!sessionId) {
+      throw new WsException('sessionId is required');
+    }
+    await this.gamesService.getSession(sessionId);
+    await client.join(this.gameSessionChannel(sessionId));
+    return { ok: true };
+  }
+
+  @SubscribeMessage('game:session:action')
+  async onGameSessionAction(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { sessionId?: string; action?: Record<string, unknown> },
+  ) {
+    const userId = this.getUserId(client);
+    const sessionId = payload?.sessionId?.trim();
+    if (!sessionId || !payload.action) {
+      throw new WsException('sessionId and action are required');
+    }
+    const snapshot = await this.gamesService.postAction(sessionId, userId, {
+      payload: payload.action,
+    });
+    this.markUserActive(userId);
+    this.server.to(this.gameSessionChannel(sessionId)).emit('game:state', snapshot);
+    return { ok: true, session: snapshot };
   }
 
   @SubscribeMessage('dating:typing')

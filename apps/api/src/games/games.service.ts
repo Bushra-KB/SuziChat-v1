@@ -1,0 +1,394 @@
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { GameEventType, GameLobbyStatus, GameSeatStatus, GameSessionStatus, GameType, MoveKind, PokerRound, Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeEventsService } from '../realtime/realtime-events.service';
+import { applyChessAction, buildInitialChessState } from './engines/chess.engine';
+import { applyCheckersAction, buildInitialCheckersState } from './engines/checkers.engine';
+import { applyConnect4Action, buildInitialConnect4State } from './engines/connect4.engine';
+import type { EngineContext, SeatSnapshot } from './engines/game-engine.types';
+import { applyPokerAction, buildInitialPokerState } from './engines/poker-holdem.engine';
+import { CreateGameLobbyDto } from './dto/create-game-lobby.dto';
+import { GameActionDto } from './dto/game-action.dto';
+import { JoinGameLobbyDto } from './dto/join-game-lobby.dto';
+import { StartGameSessionDto } from './dto/start-game-session.dto';
+
+const GAME_CATALOG = [
+  { id: 'chess', gameType: GameType.CHESS, name: 'Chess', minPlayers: 2, maxPlayers: 2 },
+  { id: 'checkers', gameType: GameType.CHECKERS, name: 'Checkers', minPlayers: 2, maxPlayers: 2 },
+  { id: 'poker', gameType: GameType.POKER_HOLDEM, name: 'Poker', minPlayers: 2, maxPlayers: 9 },
+  { id: 'connect4', gameType: GameType.CONNECT4, name: 'Connect 4', minPlayers: 2, maxPlayers: 2 },
+] as const;
+
+function toJson(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function safeSlug(input: string) {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+}
+
+@Injectable()
+export class GamesService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtimeEvents: RealtimeEventsService,
+  ) {}
+
+  private lobbyChannel(lobbyId: string) {
+    return `game:lobby:${lobbyId}`;
+  }
+
+  private sessionChannel(sessionId: string) {
+    return `game:session:${sessionId}`;
+  }
+
+  listCatalog() {
+    return GAME_CATALOG;
+  }
+
+  async listLobbies(gameType?: GameType) {
+    return this.prisma.gameLobby.findMany({
+      where: {
+        status: { in: [GameLobbyStatus.OPEN, GameLobbyStatus.IN_PROGRESS] },
+        ...(gameType ? { gameType } : {}),
+      },
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        owner: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+        seats: {
+          orderBy: { seatIndex: 'asc' },
+          include: {
+            user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+          },
+        },
+        sessions: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { id: true, status: true, createdAt: true, gameType: true },
+        },
+      },
+    });
+  }
+
+  async getLobby(lobbyId: string) {
+    const lobby = await this.prisma.gameLobby.findUnique({
+      where: { id: lobbyId },
+      include: {
+        owner: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+        seats: {
+          orderBy: { seatIndex: 'asc' },
+          include: { user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
+        },
+        sessions: { orderBy: { createdAt: 'desc' }, take: 20 },
+      },
+    });
+    if (!lobby) throw new NotFoundException('Lobby not found.');
+    return lobby;
+  }
+
+  async createLobby(ownerId: string, dto: CreateGameLobbyDto) {
+    const catalog = GAME_CATALOG.find((entry) => entry.gameType === dto.gameType);
+    if (!catalog) throw new BadRequestException('Unknown game type.');
+    const maxSeats = Math.max(catalog.minPlayers, Math.min(catalog.maxPlayers, dto.maxSeats ?? catalog.maxPlayers));
+    const slugBase = safeSlug(dto.title) || dto.gameType.toLowerCase();
+    const slug = `${slugBase}-${Math.random().toString(36).slice(2, 7)}`;
+
+    const lobby = await this.prisma.gameLobby.create({
+      data: {
+        slug,
+        gameType: dto.gameType,
+        title: dto.title.trim(),
+        ownerId,
+        maxSeats,
+        isPrivate: Boolean(dto.isPrivate),
+        settings: toJson(dto.settings ?? {}),
+      },
+    });
+    await this.prisma.gameSeat.createMany({
+      data: Array.from({ length: maxSeats }, (_, seatIndex) => ({
+        lobbyId: lobby.id,
+        seatIndex,
+        status: GameSeatStatus.OPEN,
+      })),
+    });
+    return this.getLobby(lobby.id);
+  }
+
+  private async ensureLobbyAccess(lobbyId: string, userId: string) {
+    const lobby = await this.prisma.gameLobby.findUnique({
+      where: { id: lobbyId },
+      include: { seats: true },
+    });
+    if (!lobby) throw new NotFoundException('Lobby not found.');
+    if (lobby.isPrivate && lobby.ownerId !== userId) {
+      const seated = lobby.seats.some((seat) => seat.userId === userId);
+      if (!seated) throw new ForbiddenException('Private lobby.');
+    }
+    return lobby;
+  }
+
+  async joinLobby(lobbyId: string, userId: string, dto: JoinGameLobbyDto) {
+    const lobby = await this.ensureLobbyAccess(lobbyId, userId);
+    if (lobby.status !== GameLobbyStatus.OPEN) {
+      throw new BadRequestException('Lobby is not open for seating.');
+    }
+    const existing = lobby.seats.find((seat) => seat.userId === userId);
+    if (existing) return this.getLobby(lobbyId);
+    const seat = lobby.seats.find((row) => row.seatIndex === dto.seatIndex);
+    if (!seat) throw new BadRequestException('Seat does not exist.');
+    if (seat.userId) throw new BadRequestException('Seat already taken.');
+
+    await this.prisma.gameSeat.update({
+      where: { id: seat.id },
+      data: {
+        userId,
+        status: GameSeatStatus.OCCUPIED,
+        stackChips: lobby.gameType === GameType.POKER_HOLDEM ? 2000 : 0,
+      },
+    });
+    await this.prisma.gameEvent.create({
+      data: {
+        lobbyId,
+        userId,
+        type: GameEventType.SYSTEM,
+        payload: { message: 'joined_lobby', seatIndex: dto.seatIndex },
+      },
+    });
+    const snapshot = await this.getLobby(lobbyId);
+    this.realtimeEvents.emitToChannel(this.lobbyChannel(lobbyId), 'game:lobby:update', snapshot);
+    return snapshot;
+  }
+
+  async leaveLobby(lobbyId: string, userId: string) {
+    const lobby = await this.ensureLobbyAccess(lobbyId, userId);
+    const seat = lobby.seats.find((row) => row.userId === userId);
+    if (!seat) return this.getLobby(lobbyId);
+    await this.prisma.gameSeat.update({
+      where: { id: seat.id },
+      data: { userId: null, status: GameSeatStatus.OPEN, stackChips: 0 },
+    });
+    const snapshot = await this.getLobby(lobbyId);
+    this.realtimeEvents.emitToChannel(this.lobbyChannel(lobbyId), 'game:lobby:update', snapshot);
+    return snapshot;
+  }
+
+  private buildInitialState(context: EngineContext): Record<string, unknown> {
+    if (context.gameType === GameType.CHESS) return buildInitialChessState(context);
+    if (context.gameType === GameType.CHECKERS) return buildInitialCheckersState(context);
+    if (context.gameType === GameType.CONNECT4) return buildInitialConnect4State(context);
+    if (context.gameType === GameType.POKER_HOLDEM) return buildInitialPokerState(context);
+    throw new BadRequestException('Unsupported game type.');
+  }
+
+  private applyActionForGame(
+    gameType: GameType,
+    state: Record<string, unknown>,
+    userId: string,
+    payload: Record<string, unknown>,
+    seatUserIds: string[],
+  ) {
+    if (gameType === GameType.CHESS) {
+      return applyChessAction(state, { userId, payload }, seatUserIds);
+    }
+    if (gameType === GameType.CHECKERS) {
+      return applyCheckersAction(state, { userId, payload });
+    }
+    if (gameType === GameType.CONNECT4) {
+      return applyConnect4Action(state, { userId, payload });
+    }
+    if (gameType === GameType.POKER_HOLDEM) {
+      return applyPokerAction(state, { userId, payload });
+    }
+    throw new BadRequestException('Unsupported game type.');
+  }
+
+  async startSession(lobbyId: string, userId: string, dto: StartGameSessionDto) {
+    const lobby = await this.prisma.gameLobby.findUnique({
+      where: { id: lobbyId },
+      include: { seats: true, sessions: { where: { status: { in: [GameSessionStatus.WAITING, GameSessionStatus.ACTIVE] } } } },
+    });
+    if (!lobby) throw new NotFoundException('Lobby not found.');
+    if (lobby.ownerId !== userId) throw new ForbiddenException('Only lobby owner can start a session.');
+    if (lobby.sessions.length > 0) throw new BadRequestException('Lobby already has an active session.');
+    const seated: SeatSnapshot[] = lobby.seats
+      .filter((seat) => seat.userId)
+      .map((seat) => ({ seatIndex: seat.seatIndex, userId: seat.userId as string }))
+      .sort((a, b) => a.seatIndex - b.seatIndex);
+    if (seated.length < 2) throw new BadRequestException('At least 2 players are required.');
+    const context: EngineContext = { gameType: lobby.gameType, seats: seated, options: dto.options };
+    const state = this.buildInitialState(context);
+    const session = await this.prisma.gameSession.create({
+      data: {
+        lobbyId,
+        gameType: lobby.gameType,
+        status: GameSessionStatus.ACTIVE,
+        state: toJson(state),
+        turnUserId: seated[0]?.userId ?? null,
+        startedAt: new Date(),
+      },
+    });
+    await this.prisma.gameLobby.update({
+      where: { id: lobbyId },
+      data: { status: GameLobbyStatus.IN_PROGRESS },
+    });
+    if (lobby.gameType === GameType.POKER_HOLDEM) {
+      const pokerState = state as { phase?: PokerRound; board?: unknown[]; currentBet?: number; minRaise?: number; pot?: number; actionSeatIndex?: number };
+      await this.prisma.pokerHandState.create({
+        data: {
+          sessionId: session.id,
+          dealerSeatIndex: seated[0]?.seatIndex ?? 0,
+          smallBlindSeatIndex: seated[1 % seated.length]?.seatIndex ?? 0,
+          bigBlindSeatIndex: seated[2 % seated.length]?.seatIndex ?? 0,
+          communityCards: (pokerState.board ?? []) as object,
+          round: pokerState.phase ?? PokerRound.PREFLOP,
+          currentBet: Number(pokerState.currentBet ?? 0),
+          minRaise: Number(pokerState.minRaise ?? 0),
+          pot: Number(pokerState.pot ?? 0),
+          actionSeatIndex: Number(pokerState.actionSeatIndex ?? 0),
+        },
+      });
+    }
+    this.realtimeEvents.emitToChannel(this.lobbyChannel(lobbyId), 'game:session:started', { sessionId: session.id, lobbyId });
+    return this.getSession(session.id);
+  }
+
+  async getSession(sessionId: string) {
+    const session = await this.prisma.gameSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        lobby: {
+          include: {
+            seats: {
+              orderBy: { seatIndex: 'asc' },
+              include: { user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
+            },
+          },
+        },
+        moves: { orderBy: { createdAt: 'asc' }, take: 500 },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found.');
+    return session;
+  }
+
+  async postAction(sessionId: string, userId: string, dto: GameActionDto) {
+    const session = await this.prisma.gameSession.findUnique({
+      where: { id: sessionId },
+      include: { lobby: { include: { seats: true } } },
+    });
+    if (!session) throw new NotFoundException('Session not found.');
+    if (session.status !== GameSessionStatus.ACTIVE) {
+      throw new BadRequestException('Session is not active.');
+    }
+    const isSeated = session.lobby.seats.some((seat) => seat.userId === userId);
+    if (!isSeated) throw new ForbiddenException('You are not seated at this table.');
+    const seatUserIds = session.lobby.seats
+      .filter((seat) => seat.userId)
+      .sort((a, b) => a.seatIndex - b.seatIndex)
+      .map((seat) => seat.userId as string);
+
+    const result = this.applyActionForGame(session.gameType, session.state as Record<string, unknown>, userId, dto.payload, seatUserIds);
+    const updated = await this.prisma.gameSession.update({
+      where: { id: sessionId },
+      data: {
+        state: toJson(result.state),
+        status: result.status === 'finished' ? GameSessionStatus.FINISHED : GameSessionStatus.ACTIVE,
+        winnerUserId: result.status === 'finished' ? (result.winnerUserId ?? null) : null,
+        turnUserId:
+          typeof (result.state as { turnUserId?: unknown }).turnUserId === 'string'
+            ? ((result.state as { turnUserId: string }).turnUserId)
+            : null,
+        endedAt: result.status === 'finished' ? new Date() : null,
+      },
+    });
+    const ply = await this.prisma.gameMove.count({ where: { sessionId } });
+    await this.prisma.gameMove.create({
+      data: {
+        sessionId,
+        userId,
+        kind: dto.kind ?? (session.gameType === GameType.POKER_HOLDEM ? MoveKind.POKER_ACTION : MoveKind.MOVE),
+        ply: ply + 1,
+        payload: toJson(dto.payload),
+      },
+    });
+    await this.prisma.gameEvent.create({
+      data: {
+        lobbyId: session.lobbyId,
+        sessionId: session.id,
+        userId,
+        type: GameEventType.ACTION,
+        payload: toJson(dto.payload),
+      },
+    });
+    if (session.gameType === GameType.POKER_HOLDEM) {
+      const pokerState = result.state as { board?: unknown[]; phase?: PokerRound; currentBet?: number; minRaise?: number; pot?: number; currentTurnSeatIndex?: number };
+      const hand = await this.prisma.pokerHandState.findUnique({ where: { sessionId } });
+      if (hand) {
+        await this.prisma.pokerHandState.update({
+          where: { sessionId },
+          data: {
+            communityCards: (pokerState.board ?? []) as object,
+            round: pokerState.phase ?? hand.round,
+            currentBet: Number(pokerState.currentBet ?? hand.currentBet),
+            minRaise: Number(pokerState.minRaise ?? hand.minRaise),
+            pot: Number(pokerState.pot ?? hand.pot),
+            actionSeatIndex: Number(pokerState.currentTurnSeatIndex ?? hand.actionSeatIndex),
+          },
+        });
+        const seat = session.lobby.seats.find((row) => row.userId === userId);
+        await this.prisma.pokerAction.create({
+          data: {
+            handStateId: hand.id,
+            sessionId,
+            userId,
+            seatIndex: seat?.seatIndex ?? 0,
+            kind: (String(dto.payload.kind ?? 'CHECK').toUpperCase() as never),
+            amount: Number(dto.payload.amount ?? 0),
+            contribution: Number(dto.payload.amount ?? 0),
+            isAllIn: String(dto.payload.kind ?? '').toUpperCase() === 'ALL_IN',
+          },
+        });
+      }
+    }
+    if (result.status === 'finished') {
+      await this.prisma.gameLobby.update({
+        where: { id: session.lobbyId },
+        data: { status: GameLobbyStatus.OPEN },
+      });
+    }
+    const snapshot = await this.getSession(updated.id);
+    this.realtimeEvents.emitToChannel(this.sessionChannel(sessionId), 'game:state', snapshot);
+    return snapshot;
+  }
+
+  async sendInvite(lobbyId: string, fromUserId: string, targetUserId: string) {
+    const lobby = await this.ensureLobbyAccess(lobbyId, fromUserId);
+    if (lobby.ownerId !== fromUserId && !lobby.seats.some((seat) => seat.userId === fromUserId)) {
+      throw new ForbiddenException('Only owner or seated players can invite others.');
+    }
+    const payload = {
+      lobbyId,
+      fromUserId,
+      targetUserId,
+      gameType: lobby.gameType,
+      title: lobby.title,
+      deepLink: `/app/games/${lobby.gameType.toLowerCase()}/session/new?lobbyId=${lobbyId}`,
+      sentAt: new Date().toISOString(),
+    };
+    await this.prisma.gameEvent.create({
+      data: {
+        lobbyId,
+        userId: fromUserId,
+        type: GameEventType.INVITE,
+        payload,
+      },
+    });
+    this.realtimeEvents.emitToUser(targetUserId, 'game:invite', payload);
+    return { ok: true };
+  }
+}

@@ -4,6 +4,7 @@ import { DatingModule } from '../dating/dating.module';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { PostsModule } from '../posts/posts.module';
 import { RoomsModule } from '../rooms/rooms.module';
+import { GamesModule } from '../games/games.module';
 import { RealtimeEventsModule } from './realtime-events.module';
 import { RealtimeGateway } from './realtime.gateway';
 
@@ -13,6 +14,7 @@ import { RealtimeGateway } from './realtime.gateway';
     ConversationsModule,
     PostsModule,
     RoomsModule,
+    GamesModule,
     RealtimeEventsModule,
     DatingModule,
   ],
