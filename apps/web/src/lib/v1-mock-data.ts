@@ -119,11 +119,6 @@ export const appNavItems: NavItem[] = [
     label: "Notifications",
     icon: "M15 17H5l2-2.5V10a5 5 0 1 1 10 0v4.5L19 17h-4ZM10 20a2 2 0 0 0 4 0",
   },
-  {
-    href: "/app/settings",
-    label: "Settings",
-    icon: "M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8",
-  },
 ];
 
 export const mobileNavItems: NavItem[] = [

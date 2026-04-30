@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PostKind, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -119,6 +123,30 @@ export class PostsService {
       take,
       select: this.postSelect(),
     });
+  }
+
+  async listAuthoredPosts(authorId: string, kind: PostKind, take = 40) {
+    return this.prisma.post.findMany({
+      where: { kind, authorId },
+      orderBy: { createdAt: 'desc' },
+      take,
+      select: this.postSelect(),
+    });
+  }
+
+  async deletePostAsAuthor(postId: string, authorId: string) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, authorId: true },
+    });
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+    if (post.authorId !== authorId) {
+      throw new ForbiddenException('You can only delete your own posts');
+    }
+    await this.prisma.post.delete({ where: { id: postId } });
+    return { status: 'deleted' as const, id: postId };
   }
 
   async createPost(authorId: string, dto: CreatePostDto) {

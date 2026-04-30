@@ -1,3 +1,4 @@
+import { apiFormJson } from "@/lib/api-auth-request";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 
 export type UserProfile = {
@@ -80,6 +81,14 @@ export async function updateMyProfile(
   return authedRequest<UserProfile>("/v1/users/me/profile", accessToken, {
     method: "PATCH",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function uploadProfileAvatar(accessToken: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFormJson<UserProfile>("/v1/users/me/profile/avatar", form, {
+    accessToken,
   });
 }
 

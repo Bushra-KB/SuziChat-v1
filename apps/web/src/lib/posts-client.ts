@@ -56,6 +56,15 @@ export async function listMyPosts(accessToken: string, kind: PostKind, take = 40
   });
 }
 
+/** Only posts created by the signed-in user (for profile management). */
+export async function listMyAuthoredPosts(accessToken: string, kind: PostKind, take = 40) {
+  const q = new URLSearchParams({ kind, take: String(take) });
+  return apiJson<ApiPost[]>(`/v1/posts/me/authored?${q.toString()}`, {
+    method: "GET",
+    accessToken,
+  });
+}
+
 export async function getPost(id: string) {
   return apiJson<ApiPost>(`/v1/posts/${encodeURIComponent(id)}`, { method: "GET" });
 }
@@ -121,6 +130,16 @@ export async function createPostComment(accessToken: string, postId: string, bod
       method: "POST",
       accessToken,
       body: JSON.stringify({ body }),
+    },
+  );
+}
+
+export async function deleteMyPost(accessToken: string, postId: string) {
+  return apiJson<{ status: "deleted"; id: string }>(
+    `/v1/posts/${encodeURIComponent(postId)}`,
+    {
+      method: "DELETE",
+      accessToken,
     },
   );
 }

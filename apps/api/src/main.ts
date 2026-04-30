@@ -18,6 +18,10 @@ async function bootstrap() {
   if (!existsSync(reelsDir)) {
     mkdirSync(reelsDir, { recursive: true });
   }
+  const avatarsDir = join(process.cwd(), 'uploads', 'avatars');
+  if (!existsSync(avatarsDir)) {
+    mkdirSync(avatarsDir, { recursive: true });
+  }
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
   app.use(json({ limit: '15mb' }));
   app.use(urlencoded({ limit: '15mb', extended: true }));

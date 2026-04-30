@@ -67,6 +67,14 @@ export class UsersService {
     return user;
   }
 
+  async setAvatarFromUploadUrl(userId: string, avatarUrl: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: avatarUrl.trim() },
+      select: userProfileSelect,
+    });
+  }
+
   async getProfileByUsername(viewerId: string, username: string) {
     const normalized = username.trim().toLowerCase();
     const target = await this.prisma.user.findFirst({
