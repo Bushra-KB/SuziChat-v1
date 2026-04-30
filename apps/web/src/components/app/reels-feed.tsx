@@ -968,9 +968,13 @@ export function ReelsFeed() {
       setCreateError("Paste an https:// video link, or use Browse to upload (no pasted base64).");
       return;
     }
-    const looksLikeVideo = url.startsWith("blob:") || /^https?:\/\//i.test(url);
+    const isUploadedReelPath = url.startsWith("/api/uploads/reels/");
+    const looksLikeVideo =
+      isUploadedReelPath ||
+      url.startsWith("blob:") ||
+      /^https?:\/\//i.test(url);
     if (!looksLikeVideo) {
-      setCreateError("Add a direct https video URL, or upload a file.");
+      setCreateError("Add a direct https:// video link, or upload a file.");
       return;
     }
     setCreateBusy(true);
