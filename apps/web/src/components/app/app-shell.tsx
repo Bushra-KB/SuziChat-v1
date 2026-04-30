@@ -15,6 +15,7 @@ import {
   type ApiNotification,
 } from "@/lib/notifications-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { createMenuItems } from "@/lib/v1-mock-data";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
 
@@ -134,6 +135,7 @@ export function AppShell({
 
   const accountName = session.user.displayName ?? session.user.username;
   const accountHandle = `@${session.user.username}`;
+  const accountAvatarSrc = resolveUserAvatarUrl(session.user.avatarUrl);
 
   useEffect(() => {
     setSeenInboxHydrated(false);
@@ -380,7 +382,7 @@ export function AppShell({
                         className="flex items-center gap-3 rounded-[0.9rem] px-3 py-2.5 transition hover:bg-white/8"
                       >
                         <Image
-                          src="/ppic/ppic1.jpeg"
+                          src={resolveUserAvatarUrl(thread.peer.avatarUrl)}
                           alt=""
                           width={36}
                           height={36}
@@ -571,7 +573,7 @@ export function AppShell({
               )}
             >
               <Image
-                src="/ppic/ppic1.jpeg"
+                src={accountAvatarSrc}
                 alt={`${accountName} avatar`}
                 width={34}
                 height={34}

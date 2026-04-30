@@ -29,7 +29,12 @@ type ApiErrorPayload = {
   message?: string | string[];
 };
 
-const AUTH_SESSION_KEY = "suzi-chat-auth-session";
+/** Storage key + event name for syncing avatar/profile updates across the shell. */
+export const AUTH_SESSION_STORAGE_KEY = "suzi-chat-auth-session";
+
+export const AUTH_SESSION_UPDATED_EVENT = "suzi-auth-session-updated";
+
+const AUTH_SESSION_KEY = AUTH_SESSION_STORAGE_KEY;
 function normalizeErrorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message;
@@ -86,7 +91,11 @@ export function getStoredAuthSession() {
 }
 
 export function saveAuthSession(session: AuthSession) {
+  if (typeof window === "undefined") {
+    return;
+  }
   window.localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event(AUTH_SESSION_UPDATED_EVENT));
 }
 
 export function clearAuthSession() {

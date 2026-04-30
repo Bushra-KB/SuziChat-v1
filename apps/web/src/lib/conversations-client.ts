@@ -5,6 +5,7 @@ export type PeerSummary = {
   username: string;
   displayName: string | null;
   country: string | null;
+  avatarUrl?: string | null;
 };
 
 export type ConversationThread = {

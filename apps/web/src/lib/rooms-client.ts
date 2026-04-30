@@ -9,7 +9,7 @@ export type ApiRoom = {
   category: string;
   privacy: string;
   createdAt: string;
-  owner: { id: string; username: string; displayName: string | null };
+  owner: { id: string; username: string; displayName: string | null; avatarUrl?: string | null };
   _count?: { messages: number; memberships: number };
   actor?: {
     isMember: boolean;
@@ -27,6 +27,7 @@ export type ApiRoomMessage = {
     id: string;
     username: string;
     displayName: string | null;
+    avatarUrl?: string | null;
   };
 };
 
@@ -46,18 +47,18 @@ export type ApiRoomManagement = {
     userId: string;
     role: string;
     joinedAt: string;
-    user: { id: string; username: string; displayName: string | null };
+    user: { id: string; username: string; displayName: string | null; avatarUrl?: string | null };
   }>;
   pendingRequests: Array<{
     userId: string;
     createdAt: string;
-    user: { id: string; username: string; displayName: string | null };
+    user: { id: string; username: string; displayName: string | null; avatarUrl?: string | null };
   }>;
   bannedUsers: Array<{
     userId: string;
     reason: string | null;
     createdAt: string;
-    user: { id: string; username: string; displayName: string | null };
+    user: { id: string; username: string; displayName: string | null; avatarUrl?: string | null };
   }>;
 };
 

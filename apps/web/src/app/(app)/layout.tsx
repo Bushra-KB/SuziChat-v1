@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  AUTH_SESSION_STORAGE_KEY,
+  AUTH_SESSION_UPDATED_EVENT,
   clearAuthSession,
   getStoredAuthSession,
   hydrateStoredSession,
@@ -45,6 +47,31 @@ export default function ProtectedAppLayout({
         clearAuthSession();
         router.replace("/login");
       });
+  }, [router]);
+
+  /** Keep shell session in sync when profile/avatar is saved (same tab + other tabs). */
+  useEffect(() => {
+    function pullSessionFromStorage() {
+      const next = getStoredAuthSession();
+      if (!next) {
+        router.replace("/login");
+        return;
+      }
+      setSession(next);
+    }
+
+    function onStorage(event: StorageEvent) {
+      if (event.key === AUTH_SESSION_STORAGE_KEY) {
+        pullSessionFromStorage();
+      }
+    }
+
+    window.addEventListener(AUTH_SESSION_UPDATED_EVENT, pullSessionFromStorage);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(AUTH_SESSION_UPDATED_EVENT, pullSessionFromStorage);
+      window.removeEventListener("storage", onStorage);
+    };
   }, [router]);
 
   if (!isReady || !session) {
