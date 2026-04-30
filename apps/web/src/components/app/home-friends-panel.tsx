@@ -732,7 +732,7 @@ export function HomeFriendsPanel() {
                 className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-3 py-1.5 text-xs font-semibold text-pink-100"
                 onClick={() => setProfileUser(null)}
               >
-                Open full profile
+                View full profile
               </Link>
             </div>
           </div>

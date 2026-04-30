@@ -2,11 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MetricCard, Panel, SectionHeader } from "@/components/ui/suzi-primitives";
+import { Panel, cx } from "@/components/ui/suzi-primitives";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import {
   acceptFriendRequest,
   blockPerson,
+  cancelOutgoingFriendRequest,
+  declineFriendRequest,
   sendFriendRequest,
   unfriend,
   unblockPerson,
@@ -15,9 +19,53 @@ import { getStoredAuthSession } from "@/lib/auth-client";
 import { listRooms } from "@/lib/rooms-client";
 import { getUserProfileView, parseUsersApiError, type UserProfileView } from "@/lib/users-client";
 
+function formatJoined(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function StatCard({
+  label,
+  value,
+  tone = "cyan",
+}: {
+  label: string;
+  value: string | number;
+  tone?: "cyan" | "fuchsia" | "emerald" | "amber";
+}) {
+  const ring =
+    tone === "fuchsia"
+      ? "border-fuchsia-300/22 shadow-[0_0_20px_rgba(255,32,121,0.12)]"
+      : tone === "emerald"
+        ? "border-emerald-300/22 shadow-[0_0_18px_rgba(52,211,153,0.12)]"
+        : tone === "amber"
+          ? "border-amber-300/22 shadow-[0_0_18px_rgba(251,191,36,0.12)]"
+          : "border-cyan-300/22 shadow-[0_0_18px_rgba(34,211,238,0.12)]";
+  return (
+    <div
+      className={cx(
+        "rounded-[1.05rem] border bg-[linear-gradient(155deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] px-4 py-3 text-center sm:text-left",
+        ring,
+      )}
+    >
+      <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-cyan-100/48">{label}</p>
+      <p className="mt-1.5 text-2xl font-bold tabular-nums text-white sm:text-[1.65rem]">{value}</p>
+    </div>
+  );
+}
+
 export function PublicProfileClient({ username }: { username: string }) {
+  const router = useRouter();
   const [profileView, setProfileView] = useState<UserProfileView | null>(null);
-  const [topRooms, setTopRooms] = useState<Array<{ id: string; slug: string; name: string }>>([]);
+  const [hostedRooms, setHostedRooms] = useState<Array<{ id: string; slug: string; name: string; description: string | null }>>(
+    [],
+  );
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,11 +82,15 @@ export function PublicProfileClient({ username }: { username: string }) {
       listRooms(),
     ]);
     setProfileView(view);
-    setTopRooms(
+    setHostedRooms(
       rooms
         .filter((room) => room.owner.username === view.profile.username)
-        .slice(0, 3)
-        .map((room) => ({ id: room.id, slug: room.slug, name: room.name })),
+        .map((room) => ({
+          id: room.id,
+          slug: room.slug,
+          name: room.name,
+          description: room.description,
+        })),
     );
   }, [username]);
 
@@ -68,38 +120,58 @@ export function PublicProfileClient({ username }: { username: string }) {
     };
   }, [loadData]);
 
-  const relationshipLabel = useMemo(() => {
+  /** Own profile → account settings page */
+  useEffect(() => {
+    if (!loading && profileView?.relationship.kind === "self") {
+      router.replace("/app/profile");
+    }
+  }, [loading, profileView?.relationship.kind, router]);
+
+  const relationshipBadge = useMemo(() => {
     const relationship = profileView?.relationship;
     if (!relationship) {
-      return "";
+      return { label: "", tone: "muted" as const };
     }
     switch (relationship.kind) {
-      case "self":
-        return "This is your profile";
       case "friends":
-        return "You are friends";
+        return { label: "Friends", tone: "ok" as const };
       case "outgoing_request":
-        return "Request sent";
+        return { label: "Request pending", tone: "pending" as const };
       case "incoming_request":
-        return "Wants to connect";
+        return { label: "Requested you", tone: "accent" as const };
       case "blocked_by_me":
-        return "Blocked by you";
+        return { label: "Blocked", tone: "warn" as const };
       case "blocked_you":
-        return "This user blocked you";
+        return { label: "Unavailable", tone: "warn" as const };
       default:
-        return "Not connected yet";
+        return { label: "Not connected", tone: "muted" as const };
     }
   }, [profileView]);
 
-  async function runFriendAction() {
+  async function runReloadAfter(fn: () => Promise<void>) {
+    const s = getStoredAuthSession();
+    if (!s || !profileView) {
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      await loadData();
+    } catch (e) {
+      setError(parseUsersApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handlePrimaryFriendAction() {
     const s = getStoredAuthSession();
     if (!s || !profileView) {
       return;
     }
     const relation = profileView.relationship;
-    setBusy(true);
-    setError("");
-    try {
+    await runReloadAfter(async () => {
       if (relation.kind === "none") {
         await sendFriendRequest(s.accessToken, profileView.profile.username);
       } else if (relation.kind === "incoming_request") {
@@ -108,134 +180,267 @@ export function PublicProfileClient({ username }: { username: string }) {
         await unfriend(s.accessToken, profileView.profile.id);
       } else if (relation.kind === "blocked_by_me") {
         await unblockPerson(s.accessToken, profileView.profile.id);
-      } else if (relation.kind === "self" || relation.kind === "blocked_you" || relation.kind === "outgoing_request") {
-        setBusy(false);
-        return;
       }
-      await loadData();
-    } catch (e) {
-      setError(parseUsersApiError(e));
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
-  async function runBlockAction() {
+  async function handleDeclineIncoming() {
     const s = getStoredAuthSession();
     if (!s || !profileView) {
       return;
     }
-    if (profileView.relationship.kind === "self" || profileView.relationship.kind === "blocked_you") {
+    const rel = profileView.relationship;
+    if (rel.kind !== "incoming_request") {
       return;
     }
-    setBusy(true);
-    setError("");
-    try {
+    const requestId = rel.requestId;
+    await runReloadAfter(async () => {
+      await declineFriendRequest(s.accessToken, requestId);
+    });
+  }
+
+  async function handleCancelOutgoing() {
+    const s = getStoredAuthSession();
+    if (!s || !profileView) {
+      return;
+    }
+    const rel = profileView.relationship;
+    if (rel.kind !== "outgoing_request") {
+      return;
+    }
+    const requestId = rel.requestId;
+    await runReloadAfter(async () => {
+      await cancelOutgoingFriendRequest(s.accessToken, requestId);
+    });
+  }
+
+  async function handleToggleBlock() {
+    const s = getStoredAuthSession();
+    if (!s || !profileView) {
+      return;
+    }
+    if (profileView.relationship.kind === "blocked_you") {
+      return;
+    }
+    await runReloadAfter(async () => {
       if (profileView.relationship.kind === "blocked_by_me") {
         await unblockPerson(s.accessToken, profileView.profile.id);
       } else {
         await blockPerson(s.accessToken, profileView.profile.id);
       }
-      await loadData();
-    } catch (e) {
-      setError(parseUsersApiError(e));
-    } finally {
-      setBusy(false);
-    }
+    });
   }
+
+  const canOpenDm = useMemo(() => {
+    if (!profileView) {
+      return false;
+    }
+    const k = profileView.relationship.kind;
+    return k !== "blocked_you" && k !== "blocked_by_me";
+  }, [profileView]);
 
   if (loading) {
     return (
-      <Panel className="p-8">
-        <p className="text-sm text-[var(--text-muted)]">Loading profile…</p>
-      </Panel>
+      <div className="flex min-h-[50vh] items-center justify-center px-6">
+        <div className="text-center">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-200" />
+          <p className="mt-4 text-sm text-[var(--text-muted)]">Loading profile…</p>
+        </div>
+      </div>
     );
   }
 
   if (!profileView) {
     return (
-      <Panel className="p-8">
-        <p className="text-lg font-semibold text-white">{error || "Profile not found."}</p>
-        <Link href="/app/profile" className="suzi-secondary-btn mt-4 inline-flex px-4 py-3 text-sm">
-          Back to profile
+      <Panel className="border border-amber-300/22 bg-amber-500/10 p-8">
+        <p className="text-lg font-semibold text-amber-100">{error || "Profile not found."}</p>
+        <p className="mt-2 text-sm text-[var(--text-muted)]">Check the username or try again later.</p>
+        <Link href="/app" className="suzi-secondary-btn mt-6 inline-flex px-5 py-3 text-sm">
+          Back to home
         </Link>
       </Panel>
     );
   }
 
+  if (profileView.relationship.kind === "self") {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center px-6">
+        <p className="text-sm text-[var(--text-muted)]">Opening your profile…</p>
+      </div>
+    );
+  }
+
   const user = profileView.profile;
-  const label = user.displayName?.trim() || user.username;
-  const actionDisabled =
-    busy ||
-    profileView.relationship.kind === "self" ||
-    profileView.relationship.kind === "blocked_you" ||
-    profileView.relationship.kind === "outgoing_request";
-  const friendActionLabel =
-    profileView.relationship.kind === "none"
+  const relation = profileView.relationship;
+  const displayName = user.displayName?.trim() || user.username;
+  const avatarSrc = resolveUserAvatarUrl(user.avatarUrl);
+  const counts = profileView.counts;
+
+  const primaryFriendLabel =
+    relation.kind === "none"
       ? "Add friend"
-      : profileView.relationship.kind === "incoming_request"
+      : relation.kind === "incoming_request"
         ? "Accept request"
-        : profileView.relationship.kind === "friends"
+        : relation.kind === "friends"
           ? "Unfriend"
-          : profileView.relationship.kind === "blocked_by_me"
+          : relation.kind === "blocked_by_me"
             ? "Unblock"
-            : profileView.relationship.kind === "outgoing_request"
+            : relation.kind === "outgoing_request"
               ? "Request sent"
-              : profileView.relationship.kind === "blocked_you"
+              : relation.kind === "blocked_you"
                 ? "Unavailable"
-                : "This is you";
+                : "You";
+
+  const primaryDisabled =
+    busy || relation.kind === "blocked_you" || relation.kind === "outgoing_request";
+
+  const showDecline = relation.kind === "incoming_request";
+  const showCancelRequest = relation.kind === "outgoing_request";
 
   return (
-    <section className="space-y-6">
-      <Panel className="overflow-hidden p-0">
-        <div className="relative h-36 bg-[linear-gradient(145deg,rgba(88,36,175,0.55),rgba(18,24,72,0.72))] sm:h-44">
-          <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(rgba(255,255,255,0.35)_1px,transparent_1px)] [background-size:24px_24px]" />
+    <section className="space-y-6 pb-14">
+      {/* Cover + identity */}
+      <div className="overflow-hidden rounded-[1.35rem] border border-white/10 bg-[linear-gradient(135deg,rgba(72,28,140,0.55),rgba(10,14,42,0.95))] shadow-[0_28px_70px_rgba(6,8,28,0.55)]">
+        <div className="relative h-36 sm:h-44 md:h-52">
+          <div className="absolute inset-0 opacity-[0.35] [background:radial-gradient(ellipse_at_20%_0%,rgba(255,32,121,0.45),transparent_55%),radial-gradient(ellipse_at_80%_30%,rgba(0,229,255,0.22),transparent_50%)]" />
+          <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(255,255,255,0.28)_1px,transparent_1px)] [background-size:18px_18px]" />
         </div>
-        <div className="relative px-6 pb-7 pt-0 sm:px-8">
-          <div className="-mt-14 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
-              <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-[1.35rem] border border-white/14 bg-[rgba(12,10,40,0.96)] shadow-[0_12px_40px_rgba(15,23,42,0.45)] sm:h-32 sm:w-32">
-                <Image src={user.avatarUrl || "/ppic/ppic1.jpeg"} alt="" fill sizes="128px" className="object-cover" />
+
+        <div className="relative px-5 pb-8 pt-0 sm:px-8 md:px-10">
+          <div className="-mt-16 flex flex-col gap-8 md:-mt-20 md:flex-row md:items-end md:justify-between">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:gap-8">
+              <div className="relative mx-auto h-36 w-36 shrink-0 overflow-hidden rounded-full border-[3px] border-fuchsia-300/35 bg-[rgba(12,10,40,0.96)] shadow-[0_20px_50px_rgba(15,23,42,0.55)] ring-4 ring-[rgba(15,18,48,0.85)] sm:mx-0 sm:h-40 sm:w-40">
+                {avatarSrc.startsWith("http://") || avatarSrc.startsWith("https://") ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarSrc} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                ) : (
+                  <Image src={avatarSrc} alt="" fill sizes="160px" className="object-cover" priority />
+                )}
               </div>
-              <div className="min-w-0 pb-1">
-                <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{label}</h1>
-                <p className="mt-1 text-sm font-medium text-cyan-100/72">@{user.username}</p>
-                {user.country ? (
-                  <p className="mt-1 text-sm text-[var(--text-muted)]">{user.country}</p>
-                ) : null}
-                <p className="mt-2 text-xs uppercase tracking-[0.14em] text-cyan-100/62">{relationshipLabel}</p>
+
+              <div className="min-w-0 flex-1 text-center sm:pb-2 sm:text-left">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                  <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl">{displayName}</h1>
+                  {user.isEmailVerified ? (
+                    <span
+                      className="inline-flex items-center rounded-full border border-emerald-300/35 bg-emerald-400/14 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-emerald-100"
+                      title="Verified email"
+                    >
+                      Verified
+                    </span>
+                  ) : null}
+                  {user.isAdultConfirmed ? (
+                    <span className="rounded-full border border-cyan-300/28 bg-cyan-400/12 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-cyan-50">
+                      18+
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1.5 text-base font-medium text-cyan-100/75">@{user.username}</p>
+
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                  <span
+                    className={cx(
+                      "rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em]",
+                      relationshipBadge.tone === "ok"
+                        ? "border-emerald-300/35 bg-emerald-400/14 text-emerald-100"
+                        : relationshipBadge.tone === "accent"
+                          ? "border-fuchsia-300/38 bg-fuchsia-400/16 text-pink-50"
+                          : relationshipBadge.tone === "pending"
+                            ? "border-amber-300/35 bg-amber-400/12 text-amber-100"
+                            : relationshipBadge.tone === "warn"
+                              ? "border-pink-300/35 bg-pink-500/14 text-pink-100"
+                              : "border-white/14 bg-white/6 text-[var(--text-muted)]",
+                    )}
+                  >
+                    {relationshipBadge.label}
+                  </span>
+                  {user.country ? (
+                    <span className="rounded-full border border-white/12 bg-white/5 px-3 py-1 text-[0.72rem] text-[var(--text-muted)]">
+                      {user.country}
+                    </span>
+                  ) : null}
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.72rem] text-[var(--text-soft)]">
+                    Joined {formatJoined(user.createdAt)}
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2 sm:justify-end">
-              <Link href={`/app/messages?with=${encodeURIComponent(user.id)}`} className="suzi-primary-btn px-4 py-2.5 text-sm">
-                Message
-              </Link>
-              <button
-                type="button"
-                disabled={actionDisabled}
-                onClick={() => void runFriendAction()}
-                className="suzi-secondary-btn px-4 py-2.5 text-sm disabled:opacity-60"
-              >
-                {friendActionLabel}
-              </button>
-              <button
-                type="button"
-                disabled={busy || profileView.relationship.kind === "self" || profileView.relationship.kind === "blocked_you"}
-                onClick={() => void runBlockAction()}
-                className="suzi-secondary-btn px-4 py-2.5 text-sm text-pink-100 disabled:opacity-60"
-              >
-                {profileView.relationship.kind === "blocked_by_me" ? "Unblock" : "Block"}
-              </button>
+
+            {/* Actions */}
+            <div className="flex flex-col gap-2 sm:min-w-[min(100%,20rem)]">
+              <div className="flex flex-wrap justify-center gap-2 md:justify-end">
+                {canOpenDm ? (
+                  <Link
+                    href={`/app/messages?with=${encodeURIComponent(user.id)}`}
+                    className="suzi-primary-btn inline-flex min-h-[2.75rem] flex-1 items-center justify-center px-5 py-2.5 text-sm font-semibold sm:flex-none"
+                  >
+                    Message
+                  </Link>
+                ) : (
+                  <span className="inline-flex min-h-[2.75rem] flex-1 cursor-not-allowed items-center justify-center rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-semibold text-[var(--text-muted)] sm:flex-none">
+                    Messaging unavailable
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  disabled={primaryDisabled}
+                  onClick={() => void handlePrimaryFriendAction()}
+                  className="inline-flex min-h-[2.75rem] flex-1 items-center justify-center rounded-xl border border-fuchsia-300/35 bg-fuchsia-400/14 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-fuchsia-300/55 hover:bg-fuchsia-400/22 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none"
+                >
+                  {busy ? "Please wait…" : primaryFriendLabel}
+                </button>
+              </div>
+
+              <div className="flex flex-wrap justify-center gap-2 md:justify-end">
+                {showDecline ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void handleDeclineIncoming()}
+                    className="suzi-secondary-btn min-h-[2.5rem] px-4 py-2 text-sm"
+                  >
+                    Decline
+                  </button>
+                ) : null}
+                {showCancelRequest ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void handleCancelOutgoing()}
+                    className="suzi-secondary-btn min-h-[2.5rem] px-4 py-2 text-sm"
+                  >
+                    Cancel request
+                  </button>
+                ) : null}
+
+                {relation.kind !== "blocked_you" ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void handleToggleBlock()}
+                    className="inline-flex min-h-[2.5rem] items-center justify-center rounded-xl border border-pink-300/30 bg-pink-500/12 px-4 py-2 text-sm font-semibold text-pink-100 transition hover:border-pink-300/45 hover:bg-pink-500/18"
+                  >
+                    {relation.kind === "blocked_by_me" ? "Unblock" : "Block"}
+                  </button>
+                ) : null}
+              </div>
             </div>
           </div>
 
-          {user.bio ? (
-            <p className="mt-6 max-w-3xl text-sm leading-7 text-[var(--text-muted)]">{user.bio}</p>
-          ) : (
-            <p className="mt-6 text-sm text-[var(--text-muted)]">No bio yet.</p>
-          )}
+          {relation.kind === "friends" ? (
+            <p className="mt-6 text-center text-xs text-cyan-100/55 sm:text-left">
+              Friends since {formatJoined(relation.friendsSince)}
+            </p>
+          ) : null}
+
+          {relation.kind === "blocked_you" ? (
+            <p className="mt-6 rounded-[1rem] border border-pink-300/22 bg-pink-500/10 px-4 py-3 text-sm text-pink-100">
+              You cannot interact with this account.
+            </p>
+          ) : null}
         </div>
-      </Panel>
+      </div>
 
       {error ? (
         <Panel className="border border-amber-300/28 bg-amber-500/10 p-4">
@@ -243,43 +448,72 @@ export function PublicProfileClient({ username }: { username: string }) {
         </Panel>
       ) : null}
 
-      <Panel className="p-5 sm:p-6">
-        <SectionHeader eyebrow="Activity" title="At a glance" />
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Friends" value={String(profileView.counts.friends)} />
-          <MetricCard label="Rooms" value={String(profileView.counts.rooms)} />
-          <MetricCard label="Snaps" value={String(profileView.counts.snaps)} />
-          <MetricCard label="Reels" value={String(profileView.counts.reels)} />
+      {/* Stats */}
+      <div>
+        <p className="mb-3 text-[0.65rem] font-bold uppercase tracking-[0.28em] text-cyan-100/48">Activity</p>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="Friends" value={counts.friends} tone="cyan" />
+          <StatCard label="Rooms" value={counts.rooms} tone="fuchsia" />
+          <StatCard label="Snaps" value={counts.snaps} tone="emerald" />
+          <StatCard label="Reels" value={counts.reels} tone="amber" />
         </div>
+      </div>
+
+      {/* Bio */}
+      <Panel className="border border-white/10 bg-[linear-gradient(160deg,rgba(28,18,82,0.45),rgba(12,10,40,0.65))] p-6 sm:p-8">
+        <p className="text-[0.65rem] font-bold uppercase tracking-[0.26em] text-cyan-100/52">About</p>
+        {user.bio?.trim() ? (
+          <p className="mt-4 text-base leading-relaxed text-[var(--text-muted)]">{user.bio.trim()}</p>
+        ) : (
+          <p className="mt-4 text-sm text-[var(--text-soft)]">No bio yet.</p>
+        )}
       </Panel>
 
-      <Panel className="p-5 sm:p-6">
-        <SectionHeader eyebrow="Rooms" title="Hosted by this user" />
-        <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {topRooms.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)]">No public rooms to show yet.</p>
+      {/* Hosted rooms */}
+      <Panel className="p-6 sm:p-8">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[0.65rem] font-bold uppercase tracking-[0.26em] text-cyan-100/52">Rooms</p>
+            <h2 className="mt-2 text-xl font-bold text-white">Hosted spaces</h2>
+            <p className="mt-1 text-sm text-[var(--text-soft)]">Rooms owned by @{user.username}</p>
+          </div>
+        </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {hostedRooms.length === 0 ? (
+            <p className="text-sm text-[var(--text-muted)]">No rooms hosted yet.</p>
           ) : (
-            topRooms.map((room) => (
+            hostedRooms.map((room) => (
               <Link
                 key={room.id}
                 href={`/app/rooms/${encodeURIComponent(room.slug)}`}
-                className="rounded-[1rem] border border-white/10 bg-white/5 px-4 py-3 text-sm text-white transition hover:border-cyan-300/30"
+                className="group rounded-[1.1rem] border border-cyan-300/18 bg-[linear-gradient(155deg,rgba(255,32,121,0.08),rgba(0,229,255,0.05))] p-4 transition hover:border-cyan-300/35 hover:bg-white/6"
               >
-                {room.name}
+                <p className="font-semibold text-white group-hover:text-cyan-100">{room.name}</p>
+                {room.description ? (
+                  <p className="mt-2 line-clamp-2 text-sm text-[var(--text-muted)]">{room.description}</p>
+                ) : null}
+                <p className="mt-3 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-fuchsia-200/75">
+                  Open room →
+                </p>
               </Link>
             ))
           )}
         </div>
       </Panel>
 
-      <Panel className="p-5 sm:p-6">
-        <SectionHeader eyebrow="Social" title="Snaps & reels" copy="Explore shared media across SuziChat." />
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Link href="/app/snaps" className="suzi-secondary-btn px-4 py-2.5 text-sm">
-            Snaps feed
+      {/* Discover */}
+      <Panel className="border border-white/10 p-6 sm:p-8">
+        <p className="text-[0.65rem] font-bold uppercase tracking-[0.26em] text-cyan-100/52">Explore</p>
+        <h2 className="mt-2 text-xl font-bold text-white">Snaps & reels</h2>
+        <p className="mt-2 max-w-xl text-sm text-[var(--text-soft)]">
+          Browse public feeds — posts from @{user.username} appear alongside community content based on visibility.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href="/app/snaps" className="suzi-secondary-btn px-5 py-3 text-sm font-semibold">
+            Open snaps
           </Link>
-          <Link href="/app/reels" className="suzi-secondary-btn px-4 py-2.5 text-sm">
-            Reels
+          <Link href="/app/reels" className="suzi-secondary-btn px-5 py-3 text-sm font-semibold">
+            Open reels
           </Link>
         </div>
       </Panel>

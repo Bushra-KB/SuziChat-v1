@@ -17,6 +17,7 @@ import {
   trackPostView,
 } from "@/lib/posts-client";
 import { apiPostToSnap } from "@/lib/post-ui-mappers";
+import { publicProfileHref, snapAuthorProfileHref } from "@/lib/profile-links";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 import type { Snap } from "@/lib/v1-mock-data";
 
@@ -38,6 +39,7 @@ type SnapLayer = {
 type SnapComment = {
   id: string;
   authorId?: string;
+  authorUsername?: string;
   author: string;
   text: string;
   time: string;
@@ -632,6 +634,7 @@ export function SnapsFeed() {
           mapped.push({
             id: row.id,
             authorId: row.user.id,
+            authorUsername: row.user.username,
             author: row.user.displayName?.trim() || row.user.username,
             text: row.body,
             time: "now",
@@ -701,6 +704,7 @@ export function SnapsFeed() {
         const nextComment: SnapComment = {
           id: commentId,
           authorId: comment.user?.id,
+          authorUsername: comment.user?.username,
           author,
           text: commentBody,
           time: "now",
@@ -813,6 +817,7 @@ export function SnapsFeed() {
             {
               id: newId,
               authorId: created.comment.user.id,
+              authorUsername: created.comment.user.username,
               author: created.comment.user.displayName?.trim() || created.comment.user.username,
               text: created.comment.body,
               time: "now",
@@ -1126,7 +1131,7 @@ export function SnapsFeed() {
 
                         <div className="pointer-events-auto absolute bottom-[6.2rem] right-2.5 z-30 flex flex-col items-center gap-2.5 sm:right-3.5 sm:bottom-[6.8rem]">
                           <Link
-                            href="/app/profile/bushra"
+                            href={snapAuthorProfileHref(snap)}
                             onPointerDown={stopPointerPropagation}
                             onClick={stopClickPropagation}
                             className="relative h-11 w-11 overflow-hidden rounded-full border border-white/45 bg-[rgba(10,12,30,0.74)] shadow-[0_0_16px_rgba(0,0,0,0.3)]"
@@ -1186,7 +1191,7 @@ export function SnapsFeed() {
                             style={{ backdropFilter: "blur(3px)" }}
                           >
                             <Link
-                              href="/app/profile/bushra"
+                              href={snapAuthorProfileHref(snap)}
                               onPointerDown={stopPointerPropagation}
                               onClick={stopClickPropagation}
                               className="inline-block text-[0.95rem] font-semibold text-cyan-100 transition hover:text-white sm:text-[1rem]"
@@ -1263,7 +1268,18 @@ export function SnapsFeed() {
                                   className="rounded-[0.9rem] border border-cyan-300/16 bg-[rgba(10,12,34,0.55)] px-3 py-2"
                                 >
                                   <div className="flex items-center justify-between gap-2">
-                                    <p className="text-[0.84rem] font-semibold text-cyan-50">{comment.author}</p>
+                                    {comment.authorUsername ? (
+                                      <Link
+                                        href={publicProfileHref(comment.authorUsername)}
+                                        onPointerDown={stopPointerPropagation}
+                                        onClick={stopClickPropagation}
+                                        className="text-[0.84rem] font-semibold text-cyan-50 transition hover:text-white"
+                                      >
+                                        {comment.author}
+                                      </Link>
+                                    ) : (
+                                      <p className="text-[0.84rem] font-semibold text-cyan-50">{comment.author}</p>
+                                    )}
                                     <span className="text-[0.68rem] font-medium text-cyan-100/62">{comment.time}</span>
                                   </div>
                                   <p className="mt-1 text-[0.82rem] leading-5 text-cyan-100/84">{comment.text}</p>
