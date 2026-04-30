@@ -76,9 +76,15 @@ export class UsersService {
   }
 
   async getProfileByUsername(viewerId: string, username: string) {
-    const normalized = username.trim().toLowerCase();
+    const trimmed = username.trim();
+    if (!trimmed) {
+      throw new NotFoundException('User profile not found');
+    }
+    /** Match stored casing (e.g. Bushra, Abebe Kebede); URLs often use different case. */
     const target = await this.prisma.user.findFirst({
-      where: { username: normalized },
+      where: {
+        username: { equals: trimmed, mode: 'insensitive' },
+      },
       select: userProfileSelect,
     });
 
