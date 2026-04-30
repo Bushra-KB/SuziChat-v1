@@ -455,8 +455,8 @@ export function AccountProfilePage() {
               </div>
 
               <div className="mt-5 flex flex-wrap justify-center gap-2 sm:justify-start">
-                <Link href="/app/friends" className="suzi-secondary-btn px-4 py-2.5 text-sm">
-                  Find friends
+                <Link href="/app" className="suzi-secondary-btn px-4 py-2.5 text-sm">
+                  Discover on home
                 </Link>
                 <Link href="/app/reels?create=1" className="suzi-secondary-btn px-4 py-2.5 text-sm">
                   New reel

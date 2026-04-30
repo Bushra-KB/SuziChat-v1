@@ -500,7 +500,7 @@ export function MessagesInbox() {
           ))}
           {threads.length === 0 ? (
             <p className="text-sm text-[var(--text-muted)]">
-              Start from <a className="text-cyan-200 underline" href="/app/friends">Friends</a> after you connect with
+              Start from <a className="text-cyan-200 underline" href="/app/profile">your profile</a> after you connect with
               someone.
             </p>
           ) : null}

@@ -156,8 +156,8 @@ export function PublicProfileClient({ username }: { username: string }) {
     return (
       <Panel className="p-8">
         <p className="text-lg font-semibold text-white">{error || "Profile not found."}</p>
-        <Link href="/app/friends" className="suzi-secondary-btn mt-4 inline-flex px-4 py-3 text-sm">
-          Back to friends
+        <Link href="/app/profile" className="suzi-secondary-btn mt-4 inline-flex px-4 py-3 text-sm">
+          Back to profile
         </Link>
       </Panel>
     );

@@ -152,11 +152,11 @@ export function ProfilePageFriendsSection({
         <p className="text-sm text-[var(--text-muted)]">Loading friends…</p>
       ) : sortedFriends.length === 0 ? (
         <div className="rounded-[0.85rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-3 text-sm text-cyan-100/56">
-          You have no friends yet. Explore people from{" "}
-          <Link href="/app/friends" className="font-semibold text-cyan-200 underline-offset-2 hover:underline">
-            Friends
-          </Link>
-          .
+          You have no friends yet. Open{" "}
+          <Link href="/app" className="font-semibold text-cyan-200 underline-offset-2 hover:underline">
+            Home
+          </Link>{" "}
+          to discover people and send requests — your list appears here.
         </div>
       ) : (
         <div className="suzi-scrollbar max-h-[22rem] space-y-2 overflow-y-auto pr-1">
@@ -227,12 +227,6 @@ export function ProfilePageFriendsSection({
           })}
         </div>
       )}
-      <Link
-        href="/app/friends"
-        className="inline-flex items-center justify-center rounded-full border border-cyan-300/22 bg-white/6 px-4 py-2.5 text-sm font-semibold text-cyan-100/88 transition hover:border-cyan-300/38 hover:bg-white/10"
-      >
-        Friends hub
-      </Link>
     </div>
   );
 }
