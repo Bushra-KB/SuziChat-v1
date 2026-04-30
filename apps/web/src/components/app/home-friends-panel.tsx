@@ -288,9 +288,10 @@ export function HomeFriendsPanel() {
   const blockedCount = blockedRows.length;
 
   return (
-    <Panel className="p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
+    <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-4">
+      <div className="shrink-0">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(157,78,221,0.26)] text-fuchsia-200/95 shadow-[0_0_14px_rgba(157,78,221,0.3)]">
             <svg
               aria-hidden="true"
@@ -310,7 +311,7 @@ export function HomeFriendsPanel() {
           </span>
           <h2 className="text-[1.65rem] font-bold tracking-tight text-white">Friends</h2>
         </div>
-      </div>
+        </div>
 
       <div className="mt-4 space-y-3">
         <div className="relative">
@@ -480,8 +481,9 @@ export function HomeFriendsPanel() {
           </div>
         </div>
       </div>
+      </div>
 
-      <div className="suzi-scrollbar mt-4 h-[24rem] space-y-2 overflow-y-auto pr-1">
+      <div className="suzi-scrollbar mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain pr-1">
         {error ? (
           <div className="rounded-[0.9rem] border border-pink-400/20 bg-pink-500/10 px-3 py-2 text-xs text-pink-100">
             {error}
@@ -689,6 +691,8 @@ export function HomeFriendsPanel() {
           )}
         </div>
 
+      </div>
+
       {profileUser ? (
         <div className="fixed inset-0 z-[260] flex items-center justify-center bg-[rgba(6,10,28,0.72)] p-4">
           <div className="w-full max-w-md rounded-[1.1rem] border border-cyan-300/24 bg-[linear-gradient(160deg,rgba(34,20,101,0.96),rgba(20,14,76,0.94))] p-4 shadow-[0_20px_60px_rgba(7,11,30,0.62)]">
@@ -740,7 +744,6 @@ export function HomeFriendsPanel() {
         ) : (
           null
         )}
-      </div>
     </Panel>
   );
 }

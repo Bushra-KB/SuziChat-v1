@@ -202,7 +202,7 @@ function roomGroupShellClassName() {
 }
 
 export function HomeChatRoomsPanel({
-  variant: _variant = "default",
+  variant = "default",
 }: {
   variant?: "default" | "dashboard";
 }) {
@@ -691,8 +691,13 @@ export function HomeChatRoomsPanel({
   }
 
   return (
-    <Panel className="overflow-hidden p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <Panel
+      className={cx(
+        "overflow-hidden p-4 sm:p-5",
+        variant === "dashboard" && "flex h-full min-h-0 flex-col",
+      )}
+    >
+      <div className={cx("flex flex-wrap items-center justify-between gap-3", variant === "dashboard" && "shrink-0")}>
         <div className="flex items-center gap-2.5">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.75rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
             <svg
@@ -723,7 +728,7 @@ export function HomeChatRoomsPanel({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center gap-2">
+      <div className={cx("mt-4 flex items-center gap-2", variant === "dashboard" && "shrink-0")}>
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div className="suzi-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto pb-1 pr-1">
             {primaryCategories.map((category) => (
@@ -801,7 +806,7 @@ export function HomeChatRoomsPanel({
       <div
         className={cx(
           "suzi-scrollbar mt-4 overflow-y-auto rounded-[1.15rem] border border-cyan-300/22 bg-transparent",
-          "h-[550px]",
+          variant === "dashboard" ? "min-h-0 flex-1" : "h-[550px]",
         )}
       >
         {roomsLoading ? (

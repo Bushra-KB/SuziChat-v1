@@ -3,8 +3,8 @@ import { Panel } from "@/components/ui/suzi-primitives";
 
 export function HomeDatingPanel() {
   return (
-    <Link href="/app/dating" className="group block">
-      <Panel className="relative aspect-square overflow-hidden p-4 transition duration-200 hover:-translate-y-0.5 hover:border-fuchsia-300/55 hover:shadow-[0_0_22px_rgba(255,32,121,0.28)]">
+    <Link href="/app/dating" className="group flex h-full min-h-0 flex-col">
+      <Panel className="relative flex h-full min-h-0 flex-1 flex-col justify-between overflow-hidden p-4 transition duration-200 hover:-translate-y-0.5 hover:border-fuchsia-300/55 hover:shadow-[0_0_22px_rgba(255,32,121,0.28)]">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,rgba(54,18,124,0.9),rgba(91,26,151,0.82),rgba(24,10,68,0.88))]" />
 
         <div className="relative z-10 flex items-center gap-2.5">

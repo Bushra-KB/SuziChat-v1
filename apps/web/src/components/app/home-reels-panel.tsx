@@ -75,7 +75,7 @@ export function HomeReelsPanel() {
   }, [catalog, loading]);
 
   return (
-    <Panel className="flex min-h-0 flex-col p-4">
+    <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-4">
       <div className="flex shrink-0 items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.75rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
@@ -106,7 +106,7 @@ export function HomeReelsPanel() {
         </Link>
       </div>
 
-      <div className="suzi-scrollbar mt-4 h-[20.25rem] space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 sm:h-[22.5rem]">
+      <div className="suzi-scrollbar mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain pr-1">
         {reelSlots.map((slot) => {
           if (slot.kind === "skeleton") {
             return (

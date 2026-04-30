@@ -11,19 +11,29 @@ import { games } from "@/lib/v1-mock-data";
 export default function AppHomePage() {
   return (
     <section className="suzi-app-frame-fill">
-      <div className="suzi-app-frame-scroll suzi-scrollbar space-y-6 pr-1">
-      {/* Three independent columns: only gap-5 between top & bottom widgets — avoids a shared "tall row" gap */}
-      <div className="grid gap-5 xl:grid-cols-[23rem_minmax(0,1fr)_20rem] xl:items-stretch">
-        <div className="flex min-h-0 min-w-0 flex-col gap-5">
-          <HomeFriendsPanel />
-          <HomeReelsPanel />
+      {/*
+        xl: three flex columns; each column splits height by flex-grow (scroll inside panels only):
+        left 60/40 (Friends/Reels), middle 60/40 (Rooms/Games), right 75/25 (Snaps/Dating).
+        Narrow: stack with one column scrollport.
+      */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1 suzi-scrollbar xl:h-full xl:min-h-0 xl:flex-row xl:gap-5 xl:overflow-hidden xl:pr-0">
+        <div className="flex w-full min-h-0 flex-col gap-4 xl:h-full xl:w-[23rem] xl:max-w-[23rem] xl:shrink-0 xl:gap-5">
+          <div className="flex min-h-[14rem] flex-col overflow-hidden xl:min-h-0 xl:flex-[3_1_0%]">
+            <HomeFriendsPanel />
+          </div>
+          <div className="flex min-h-[14rem] flex-col overflow-hidden xl:min-h-0 xl:flex-[2_1_0%]">
+            <HomeReelsPanel />
+          </div>
         </div>
 
-        <div className="flex min-h-0 min-w-0 flex-col gap-5">
-          <HomeChatRoomsPanel variant="dashboard" />
+        <div className="flex w-full min-h-0 flex-1 flex-col gap-4 xl:h-full xl:min-h-0 xl:min-w-0 xl:gap-5">
+          <div className="flex min-h-[20rem] flex-col overflow-hidden xl:min-h-0 xl:flex-[3_1_0%]">
+            <HomeChatRoomsPanel variant="dashboard" />
+          </div>
 
-          <Panel className="p-5 sm:p-6">
-            <div className="flex items-center justify-between gap-3">
+          <div className="flex min-h-[16rem] flex-col overflow-hidden xl:min-h-0 xl:flex-[2_1_0%]">
+            <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-5 sm:p-6">
+            <div className="flex shrink-0 items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.75rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
                   <svg
@@ -50,35 +60,39 @@ export default function AppHomePage() {
               </Link>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {games.map((game) => (
-                <article key={game.id} className="rounded-[1.1rem] border border-cyan-300/18 bg-[linear-gradient(165deg,rgba(255,32,121,0.08),rgba(0,229,255,0.07))] p-3 shadow-[0_0_20px_rgba(157,78,221,0.14)]">
-                  <div className={`rounded-[0.9rem] border border-white/14 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.2),transparent_45%)] p-3 ${game.tone}`}>
-                    <div className="relative h-20 w-full overflow-hidden rounded-[0.65rem]">
-                      <Image src={game.icon} alt={game.name} fill sizes="(min-width: 1280px) 20vw, 33vw" className="object-contain" />
+            <div className="suzi-scrollbar mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {games.map((game) => (
+                  <article key={game.id} className="rounded-[1.1rem] border border-cyan-300/18 bg-[linear-gradient(165deg,rgba(255,32,121,0.08),rgba(0,229,255,0.07))] p-3 shadow-[0_0_20px_rgba(157,78,221,0.14)]">
+                    <div className={`rounded-[0.9rem] border border-white/14 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.2),transparent_45%)] p-3 ${game.tone}`}>
+                      <div className="relative h-20 w-full overflow-hidden rounded-[0.65rem]">
+                        <Image src={game.icon} alt={game.name} fill sizes="(min-width: 1280px) 20vw, 33vw" className="object-contain" />
+                      </div>
                     </div>
-                  </div>
-                  <p className="mt-3 text-lg font-semibold text-white">{game.name}</p>
-                  <Link
-                    href={`/app/games/${game.id}`}
-                    className="suzi-secondary-btn mt-3 inline-flex w-full items-center justify-center px-3 py-2 text-sm"
-                  >
-                    Open lobby
-                  </Link>
-                </article>
-              ))}
+                    <p className="mt-3 text-lg font-semibold text-white">{game.name}</p>
+                    <Link
+                      href={`/app/games/${game.id}`}
+                      className="suzi-secondary-btn mt-3 inline-flex w-full items-center justify-center px-3 py-2 text-sm"
+                    >
+                      Open lobby
+                    </Link>
+                  </article>
+                ))}
+              </div>
             </div>
-          </Panel>
+            </Panel>
+          </div>
         </div>
 
-        <div className="flex min-h-0 min-w-0 flex-col gap-5">
-          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden xl:h-[min(44rem,52dvh)]">
+        <div className="flex w-full min-h-0 flex-col gap-4 xl:h-full xl:w-[20rem] xl:max-w-[20rem] xl:shrink-0 xl:gap-5">
+          <div className="flex min-h-[18rem] flex-col overflow-hidden xl:min-h-0 xl:flex-[3_1_0%]">
             <HomeSnapsPanel layout="dashboard" />
           </div>
 
-          <HomeDatingPanel />
+          <div className="flex min-h-[12rem] flex-col overflow-hidden xl:min-h-0 xl:flex-[1_1_0%]">
+            <HomeDatingPanel />
+          </div>
         </div>
-      </div>
       </div>
     </section>
   );
