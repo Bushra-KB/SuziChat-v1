@@ -120,6 +120,24 @@ html.suzi-app-frame-lock body {
   -webkit-overflow-scrolling: touch;
 }
 
+/*
+ * App home desktop density: combine (1) zoom, (2) rem‑biased panels, (3) tighter tokens in page.tsx.
+ * Targets ~75% browser-zoom appearance at 100% zoom without changing the single-page / three-column layout.
+ */
+@media (min-width: 1280px) {
+  .suzi-home-dashboard-scale {
+    zoom: 0.75;
+    transform-origin: top center;
+    line-height: 1.42;
+  }
+
+  /* Technique 2: slightly smaller type inside panel shells (em‑friendly blocks inherit from here). */
+  .suzi-home-dashboard-scale .suzi-panel,
+  .suzi-home-dashboard-scale .suzi-panel-muted {
+    font-size: 0.9375rem;
+  }
+}
+
 a {
   text-decoration: none;
 }
