@@ -70,7 +70,7 @@ export function ChessBoardView({
         <Chessboard />
       </ChessboardProvider>
       <p className="mt-3 text-center text-xs text-cyan-100/65">
-        Drag pieces to move. Promotion defaults to queen when you drop on the back rank.
+        Drag pieces to move; the board stays in sync over the live session. Promotion defaults to queen on the back rank.
       </p>
     </div>
   );

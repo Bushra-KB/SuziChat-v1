@@ -9,6 +9,7 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
+import { MoveKind } from '@prisma/client';
 import type { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { DatingService } from '../dating/dating.service';
@@ -469,7 +470,11 @@ export class RealtimeGateway
   async onGameSessionAction(
     @ConnectedSocket() client: AuthSocket,
     @MessageBody()
-    payload: { sessionId?: string; action?: Record<string, unknown> },
+    payload: {
+      sessionId?: string;
+      action?: Record<string, unknown>;
+      kind?: MoveKind;
+    },
   ) {
     const userId = this.getUserId(client);
     const sessionId = payload?.sessionId?.trim();
@@ -485,6 +490,7 @@ export class RealtimeGateway
     this.lastGameSocketActionAt.set(userId, now);
     const snapshot = await this.gamesService.postAction(sessionId, userId, {
       payload: payload.action,
+      kind: payload.kind,
     });
     this.markUserActive(userId);
     return { ok: true, session: snapshot };

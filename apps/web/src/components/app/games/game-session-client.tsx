@@ -2,13 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { CheckersBoardView } from "@/components/app/games/checkers-board-view";
 import { ChessBoardView } from "@/components/app/games/chess-board-view";
+import { Connect4BoardView } from "@/components/app/games/connect4-board-view";
 import { GameFrame } from "@/components/app/games/game-frame";
 import { gameTypeToId } from "@/components/app/games/game-meta";
+import { PokerTableView } from "@/components/app/games/poker-table-view";
 import { Panel } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
-import { getGameSession, postGameAction, type ApiGameLobby, type ApiGameSession } from "@/lib/games-client";
-import { joinSessionChannel, openGamesSocket } from "@/lib/games-realtime";
+import { getGameSession, postGameAction, type ApiGameSession } from "@/lib/games-client";
+import { joinSessionChannel, openGamesSocket, postGameSessionAction } from "@/lib/games-realtime";
 
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
@@ -68,6 +71,16 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
     setBusy(true);
     setError("");
     try {
+      const socket = openGamesSocket(auth.accessToken);
+      if (socket.connected) {
+        try {
+          const next = await postGameSessionAction(socket, sessionId, payload, kind);
+          setSession(next);
+          return;
+        } catch {
+          /* fall back to HTTP */
+        }
+      }
       const next = await postGameAction(auth.accessToken, sessionId, payload, kind);
       setSession(next);
     } catch (e: unknown) {
@@ -95,6 +108,22 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
       .map((s) => s.userId as string) ?? [];
   const boardOrientation: "white" | "black" =
     seatUserIds[0] === meId ? "white" : seatUserIds[1] === meId ? "black" : "white";
+
+  const rawCheckers = asArray(state.board);
+  const checkersBoard = Array.from({ length: 8 }, (_, r) =>
+    Array.from({ length: 8 }, (_, c) => {
+      const row = asArray(rawCheckers[r]);
+      const cell = row[c];
+      return cell == null || cell === "" ? null : String(cell);
+    }),
+  );
+
+  const rawC4 = asArray(state.board);
+  const connect4Board = Array.from({ length: 6 }, (_, r) =>
+    Array.from({ length: 7 }, (_, c) => Number(asArray(rawC4[r])[c] ?? 0)),
+  );
+
+  const gamePlayers = asArray(state.players).map(String);
 
   return (
     <section className="suzi-app-frame-fill">
@@ -127,14 +156,30 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
                   onUciMove={(move: string) => void runAction({ move })}
                 />
               ) : null}
-              {session.gameType === "CHECKERS" ? (
-                <CheckersBoard state={state} busy={busy} onMove={(from, to) => void runAction({ from, to })} />
+              {session.gameType === "CHECKERS" && gamePlayers.length >= 2 ? (
+                <CheckersBoardView
+                  board={checkersBoard}
+                  players={gamePlayers}
+                  meId={meId}
+                  myTurn={session.status === "ACTIVE" && isTurn}
+                  busy={busy}
+                  active={session.status === "ACTIVE"}
+                  onMove={(from, to) => void runAction({ from, to })}
+                />
               ) : null}
-              {session.gameType === "CONNECT4" ? (
-                <Connect4Board state={state} busy={busy} onDrop={(column) => void runAction({ column })} />
+              {session.gameType === "CONNECT4" && gamePlayers.length >= 2 ? (
+                <Connect4BoardView
+                  board={connect4Board}
+                  players={gamePlayers}
+                  meId={meId}
+                  myTurn={session.status === "ACTIVE" && isTurn}
+                  busy={busy}
+                  active={session.status === "ACTIVE"}
+                  onDrop={(column) => void runAction({ column })}
+                />
               ) : null}
               {session.gameType === "POKER_HOLDEM" ? (
-                <PokerTable
+                <PokerTableView
                   lobbySeats={session.lobby.seats}
                   state={state}
                   busy={busy}
@@ -176,158 +221,5 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
         )}
       </div>
     </section>
-  );
-}
-
-function CheckersBoard({
-  state,
-  busy,
-  onMove,
-}: {
-  state: Record<string, unknown>;
-  busy: boolean;
-  onMove: (from: string, to: string) => void;
-}) {
-  const board = asArray(state.board).map((row) => asArray(row));
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  return (
-    <div>
-      <div className="grid max-w-[26rem] grid-cols-8 overflow-hidden rounded-xl border border-cyan-300/24">
-        {board.flatMap((row, r) =>
-          row.map((cell, c) => (
-            <div key={`${r}-${c}`} className={`flex h-10 items-center justify-center text-base font-semibold ${((r + c) % 2 === 0 ? "bg-[#2b235c]" : "bg-[#3c2d79]")} text-white`}>
-              {String(cell ?? "").replace("null", "")}
-            </div>
-          )),
-        )}
-      </div>
-      <div className="mt-3 flex flex-wrap items-end gap-2">
-        <label className="text-xs text-cyan-100/70">
-          From row,col
-          <input value={from} onChange={(e) => setFrom(e.target.value)} placeholder="5,0" className="suzi-input mt-1 h-9 w-24 px-2 text-sm" />
-        </label>
-        <label className="text-xs text-cyan-100/70">
-          To row,col
-          <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="4,1" className="suzi-input mt-1 h-9 w-24 px-2 text-sm" />
-        </label>
-        <button type="button" disabled={busy} onClick={() => onMove(from, to)} className="suzi-primary-btn h-9 px-3 text-sm disabled:opacity-60">
-          Move
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Connect4Board({
-  state,
-  busy,
-  onDrop,
-}: {
-  state: Record<string, unknown>;
-  busy: boolean;
-  onDrop: (column: number) => void;
-}) {
-  const board = asArray(state.board).map((row) => asArray(row).map((cell) => Number(cell)));
-  return (
-    <div>
-      <div className="grid max-w-[30rem] grid-cols-7 gap-1 rounded-xl border border-cyan-300/24 bg-[#261f56] p-2">
-        {board.flatMap((row, r) =>
-          row.map((cell, c) => (
-            <button
-              key={`${r}-${c}`}
-              type="button"
-              disabled={busy}
-              onClick={() => onDrop(c)}
-              className="flex h-11 items-center justify-center rounded-full border border-cyan-300/18 bg-[#1d1748] text-sm text-white transition hover:border-cyan-300/42"
-            >
-              {cell === 1 ? "🟡" : cell === 2 ? "🔴" : ""}
-            </button>
-          )),
-        )}
-      </div>
-      <p className="mt-3 text-xs text-cyan-100/68">Click a column cell to drop your disc.</p>
-    </div>
-  );
-}
-
-function PokerTable({
-  lobbySeats,
-  state,
-  busy,
-  meId,
-  onAction,
-}: {
-  lobbySeats: ApiGameLobby["seats"];
-  state: Record<string, unknown>;
-  busy: boolean;
-  meId: string;
-  onAction: (kind: string, amount?: number) => void;
-}) {
-  const board = asArray(state.board).map(String);
-  const players = asArray(state.players) as Array<Record<string, unknown>>;
-  const [amount, setAmount] = useState(100);
-  return (
-    <div className="space-y-3">
-      <div className="rounded-xl border border-fuchsia-300/24 bg-[rgba(35,18,88,0.7)] p-3">
-        <p className="text-sm text-cyan-100/74">Board: {board.join(" ") || "—"}</p>
-        <p className="text-sm text-cyan-100/74">Pot: {String(state.pot ?? 0)} • Current bet: {String(state.currentBet ?? 0)}</p>
-        <p className="text-sm text-cyan-100/74">Phase: {String(state.phase ?? "PREFLOP")}</p>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {players.map((player, idx) => {
-          const uid = String(player.userId ?? "");
-          const isMe = Boolean(meId && uid === meId);
-          const seatRow = lobbySeats.find((s) => s.userId === uid);
-          const displayName =
-            seatRow?.user?.displayName?.trim() || seatRow?.user?.username || `Seat ${String(player.seatIndex ?? "?")}`;
-          const rawCards = asArray(player.cards).map(String);
-          const masked =
-            rawCards.length > 0 && rawCards.every((c) => c === "BACK");
-          const holeLabel =
-            rawCards.length === 0
-              ? "—"
-              : isMe
-                ? rawCards.join(" ")
-                : masked
-                  ? "● ●"
-                  : rawCards.join(" ");
-          return (
-          <div key={idx} className={`rounded-lg border px-3 py-2 text-xs ${isMe ? "border-emerald-300/38 bg-[rgba(14,40,36,0.55)]" : "border-cyan-300/18 bg-[rgba(20,13,62,0.92)]"} text-cyan-100/95`}>
-            <p className="font-semibold">{isMe ? "You" : displayName}</p>
-            <p className="mt-1 font-mono text-[0.95rem] tracking-[0.12em]">{holeLabel}</p>
-            <p>Stack: {String(player.stack ?? 0)} • Committed: {String(player.committed ?? 0)}</p>
-            <p>{Boolean(player.folded) ? "Folded" : Boolean(player.allIn) ? "All-in" : "Active"}</p>
-          </div>
-          );
-        })}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" disabled={busy} className="suzi-secondary-btn px-3 py-2 text-xs" onClick={() => onAction("CHECK")}>
-          Check
-        </button>
-        <button type="button" disabled={busy} className="suzi-secondary-btn px-3 py-2 text-xs" onClick={() => onAction("CALL")}>
-          Call
-        </button>
-        <button type="button" disabled={busy} className="suzi-secondary-btn px-3 py-2 text-xs" onClick={() => onAction("FOLD")}>
-          Fold
-        </button>
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(Number(e.target.value))}
-          className="suzi-input h-9 w-28 px-2 text-sm"
-        />
-        <button type="button" disabled={busy} className="suzi-primary-btn px-3 py-2 text-xs" onClick={() => onAction("BET", amount)}>
-          Bet
-        </button>
-        <button type="button" disabled={busy} className="suzi-primary-btn px-3 py-2 text-xs" onClick={() => onAction("RAISE", amount)}>
-          Raise
-        </button>
-        <button type="button" disabled={busy} className="rounded-lg border border-pink-300/35 bg-pink-500/22 px-3 py-2 text-xs font-semibold text-pink-100" onClick={() => onAction("ALL_IN")}>
-          All-in
-        </button>
-      </div>
-    </div>
   );
 }
