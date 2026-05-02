@@ -44,10 +44,11 @@ type PokerTableViewProps = {
   state: Record<string, unknown>;
   busy: boolean;
   meId: string;
+  readOnly?: boolean;
   onAction: (kind: string, amount?: number) => void;
 };
 
-export function PokerTableView({ lobbySeats, state, busy, meId, onAction }: PokerTableViewProps) {
+export function PokerTableView({ lobbySeats, state, busy, meId, readOnly = false, onAction }: PokerTableViewProps) {
   const board = asArray(state.board).map(String);
   const players = asArray(state.players) as Array<Record<string, unknown>>;
   const [amount, setAmount] = useState(100);
@@ -57,6 +58,11 @@ export function PokerTableView({ lobbySeats, state, busy, meId, onAction }: Poke
 
   return (
     <div className="space-y-5">
+      {readOnly ? (
+        <p className="rounded-lg border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-center text-sm text-amber-100/90">
+          You’re watching this hand. Take a seat in the lobby to bet.
+        </p>
+      ) : null}
       <div className="relative overflow-hidden rounded-[2rem] border border-emerald-700/35 bg-gradient-to-b from-[#0f4d3a] via-[#0a3528] to-[#061f18] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
         <div className="pointer-events-none absolute inset-6 rounded-[1.5rem] border border-emerald-400/15 bg-[radial-gradient(ellipse_at_center,rgba(16,90,70,0.45),transparent_70%)]" />
         <div className="relative mx-auto max-w-lg space-y-4">
@@ -128,13 +134,13 @@ export function PokerTableView({ lobbySeats, state, busy, meId, onAction }: Poke
       <div className="rounded-xl border border-fuchsia-400/20 bg-[rgba(35,18,88,0.45)] p-4">
         <p className="mb-3 text-xs font-medium uppercase tracking-wider text-fuchsia-200/80">Actions</p>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" disabled={busy} className="suzi-secondary-btn px-3 py-2 text-xs" onClick={() => onAction("CHECK")}>
+          <button type="button" disabled={readOnly || busy} className="suzi-secondary-btn px-3 py-2 text-xs" onClick={() => onAction("CHECK")}>
             Check
           </button>
-          <button type="button" disabled={busy} className="suzi-secondary-btn px-3 py-2 text-xs" onClick={() => onAction("CALL")}>
+          <button type="button" disabled={readOnly || busy} className="suzi-secondary-btn px-3 py-2 text-xs" onClick={() => onAction("CALL")}>
             Call
           </button>
-          <button type="button" disabled={busy} className="suzi-secondary-btn px-3 py-2 text-xs" onClick={() => onAction("FOLD")}>
+          <button type="button" disabled={readOnly || busy} className="suzi-secondary-btn px-3 py-2 text-xs" onClick={() => onAction("FOLD")}>
             Fold
           </button>
           <div className="flex items-center gap-2">
@@ -142,18 +148,19 @@ export function PokerTableView({ lobbySeats, state, busy, meId, onAction }: Poke
               type="number"
               value={amount}
               onChange={(e) => setAmount(Number(e.target.value))}
+              disabled={readOnly}
               className="suzi-input h-9 w-24 px-2 text-sm"
             />
-            <button type="button" disabled={busy} className="suzi-primary-btn px-3 py-2 text-xs" onClick={() => onAction("BET", amount)}>
+            <button type="button" disabled={readOnly || busy} className="suzi-primary-btn px-3 py-2 text-xs" onClick={() => onAction("BET", amount)}>
               Bet
             </button>
-            <button type="button" disabled={busy} className="suzi-primary-btn px-3 py-2 text-xs" onClick={() => onAction("RAISE", amount)}>
+            <button type="button" disabled={readOnly || busy} className="suzi-primary-btn px-3 py-2 text-xs" onClick={() => onAction("RAISE", amount)}>
               Raise
             </button>
           </div>
           <button
             type="button"
-            disabled={busy}
+            disabled={readOnly || busy}
             className="rounded-lg border border-pink-300/35 bg-pink-500/22 px-3 py-2 text-xs font-semibold text-pink-100"
             onClick={() => onAction("ALL_IN")}
           >

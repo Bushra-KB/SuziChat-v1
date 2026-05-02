@@ -6,11 +6,14 @@ export function GameFrame({
   title,
   subtitle,
   reconnecting = false,
+  reconnectHint,
   children,
 }: {
   title: string;
   subtitle?: string;
   reconnecting?: boolean;
+  /** Shown under the header while reconnecting (e.g. sync reminder). */
+  reconnectHint?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -20,6 +23,9 @@ export function GameFrame({
           <div>
             <h2 className="text-xl font-bold text-white sm:text-2xl">{title}</h2>
             {subtitle ? <p className="mt-1 text-sm text-cyan-100/72">{subtitle}</p> : null}
+            {reconnecting && reconnectHint ? (
+              <p className="mt-2 max-w-xl text-xs leading-relaxed text-amber-100/85">{reconnectHint}</p>
+            ) : null}
           </div>
           <div
             className={cx(

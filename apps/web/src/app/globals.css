@@ -629,6 +629,33 @@ h5 {
   }
 }
 
+@keyframes suzi-game-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  15% {
+    transform: translateX(-8px);
+  }
+
+  30% {
+    transform: translateX(8px);
+  }
+
+  45% {
+    transform: translateX(-5px);
+  }
+
+  60% {
+    transform: translateX(5px);
+  }
+}
+
+.suzi-game-shake {
+  animation: suzi-game-shake 0.42s ease-in-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .index-scene-drift,
   .index-aurora,
@@ -637,7 +664,8 @@ h5 {
   .index-reveal-card,
   .index-twinkle-star,
   .index-shooting-star,
-  .suzi-bottom-star {
+  .suzi-bottom-star,
+  .suzi-game-shake {
     animation: none !important;
     transform: none !important;
   }

@@ -9,6 +9,7 @@ type Connect4BoardViewProps = {
   myTurn: boolean;
   busy: boolean;
   active: boolean;
+  spectator?: boolean;
   onDrop: (column: number) => void;
 };
 
@@ -20,10 +21,11 @@ export function Connect4BoardView({
   myTurn,
   busy,
   active,
+  spectator = false,
   onDrop,
 }: Connect4BoardViewProps) {
   const mySlot = players[0] === meId ? 1 : players[1] === meId ? 2 : 0;
-  const canPlay = active && myTurn && !busy && mySlot > 0;
+  const canPlay = active && myTurn && !busy && mySlot > 0 && !spectator;
 
   const [dragging, setDragging] = useState(false);
   const [dragCol, setDragCol] = useState<number | null>(null);
@@ -91,7 +93,11 @@ export function Connect4BoardView({
     <div className="mx-auto w-full max-w-[min(100%,32rem)] select-none">
       <div className="rounded-2xl border border-cyan-300/24 bg-gradient-to-b from-[#1a1245] to-[#0f0a2e] p-3 shadow-[0_16px_48px_rgba(0,0,0,0.45)]">
         <p className="mb-2 text-center text-xs font-medium text-cyan-100/70">
-          {canPlay ? "Drag your disc onto a column." : "Waiting for opponent…"}
+          {spectator
+            ? "You’re watching this table."
+            : canPlay
+              ? "Drag your disc onto a column."
+              : "Waiting for opponent…"}
         </p>
 
         {/* Drop targets — tall hit areas above board */}

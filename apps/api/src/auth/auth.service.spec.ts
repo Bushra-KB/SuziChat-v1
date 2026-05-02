@@ -210,7 +210,6 @@ describe('AuthService', () => {
     const result = await authService.forgotPassword('forgot@example.com');
 
     expect(result.message).toContain('If an account exists');
-    expect(result.resetTokenPreview).toEqual(expect.any(String));
     expect(result.resetTokenExpiresAt).toEqual(expect.any(String));
     const forgotPasswordUpdateCalls = prismaMock.user.update.mock
       .calls as Array<

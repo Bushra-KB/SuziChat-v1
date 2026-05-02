@@ -11,6 +11,8 @@ type CheckersBoardViewProps = {
   myTurn: boolean;
   busy: boolean;
   active: boolean;
+  /** Logged in but not seated — view only */
+  spectator?: boolean;
   onMove: (from: string, to: string) => void;
 };
 
@@ -44,11 +46,12 @@ export function CheckersBoardView({
   myTurn,
   busy,
   active,
+  spectator = false,
   onMove,
 }: CheckersBoardViewProps) {
   const imBlack = players[0] === meId;
   const flip = players[1] === meId;
-  const canInteract = active && myTurn && !busy;
+  const canInteract = active && myTurn && !busy && !spectator;
 
   const dragStart = useRef<{ r: number; c: number } | null>(null);
   const upListener = useRef<((e: PointerEvent) => void) | null>(null);
@@ -104,50 +107,51 @@ export function CheckersBoardView({
     [board, canInteract, finishDrag, imBlack, logicalAtDisplay],
   );
 
-  const cells: React.ReactNode[] = [];
-  for (let displayR = 0; displayR < 8; displayR += 1) {
-    for (let displayC = 0; displayC < 8; displayC += 1) {
-      const { r, c } = logicalAtDisplay(displayR, displayC);
-      const piece = board[r]?.[c] ?? null;
-      const dark = (r + c) % 2 === 1;
-      const isMine = isMyPiece(piece, imBlack);
-
-      cells.push(
-        <div
-          key={`${displayR}-${displayC}`}
-          role="gridcell"
-          data-checkers-cell=""
-          data-r={r}
-          data-c={c}
-          className={`relative flex aspect-square items-center justify-center ${
-            dark ? "bg-[#2a1f4a]" : "bg-[#5a5280]/35"
-          }`}
-        >
-          {piece ? (
-            <button
-              type="button"
-              tabIndex={-1}
-              disabled={!canInteract || !isMine}
-              onPointerDown={(e) => handlePiecePointerDown(e, displayR, displayC)}
-              className={`flex h-full w-full items-center justify-center p-0.5 ${
-                canInteract && isMine ? "cursor-grab touch-none active:cursor-grabbing" : "cursor-default"
-              } disabled:opacity-90`}
-            >
-              <PieceDisc piece={piece} />
-            </button>
-          ) : null}
-        </div>,
-      );
-    }
-  }
-
   return (
     <div className="mx-auto w-full max-w-[min(100%,28rem)] select-none">
       <div className="overflow-hidden rounded-xl border border-cyan-300/28 shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-        <div className="grid aspect-square grid-cols-8">{cells}</div>
+        <div className="grid aspect-square grid-cols-8">
+          {Array.from({ length: 64 }, (_, i) => {
+            const displayR = Math.floor(i / 8);
+            const displayC = i % 8;
+            const { r, c } = logicalAtDisplay(displayR, displayC);
+            const piece = board[r]?.[c] ?? null;
+            const dark = (r + c) % 2 === 1;
+            const isMine = isMyPiece(piece, imBlack);
+
+            return (
+              <div
+                key={`${displayR}-${displayC}`}
+                role="gridcell"
+                data-checkers-cell=""
+                data-r={r}
+                data-c={c}
+                className={`relative flex aspect-square items-center justify-center ${
+                  dark ? "bg-[#2a1f4a]" : "bg-[#5a5280]/35"
+                }`}
+              >
+                {piece ? (
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    disabled={!canInteract || !isMine}
+                    onPointerDown={(e) => handlePiecePointerDown(e, displayR, displayC)}
+                    className={`flex h-full w-full items-center justify-center p-0.5 ${
+                      canInteract && isMine ? "cursor-grab touch-none active:cursor-grabbing" : "cursor-default"
+                    } disabled:opacity-90`}
+                  >
+                    <PieceDisc piece={piece} />
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
       </div>
       <p className="mt-3 text-center text-xs text-cyan-100/65">
-        Drag your piece to a destination square. You play {imBlack ? "black" : "red"} — the board is oriented with your side toward you.
+        {spectator
+          ? "You’re watching — moves sync live from seated players."
+          : `Drag your piece to a destination square. You play ${imBlack ? "black" : "red"} — the board is oriented with your side toward you.`}
       </p>
     </div>
   );
