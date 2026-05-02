@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { gameMeta, gameTypeToId } from "@/components/app/games/game-meta";
 import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
-import { explorePeople, type FriendSummaryUser } from "@/lib/friends-client";
+import { explorePeople, getFriendsSummary, type FriendSummaryUser } from "@/lib/friends-client";
 import {
   createGameLobby,
   inviteToGameLobby,
@@ -27,6 +27,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
   const [inviteSuggestions, setInviteSuggestions] = useState<FriendSummaryUser[]>([]);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [selectedInviteUser, setSelectedInviteUser] = useState<FriendSummaryUser | null>(null);
+  const [friendDirectory, setFriendDirectory] = useState<FriendSummaryUser[]>([]);
 
   async function refresh() {
     setLoading(true);
@@ -50,11 +51,32 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
   useEffect(() => {
     const auth = getStoredAuthSession();
     if (!auth?.accessToken) {
+      setFriendDirectory([]);
+      return;
+    }
+    void getFriendsSummary(auth.accessToken)
+      .then((summary) => {
+        setFriendDirectory(
+          summary.friends.map((row) => ({
+            id: row.id,
+            email: row.email,
+            username: row.username,
+            displayName: row.displayName,
+            country: row.country,
+          })),
+        );
+      })
+      .catch(() => setFriendDirectory([]));
+  }, []);
+
+  useEffect(() => {
+    const auth = getStoredAuthSession();
+    if (!auth?.accessToken) {
       setInviteSuggestions([]);
       setInviteLoading(false);
       return;
     }
-    const q = inviteQuery.trim();
+    const q = inviteQuery.trim().toLowerCase();
     if (q.length < 2) {
       setInviteSuggestions([]);
       setInviteLoading(false);
@@ -63,15 +85,24 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
     let cancelled = false;
     setInviteLoading(true);
     const timer = window.setTimeout(() => {
-      void explorePeople(auth.accessToken, q, 8)
+      const needle = inviteQuery.trim().toLowerCase();
+      const friendMatches = friendDirectory
+        .filter((row) => row.id !== me)
+        .filter((row) => {
+          const label = `${row.username} ${row.displayName ?? ""}`.toLowerCase();
+          return label.includes(needle);
+        })
+        .slice(0, 8);
+      const seen = new Set(friendMatches.map((row) => row.id));
+      void explorePeople(auth.accessToken, inviteQuery.trim(), 14)
         .then((rows) => {
-          if (!cancelled) {
-            setInviteSuggestions(rows.filter((row) => row.id !== me));
-          }
+          if (cancelled) return;
+          const rest = rows.filter((row) => row.id !== me && !seen.has(row.id));
+          setInviteSuggestions([...friendMatches, ...rest].slice(0, 12));
         })
         .catch(() => {
           if (!cancelled) {
-            setInviteSuggestions([]);
+            setInviteSuggestions(friendMatches);
           }
         })
         .finally(() => {
@@ -84,7 +115,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [inviteQuery, me]);
+  }, [inviteQuery, me, friendDirectory]);
 
   async function onCreateLobby() {
     const auth = getStoredAuthSession();
@@ -240,7 +271,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                           setInviteQuery(e.target.value);
                           setSelectedInviteUser(null);
                         }}
-                        placeholder="Search user by name..."
+                        placeholder="Friends first — search username or name..."
                         className="suzi-input h-9 w-full px-3 text-sm"
                       />
                       {(inviteLoading || inviteSuggestions.length > 0) && !selectedInviteUser ? (

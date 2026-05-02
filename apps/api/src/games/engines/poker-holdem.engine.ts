@@ -1,6 +1,12 @@
 import { BadRequestException } from '@nestjs/common';
 import { GameType, PokerActionKind, PokerRound } from '@prisma/client';
-import type { EngineApplyContext, EngineContext, EngineResult, PokerPlayerState, PokerState } from './game-engine.types';
+import type {
+  EngineApplyContext,
+  EngineContext,
+  EngineResult,
+  PokerPlayerState,
+  PokerState,
+} from './game-engine.types';
 
 type RuntimePokerPlayer = PokerPlayerState & {
   acted: boolean;
@@ -26,16 +32,21 @@ function buildDeck(seed = Date.now()): string[] {
     x ^= x >>> 17;
     x ^= x << 5;
     const j = Math.abs(x) % (i + 1);
-    [deck[i], deck[j]] = [deck[j]!, deck[i]!];
+    [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   return deck;
 }
 
-function nextAliveSeat(state: RuntimePokerState, startSeatIndex: number): number {
+function nextAliveSeat(
+  state: RuntimePokerState,
+  startSeatIndex: number,
+): number {
   const ordered = [...state.players].sort((a, b) => a.seatIndex - b.seatIndex);
-  const startPos = ordered.findIndex((player) => player.seatIndex === startSeatIndex);
+  const startPos = ordered.findIndex(
+    (player) => player.seatIndex === startSeatIndex,
+  );
   for (let step = 1; step <= ordered.length; step += 1) {
-    const row = ordered[(startPos + step) % ordered.length]!;
+    const row = ordered[(startPos + step) % ordered.length];
     if (!row.folded && row.stack > 0) {
       return row.seatIndex;
     }
@@ -89,15 +100,26 @@ function evaluate5(cards: string[]): EvalRank {
   for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
   const unique = [...new Set(values)];
   const wheel = [14, 5, 4, 3, 2];
-  const straight = unique.length === 5 && (unique[0]! - unique[4]! === 4 || wheel.every((v, i) => unique[i] === v));
-  const sortedGroups = [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0]);
-  if (straight && flush) return [8, unique[0] === 14 && unique[1] === 5 ? 5 : unique[0]!, 0, 0, 0, 0];
-  if (sortedGroups[0]?.[1] === 4) return [7, sortedGroups[0][0], sortedGroups[1]?.[0] ?? 0, 0, 0, 0];
-  if (sortedGroups[0]?.[1] === 3 && sortedGroups[1]?.[1] === 2) return [6, sortedGroups[0][0], sortedGroups[1][0], 0, 0, 0];
-  if (flush) return [5, values[0]!, values[1]!, values[2]!, values[3]!, values[4]!];
-  if (straight) return [4, unique[0] === 14 && unique[1] === 5 ? 5 : unique[0]!, 0, 0, 0, 0];
+  const straight =
+    unique.length === 5 &&
+    (unique[0] - unique[4] === 4 || wheel.every((v, i) => unique[i] === v));
+  const sortedGroups = [...counts.entries()].sort(
+    (a, b) => b[1] - a[1] || b[0] - a[0],
+  );
+  if (straight && flush)
+    return [8, unique[0] === 14 && unique[1] === 5 ? 5 : unique[0], 0, 0, 0, 0];
+  if (sortedGroups[0]?.[1] === 4)
+    return [7, sortedGroups[0][0], sortedGroups[1]?.[0] ?? 0, 0, 0, 0];
+  if (sortedGroups[0]?.[1] === 3 && sortedGroups[1]?.[1] === 2)
+    return [6, sortedGroups[0][0], sortedGroups[1][0], 0, 0, 0];
+  if (flush) return [5, values[0], values[1], values[2], values[3], values[4]];
+  if (straight)
+    return [4, unique[0] === 14 && unique[1] === 5 ? 5 : unique[0], 0, 0, 0, 0];
   if (sortedGroups[0]?.[1] === 3) {
-    const kickers = sortedGroups.filter((g) => g[1] === 1).map((g) => g[0]).sort((a, b) => b - a);
+    const kickers = sortedGroups
+      .filter((g) => g[1] === 1)
+      .map((g) => g[0])
+      .sort((a, b) => b - a);
     return [3, sortedGroups[0][0], kickers[0] ?? 0, kickers[1] ?? 0, 0, 0];
   }
   if (sortedGroups[0]?.[1] === 2 && sortedGroups[1]?.[1] === 2) {
@@ -107,10 +129,20 @@ function evaluate5(cards: string[]): EvalRank {
     return [2, highPair, lowPair, kicker, 0, 0];
   }
   if (sortedGroups[0]?.[1] === 2) {
-    const kickers = sortedGroups.filter((g) => g[1] === 1).map((g) => g[0]).sort((a, b) => b - a);
-    return [1, sortedGroups[0][0], kickers[0] ?? 0, kickers[1] ?? 0, kickers[2] ?? 0, 0];
+    const kickers = sortedGroups
+      .filter((g) => g[1] === 1)
+      .map((g) => g[0])
+      .sort((a, b) => b - a);
+    return [
+      1,
+      sortedGroups[0][0],
+      kickers[0] ?? 0,
+      kickers[1] ?? 0,
+      kickers[2] ?? 0,
+      0,
+    ];
   }
-  return [0, values[0]!, values[1]!, values[2]!, values[3]!, values[4]!];
+  return [0, values[0], values[1], values[2], values[3], values[4]];
 }
 
 function evaluateBestOf7(cards: string[]): EvalRank {
@@ -120,7 +152,13 @@ function evaluateBestOf7(cards: string[]): EvalRank {
       for (let c = b + 1; c < cards.length - 2; c += 1) {
         for (let d = c + 1; d < cards.length - 1; d += 1) {
           for (let e = d + 1; e < cards.length; e += 1) {
-            const rank = evaluate5([cards[a]!, cards[b]!, cards[c]!, cards[d]!, cards[e]!]);
+            const rank = evaluate5([
+              cards[a],
+              cards[b],
+              cards[c],
+              cards[d],
+              cards[e],
+            ]);
             if (rank.join(',') > best.join(',')) best = rank;
           }
         }
@@ -133,25 +171,33 @@ function evaluateBestOf7(cards: string[]): EvalRank {
 function showdown(state: RuntimePokerState): { winnerUserId: string | null } {
   const alive = state.players.filter((p) => !p.folded);
   if (alive.length === 1) {
-    alive[0]!.stack += state.pot;
+    alive[0].stack += state.pot;
     state.pot = 0;
-    return { winnerUserId: alive[0]!.userId };
+    return { winnerUserId: alive[0].userId };
   }
   const contenders = alive.map((player) => ({
     player,
     rank: evaluateBestOf7([...player.cards, ...state.board]),
   }));
 
-  const levels = [...new Set(state.players.map((p) => p.committed).filter((c) => c > 0))].sort((a, b) => a - b);
+  const levels = [
+    ...new Set(state.players.map((p) => p.committed).filter((c) => c > 0)),
+  ].sort((a, b) => a - b);
   let awarded = 0;
   let prev = 0;
   for (const level of levels) {
     const eligibleContrib = state.players.filter((p) => p.committed >= level);
     const potSize = (level - prev) * eligibleContrib.length;
-    const eligibleWinners = contenders.filter((c) => c.player.committed >= level && !c.player.folded);
+    const eligibleWinners = contenders.filter(
+      (c) => c.player.committed >= level && !c.player.folded,
+    );
     if (eligibleWinners.length === 0) continue;
-    const top = [...eligibleWinners].sort((a, b) => (b.rank.join(',') > a.rank.join(',') ? 1 : -1))[0]!;
-    const best = eligibleWinners.filter((c) => c.rank.join(',') === top.rank.join(','));
+    const top = [...eligibleWinners].sort((a, b) =>
+      b.rank.join(',') > a.rank.join(',') ? 1 : -1,
+    )[0];
+    const best = eligibleWinners.filter(
+      (c) => c.rank.join(',') === top.rank.join(','),
+    );
     const share = Math.floor(potSize / best.length);
     let remainder = potSize % best.length;
     for (const entry of best) {
@@ -162,17 +208,31 @@ function showdown(state: RuntimePokerState): { winnerUserId: string | null } {
     prev = level;
   }
   state.pot = Math.max(0, state.pot - awarded);
-  const leader = [...contenders].sort((a, b) => b.player.stack - a.player.stack)[0]?.player ?? null;
+  const leader =
+    [...contenders].sort((a, b) => b.player.stack - a.player.stack)[0]
+      ?.player ?? null;
   return { winnerUserId: leader?.userId ?? null };
 }
 
-export function buildInitialPokerState(context: EngineContext): Record<string, unknown> {
+/** Exposed for unit tests — matches production showdown (mutates state). */
+export function runShowdownForTest(state: Record<string, unknown>): {
+  winnerUserId: string | null;
+} {
+  return showdown(state as RuntimePokerState);
+}
+
+export function buildInitialPokerState(
+  context: EngineContext,
+): Record<string, unknown> {
   if (context.seats.length < 2) {
     throw new BadRequestException('Poker requires at least 2 seated players.');
   }
   const buyIn = Math.max(1000, Number(context.options?.buyIn ?? 2000));
   const blindSmall = Math.max(5, Number(context.options?.smallBlind ?? 10));
-  const blindBig = Math.max(blindSmall * 2, Number(context.options?.bigBlind ?? blindSmall * 2));
+  const blindBig = Math.max(
+    blindSmall * 2,
+    Number(context.options?.bigBlind ?? blindSmall * 2),
+  );
   const ordered = [...context.seats].sort((a, b) => a.seatIndex - b.seatIndex);
   const deck = buildDeck(Number(context.options?.seed ?? Date.now()));
   const players: RuntimePokerPlayer[] = ordered.map((seat) => ({
@@ -232,7 +292,10 @@ export function buildInitialPokerState(context: EngineContext): Record<string, u
   return state;
 }
 
-export function applyPokerAction(stateRaw: Record<string, unknown>, context: EngineApplyContext): EngineResult {
+export function applyPokerAction(
+  stateRaw: Record<string, unknown>,
+  context: EngineApplyContext,
+): EngineResult {
   const state = stateRaw as RuntimePokerState;
   if (state.phase === PokerRound.COMPLETE) {
     throw new BadRequestException('Poker hand is complete.');
@@ -244,7 +307,14 @@ export function applyPokerAction(stateRaw: Record<string, unknown>, context: Eng
   if (player.folded || player.allIn) {
     throw new BadRequestException('Player cannot act in current hand state.');
   }
-  const kind = String(context.payload.kind ?? '').toUpperCase() as PokerActionKind;
+  const rawKind = context.payload.kind;
+  const kind = (
+    typeof rawKind === 'string'
+      ? rawKind
+      : typeof rawKind === 'number' || typeof rawKind === 'boolean'
+        ? String(rawKind)
+        : ''
+  ).toUpperCase() as PokerActionKind;
   const targetAmount = Math.max(0, Number(context.payload.amount ?? 0));
   const toCall = Math.max(0, state.currentBet - player.committed);
 
@@ -261,15 +331,18 @@ export function applyPokerAction(stateRaw: Record<string, unknown>, context: Eng
     player.folded = true;
     player.acted = true;
   } else if (kind === PokerActionKind.CHECK) {
-    if (toCall > 0) throw new BadRequestException('Cannot check when facing a bet.');
+    if (toCall > 0)
+      throw new BadRequestException('Cannot check when facing a bet.');
     player.acted = true;
   } else if (kind === PokerActionKind.CALL) {
     if (toCall <= 0) throw new BadRequestException('Nothing to call.');
     commit(toCall);
     player.acted = true;
   } else if (kind === PokerActionKind.BET) {
-    if (state.currentBet > 0) throw new BadRequestException('Use raise when bet already exists.');
-    if (targetAmount <= 0) throw new BadRequestException('Bet amount is required.');
+    if (state.currentBet > 0)
+      throw new BadRequestException('Use raise when bet already exists.');
+    if (targetAmount <= 0)
+      throw new BadRequestException('Bet amount is required.');
     if (targetAmount < state.minRaise && targetAmount < player.stack) {
       throw new BadRequestException(`Minimum bet is ${state.minRaise}.`);
     }
@@ -277,12 +350,21 @@ export function applyPokerAction(stateRaw: Record<string, unknown>, context: Eng
     state.currentBet = player.committed;
     state.minRaise = Math.max(state.minRaise, spent);
     for (const row of state.players) row.acted = row.userId === player.userId;
-  } else if (kind === PokerActionKind.RAISE || kind === PokerActionKind.ALL_IN) {
-    const desired = kind === PokerActionKind.ALL_IN ? player.stack + player.committed : targetAmount;
-    if (desired <= state.currentBet) throw new BadRequestException('Raise must be above current bet.');
+  } else if (
+    kind === PokerActionKind.RAISE ||
+    kind === PokerActionKind.ALL_IN
+  ) {
+    const desired =
+      kind === PokerActionKind.ALL_IN
+        ? player.stack + player.committed
+        : targetAmount;
+    if (desired <= state.currentBet)
+      throw new BadRequestException('Raise must be above current bet.');
     const raiseBy = desired - state.currentBet;
     if (raiseBy < state.minRaise && desired < player.stack + player.committed) {
-      throw new BadRequestException(`Minimum raise increment is ${state.minRaise}.`);
+      throw new BadRequestException(
+        `Minimum raise increment is ${state.minRaise}.`,
+      );
     }
     commit(desired - player.committed);
     state.currentBet = player.committed;
@@ -327,7 +409,10 @@ export function applyPokerAction(stateRaw: Record<string, unknown>, context: Eng
       state.phase = PokerRound.RIVER;
       normalizeRound(state);
       state.currentTurnSeatIndex = nextAliveSeat(state, state.buttonSeatIndex);
-    } else if (state.phase === PokerRound.RIVER || state.players.filter((p) => !p.folded && !p.allIn).length <= 1) {
+    } else if (
+      state.phase === PokerRound.RIVER ||
+      state.players.filter((p) => !p.folded && !p.allIn).length <= 1
+    ) {
       state.phase = PokerRound.SHOWDOWN;
       const result = showdown(state);
       state.phase = PokerRound.COMPLETE;

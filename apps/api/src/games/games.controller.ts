@@ -1,5 +1,15 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { GameType } from '@prisma/client';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Headers,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { GameType, UserRole } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
@@ -7,11 +17,15 @@ import { CreateGameLobbyDto } from './dto/create-game-lobby.dto';
 import { GameActionDto } from './dto/game-action.dto';
 import { JoinGameLobbyDto } from './dto/join-game-lobby.dto';
 import { StartGameSessionDto } from './dto/start-game-session.dto';
+import { GamesMetricsService } from './games-metrics.service';
 import { GamesService } from './games.service';
 
 @Controller('v1/games')
 export class GamesController {
-  constructor(private readonly gamesService: GamesService) {}
+  constructor(
+    private readonly gamesService: GamesService,
+    private readonly gamesMetrics: GamesMetricsService,
+  ) {}
 
   @Get('catalog')
   listCatalog() {
@@ -31,7 +45,10 @@ export class GamesController {
 
   @Post('lobbies')
   @UseGuards(AccessTokenGuard)
-  createLobby(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateGameLobbyDto) {
+  createLobby(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateGameLobbyDto,
+  ) {
     return this.gamesService.createLobby(user.id, dto);
   }
 
@@ -47,7 +64,10 @@ export class GamesController {
 
   @Post('lobbies/:lobbyId/leave')
   @UseGuards(AccessTokenGuard)
-  leaveLobby(@Param('lobbyId') lobbyId: string, @CurrentUser() user: AuthenticatedUser) {
+  leaveLobby(
+    @Param('lobbyId') lobbyId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.gamesService.leaveLobby(lobbyId, user.id);
   }
 
@@ -73,8 +93,25 @@ export class GamesController {
 
   @Get('sessions/:sessionId')
   @UseGuards(AccessTokenGuard)
-  getSession(@Param('sessionId') sessionId: string) {
-    return this.gamesService.getSession(sessionId);
+  getSession(
+    @Param('sessionId') sessionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.gamesService.getSession(sessionId, user.id);
+  }
+
+  /** Active lobbies/sessions, action latency, socket counters — admin or `GAMES_METRICS_KEY` header. */
+  @Get('ops/metrics')
+  @UseGuards(AccessTokenGuard)
+  async getOpsMetrics(
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-games-metrics-key') metricsKey?: string,
+  ) {
+    const envKey = process.env.GAMES_METRICS_KEY;
+    if (user.role === UserRole.ADMIN || (envKey && metricsKey === envKey)) {
+      return this.gamesMetrics.getOperationalSnapshot();
+    }
+    throw new ForbiddenException();
   }
 
   @Post('sessions/:sessionId/action')

@@ -1,6 +1,4 @@
-import {
-  OnModuleDestroy,
-} from '@nestjs/common';
+import { HttpException, Logger, OnModuleDestroy } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -18,6 +16,7 @@ import { ConversationsService } from '../conversations/conversations.service';
 import { GamesService } from '../games/games.service';
 import { PostsService } from '../posts/posts.service';
 import { RoomsService } from '../rooms/rooms.service';
+import { GamesMetricsService } from '../games/games-metrics.service';
 import { RealtimeEventsService } from './realtime-events.service';
 import { RealtimeStateService } from './realtime-state.service';
 
@@ -33,12 +32,22 @@ type AuthSocket = Socket & {
     credentials: false,
   },
 })
-export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
+export class RealtimeGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy
+{
   @WebSocketServer()
   server!: Server;
+  private readonly logger = new Logger(RealtimeGateway.name);
   private readonly idleAfterMs = 90_000;
+  private readonly lastGameSocketActionAt = new Map<string, number>();
+  private readonly gameSocketActionCooldownMs = Number(
+    process.env.GAMES_SOCKET_ACTION_COOLDOWN_MS ?? 400,
+  );
   private readonly activeAtByUserId = new Map<string, number>();
-  private readonly lastPresenceByUserId = new Map<string, 'online' | 'away' | 'offline'>();
+  private readonly lastPresenceByUserId = new Map<
+    string,
+    'online' | 'away' | 'offline'
+  >();
   private readonly presenceTicker: ReturnType<typeof setInterval>;
 
   constructor(
@@ -50,6 +59,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
     private readonly realtimeEvents: RealtimeEventsService,
     private readonly realtimeState: RealtimeStateService,
     private readonly datingService: DatingService,
+    private readonly gamesMetrics: GamesMetricsService,
   ) {
     this.presenceTicker = setInterval(() => {
       this.emitAllPresenceIfChanged();
@@ -109,7 +119,9 @@ export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
   }
 
   private getRoomOnlineCount(roomSlug: string) {
-    const sockets = this.server.sockets.adapter.rooms.get(this.roomChannel(roomSlug));
+    const sockets = this.server.sockets.adapter.rooms.get(
+      this.roomChannel(roomSlug),
+    );
     return sockets?.size ?? 0;
   }
 
@@ -126,7 +138,9 @@ export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
   }
 
   private isUserOnline(userId: string) {
-    const sockets = this.server.sockets.adapter.rooms.get(this.userRoom(userId));
+    const sockets = this.server.sockets.adapter.rooms.get(
+      this.userRoom(userId),
+    );
     return Boolean(sockets && sockets.size > 0);
   }
 
@@ -231,7 +245,11 @@ export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
       throw new WsException('peerId and body are required');
     }
 
-    const message = await this.conversationsService.sendMessage(userId, peerId, body);
+    const message = await this.conversationsService.sendMessage(
+      userId,
+      peerId,
+      body,
+    );
     this.markUserActive(userId);
     this.server
       .to(this.userRoom(message.sender.id))
@@ -241,8 +259,16 @@ export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
       this.realtimeState.buildUserState(message.sender.id),
       this.realtimeState.buildUserState(message.recipient.id),
     ]);
-    this.realtimeEvents.emitToUser(message.sender.id, 'realtime:state', senderState);
-    this.realtimeEvents.emitToUser(message.recipient.id, 'realtime:state', recipientState);
+    this.realtimeEvents.emitToUser(
+      message.sender.id,
+      'realtime:state',
+      senderState,
+    );
+    this.realtimeEvents.emitToUser(
+      message.recipient.id,
+      'realtime:state',
+      recipientState,
+    );
 
     return { ok: true, message };
   }
@@ -375,14 +401,24 @@ export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
     @ConnectedSocket() client: AuthSocket,
     @MessageBody() payload: { lobbyId?: string },
   ) {
-    this.getUserId(client);
+    const userId = this.getUserId(client);
     const lobbyId = payload?.lobbyId?.trim();
     if (!lobbyId) {
       throw new WsException('lobbyId is required');
     }
-    await this.gamesService.getLobby(lobbyId);
-    await client.join(this.gameLobbyChannel(lobbyId));
-    return { ok: true };
+    try {
+      await this.gamesService.assertLobbySocketSubscription(lobbyId, userId);
+      await this.gamesService.recordRealtimeLobbyJoinAudit(lobbyId, userId);
+      this.gamesMetrics.recordSocketLobbyJoin();
+      await client.join(this.gameLobbyChannel(lobbyId));
+      return { ok: true };
+    } catch (err) {
+      this.gamesMetrics.recordSocketLobbyJoinDenied();
+      this.logger.warn(
+        `game:lobby:join denied user=${userId} lobby=${lobbyId}`,
+      );
+      throw this.toWsException(err);
+    }
   }
 
   @SubscribeMessage('game:session:join')
@@ -390,32 +426,64 @@ export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
     @ConnectedSocket() client: AuthSocket,
     @MessageBody() payload: { sessionId?: string },
   ) {
-    this.getUserId(client);
+    const userId = this.getUserId(client);
     const sessionId = payload?.sessionId?.trim();
     if (!sessionId) {
       throw new WsException('sessionId is required');
     }
-    await this.gamesService.getSession(sessionId);
-    await client.join(this.gameSessionChannel(sessionId));
-    return { ok: true };
+    try {
+      const session = await this.gamesService.assertSessionSocketSubscription(
+        sessionId,
+        userId,
+      );
+      await this.gamesService.recordRealtimeSessionJoinAudit(
+        sessionId,
+        session.lobbyId,
+        userId,
+      );
+      this.gamesMetrics.recordSocketSessionJoin();
+      await client.join(this.gameSessionChannel(sessionId));
+      return { ok: true };
+    } catch (err) {
+      this.gamesMetrics.recordSocketSessionJoinDenied();
+      this.logger.warn(
+        `game:session:join denied user=${userId} session=${sessionId}`,
+      );
+      throw this.toWsException(err);
+    }
   }
 
   @SubscribeMessage('game:session:action')
   async onGameSessionAction(
     @ConnectedSocket() client: AuthSocket,
-    @MessageBody() payload: { sessionId?: string; action?: Record<string, unknown> },
+    @MessageBody()
+    payload: { sessionId?: string; action?: Record<string, unknown> },
   ) {
     const userId = this.getUserId(client);
     const sessionId = payload?.sessionId?.trim();
     if (!sessionId || !payload.action) {
       throw new WsException('sessionId and action are required');
     }
+    const now = Date.now();
+    const last = this.lastGameSocketActionAt.get(userId) ?? 0;
+    if (now - last < this.gameSocketActionCooldownMs) {
+      this.gamesMetrics.recordSocketRateLimited();
+      throw new WsException('Too many actions — wait a moment.');
+    }
+    this.lastGameSocketActionAt.set(userId, now);
     const snapshot = await this.gamesService.postAction(sessionId, userId, {
       payload: payload.action,
     });
     this.markUserActive(userId);
-    this.server.to(this.gameSessionChannel(sessionId)).emit('game:state', snapshot);
     return { ok: true, session: snapshot };
+  }
+
+  private toWsException(err: unknown): WsException {
+    if (err instanceof WsException) return err;
+    if (err instanceof HttpException) return new WsException(err.message);
+    return new WsException(
+      err instanceof Error ? err.message : 'Request failed',
+    );
   }
 
   @SubscribeMessage('dating:typing')
@@ -428,9 +496,17 @@ export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
     if (!matchId) {
       throw new WsException('matchId is required');
     }
-    const { peerId } = await this.datingService.assertMatchParticipant(userId, matchId);
+    const { peerId } = await this.datingService.assertMatchParticipant(
+      userId,
+      matchId,
+    );
     this.markUserActive(userId);
-    this.datingService.emitTyping(userId, matchId, peerId, Boolean(payload?.typing));
+    this.datingService.emitTyping(
+      userId,
+      matchId,
+      peerId,
+      Boolean(payload?.typing),
+    );
     return { ok: true };
   }
 
@@ -441,10 +517,18 @@ export class RealtimeGateway implements OnGatewayConnection, OnModuleDestroy {
   ) {
     const requesterId = this.getUserId(client);
     const ids = Array.isArray(payload?.userIds)
-      ? [...new Set(payload.userIds.map((id) => id?.trim()).filter((id): id is string => Boolean(id)))]
+      ? [
+          ...new Set(
+            payload.userIds
+              .map((id) => id?.trim())
+              .filter((id): id is string => Boolean(id)),
+          ),
+        ]
       : [];
     const watchIds = [...new Set([requesterId, ...ids])];
-    await Promise.all(watchIds.map((id) => client.join(this.presenceChannel(id))));
+    await Promise.all(
+      watchIds.map((id) => client.join(this.presenceChannel(id))),
+    );
     const statuses = Object.fromEntries(
       watchIds.map((id) => [id, this.computePresenceStatus(id)]),
     ) as Record<string, 'online' | 'away' | 'offline'>;

@@ -2,13 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { Socket } from "socket.io-client";
 import { GameFrame } from "@/components/app/games/game-frame";
 import { gameTypeToId } from "@/components/app/games/game-meta";
 import { Panel } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
-import { getGameSession, postGameAction, type ApiGameSession } from "@/lib/games-client";
-import { joinSessionChannel, openGamesSocket, sendSessionAction } from "@/lib/games-realtime";
+import { getGameSession, postGameAction, type ApiGameLobby, type ApiGameSession } from "@/lib/games-client";
+import { joinSessionChannel, openGamesSocket } from "@/lib/games-realtime";
 
 type BoardCell = string | number | null;
 
@@ -21,7 +20,6 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [socketReady, setSocketReady] = useState(false);
-  const [socket, setSocket] = useState<Socket | null>(null);
   const auth = useMemo(() => getStoredAuthSession(), []);
 
   async function refresh() {
@@ -42,7 +40,6 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     if (!auth?.accessToken) return;
     const s = openGamesSocket(auth.accessToken);
-    setSocket(s);
     const onConnect = () => {
       setSocketReady(true);
       joinSessionChannel(s, sessionId);
@@ -74,9 +71,6 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
     try {
       const next = await postGameAction(auth.accessToken, sessionId, payload, kind);
       setSession(next);
-      if (socket) {
-        sendSessionAction(socket, sessionId, payload);
-      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Action failed.");
     } finally {
@@ -87,6 +81,13 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
   const meId = auth?.user.id ?? "";
   const state = (session?.state ?? {}) as Record<string, unknown>;
   const isTurn = session?.turnUserId === meId;
+  const turnSeatUser =
+    session?.lobby?.seats?.find((seat) => seat.userId === session?.turnUserId)?.user ?? null;
+  const turnDisplay =
+    turnSeatUser?.displayName?.trim() ||
+    turnSeatUser?.username ||
+    session?.turnUserId ||
+    "…";
 
   return (
     <section className="suzi-app-frame-fill">
@@ -100,7 +101,13 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
             <GameFrame
               title={`${session.gameType.replace("_", " ")} Session`}
-              subtitle={session.status === "ACTIVE" ? (isTurn ? "Your turn" : "Waiting for opponent") : "Finished"}
+              subtitle={
+                session.status === "ACTIVE"
+                  ? isTurn
+                    ? "Your turn"
+                    : `Waiting for ${turnDisplay}`
+                  : "Finished"
+              }
               reconnecting={!socketReady}
             >
               {error ? <p className="mb-3 rounded-lg border border-pink-400/30 bg-pink-500/12 px-3 py-2 text-sm text-pink-100">{error}</p> : null}
@@ -114,14 +121,22 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
                 <Connect4Board state={state} busy={busy} onDrop={(column) => void runAction({ column })} />
               ) : null}
               {session.gameType === "POKER_HOLDEM" ? (
-                <PokerTable state={state} busy={busy} onAction={(kind, amount) => void runAction({ kind, amount })} />
+                <PokerTable
+                  lobbySeats={session.lobby.seats}
+                  state={state}
+                  busy={busy}
+                  meId={meId}
+                  onAction={(kind, amount) => void runAction({ kind, amount })}
+                />
               ) : null}
             </GameFrame>
 
             <Panel className="flex min-h-0 flex-col p-4">
               <h3 className="text-lg font-semibold text-white">Session Info</h3>
               <p className="mt-2 text-sm text-cyan-100/72">Status: {session.status}</p>
-              <p className="text-sm text-cyan-100/72">Turn: {session.turnUserId ?? "—"}</p>
+              <p className="text-sm text-cyan-100/72">
+                Turn: {session.turnUserId ? `${turnDisplay}` : "—"}
+              </p>
               <p className="text-sm text-cyan-100/72">Winner: {session.winnerUserId ?? "—"}</p>
               <div className="mt-4 space-y-2">
                 <Link href={`/app/games/${gameTypeToId(session.gameType)}`} className="suzi-secondary-btn block px-3 py-2 text-center text-sm">
@@ -269,12 +284,16 @@ function Connect4Board({
 }
 
 function PokerTable({
+  lobbySeats,
   state,
   busy,
+  meId,
   onAction,
 }: {
+  lobbySeats: ApiGameLobby["seats"];
   state: Record<string, unknown>;
   busy: boolean;
+  meId: string;
   onAction: (kind: string, amount?: number) => void;
 }) {
   const board = asArray(state.board).map(String);
@@ -288,13 +307,32 @@ function PokerTable({
         <p className="text-sm text-cyan-100/74">Phase: {String(state.phase ?? "PREFLOP")}</p>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
-        {players.map((player, idx) => (
-          <div key={idx} className="rounded-lg border border-cyan-300/18 bg-[rgba(20,13,62,0.62)] px-3 py-2 text-xs text-cyan-100/88">
-            <p className="font-semibold">{String(player.userId ?? "Unknown")} (seat {String(player.seatIndex ?? "?")})</p>
+        {players.map((player, idx) => {
+          const uid = String(player.userId ?? "");
+          const isMe = Boolean(meId && uid === meId);
+          const seatRow = lobbySeats.find((s) => s.userId === uid);
+          const displayName =
+            seatRow?.user?.displayName?.trim() || seatRow?.user?.username || `Seat ${String(player.seatIndex ?? "?")}`;
+          const rawCards = asArray(player.cards).map(String);
+          const masked =
+            rawCards.length > 0 && rawCards.every((c) => c === "BACK");
+          const holeLabel =
+            rawCards.length === 0
+              ? "—"
+              : isMe
+                ? rawCards.join(" ")
+                : masked
+                  ? "● ●"
+                  : rawCards.join(" ");
+          return (
+          <div key={idx} className={`rounded-lg border px-3 py-2 text-xs ${isMe ? "border-emerald-300/38 bg-[rgba(14,40,36,0.55)]" : "border-cyan-300/18 bg-[rgba(20,13,62,0.92)]"} text-cyan-100/95`}>
+            <p className="font-semibold">{isMe ? "You" : displayName}</p>
+            <p className="mt-1 font-mono text-[0.95rem] tracking-[0.12em]">{holeLabel}</p>
             <p>Stack: {String(player.stack ?? 0)} • Committed: {String(player.committed ?? 0)}</p>
             <p>{Boolean(player.folded) ? "Folded" : Boolean(player.allIn) ? "All-in" : "Active"}</p>
           </div>
-        ))}
+          );
+        })}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" disabled={busy} className="suzi-secondary-btn px-3 py-2 text-xs" onClick={() => onAction("CHECK")}>
