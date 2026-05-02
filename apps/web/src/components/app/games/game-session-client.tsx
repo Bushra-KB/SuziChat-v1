@@ -2,14 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ChessBoardView } from "@/components/app/games/chess-board-view";
 import { GameFrame } from "@/components/app/games/game-frame";
 import { gameTypeToId } from "@/components/app/games/game-meta";
 import { Panel } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { getGameSession, postGameAction, type ApiGameLobby, type ApiGameSession } from "@/lib/games-client";
 import { joinSessionChannel, openGamesSocket } from "@/lib/games-realtime";
-
-type BoardCell = string | number | null;
 
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
@@ -89,6 +88,14 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
     session?.turnUserId ||
     "…";
 
+  const seatUserIds =
+    session?.lobby.seats
+      .filter((s) => s.userId)
+      .sort((a, b) => a.seatIndex - b.seatIndex)
+      .map((s) => s.userId as string) ?? [];
+  const boardOrientation: "white" | "black" =
+    seatUserIds[0] === meId ? "white" : seatUserIds[1] === meId ? "black" : "white";
+
   return (
     <section className="suzi-app-frame-fill">
       <div className="suzi-app-frame-scroll suzi-scrollbar pr-1">
@@ -112,7 +119,13 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
             >
               {error ? <p className="mb-3 rounded-lg border border-pink-400/30 bg-pink-500/12 px-3 py-2 text-sm text-pink-100">{error}</p> : null}
               {session.gameType === "CHESS" ? (
-                <ChessBoard state={state} busy={busy} onMove={(move) => void runAction({ move })} />
+                <ChessBoardView
+                  fen={String(state.fen ?? "")}
+                  busy={busy}
+                  myTurn={session.status === "ACTIVE" && isTurn}
+                  boardOrientation={boardOrientation}
+                  onUciMove={(move: string) => void runAction({ move })}
+                />
               ) : null}
               {session.gameType === "CHECKERS" ? (
                 <CheckersBoard state={state} busy={busy} onMove={(from, to) => void runAction({ from, to })} />
@@ -163,51 +176,6 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
         )}
       </div>
     </section>
-  );
-}
-
-function ChessBoard({ state, busy, onMove }: { state: Record<string, unknown>; busy: boolean; onMove: (move: string) => void }) {
-  const fen = String(state.fen ?? "");
-  const boardPart = fen.split(" ")[0] ?? "";
-  const rows = boardPart.split("/").map((row) => {
-    const expanded: BoardCell[] = [];
-    for (const char of row.split("")) {
-      if (/\d/.test(char)) {
-        const count = Number(char);
-        for (let i = 0; i < count; i += 1) expanded.push(null);
-      } else {
-        expanded.push(char);
-      }
-    }
-    return expanded;
-  });
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  return (
-    <div>
-      <div className="grid max-w-[26rem] grid-cols-8 overflow-hidden rounded-xl border border-cyan-300/24">
-        {rows.flatMap((row, r) =>
-          row.map((cell, c) => (
-            <div key={`${r}-${c}`} className={`flex h-10 items-center justify-center text-sm font-semibold ${((r + c) % 2 === 0 ? "bg-[#2b235c]" : "bg-[#3c2d79]")} text-white`}>
-              {cell || ""}
-            </div>
-          )),
-        )}
-      </div>
-      <div className="mt-3 flex flex-wrap items-end gap-2">
-        <label className="text-xs text-cyan-100/70">
-          From
-          <input value={from} onChange={(e) => setFrom(e.target.value)} placeholder="e2" className="suzi-input mt-1 h-9 w-20 px-2 text-sm" />
-        </label>
-        <label className="text-xs text-cyan-100/70">
-          To
-          <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="e4" className="suzi-input mt-1 h-9 w-20 px-2 text-sm" />
-        </label>
-        <button type="button" disabled={busy} onClick={() => onMove(`${from}${to}`)} className="suzi-primary-btn h-9 px-3 text-sm disabled:opacity-60">
-          Move
-        </button>
-      </div>
-    </div>
   );
 }
 

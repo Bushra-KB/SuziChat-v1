@@ -15,6 +15,7 @@ import {
   type ApiGameType,
 } from "@/lib/games-client";
 import { getStoredAuthSession } from "@/lib/auth-client";
+import { openGamesSocket, subscribeGameLobbyListChannel } from "@/lib/games-realtime";
 
 export function GameLobbyClient({ gameId }: { gameId: string }) {
   const game = gameMeta.find((entry) => entry.id === gameId) ?? gameMeta[0];
@@ -44,6 +45,28 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
 
   useEffect(() => {
     void refresh();
+  }, [game.type]);
+
+  useEffect(() => {
+    const auth = getStoredAuthSession();
+    if (!auth?.accessToken) return;
+    const socket = openGamesSocket(auth.accessToken);
+    const onConnect = () => {
+      subscribeGameLobbyListChannel(socket);
+    };
+    const onLobbiesUpdate = (payload: { gameType?: string }) => {
+      if (payload?.gameType && payload.gameType !== game.type) return;
+      void listGameLobbies(game.type)
+        .then(setRows)
+        .catch((e: unknown) => setError(e instanceof Error ? e.message : "Could not load lobbies."));
+    };
+    socket.on("connect", onConnect);
+    socket.on("game:lobbies:update", onLobbiesUpdate);
+    if (socket.connected) onConnect();
+    return () => {
+      socket.off("connect", onConnect);
+      socket.off("game:lobbies:update", onLobbiesUpdate);
+    };
   }, [game.type]);
 
   const me = useMemo(() => getStoredAuthSession()?.user.id ?? "", []);

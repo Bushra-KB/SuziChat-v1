@@ -15,6 +15,11 @@ export function joinSessionChannel(socket: Socket, sessionId: string) {
   socket.emit("game:session:join", { sessionId });
 }
 
+/** Join the broadcast room for lobby list updates (`game:lobbies:update`). Call after connect / reconnect. */
+export function subscribeGameLobbyListChannel(socket: Socket) {
+  socket.emit("game:lobbies:subscribe", {});
+}
+
 export function sendSessionAction(socket: Socket, sessionId: string, action: Record<string, unknown>) {
   socket.emit("game:session:action", { sessionId, action });
 }

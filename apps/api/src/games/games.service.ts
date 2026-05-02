@@ -106,6 +106,17 @@ export class GamesService {
     return `game:session:${sessionId}`;
   }
 
+  /** Broadcast room for lobby list UIs (games hub + per-game lobby pages). */
+  private readonly lobbyListBroadcastChannel = 'game:lobbies';
+
+  private emitLobbyListRefresh(gameType: GameType) {
+    this.realtimeEvents.emitToChannel(
+      this.lobbyListBroadcastChannel,
+      'game:lobbies:update',
+      { gameType },
+    );
+  }
+
   listCatalog() {
     return GAME_CATALOG;
   }
@@ -210,7 +221,9 @@ export class GamesService {
         status: GameSeatStatus.OPEN,
       })),
     });
-    return this.getLobby(lobby.id);
+    const created = await this.getLobby(lobby.id);
+    this.emitLobbyListRefresh(dto.gameType);
+    return created;
   }
 
   /**
@@ -313,6 +326,7 @@ export class GamesService {
       'game:lobby:update',
       snapshot,
     );
+    this.emitLobbyListRefresh(lobby.gameType);
     return snapshot;
   }
 
@@ -330,6 +344,7 @@ export class GamesService {
       'game:lobby:update',
       snapshot,
     );
+    this.emitLobbyListRefresh(lobby.gameType);
     return snapshot;
   }
 
@@ -448,6 +463,7 @@ export class GamesService {
       'game:session:started',
       { sessionId: session.id, lobbyId },
     );
+    this.emitLobbyListRefresh(lobby.gameType);
     const started = await this.fetchSessionSnapshot(session.id);
     this.emitSessionState(started);
     return this.maskSessionForViewer(started, userId);

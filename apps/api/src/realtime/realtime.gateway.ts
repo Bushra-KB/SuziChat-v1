@@ -118,6 +118,11 @@ export class RealtimeGateway
     return `game:session:${sessionId}`;
   }
 
+  /** Subscribed by games hub / lobby pages for live lobby list refresh. */
+  private gameLobbiesBroadcastChannel() {
+    return 'game:lobbies';
+  }
+
   private getRoomOnlineCount(roomSlug: string) {
     const sockets = this.server.sockets.adapter.rooms.get(
       this.roomChannel(roomSlug),
@@ -394,6 +399,13 @@ export class RealtimeGateway
   onPing(@ConnectedSocket() client: AuthSocket) {
     this.getUserId(client);
     return { ok: true, ts: Date.now() };
+  }
+
+  @SubscribeMessage('game:lobbies:subscribe')
+  async onGameLobbiesSubscribe(@ConnectedSocket() client: AuthSocket) {
+    this.getUserId(client);
+    await client.join(this.gameLobbiesBroadcastChannel());
+    return { ok: true };
   }
 
   @SubscribeMessage('game:lobby:join')

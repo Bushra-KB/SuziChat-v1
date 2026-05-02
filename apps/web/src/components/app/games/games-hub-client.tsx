@@ -6,6 +6,7 @@ import { gameMeta } from "@/components/app/games/game-meta";
 import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
 import { createGameLobby, listGameLobbies, type ApiGameLobby } from "@/lib/games-client";
 import { getStoredAuthSession } from "@/lib/auth-client";
+import { openGamesSocket, subscribeGameLobbyListChannel } from "@/lib/games-realtime";
 
 export function GamesHubClient() {
   const [lobbies, setLobbies] = useState<ApiGameLobby[]>([]);
@@ -18,6 +19,27 @@ export function GamesHubClient() {
       .then(setLobbies)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load lobbies."))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const auth = getStoredAuthSession();
+    if (!auth?.accessToken) return;
+    const socket = openGamesSocket(auth.accessToken);
+    const onConnect = () => {
+      subscribeGameLobbyListChannel(socket);
+    };
+    const onLobbiesUpdate = () => {
+      void listGameLobbies()
+        .then(setLobbies)
+        .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load lobbies."));
+    };
+    socket.on("connect", onConnect);
+    socket.on("game:lobbies:update", onLobbiesUpdate);
+    if (socket.connected) onConnect();
+    return () => {
+      socket.off("connect", onConnect);
+      socket.off("game:lobbies:update", onLobbiesUpdate);
+    };
   }, []);
 
   const openCountByType = useMemo(() => {
