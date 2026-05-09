@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer } from "@/components/app/chat-composer";
 import { ChatMessageRow, type LiveChatMessage } from "@/components/app/chat-message-row";
 import { PersonRow, ThreadRow } from "@/components/app/v1-blocks";
-import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
+import { Icon, Panel } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import {
   getConversationPeer,
@@ -376,141 +377,187 @@ export function MessagesInbox() {
 
   return (
     <section className="suzi-app-frame-fill">
-      <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto suzi-scrollbar xl:grid-cols-[320px_minmax(0,1fr)_300px] xl:overflow-hidden xl:pr-1">
-      <Panel className="flex min-h-[22rem] flex-col p-5 xl:h-full xl:min-h-0 xl:overflow-hidden">
-        <SectionHeader eyebrow="Inbox" title="Direct messages" />
-        <div className="mt-5">
-          <input className="suzi-input" placeholder="Search conversations" readOnly disabled />
-        </div>
-        <p className="mt-3 text-xs text-cyan-100/70">
-          {socketReady ? "Realtime connected" : "Realtime reconnecting..."}
-        </p>
-        {error ? <p className="mt-3 text-sm text-amber-100">{error}</p> : null}
-        <div className="suzi-scrollbar mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
-          {loading ? (
-            <p className="text-sm text-[var(--text-muted)]">Loading conversations…</p>
-          ) : visibleThreads.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)]">
-              No conversations yet — message someone from Friends.
-            </p>
-          ) : (
-            visibleThreads.map((thread) => (
-              <ThreadRow
+      <div className="suzi-messages-grid">
+        {/* INBOX — left rail */}
+        <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
+          <div className="shrink-0">
+            <p className="text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.22em] text-cyan-100/65">Inbox</p>
+            <h2 className="mt-1 text-[var(--fs-xl)] font-bold tracking-tight text-white">Direct messages</h2>
+          </div>
+          <div className="mt-3 shrink-0">
+            <input
+              className="suzi-input text-[var(--fs-sm)]"
+              placeholder="Search conversations"
+              readOnly
+              disabled
+            />
+          </div>
+          <p className="mt-2 shrink-0 text-[var(--fs-2xs)] text-cyan-100/60">
+            {socketReady ? "Realtime connected" : "Realtime reconnecting…"}
+          </p>
+          {error ? (
+            <p className="mt-2 shrink-0 text-[var(--fs-xs)] text-amber-100">{error}</p>
+          ) : null}
+          <div className="suzi-thin-scroll mt-3 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
+            {loading ? (
+              <p className="text-[var(--fs-sm)] text-[var(--text-muted)]">Loading conversations…</p>
+            ) : visibleThreads.length === 0 ? (
+              <p className="text-[var(--fs-sm)] text-[var(--text-muted)]">
+                No conversations yet — message someone from Friends.
+              </p>
+            ) : (
+              visibleThreads.map((thread) => (
+                <ThreadRow
+                  key={thread.peer.id}
+                  person={peerToPerson(thread.peer)}
+                  preview={thread.lastMessage.body}
+                  time={shortTime(thread.lastMessage.createdAt)}
+                  unread={0}
+                  href={`/app/messages?with=${encodeURIComponent(thread.peer.id)}`}
+                  active={thread.peer.id === selectedPeerId}
+                />
+              ))
+            )}
+          </div>
+        </Panel>
+
+        {/* THREAD — center column */}
+        <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-0">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/8 px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
+            <div className="flex min-w-0 items-center gap-3">
+              {activeThread ? (
+                <>
+                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10">
+                    <img
+                      src={resolveUserAvatarUrl(activeThread.peer.avatarUrl)}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-[var(--fs-md)] font-semibold text-white">
+                      {activeThread.peer.displayName ?? activeThread.peer.username}
+                    </p>
+                    <p className="truncate text-[var(--fs-xs)] text-emerald-300/85">
+                      <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 align-middle shadow-[0_0_8px_rgba(110,255,178,0.7)]" />
+                      Online
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="text-[var(--fs-md)] font-semibold text-white">Select a thread</div>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button type="button" aria-label="Voice call" className="suzi-icon-btn inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80">
+                <Icon path="M5 3h3l2 5-2 1a11 11 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A18 18 0 0 1 3 5a2 2 0 0 1 2-2Z" className="h-4 w-4" />
+              </button>
+              <button type="button" aria-label="Video call" className="suzi-icon-btn inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80">
+                <Icon path="M3 7a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm13 3 5-3v10l-5-3V10Z" className="h-4 w-4" />
+              </button>
+              <button type="button" aria-label="More" className="suzi-icon-btn inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80">
+                <Icon path="M5 12a1 1 0 1 0 2 0 1 1 0 0 0-2 0Zm6 0a1 1 0 1 0 2 0 1 1 0 0 0-2 0Zm6 0a1 1 0 1 0 2 0 1 1 0 0 0-2 0Z" className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div
+            ref={messagesScrollRef}
+            className="suzi-thin-scroll mx-[var(--panel-pad-tight)] my-[var(--panel-pad-tight)] flex-1 space-y-3 overflow-y-auto rounded-[var(--panel-radius)] bg-white px-[var(--panel-pad)] py-[var(--panel-pad)] shadow-[inset_0_2px_8px_rgba(7,4,28,0.22),inset_0_0_0_1px_rgba(0,0,0,0.04)]"
+          >
+            {msgLoading ? (
+              <p className="text-[var(--fs-sm)] text-[var(--text-muted)]">Loading messages…</p>
+            ) : messages.length === 0 ? (
+              <p className="text-[var(--fs-sm)] text-[var(--text-muted)]">
+                No messages yet. Start the conversation.
+              </p>
+            ) : (
+              messages.map((m) => {
+                const mine = meId !== null && m.sender.id === meId;
+                const live: LiveChatMessage = {
+                  body: m.body,
+                  timeLabel: shortTime(m.createdAt),
+                  isMine: mine,
+                  senderId: mine ? undefined : m.sender.id,
+                  senderUsername: m.sender.username,
+                  senderDisplayName: m.sender.displayName ?? m.sender.username,
+                  senderAvatarUrl: mine ? myAvatarUrl : m.sender.avatarUrl?.trim() || null,
+                };
+                return <ChatMessageRow key={m.id} variant="live" message={live} />;
+              })
+            )}
+          </div>
+          <div className="shrink-0 border-t border-white/8 px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
+            {typingName ? (
+              <p className="mb-2 text-[var(--fs-2xs)] font-medium text-cyan-100/85">
+                {typingName} is typing...
+              </p>
+            ) : null}
+            <ChatComposer
+              attachInputId="dm-chat-attachment"
+              placeholder="Write a direct message…"
+              variant="onDark"
+              disabled={!hasSession || !selectedPeerId || sending}
+              onTyping={(text) => {
+                const s = getStoredAuthSession();
+                if (!s || !selectedPeerId) {
+                  return;
+                }
+                const nextTyping = text.trim().length > 0;
+                const now = Date.now();
+                if (
+                  nextTyping === lastTypingValueRef.current &&
+                  now - lastTypingAtRef.current < 800
+                ) {
+                  return;
+                }
+                lastTypingValueRef.current = nextTyping;
+                lastTypingAtRef.current = now;
+                getRealtimeSocket(s.accessToken).emit("dm:typing", {
+                  peerId: selectedPeerId,
+                  typing: nextTyping,
+                });
+              }}
+              onSend={handleSend}
+            />
+          </div>
+        </Panel>
+
+        {/* QUICK INVITE — right rail */}
+        <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
+          <div className="shrink-0">
+            <p className="text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.22em] text-cyan-100/65">Friends</p>
+            <h2 className="mt-1 text-[var(--fs-xl)] font-bold tracking-tight text-white">Quick invite</h2>
+          </div>
+          <div className="mt-3 shrink-0">
+            <input className="suzi-input text-[var(--fs-sm)]" placeholder="Search friends" readOnly disabled />
+          </div>
+          <div className="suzi-thin-scroll mt-3 flex-1 space-y-2 overflow-y-auto pr-1">
+            {threads.slice(0, 12).map((thread) => (
+              <PersonRow
                 key={thread.peer.id}
                 person={peerToPerson(thread.peer)}
-                preview={thread.lastMessage.body}
-                time={shortTime(thread.lastMessage.createdAt)}
-                unread={0}
-                href={`/app/messages?with=${encodeURIComponent(thread.peer.id)}`}
-                active={thread.peer.id === selectedPeerId}
+                compact
+                action={
+                  <button
+                    type="button"
+                    className="suzi-secondary-btn px-3 py-1.5 text-[var(--fs-xs)]"
+                    onClick={() =>
+                      router.push(`/app/messages?with=${encodeURIComponent(thread.peer.id)}`)
+                    }
+                  >
+                    Open
+                  </button>
+                }
               />
-            ))
-          )}
-        </div>
-      </Panel>
-
-      <Panel className="flex min-h-[22rem] flex-col overflow-hidden p-0 xl:h-full xl:min-h-0">
-        <div className="border-b border-white/8 px-6 py-5">
-          <SectionHeader
-            eyebrow="Conversation"
-            title={
-              activeThread
-                ? activeThread.peer.displayName ?? activeThread.peer.username
-                : "Select a thread"
-            }
-            copy={activeThread?.peer.country ?? ""}
-          />
-        </div>
-        <div
-          ref={messagesScrollRef}
-          className="suzi-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-6 py-6"
-        >
-          {msgLoading ? (
-            <p className="text-sm text-slate-500">Loading messages…</p>
-          ) : messages.length === 0 ? (
-            <p className="text-sm text-slate-500">No messages yet. Start the conversation.</p>
-          ) : (
-            messages.map((m) => {
-              const mine = meId !== null && m.sender.id === meId;
-              const live: LiveChatMessage = {
-                body: m.body,
-                timeLabel: shortTime(m.createdAt),
-                isMine: mine,
-                senderId: mine ? undefined : m.sender.id,
-                senderUsername: m.sender.username,
-                senderDisplayName: m.sender.displayName ?? m.sender.username,
-                senderAvatarUrl: mine ? myAvatarUrl : m.sender.avatarUrl?.trim() || null,
-              };
-              return <ChatMessageRow key={m.id} variant="live" message={live} />;
-            })
-          )}
-        </div>
-        <div className="border-t border-white/8 px-6 py-5">
-          {typingName ? (
-            <p className="mb-2 text-xs font-medium text-cyan-100/85">{typingName} is typing...</p>
-          ) : null}
-          <ChatComposer
-            attachInputId="dm-chat-attachment"
-            placeholder="Write a direct message…"
-            variant="onDark"
-            disabled={!hasSession || !selectedPeerId || sending}
-            onTyping={(text) => {
-              const s = getStoredAuthSession();
-              if (!s || !selectedPeerId) {
-                return;
-              }
-              const nextTyping = text.trim().length > 0;
-              const now = Date.now();
-              if (
-                nextTyping === lastTypingValueRef.current &&
-                now - lastTypingAtRef.current < 800
-              ) {
-                return;
-              }
-              lastTypingValueRef.current = nextTyping;
-              lastTypingAtRef.current = now;
-              getRealtimeSocket(s.accessToken).emit("dm:typing", {
-                peerId: selectedPeerId,
-                typing: nextTyping,
-              });
-            }}
-            onSend={handleSend}
-          />
-        </div>
-      </Panel>
-
-      <Panel className="flex h-[75vh] min-h-[32rem] max-h-[75vh] flex-col p-5">
-        <SectionHeader eyebrow="Friends" title="Quick invite" />
-        <div className="mt-5">
-          <input className="suzi-input" placeholder="Search friends" readOnly disabled />
-        </div>
-        <div className="suzi-scrollbar mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
-          {threads.slice(0, 8).map((thread) => (
-            <PersonRow
-              key={thread.peer.id}
-              person={peerToPerson(thread.peer)}
-              compact
-              action={
-                <button
-                  type="button"
-                  className="suzi-secondary-btn px-3 py-2 text-xs"
-                  onClick={() =>
-                    router.push(`/app/messages?with=${encodeURIComponent(thread.peer.id)}`)
-                  }
-                >
-                  Open
-                </button>
-              }
-            />
-          ))}
-          {threads.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)]">
-              Start from <a className="text-cyan-200 underline" href="/app/profile">your profile</a> after you connect with
-              someone.
-            </p>
-          ) : null}
-        </div>
-      </Panel>
+            ))}
+            {threads.length === 0 ? (
+              <p className="text-[var(--fs-sm)] text-[var(--text-muted)]">
+                Start from <Link className="text-cyan-200 underline" href="/app/profile">your profile</Link> after you
+                connect with someone.
+              </p>
+            ) : null}
+          </div>
+        </Panel>
       </div>
     </section>
   );

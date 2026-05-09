@@ -5,9 +5,15 @@ import { Panel } from "@/components/ui/suzi-primitives";
 function InboxFallback() {
   return (
     <section className="suzi-app-frame-fill">
-      <div className="grid min-h-0 flex-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_300px]">
-        <Panel className="p-6">
-          <p className="text-sm text-[var(--text-muted)]">Loading inbox…</p>
+      <div className="suzi-messages-grid">
+        <Panel className="flex h-full min-h-0 items-center justify-center p-[var(--panel-pad)]">
+          <p className="text-[var(--fs-sm)] text-[var(--text-muted)]">Loading inbox…</p>
+        </Panel>
+        <Panel className="flex h-full min-h-0 items-center justify-center p-[var(--panel-pad)]">
+          <p className="text-[var(--fs-sm)] text-[var(--text-muted)]">Loading messages…</p>
+        </Panel>
+        <Panel className="flex h-full min-h-0 items-center justify-center p-[var(--panel-pad)]">
+          <p className="text-[var(--fs-sm)] text-[var(--text-muted)]">Loading friends…</p>
         </Panel>
       </div>
     </section>

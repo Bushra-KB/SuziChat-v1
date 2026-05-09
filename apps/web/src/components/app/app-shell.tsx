@@ -148,8 +148,11 @@ export function AppShell({
   const accountAvatarSrc = resolveUserAvatarUrl(session.user.avatarUrl);
 
   useEffect(() => {
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted seen-inbox ids on user change */
     setSeenInboxHydrated(false);
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted seen-inbox ids on user change */
     setSeenInboxMessageIds(readSeenInboxMessageIds(session.user.id));
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted seen-inbox ids on user change */
     setSeenInboxHydrated(true);
   }, [session.user.id]);
 
@@ -164,6 +167,7 @@ export function AppShell({
     if (!pathname.startsWith("/app/messages")) {
       return;
     }
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- mark inbox messages seen when entering /app/messages */
     setSeenInboxMessageIds((prev) => {
       const next = new Set(prev);
       for (const thread of shellThreads) {
@@ -284,7 +288,7 @@ export function AppShell({
             fromUserId: String(payload.fromUserId ?? ""),
             gameType: String(payload.gameType ?? ""),
             title: String(payload.title ?? "Game Invite"),
-            deepLink: String(payload.deepLink ?? "/app/games"),
+            deepLink: String(payload.deepLink ?? "/app"),
             sentAt: String(payload.sentAt ?? new Date().toISOString()),
           },
           ...prev.filter((entry) => entry.lobbyId !== payload.lobbyId),
@@ -328,24 +332,58 @@ export function AppShell({
         <span className="suzi-bottom-star suzi-bottom-star-10" />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-[1460px] flex-1 flex-col px-3 pb-2 pt-5 sm:px-4 sm:pb-3 lg:px-5">
-        <header className="relative z-[220] mb-1 shrink-0">
-        <div className="pointer-events-auto absolute left-1/2 top-0 z-[221] -translate-x-1/2">
-          <Link href="/app" className="block">
-            <span className="relative block h-[3rem] w-[9.8rem] overflow-hidden xs:h-[3.4rem] xs:w-[11.2rem] sm:h-[4.4rem] sm:w-[14.4rem] md:h-[5.3rem] md:w-[17.6rem] lg:h-[6rem] lg:w-[19.8rem]">
-              <Image
-                src="/logo/logo.png"
-                alt="SuziChat"
-                width={1536}
-                height={1024}
-                priority
-                className="absolute left-1/2 top-1/2 h-[188%] w-auto max-w-none -translate-x-1/2 -translate-y-[52%] drop-shadow-[0_0_18px_rgba(232,77,255,0.32)]"
-              />
-            </span>
+      <div
+        className="relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col"
+        style={{
+          maxWidth: "var(--shell-max-w)",
+          paddingLeft: "var(--shell-pad-x)",
+          paddingRight: "var(--shell-pad-x)",
+          paddingTop: "var(--shell-pad-y)",
+          paddingBottom: "var(--shell-pad-y)",
+          rowGap: "var(--shell-pad-y)",
+        }}
+      >
+        <header
+          className="relative z-[220] flex shrink-0 items-center justify-between gap-3"
+          style={{ minHeight: "var(--shell-header-h)" }}
+        >
+        <div className="flex items-center gap-2">
+          <Link
+            href="/app"
+            className="suzi-home-pill"
+            aria-label="Home"
+          >
+            <Icon path="M4 6h16M4 12h16M4 18h16" className="h-4 w-4 opacity-80" />
+            <span className="hidden h-4 w-px bg-white/15 sm:inline" aria-hidden />
+            <Icon path="M3 11l9-8 9 8v9a2 2 0 0 1-2 2h-4v-6h-6v6H5a2 2 0 0 1-2-2v-9Z" className="h-4 w-4 text-cyan-100" />
+            <span className="text-[var(--fs-sm)] font-semibold tracking-wide">Home</span>
           </Link>
         </div>
 
-        <div className="pointer-events-auto absolute right-0 top-0 z-[221] flex items-center gap-2 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(140deg,rgba(15,13,43,0.76),rgba(34,18,79,0.56))] px-2 py-2 backdrop-blur-md">
+        <Link
+          href="/app"
+          className="pointer-events-auto absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+          aria-label="SuziChat"
+        >
+          <span
+            className="relative block overflow-hidden"
+            style={{
+              width: "var(--logo-w)",
+              height: "var(--logo-h)",
+            }}
+          >
+            <Image
+              src="/logo/logo.png"
+              alt="SuziChat"
+              width={1536}
+              height={1024}
+              priority
+              className="absolute left-1/2 top-1/2 h-[188%] w-auto max-w-none -translate-x-1/2 -translate-y-[52%] drop-shadow-[0_0_18px_rgba(232,77,255,0.32)]"
+            />
+          </span>
+        </Link>
+
+        <div className="pointer-events-auto flex items-center gap-2 rounded-[1.1rem] border border-white/10 bg-[linear-gradient(140deg,rgba(15,13,43,0.76),rgba(34,18,79,0.56))] px-2 py-1.5 backdrop-blur-md">
           <div ref={createRef} className="relative">
             <button
               type="button"
@@ -682,19 +720,22 @@ export function AppShell({
         </header>
 
         {gameInvites.length > 0 ? (
-          <div className="pointer-events-auto absolute right-3 top-[4.8rem] z-[219] w-[min(26rem,calc(100vw-1.5rem))] space-y-2 sm:right-4 sm:top-[5.35rem]">
+          <div
+            className="pointer-events-auto absolute right-3 z-[219] w-[min(26rem,calc(100vw-1.5rem))] space-y-2 sm:right-4"
+            style={{ top: "calc(var(--shell-header-h) + var(--shell-pad-y) + 0.5rem)" }}
+          >
             {gameInvites.map((invite) => (
               <div key={invite.lobbyId} className="rounded-xl border border-cyan-300/28 bg-[linear-gradient(155deg,rgba(30,18,84,0.94),rgba(20,12,60,0.92))] px-3 py-2.5 shadow-[0_10px_30px_rgba(6,9,28,0.48)]">
-                <p className="text-xs uppercase tracking-[0.14em] text-cyan-100/72">Game Invite</p>
-                <p className="mt-1 text-sm font-semibold text-white">{invite.title}</p>
+                <p className="text-[var(--fs-2xs)] uppercase tracking-[0.14em] text-cyan-100/72">Game Invite</p>
+                <p className="mt-1 text-[var(--fs-sm)] font-semibold text-white">{invite.title}</p>
                 <div className="mt-2 flex items-center justify-between gap-3">
-                  <Link href={invite.deepLink} className="suzi-primary-btn px-3 py-1.5 text-xs">
+                  <Link href={invite.deepLink} className="suzi-primary-btn px-3 py-1.5 text-[var(--fs-xs)]">
                     Join now
                   </Link>
                   <button
                     type="button"
                     onClick={() => setGameInvites((prev) => prev.filter((item) => item.lobbyId !== invite.lobbyId))}
-                    className="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-100/78 transition hover:text-white"
+                    className="text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.12em] text-cyan-100/78 transition hover:text-white"
                   >
                     Dismiss
                   </button>
@@ -704,15 +745,26 @@ export function AppShell({
           </div>
         ) : null}
 
-        <div className="suzi-app-frame-fill pt-[5.1rem] xs:pt-[5.35rem] sm:pt-[5.9rem] md:pt-[6.45rem] lg:pt-[7.15rem]">
+        <div className="suzi-app-frame-fill">
           {children}
         </div>
 
-        <footer className="mt-auto shrink-0 border-t border-white/10 pt-2 pb-1">
-          <div className="h-px w-full bg-[linear-gradient(90deg,rgba(165,243,252,0.06),rgba(165,243,252,0.72),rgba(165,243,252,0.06))]" />
-          <p className="mt-2 text-center text-[0.72rem] font-medium tracking-[0.14em] text-cyan-100/78 sm:text-[0.78rem]">
-            © Suzi Chat. All rights reserved.
-          </p>
+        <footer
+          className="mt-auto grid shrink-0 grid-cols-3 items-center gap-3 px-1 font-medium tracking-[0.1em] text-cyan-100/72"
+          style={{
+            minHeight: "var(--shell-footer-h)",
+            fontSize: "clamp(0.5rem, 0.28vw + 0.34rem, 0.6rem)",
+          }}
+        >
+          <span aria-hidden="true" />
+          <span className="text-center">© Suzi Chat. All rights reserved.</span>
+          <span className="hidden items-center justify-end gap-2.5 sm:flex">
+            <Link href="#" className="transition hover:text-white">Privacy</Link>
+            <span className="opacity-30">·</span>
+            <Link href="#" className="transition hover:text-white">Terms</Link>
+            <span className="opacity-30">·</span>
+            <Link href="#" className="transition hover:text-white">Help</Link>
+          </span>
         </footer>
       </div>
     </main>

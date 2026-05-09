@@ -42,7 +42,7 @@ type ProfileUser = {
 
 function getTabClasses(active: boolean) {
   return cx(
-    "inline-flex shrink-0 items-center gap-1.5 rounded-[0.7rem] border px-2 py-2 text-[0.98rem] font-medium leading-none transition",
+    "inline-flex shrink-0 items-center gap-1.5 rounded-[0.6rem] border px-2 py-1 text-[var(--fs-2xs)] font-medium leading-none transition",
     active
       ? "border-fuchsia-300/46 bg-[linear-gradient(90deg,rgba(157,78,221,0.86),rgba(255,32,121,0.72))] text-white shadow-[0_0_16px_rgba(255,32,121,0.24)]"
       : "border-cyan-300/22 bg-[rgba(23,16,71,0.62)] text-cyan-100/84 hover:border-cyan-300/38 hover:text-white",
@@ -288,15 +288,15 @@ export function HomeFriendsPanel() {
   const blockedCount = blockedRows.length;
 
   return (
-    <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-4">
+    <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
       <div className="shrink-0">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(157,78,221,0.26)] text-fuchsia-200/95 shadow-[0_0_14px_rgba(157,78,221,0.3)]">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[rgba(157,78,221,0.26)] text-fuchsia-200/95 shadow-[0_0_14px_rgba(157,78,221,0.3)]">
             <svg
               aria-hidden="true"
               viewBox="0 0 24 24"
-              className="h-4.5 w-4.5"
+              className="h-4 w-4"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.9"
@@ -309,17 +309,17 @@ export function HomeFriendsPanel() {
               <path d="M16.5 5.5a2.5 2.5 0 0 1 0 5" />
             </svg>
           </span>
-          <h2 className="text-[1.65rem] font-bold tracking-tight text-white">Friends</h2>
+          <h2 className="text-[var(--fs-xl)] font-bold tracking-tight text-white">Friends</h2>
         </div>
         </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-3 space-y-2.5">
         <div className="relative">
           <span className="pointer-events-none absolute inset-y-0 left-3 inline-flex items-center text-cyan-100/60">
             <svg
               aria-hidden="true"
               viewBox="0 0 24 24"
-              className="h-4.5 w-4.5"
+              className="h-4 w-4"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.85"
@@ -332,7 +332,7 @@ export function HomeFriendsPanel() {
           </span>
 
           <input
-            className="h-11 w-full rounded-[0.8rem] border border-cyan-300/24 bg-[linear-gradient(95deg,rgba(36,22,101,0.62),rgba(24,14,76,0.7))] py-2 pl-9 pr-12 text-[1.1rem] text-cyan-50/96 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] placeholder:text-cyan-100/48 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24"
+            className="h-[var(--btn-h-sm)] w-full rounded-[0.8rem] border border-cyan-300/24 bg-[linear-gradient(95deg,rgba(36,22,101,0.62),rgba(24,14,76,0.7))] py-1.5 pl-9 pr-10 text-[var(--fs-xs)] text-cyan-50/96 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] placeholder:text-cyan-100/48 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24"
             placeholder="Search friends..."
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -341,12 +341,12 @@ export function HomeFriendsPanel() {
           <button
             type="button"
             aria-label="Search friends"
-            className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center rounded-r-[0.8rem] border-l border-cyan-300/24 text-fuchsia-200/84 transition hover:text-fuchsia-100"
+            className="absolute inset-y-0 right-0 inline-flex w-9 items-center justify-center rounded-r-[0.8rem] border-l border-cyan-300/24 text-fuchsia-200/84 transition hover:text-fuchsia-100"
           >
             <svg
               aria-hidden="true"
               viewBox="0 0 24 24"
-              className="h-4.5 w-4.5"
+              className="h-4 w-4"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.9"
@@ -359,7 +359,7 @@ export function HomeFriendsPanel() {
           </button>
         </div>
 
-        <div className="relative z-20 flex flex-wrap items-center gap-2 pb-1">
+        <div className="relative z-20 flex flex-wrap items-center gap-1.5 pb-1">
           <button type="button" className={getTabClasses(true)}>
             All
           </button>
@@ -373,7 +373,7 @@ export function HomeFriendsPanel() {
               }}
             >
               Requests
-              <span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-pink-500 px-1 text-[0.62rem] font-semibold leading-none text-white">
+              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-pink-500 px-1 text-[var(--fs-2xs)] font-semibold leading-none text-white">
                 {incomingCount}
               </span>
             </button>
@@ -438,7 +438,7 @@ export function HomeFriendsPanel() {
               }}
             >
               Blocked
-              <span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-slate-600 px-1 text-[0.62rem] font-semibold leading-none text-white">
+              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-600 px-1 text-[var(--fs-2xs)] font-semibold leading-none text-white">
                 {blockedCount}
               </span>
             </button>
@@ -483,15 +483,15 @@ export function HomeFriendsPanel() {
       </div>
       </div>
 
-      <div className="suzi-scrollbar mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain pr-1">
+      <div className="suzi-scrollbar mt-3 min-h-0 flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden overscroll-contain rounded-[0.95rem] border border-cyan-300/16 p-1.5 shadow-[inset_0_1px_3px_rgba(0,0,0,0.32),inset_0_0_0_1px_rgba(255,255,255,0.02)]">
         {error ? (
-          <div className="rounded-[0.9rem] border border-pink-400/20 bg-pink-500/10 px-3 py-2 text-xs text-pink-100">
+          <div className="rounded-[0.9rem] border border-pink-400/20 bg-pink-500/10 px-3 py-2 text-[var(--fs-xs)] text-pink-100">
             {error}
           </div>
         ) : null}
 
         {[...friendsOnline, ...friendsAway, ...friendsOffline].length === 0 ? (
-          <div className="rounded-[0.8rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-2 text-xs text-cyan-100/56">
+          <div className="rounded-[0.8rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-2 text-[var(--fs-xs)] text-cyan-100/56">
             You have no friends yet. Explore people below and send friend requests.
           </div>
         ) : (
@@ -500,73 +500,94 @@ export function HomeFriendsPanel() {
             return (
               <div
                 key={friend.id}
-                className="flex items-center gap-3 rounded-[1rem] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(32,20,89,0.72),rgba(18,13,65,0.56))] px-3 py-2.5"
+                className="flex items-center gap-2.5 rounded-[0.95rem] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(32,20,89,0.72),rgba(18,13,65,0.56))] px-2.5 py-1.5"
               >
-                <div className="relative h-11 w-11 shrink-0">
+                <div className="relative shrink-0" style={{ width: "var(--avatar-md)", height: "var(--avatar-md)" }}>
                   <Image
                     src={defaultAvatar}
                     alt={displayName(friend)}
                     width={44}
                     height={44}
-                    className="h-11 w-11 rounded-full border border-white/14 object-cover"
+                    className="h-full w-full rounded-full border border-white/14 object-cover"
                   />
-                  <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[rgba(24,16,82,0.95)] bg-[rgba(24,16,82,0.95)]">
+                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[rgba(24,16,82,0.95)] bg-[rgba(24,16,82,0.95)]">
                     <span className={cx("block h-full w-full rounded-full", presenceDotClass(status))} />
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => profileFromUser(friend)}
-                      className="truncate text-[1.05rem] font-semibold leading-tight text-white hover:text-cyan-100"
-                    >
-                      {displayName(friend)}
-                    </button>
-                  </div>
-                  <p className="mt-1 truncate text-[0.86rem] leading-none text-cyan-100/66">
+                  <button
+                    type="button"
+                    onClick={() => profileFromUser(friend)}
+                    className="block w-full truncate text-left text-[var(--fs-xs)] font-semibold leading-tight text-white hover:text-cyan-100"
+                  >
+                    {displayName(friend)}
+                  </button>
+                  <p className="mt-0.5 truncate text-[var(--fs-2xs)] leading-none text-cyan-100/66">
                     @{friend.username}
                   </p>
                 </div>
-                <Link
-                  href={`/app/messages?with=${encodeURIComponent(friend.id)}`}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-[0.8rem] border border-fuchsia-300/22 bg-[linear-gradient(150deg,rgba(86,30,173,0.54),rgba(46,17,111,0.74))] text-cyan-100/88 transition hover:border-fuchsia-300/42 hover:text-white"
-                  aria-label={`Message ${displayName(friend)}`}
-                >
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.85"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                <div className="flex shrink-0 items-center gap-1">
+                  <Link
+                    href={`/app/messages?with=${encodeURIComponent(friend.id)}`}
+                    className="inline-flex items-center justify-center rounded-full border border-fuchsia-300/22 bg-[linear-gradient(150deg,rgba(86,30,173,0.54),rgba(46,17,111,0.74))] text-cyan-100/88 transition hover:border-fuchsia-300/42 hover:text-white"
+                    style={{ width: "var(--btn-h-sm)", height: "var(--btn-h-sm)" }}
+                    aria-label={`Message ${displayName(friend)}`}
+                    title="Message"
                   >
-                    <path d="M4 6h16v10H8l-4 4V6Z" />
-                  </svg>
-                </Link>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    void runAction(async () => {
-                      const s = getStoredAuthSession();
-                      if (!s) return;
-                      await unfriend(s.accessToken, friend.id);
-                    })
-                  }
-                  className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-2 py-1 text-[0.66rem] font-semibold text-pink-100"
-                >
-                  Unfriend
-                </button>
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.85"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M4 6h16v10H8l-4 4V6Z" />
+                    </svg>
+                  </Link>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void runAction(async () => {
+                        const s = getStoredAuthSession();
+                        if (!s) return;
+                        await unfriend(s.accessToken, friend.id);
+                      })
+                    }
+                    className="inline-flex items-center justify-center rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 text-pink-100"
+                    style={{ width: "var(--btn-h-sm)", height: "var(--btn-h-sm)" }}
+                    title="Unfriend"
+                    aria-label={`Unfriend ${displayName(friend)}`}
+                  >
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5H7a3 3 0 0 0-3 3V20" />
+                      <circle cx="9" cy="8" r="3" />
+                      <path d="M16 11h6" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             );
           })
         )}
 
-        <div className="space-y-2 pt-1">
-          <p className="px-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-cyan-100/70">
+        <div className="space-y-1.5 pt-1">
+          <p
+            className="px-1 font-semibold uppercase tracking-[0.1em] text-cyan-100/62"
+            style={{ fontSize: "clamp(0.46rem, 0.22vw + 0.34rem, 0.56rem)" }}
+          >
             Other People On SuziChat
           </p>
           {filteredOthers.length > 0 ? (
@@ -575,36 +596,34 @@ export function HomeFriendsPanel() {
               return (
                 <div
                   key={person.id}
-                  className="flex items-center gap-3 rounded-[1rem] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(32,20,89,0.72),rgba(18,13,65,0.56))] px-3 py-2.5"
+                  className="flex items-center gap-2.5 rounded-[0.95rem] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(32,20,89,0.72),rgba(18,13,65,0.56))] px-2.5 py-1.5"
                 >
-                  <div className="relative h-11 w-11 shrink-0">
+                  <div className="relative shrink-0" style={{ width: "var(--avatar-md)", height: "var(--avatar-md)" }}>
                     <Image
                       src={defaultAvatar}
                       alt={displayName(person)}
                       width={44}
                       height={44}
-                      className="h-11 w-11 rounded-full border border-white/14 object-cover"
+                      className="h-full w-full rounded-full border border-white/14 object-cover"
                     />
-                    <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[rgba(24,16,82,0.95)] bg-[rgba(24,16,82,0.95)]">
+                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[rgba(24,16,82,0.95)] bg-[rgba(24,16,82,0.95)]">
                       <span className={cx("block h-full w-full rounded-full", presenceDotClass(status))} />
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => profileFromUser(person)}
-                        className="truncate text-[1.05rem] font-semibold leading-tight text-white hover:text-cyan-100"
-                      >
-                        {displayName(person)}
-                      </button>
-                    </div>
-                    <p className="mt-1 truncate text-[0.86rem] leading-none text-cyan-100/66">
+                    <button
+                      type="button"
+                      onClick={() => profileFromUser(person)}
+                      className="block w-full truncate text-left text-[var(--fs-xs)] font-semibold leading-tight text-white hover:text-cyan-100"
+                    >
+                      {displayName(person)}
+                    </button>
+                    <p className="mt-0.5 truncate text-[var(--fs-2xs)] leading-none text-cyan-100/66">
                       @{person.username}
                     </p>
                   </div>
                   {person.relationship === "incoming" ? (
-                    <div className="flex gap-1">
+                    <div className="flex shrink-0 gap-1">
                       <button
                         type="button"
                         disabled={busy}
@@ -615,7 +634,7 @@ export function HomeFriendsPanel() {
                             await acceptFriendRequest(s.accessToken, person.requestId);
                           })
                         }
-                        className="rounded-full border border-emerald-300/35 bg-emerald-400/20 px-2 py-1 text-[0.66rem] font-semibold text-emerald-50"
+                        className="rounded-full border border-emerald-300/35 bg-emerald-400/20 px-2 py-1 text-[var(--fs-2xs)] font-semibold text-emerald-50"
                       >
                         Accept
                       </button>
@@ -629,7 +648,7 @@ export function HomeFriendsPanel() {
                             await declineFriendRequest(s.accessToken, person.requestId);
                           })
                         }
-                        className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-2 py-1 text-[0.66rem] font-semibold text-pink-100"
+                        className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-2 py-1 text-[var(--fs-2xs)] font-semibold text-pink-100"
                       >
                         Reject
                       </button>
@@ -645,12 +664,13 @@ export function HomeFriendsPanel() {
                           await cancelOutgoingFriendRequest(s.accessToken, person.requestId);
                         })
                       }
-                      className="rounded-full border border-cyan-300/30 bg-cyan-400/16 px-2 py-1 text-[0.66rem] font-semibold text-cyan-50"
+                      className="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-400/16 px-2 py-0.5 text-[var(--fs-2xs)] font-semibold text-cyan-50"
+                      title="Cancel request"
                     >
-                      Cancel request
+                      Cancel
                     </button>
                   ) : (
-                    <div className="flex gap-1">
+                    <div className="flex shrink-0 items-center gap-1">
                       <button
                         type="button"
                         disabled={busy}
@@ -661,9 +681,25 @@ export function HomeFriendsPanel() {
                             await sendFriendRequest(s.accessToken, person.username);
                           })
                         }
-                        className="rounded-full border border-emerald-300/35 bg-emerald-400/20 px-2 py-1 text-[0.66rem] font-semibold text-emerald-50"
+                        className="inline-flex items-center justify-center rounded-full border border-emerald-300/35 bg-emerald-400/20 text-[var(--fs-2xs)] font-semibold text-emerald-50"
+                        style={{ width: "var(--btn-h-sm)", height: "var(--btn-h-sm)" }}
+                        title="Add friend"
+                        aria-label={`Add ${displayName(person)} as friend`}
                       >
-                        Add friend
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 24 24"
+                          className="h-3.5 w-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5H7a3 3 0 0 0-3 3V20" />
+                          <circle cx="9" cy="8" r="3" />
+                          <path d="M19 8v6M16 11h6" />
+                        </svg>
                       </button>
                       <button
                         type="button"
@@ -675,9 +711,24 @@ export function HomeFriendsPanel() {
                             await blockPerson(s.accessToken, person.id);
                           })
                         }
-                        className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-2 py-1 text-[0.66rem] font-semibold text-pink-100"
+                        className="inline-flex items-center justify-center rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 text-[var(--fs-2xs)] font-semibold text-pink-100"
+                        style={{ width: "var(--btn-h-sm)", height: "var(--btn-h-sm)" }}
+                        title="Block"
+                        aria-label={`Block ${displayName(person)}`}
                       >
-                        Block
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 24 24"
+                          className="h-3.5 w-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="12" cy="12" r="9" />
+                          <path d="m5.5 5.5 13 13" />
+                        </svg>
                       </button>
                     </div>
                   )}
@@ -685,7 +736,7 @@ export function HomeFriendsPanel() {
               );
             })
           ) : (
-            <div className="flex h-full items-center rounded-[0.9rem] border border-cyan-300/16 bg-[rgba(17,12,58,0.54)] px-3 py-4 text-sm text-cyan-100/70">
+            <div className="flex h-full items-center rounded-[0.9rem] border border-cyan-300/16 bg-[rgba(17,12,58,0.54)] px-3 py-3 text-[var(--fs-xs)] text-cyan-100/70">
               No users match this search.
             </div>
           )}

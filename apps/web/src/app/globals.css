@@ -23,6 +23,46 @@
   --gradient-erotic: linear-gradient(92deg, #ff2079, #ff4db8);
   --gradient-music: linear-gradient(92deg, #00ff66, #00bfa5);
   --gradient-sports: linear-gradient(92deg, #ffd700, #ff8c00);
+
+  /* ----------------------------------------------------------------
+   * SPA layout system — clamp-based responsive scale.
+   * Targets desktops 1280×720 → 1920×1080 at 100% browser zoom.
+   * All values shrink gracefully on shorter / narrower viewports.
+   * ---------------------------------------------------------------- */
+  --shell-pad-x: clamp(0.75rem, 1.6vw, 1.75rem);
+  --shell-pad-y: clamp(0.5rem, 1vh, 1rem);
+  --shell-gap: clamp(0.65rem, 1vw + 0.2vh, 1.1rem);
+  --shell-header-h: clamp(3.5rem, 5.4vh + 1.4rem, 4.75rem);
+  --shell-footer-h: clamp(1.1rem, 1.1vh + 0.4rem, 1.55rem);
+  --shell-max-w: 1640px;
+  --logo-w: clamp(7.6rem, 14vw, 11.6rem);
+  --logo-h: clamp(2.6rem, 4.2vh + 1rem, 3.6rem);
+  --panel-radius: clamp(0.85rem, 1vw + 0.25rem, 1.35rem);
+  --panel-pad: clamp(0.65rem, 0.7vw + 0.3rem, 1.1rem);
+  --panel-pad-tight: clamp(0.55rem, 0.5vw + 0.25rem, 0.85rem);
+  --col-gap: clamp(0.5rem, 0.85vw, 0.9rem);
+  --row-gap: clamp(0.5rem, 0.8vh + 0.1rem, 0.85rem);
+  --btn-h: clamp(2rem, 2.6vh + 0.4rem, 2.4rem);
+  --btn-h-sm: clamp(1.65rem, 2.2vh + 0.35rem, 2rem);
+  --icon-btn-size: clamp(2rem, 2.2vh + 0.9rem, 2.4rem);
+
+  /* Type scale: clamp(min, fluid, max) — heading anchored at --fs-xl,
+   * body sizes step down clearly so hierarchy reads at a glance.
+   * Floor on each step keeps body legible (>= 10px) at 1024px width. */
+  --fs-2xs: clamp(0.55rem, 0.32vw + 0.38rem, 0.62rem);
+  --fs-xs: clamp(0.6rem, 0.34vw + 0.42rem, 0.66rem);
+  --fs-sm: clamp(0.64rem, 0.36vw + 0.46rem, 0.72rem);
+  --fs-base: clamp(0.68rem, 0.4vw + 0.48rem, 0.78rem);
+  --fs-md: clamp(0.72rem, 0.42vw + 0.5rem, 0.84rem);
+  --fs-lg: clamp(0.8rem, 0.5vw + 0.52rem, 0.92rem);
+  --fs-xl: clamp(1rem, 0.85vw + 0.6rem, 1.18rem);
+  --fs-2xl: clamp(1.16rem, 1.1vw + 0.65rem, 1.4rem);
+  --fs-3xl: clamp(1.4rem, 1.4vw + 0.7rem, 1.74rem);
+
+  --avatar-sm: clamp(1.45rem, 1.6vh + 0.55rem, 1.85rem);
+  --avatar-md: clamp(1.8rem, 2vh + 0.65rem, 2.2rem);
+  --avatar-lg: clamp(2.2rem, 2.6vh + 0.9rem, 2.8rem);
+  --avatar-xl: clamp(3.4rem, 5.5vh + 1.8rem, 5.4rem);
 }
 
 .light {
@@ -94,14 +134,17 @@ body {
   min-height: 100vh;
 }
 
-/* Locked app shell: document does not scroll; regions scroll inside [data-suzi-app-frame] */
+/* ------------------------------------------------------------------
+ * Locked app shell — document never scrolls; only inner panels scroll.
+ * ------------------------------------------------------------------ */
 html.suzi-app-frame-lock,
 html.suzi-app-frame-lock body {
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
-/* Route root: fill shell content area (flex child). */
+/* Route root: fills the shell content area, never scrolls itself. */
 .suzi-app-frame-fill {
   display: flex;
   flex-direction: column;
@@ -111,7 +154,8 @@ html.suzi-app-frame-lock body {
   overflow: hidden;
 }
 
-/* Primary scrollport for a full route (profile, notifications, etc.). */
+/* Primary scrollport for routes whose entire content needs scroll
+ * (rare on desktop — prefer per-panel scrolling). */
 .suzi-app-frame-scroll {
   flex: 1 1 0%;
   min-height: 0;
@@ -120,21 +164,109 @@ html.suzi-app-frame-lock body {
   -webkit-overflow-scrolling: touch;
 }
 
-/*
- * App home desktop density: combine (1) zoom, (2) rem‑biased panels, (3) tighter tokens in page.tsx.
- * Targets ~75% browser-zoom appearance at 100% zoom without changing the single-page / three-column layout.
- */
-@media (min-width: 1280px) {
-  .suzi-home-dashboard-scale {
-    zoom: 0.75;
-    transform-origin: top center;
-    line-height: 1.42;
-  }
+/* ------------------------------------------------------------------
+ * Page-level layout primitives.
+ * Use these on every page root inside .suzi-app-frame-fill.
+ * ------------------------------------------------------------------ */
 
-  /* Technique 2: slightly smaller type inside panel shells (em‑friendly blocks inherit from here). */
-  .suzi-home-dashboard-scale .suzi-panel,
-  .suzi-home-dashboard-scale .suzi-panel-muted {
-    font-size: 0.9375rem;
+/* Single-row, full-height grid container.
+ * Children declare their own `grid-template-columns` / `grid-template-rows`. */
+.suzi-page-grid {
+  display: grid;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: var(--col-gap);
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.suzi-page-grid > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Vertical stack within a column — children share remaining height. */
+.suzi-col-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--row-gap);
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+}
+
+.suzi-col-stack > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Direct flex child that should fill remaining vertical space and may scroll inside. */
+.suzi-fill {
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Internal scrollable region (lists, feeds, message logs). */
+.suzi-panel-scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 32, 121, 0.4) transparent;
+}
+
+.suzi-panel-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.suzi-panel-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 32, 121, 0.36);
+}
+
+/* Compact panel — uses tighter padding/radius from the responsive scale. */
+.suzi-tight-panel {
+  padding: var(--panel-pad-tight);
+  border-radius: var(--panel-radius);
+}
+
+/* ------------------------------------------------------------------
+ * Compact-desktop behavior.
+ * Triggered on shorter desktops (1280×720, 1366×768) so panels and
+ * type stay tasteful without page-level scrolling.
+ * ------------------------------------------------------------------ */
+@media (min-width: 1024px) and (max-height: 820px) {
+  :root {
+    --panel-pad: clamp(0.55rem, 0.65vw + 0.2rem, 0.85rem);
+    --panel-pad-tight: clamp(0.45rem, 0.45vw + 0.2rem, 0.7rem);
+    --row-gap: clamp(0.4rem, 0.7vh, 0.7rem);
+    --col-gap: clamp(0.45rem, 0.7vw, 0.8rem);
+    --shell-header-h: clamp(3rem, 4.2vh + 1rem, 3.8rem);
+    --logo-h: clamp(2.2rem, 3.2vh + 0.7rem, 2.9rem);
+    --logo-w: clamp(6.6rem, 11vw, 9.6rem);
+  }
+}
+
+@media (min-width: 1024px) and (max-height: 720px) {
+  :root {
+    --fs-2xs: clamp(0.46rem, 0.26vw + 0.34rem, 0.56rem);
+    --fs-xs: clamp(0.52rem, 0.28vw + 0.4rem, 0.62rem);
+    --fs-sm: clamp(0.58rem, 0.3vw + 0.44rem, 0.66rem);
+    --fs-base: clamp(0.62rem, 0.34vw + 0.46rem, 0.72rem);
+    --fs-md: clamp(0.66rem, 0.38vw + 0.48rem, 0.78rem);
+    --fs-lg: clamp(0.74rem, 0.45vw + 0.5rem, 0.86rem);
+    --fs-xl: clamp(0.96rem, 0.78vw + 0.58rem, 1.12rem);
+    --fs-2xl: clamp(1.1rem, 1vw + 0.6rem, 1.3rem);
+    --avatar-sm: clamp(1.4rem, 1.4vh + 0.5rem, 1.7rem);
+    --avatar-md: clamp(1.7rem, 1.8vh + 0.6rem, 2rem);
+    --btn-h-sm: clamp(1.55rem, 2vh + 0.35rem, 1.85rem);
   }
 }
 
@@ -210,49 +342,63 @@ h5 {
 }
 
 .suzi-panel {
-  border: 1px solid var(--border-soft);
+  position: relative;
+  border: 1px solid rgba(86, 196, 255, 0.34);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.008)),
     var(--panel-bg);
   box-shadow:
-    0 0 0 1px rgba(157, 78, 221, 0.14),
-    0 16px 34px rgba(12, 8, 48, 0.44),
-    0 0 22px rgba(0, 229, 255, 0.16),
-    0 0 28px rgba(255, 32, 121, 0.12),
+    0 14px 30px rgba(8, 5, 32, 0.46),
+    0 0 22px rgba(0, 229, 255, 0.14),
+    0 0 24px rgba(255, 32, 121, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(10px) saturate(138%);
-  border-radius: 1.5rem;
+  -webkit-backdrop-filter: blur(10px) saturate(138%);
+  border-radius: var(--panel-radius);
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
 .suzi-shell-panel {
-  border: 1px solid var(--border-soft);
+  position: relative;
+  border: 1px solid rgba(86, 196, 255, 0.32);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.008)),
     var(--surface-1);
   box-shadow:
-    0 0 0 1px rgba(157, 78, 221, 0.16),
-    0 14px 34px rgba(12, 8, 52, 0.4),
-    0 0 20px rgba(255, 32, 121, 0.16),
-    0 0 14px rgba(0, 229, 255, 0.12),
+    0 14px 30px rgba(8, 5, 38, 0.42),
+    0 0 18px rgba(255, 32, 121, 0.14),
+    0 0 14px rgba(0, 229, 255, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(12px) saturate(142%);
+  -webkit-backdrop-filter: blur(12px) saturate(142%);
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
 .suzi-overlay-panel {
-  border: 1px solid var(--border-soft);
+  /* `position` intentionally omitted — every call site sets it via the
+   * `absolute` Tailwind utility. Declaring `position: relative` here
+   * would override that utility (this file loads after Tailwind),
+   * which would put dropdowns back into the document flow and stretch
+   * their parent (e.g. the header icon-pill row) when opened. */
+  border: 1px solid rgba(86, 196, 255, 0.34);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.048), rgba(255, 255, 255, 0.01)),
     var(--surface-2);
   box-shadow:
-    0 0 0 1px rgba(0, 229, 255, 0.12),
-    0 18px 38px rgba(8, 6, 38, 0.48),
-    0 0 20px rgba(157, 78, 221, 0.2),
-    0 0 14px rgba(255, 32, 121, 0.14),
+    0 18px 36px rgba(8, 6, 38, 0.48),
+    0 0 18px rgba(157, 78, 221, 0.18),
+    0 0 14px rgba(255, 32, 121, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(12px) saturate(145%);
+  -webkit-backdrop-filter: blur(12px) saturate(145%);
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
 .suzi-panel-muted {
+  position: relative;
   border: 1px solid rgba(0, 229, 255, 0.18);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
@@ -261,6 +407,7 @@ h5 {
     0 0 16px rgba(0, 229, 255, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   border-radius: 1.25rem;
+  isolation: isolate;
 }
 
 .suzi-input {
@@ -669,4 +816,258 @@ h5 {
     animation: none !important;
     transform: none !important;
   }
+}
+
+/* ==================================================================
+ * Desktop SPA layouts — page-shape primitives (lg/xl breakpoints).
+ * Each one is a CSS Grid that fills 100% height, gives every column
+ * `minmax(0, 1fr)` so children can shrink, and never page-scrolls.
+ * ================================================================== */
+
+/* HOME — three columns. Left rail, wide middle, right rail.
+ * Reference proportions: 18.5rem | 1fr | 18.5rem at >= 1280px,
+ * collapses to single column < 1280px. */
+.suzi-home-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--col-gap);
+  height: 100%;
+  min-height: 0;
+}
+
+@media (min-width: 1280px) {
+  .suzi-home-grid {
+    grid-template-columns:
+      clamp(17rem, 19.5vw, 22rem)
+      minmax(0, 1fr)
+      clamp(13rem, 14.5vw, 16.5rem);
+  }
+}
+
+/* MESSAGES — three columns: inbox | thread | quick invite. */
+.suzi-messages-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--col-gap);
+  height: 100%;
+  min-height: 0;
+}
+
+@media (min-width: 1280px) {
+  .suzi-messages-grid {
+    grid-template-columns:
+      clamp(16rem, 19vw, 21rem)
+      minmax(0, 1fr)
+      clamp(15rem, 18vw, 19.5rem);
+  }
+}
+
+/* CHAT ROOM — chat | members + options sidebar. */
+.suzi-room-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--col-gap);
+  height: 100%;
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .suzi-room-grid {
+    grid-template-columns:
+      minmax(0, 1fr)
+      clamp(16rem, 22vw, 22rem);
+  }
+}
+
+/* GAME LOBBY — friends/reels/snaps left rail | tables list on right. */
+.suzi-lobby-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--col-gap);
+  height: 100%;
+  min-height: 0;
+}
+
+@media (min-width: 1280px) {
+  .suzi-lobby-grid {
+    grid-template-columns:
+      clamp(16rem, 19vw, 21rem)
+      minmax(0, 1fr);
+  }
+}
+
+/* MY ACCOUNT / VIEW PROFILE — hero on top, content grid below.
+ * The shell controls vertical proportions via grid-template-rows. */
+.suzi-profile-grid {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  row-gap: var(--row-gap);
+  height: 100%;
+  min-height: 0;
+}
+
+/* Two-column body inside profile grid. */
+.suzi-profile-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--col-gap);
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .suzi-profile-body {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  }
+}
+
+.suzi-profile-body > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Reels/Snaps full-page carousel — single panel that fills viewport. */
+.suzi-stage-grid {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  row-gap: var(--row-gap);
+  height: 100%;
+  min-height: 0;
+}
+
+/* ==================================================================
+ * Top-bar primitives (reused across the shell).
+ * ================================================================== */
+
+.suzi-home-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.95rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(
+    140deg,
+    rgba(15, 13, 43, 0.78),
+    rgba(34, 18, 79, 0.58)
+  );
+  color: #fff;
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(10px) saturate(135%);
+  transition:
+    background 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.suzi-home-pill:hover {
+  background: linear-gradient(
+    140deg,
+    rgba(28, 22, 70, 0.86),
+    rgba(48, 25, 100, 0.68)
+  );
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.18);
+  transform: translateY(-1px);
+}
+
+/* Scrollbar utility shared across all internal scrollports. */
+.suzi-thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 32, 121, 0.34) transparent;
+}
+
+.suzi-thin-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.suzi-thin-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 32, 121, 0.34);
+}
+
+/* Stat card — used on profile / account hero. */
+.suzi-stat-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: clamp(0.7rem, 0.9vw + 0.3rem, 1.05rem);
+  border-radius: clamp(0.85rem, 1vw + 0.3rem, 1.2rem);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    155deg,
+    rgba(255, 32, 121, 0.08),
+    rgba(0, 229, 255, 0.05)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  min-height: clamp(5rem, 7vh + 2rem, 6.6rem);
+}
+
+.suzi-stat-card-label {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(195, 211, 239, 0.66);
+}
+
+.suzi-stat-card-value {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+/* Soft divider line. */
+.suzi-divider {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(165, 243, 252, 0.06),
+    rgba(165, 243, 252, 0.5),
+    rgba(165, 243, 252, 0.06)
+  );
+}
+
+/* Toggle switch (privacy/quick defaults). */
+.suzi-switch {
+  position: relative;
+  width: 2.5rem;
+  height: 1.4rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.15rem;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.suzi-switch[data-on="true"] {
+  border-color: rgba(255, 32, 121, 0.45);
+  background: linear-gradient(90deg, #ff2079, #9d4edd);
+  box-shadow: 0 0 14px rgba(255, 32, 121, 0.4);
+}
+
+.suzi-switch::after {
+  content: "";
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  background: #cbd5ff;
+  transition: transform 160ms ease;
+}
+
+.suzi-switch[data-on="true"]::after {
+  background: #ffffff;
+  transform: translateX(1.05rem);
 }

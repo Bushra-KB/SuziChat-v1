@@ -1089,11 +1089,11 @@ export function ReelsFeed() {
 
   return (
     <section className="suzi-app-frame-fill">
-      <Panel className="flex min-h-0 flex-1 flex-col overflow-hidden [background:transparent] border-cyan-300/24 p-4 shadow-none sm:p-5">
-        <div className="flex shrink-0 flex-wrap items-start justify-between gap-4">
+      <Panel className="flex min-h-0 flex-1 flex-col overflow-hidden [background:transparent] border-cyan-300/24 p-[var(--panel-pad)] shadow-none">
+        <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-3">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-[0.8rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
+            <div className="flex items-center gap-2.5">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.8rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"
@@ -1108,9 +1108,9 @@ export function ReelsFeed() {
                   <path d="m10 9 5 3-5 3V9Z" />
                 </svg>
               </span>
-              <h2 className="text-[2rem] font-bold tracking-tight text-white">Suzi Reels</h2>
+              <h2 className="text-[var(--fs-2xl)] font-bold tracking-tight text-white">Suzi Reels</h2>
             </div>
-            <p className="mt-1 text-sm text-cyan-100/72">Discover short moments from across Suzi Chat.</p>
+            <p className="mt-1 text-[var(--fs-sm)] text-cyan-100/72">Discover short moments from across Suzi Chat.</p>
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3">
@@ -1185,7 +1185,7 @@ export function ReelsFeed() {
             "relative isolate min-h-0 overflow-hidden border border-cyan-300/16 [perspective:1200px]",
             isFullscreenCard
               ? "mt-0 h-[100dvh] w-full max-w-none rounded-none bg-black sm:h-[100dvh]"
-              : "mt-5 min-h-[15rem] flex-1 rounded-[1.05rem] bg-transparent sm:min-h-[20rem]",
+              : "mt-3 flex-1 rounded-[var(--panel-radius)] bg-transparent",
           )}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}

@@ -11,15 +11,22 @@ import { PokerTableView } from "@/components/app/games/poker-table-view";
 import { Panel } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { formatMoveListForSession, getLastChessMoveSquares } from "@/lib/format-game-move";
-import { getGameSession, postGameAction, type ApiGameSession } from "@/lib/games-client";
+import {
+  getGameSession,
+  listGameSessionChat,
+  postGameAction,
+  sendGameSessionChat,
+  type ApiGameChatMessage,
+  type ApiGameSession,
+} from "@/lib/games-client";
 import { getGameSoundEnabled, playMoveSound, playYourTurnSound, setGameSoundEnabled } from "@/lib/game-sounds";
-import { joinSessionChannel, openGamesSocket, postGameSessionAction } from "@/lib/games-realtime";
+import { joinSessionChannel, openGamesSocket, postGameSessionAction, postGameSessionChat } from "@/lib/games-realtime";
 
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
-const RECONNECT_HINT = "Moves will apply when you’re back online. We’ll refresh the table as soon as the live link is restored.";
+const RECONNECT_HINT = "Moves and chat sync automatically as soon as the live link is restored.";
 
 export function GameSessionClient({ sessionId }: { sessionId: string }) {
   const [session, setSession] = useState<ApiGameSession | null>(null);
@@ -28,6 +35,10 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
   const [socketReady, setSocketReady] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
   const [soundOn, setSoundOn] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ApiGameChatMessage[]>([]);
+  const [chatDraft, setChatDraft] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const soundInitialized = useRef(false);
   const prevMovesLen = useRef(0);
   const prevTurnId = useRef<string | null>(null);
@@ -54,6 +65,21 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
   }, [refresh]);
 
   useEffect(() => {
+    if (!auth?.accessToken) return;
+    let cancelled = false;
+    void listGameSessionChat(auth.accessToken, sessionId)
+      .then((rows) => {
+        if (!cancelled) setChatMessages(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setChatMessages([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [auth?.accessToken, sessionId]);
+
+  useEffect(() => {
     soundInitialized.current = false;
   }, [sessionId]);
 
@@ -77,16 +103,28 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
         setSession(next);
       }
     };
+    const onChat = (message: ApiGameChatMessage) => {
+      if (message.sessionId !== sessionId) return;
+      setChatMessages((prev) => (
+        prev.some((row) => row.id === message.id) ? prev : [...prev, message]
+      ));
+    };
     s.on("connect", onConnect);
     s.on("disconnect", onDisconnect);
     s.on("game:state", onState);
+    s.on("game:chat", onChat);
     if (s.connected) onConnect();
     return () => {
       s.off("connect", onConnect);
       s.off("disconnect", onDisconnect);
       s.off("game:state", onState);
+      s.off("game:chat", onChat);
     };
   }, [auth?.accessToken, sessionId, refresh]);
+
+  useEffect(() => {
+    chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight });
+  }, [chatMessages.length]);
 
   const meId = auth?.user.id ?? "";
 
@@ -155,6 +193,34 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
     }
   }
 
+  async function sendChat() {
+    const body = chatDraft.trim();
+    if (!body || !auth?.accessToken) return;
+    setChatBusy(true);
+    setError("");
+    try {
+      const socket = openGamesSocket(auth.accessToken);
+      if (socket.connected) {
+        try {
+          await postGameSessionChat(socket, sessionId, body);
+          setChatDraft("");
+          return;
+        } catch {
+          /* fall back to HTTP */
+        }
+      }
+      const message = await sendGameSessionChat(auth.accessToken, sessionId, body);
+      setChatMessages((prev) => (
+        prev.some((row) => row.id === message.id) ? prev : [...prev, message]
+      ));
+      setChatDraft("");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Message failed.");
+    } finally {
+      setChatBusy(false);
+    }
+  }
+
   const state = (session?.state ?? {}) as Record<string, unknown>;
   const isTurn = session?.turnUserId === meId;
   const turnSeatUser =
@@ -212,14 +278,86 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
 
   return (
     <section className="suzi-app-frame-fill">
-      <div className="suzi-app-frame-scroll suzi-scrollbar pr-1">
+      <div className="h-full min-h-0">
         {!session ? (
           <Panel className="p-6">
             <p className="text-sm text-cyan-100/75">Loading session...</p>
             {error ? <p className="mt-2 text-sm text-pink-100">{error}</p> : null}
           </Panel>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="grid h-full min-h-0 gap-[var(--col-gap)] xl:grid-cols-[clamp(14rem,17vw,18rem)_minmax(0,1fr)_clamp(15rem,19vw,20rem)]">
+            <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-4">
+              <h3 className="text-[var(--fs-lg)] font-semibold text-white">Session Info</h3>
+              <div className="mt-3 grid gap-2 text-[var(--fs-xs)] text-cyan-100/72">
+                <p>Status: <span className="font-semibold text-white/90">{session.status}</span></p>
+                <p>Turn: <span className="font-semibold text-white/90">{session.turnUserId ? `${turnDisplay}` : "—"}</span></p>
+                <p>Winner: <span className="font-semibold text-white/90">{session.winnerUserId ?? "—"}</span></p>
+              </div>
+
+              <label className="mt-4 flex cursor-pointer items-center gap-2 text-[var(--fs-2xs)] text-cyan-100/80">
+                <input
+                  type="checkbox"
+                  className="rounded border-cyan-400/40"
+                  checked={soundOn}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    setSoundOn(on);
+                    setGameSoundEnabled(on);
+                    if (on) {
+                      soundInitialized.current = false;
+                    }
+                  }}
+                />
+                Game sounds
+              </label>
+
+              <div className="mt-4 space-y-2">
+                <Link
+                  href={`/app/games/${gameTypeToId(session.gameType)}`}
+                  className="suzi-secondary-btn block px-3 py-2 text-center text-[var(--fs-xs)]"
+                >
+                  Back to lobby
+                </Link>
+                {!spectator ? (
+                  <button
+                    type="button"
+                    onClick={() => void runAction({ type: "resign" }, "RESIGN")}
+                    className="w-full rounded-lg border border-pink-300/34 bg-pink-500/18 px-3 py-2 text-[var(--fs-xs)] font-semibold text-pink-100"
+                  >
+                    Resign
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="suzi-scrollbar mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                <p className="text-[0.65rem] font-medium uppercase tracking-wider text-cyan-100/50">
+                  Moves
+                </p>
+                {session.moves.length === 0 ? (
+                  <p className="rounded-lg border border-cyan-300/18 bg-[rgba(21,14,66,0.45)] px-2.5 py-2 text-[var(--fs-2xs)] text-cyan-100/58">
+                    No moves yet.
+                  </p>
+                ) : null}
+                {session.moves.map((move, idx) => {
+                  const mover =
+                    session.lobby.seats.find((s) => s.userId === move.userId)?.user?.username ??
+                    move.userId.slice(0, 8);
+                  return (
+                    <div
+                      key={move.id}
+                      className="rounded-lg border border-cyan-300/20 bg-[rgba(21,14,66,0.6)] px-2.5 py-2 text-[var(--fs-2xs)] text-cyan-100/85"
+                    >
+                      <p className="font-semibold text-cyan-50/95">{moveLines[idx] ?? `#${move.ply}`}</p>
+                      <p className="mt-0.5 text-[0.65rem] text-cyan-100/55">
+                        {move.kind}
+                        {mover ? ` · ${mover}` : ""}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </Panel>
+
             <GameFrame
               title={`${session.gameType.replace("_", " ")} Session`}
               subtitle={frameSubtitle}
@@ -284,70 +422,72 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
               </div>
             </GameFrame>
 
-            <Panel className="flex min-h-0 flex-col p-4">
-              <h3 className="text-lg font-semibold text-white">Session Info</h3>
-              <p className="mt-2 text-sm text-cyan-100/72">Status: {session.status}</p>
-              <p className="text-sm text-cyan-100/72">
-                Turn: {session.turnUserId ? `${turnDisplay}` : "—"}
-              </p>
-              <p className="text-sm text-cyan-100/72">Winner: {session.winnerUserId ?? "—"}</p>
-
-              <label className="mt-4 flex cursor-pointer items-center gap-2 text-xs text-cyan-100/80">
-                <input
-                  type="checkbox"
-                  className="rounded border-cyan-400/40"
-                  checked={soundOn}
-                  onChange={(e) => {
-                    const on = e.target.checked;
-                    setSoundOn(on);
-                    setGameSoundEnabled(on);
-                    if (on) {
-                      soundInitialized.current = false;
-                    }
-                  }}
-                />
-                Game sounds (move tick & your-turn chime)
-              </label>
-
-              <div className="mt-4 space-y-2">
-                <Link
-                  href={`/app/games/${gameTypeToId(session.gameType)}`}
-                  className="suzi-secondary-btn block px-3 py-2 text-center text-sm"
-                >
-                  Back to lobby
-                </Link>
-                {!spectator ? (
-                  <button
-                    type="button"
-                    onClick={() => void runAction({ type: "resign" }, "RESIGN")}
-                    className="w-full rounded-lg border border-pink-300/34 bg-pink-500/18 px-3 py-2 text-sm font-semibold text-pink-100"
-                  >
-                    Resign
-                  </button>
-                ) : null}
+            <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-4">
+              <div className="flex shrink-0 items-center justify-between gap-2">
+                <h3 className="text-[var(--fs-lg)] font-semibold text-white">Game Chat</h3>
+                <span className={socketReady ? "text-[var(--fs-2xs)] text-emerald-100/80" : "text-[var(--fs-2xs)] text-amber-100/80"}>
+                  {socketReady ? "Live" : "Syncing"}
+                </span>
               </div>
-              <div className="suzi-scrollbar mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                <p className="text-[0.65rem] font-medium uppercase tracking-wider text-cyan-100/50">
-                  Moves
-                </p>
-                {session.moves.map((move, idx) => {
-                  const mover =
-                    session.lobby.seats.find((s) => s.userId === move.userId)?.user?.username ??
-                    move.userId.slice(0, 8);
+
+              <div
+                ref={chatScrollRef}
+                className="suzi-thin-scroll mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto rounded-[var(--panel-radius)] bg-white p-2 shadow-[inset_0_2px_8px_rgba(7,4,28,0.22),inset_0_0_0_1px_rgba(0,0,0,0.04)]"
+              >
+                {chatMessages.length === 0 ? (
+                  <p className="px-1 py-2 text-center text-[var(--fs-2xs)] text-slate-500">
+                    No game chat yet.
+                  </p>
+                ) : null}
+                {chatMessages.map((message) => {
+                  const mine = message.userId === meId;
+                  const label = message.user?.displayName?.trim() || message.user?.username || "Player";
                   return (
                     <div
-                      key={move.id}
-                      className="rounded-lg border border-cyan-300/20 bg-[rgba(21,14,66,0.6)] px-2.5 py-2 text-xs text-cyan-100/85"
+                      key={message.id}
+                      className={`rounded-lg border px-2.5 py-2 text-[var(--fs-2xs)] ${
+                        mine
+                          ? "ml-4 border-fuchsia-200/90 bg-fuchsia-50/95"
+                          : "mr-4 border-slate-200 bg-slate-50/95"
+                      }`}
                     >
-                      <p className="font-semibold text-cyan-50/95">{moveLines[idx] ?? `#${move.ply}`}</p>
-                      <p className="mt-0.5 text-[0.65rem] text-cyan-100/55">
-                        {move.kind}
-                        {mover ? ` · ${mover}` : ""}
+                      <p
+                        className={`truncate font-semibold ${
+                          mine ? "text-fuchsia-800" : "text-sky-800"
+                        }`}
+                      >
+                        {label}
+                      </p>
+                      <p className="mt-0.5 whitespace-pre-wrap break-words leading-relaxed text-slate-700">
+                        {message.body}
                       </p>
                     </div>
                   );
                 })}
               </div>
+
+              <form
+                className="mt-3 flex shrink-0 items-center gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void sendChat();
+                }}
+              >
+                <input
+                  value={chatDraft}
+                  onChange={(event) => setChatDraft(event.target.value)}
+                  placeholder="Message players..."
+                  className="suzi-input h-9 min-w-0 flex-1 px-3 text-[var(--fs-xs)]"
+                  maxLength={500}
+                />
+                <button
+                  type="submit"
+                  disabled={chatBusy || !chatDraft.trim()}
+                  className="suzi-primary-btn h-9 px-3 text-[var(--fs-2xs)] disabled:opacity-60"
+                >
+                  Send
+                </button>
+              </form>
             </Panel>
           </div>
         )}

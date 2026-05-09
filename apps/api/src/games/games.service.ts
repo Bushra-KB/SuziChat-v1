@@ -90,6 +90,11 @@ function jsonPrimitiveString(value: unknown, fallback = ''): string {
   return fallback;
 }
 
+function gameTypeToRouteId(gameType: GameType) {
+  if (gameType === GameType.POKER_HOLDEM) return 'poker';
+  return gameType.toLowerCase();
+}
+
 @Injectable()
 export class GamesService {
   constructor(
@@ -330,6 +335,39 @@ export class GamesService {
     return snapshot;
   }
 
+  async deleteLobby(lobbyId: string, userId: string) {
+    const lobby = await this.prisma.gameLobby.findUnique({
+      where: { id: lobbyId },
+      include: {
+        sessions: {
+          where: {
+            status: {
+              in: [GameSessionStatus.WAITING, GameSessionStatus.ACTIVE],
+            },
+          },
+          select: { id: true },
+        },
+      },
+    });
+    if (!lobby) throw new NotFoundException('Lobby not found.');
+    if (lobby.ownerId !== userId) {
+      throw new ForbiddenException('Only the lobby owner can delete it.');
+    }
+    if (lobby.sessions.length > 0) {
+      throw new BadRequestException(
+        'Resign or finish the active session before deleting this lobby.',
+      );
+    }
+    await this.prisma.gameLobby.delete({ where: { id: lobbyId } });
+    this.realtimeEvents.emitToChannel(
+      this.lobbyChannel(lobbyId),
+      'game:lobby:deleted',
+      { lobbyId },
+    );
+    this.emitLobbyListRefresh(lobby.gameType);
+    return { ok: true, lobbyId };
+  }
+
   async leaveLobby(lobbyId: string, userId: string) {
     const lobby = await this.ensureLobbyAccess(lobbyId, userId);
     const seat = lobby.seats.find((row) => row.userId === userId);
@@ -501,6 +539,93 @@ export class GamesService {
   async getSession(sessionId: string, viewerId: string) {
     const session = await this.fetchSessionSnapshot(sessionId);
     return this.maskSessionForViewer(session, viewerId);
+  }
+
+  async listSessionChat(sessionId: string, viewerId: string) {
+    await this.assertSessionSocketSubscription(sessionId, viewerId);
+    const rows = await this.prisma.gameEvent.findMany({
+      where: { sessionId, type: GameEventType.CHAT },
+      orderBy: { createdAt: 'asc' },
+      take: 200,
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+    return rows.map((row) => this.mapChatEvent(row));
+  }
+
+  async sendSessionChat(sessionId: string, userId: string, body: string) {
+    const text = body.trim();
+    if (!text) throw new BadRequestException('Message is required.');
+    if (text.length > 500) {
+      throw new BadRequestException('Message must be 500 characters or less.');
+    }
+    const session = await this.assertSessionSocketSubscription(
+      sessionId,
+      userId,
+    );
+    const event = await this.prisma.gameEvent.create({
+      data: {
+        lobbyId: session.lobbyId,
+        sessionId,
+        userId,
+        type: GameEventType.CHAT,
+        payload: { body: text },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+    const message = this.mapChatEvent(event);
+    this.realtimeEvents.emitToChannel(
+      this.sessionChannel(sessionId),
+      'game:chat',
+      message,
+    );
+    return message;
+  }
+
+  private mapChatEvent(row: {
+    id: string;
+    sessionId: string | null;
+    userId: string | null;
+    payload: Prisma.JsonValue;
+    createdAt: Date;
+    user?: {
+      id: string;
+      username: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    } | null;
+  }) {
+    const payload =
+      row.payload &&
+      typeof row.payload === 'object' &&
+      !Array.isArray(row.payload)
+        ? (row.payload as Record<string, unknown>)
+        : {};
+    return {
+      id: row.id,
+      sessionId: row.sessionId ?? '',
+      userId: row.userId,
+      body: jsonPrimitiveString(payload.body),
+      createdAt: row.createdAt.toISOString(),
+      user: row.user ?? null,
+    };
   }
 
   private maskSessionForViewer(
@@ -715,7 +840,7 @@ export class GamesService {
       targetUserId,
       gameType: lobby.gameType,
       title: lobby.title,
-      deepLink: `/app/games/${lobby.gameType.toLowerCase()}/session/new?lobbyId=${lobbyId}`,
+      deepLink: `/app/games/${gameTypeToRouteId(lobby.gameType)}`,
       sentAt: new Date().toISOString(),
     };
     await this.prisma.gameEvent.create({

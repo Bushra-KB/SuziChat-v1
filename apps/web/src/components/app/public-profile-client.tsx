@@ -316,29 +316,28 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
 
   return (
     <section className="suzi-app-frame-fill">
-      <div className="suzi-app-frame-scroll suzi-scrollbar space-y-6 pb-12 pr-1">
+      <div className="suzi-app-frame-scroll suzi-thin-scroll space-y-[var(--row-gap)] pb-2 pr-1">
       {/* Cover + identity */}
-      <div className="overflow-hidden rounded-[1.35rem] border border-white/10 bg-[linear-gradient(135deg,rgba(72,28,140,0.55),rgba(10,14,42,0.95))] shadow-[0_28px_70px_rgba(6,8,28,0.55)]">
-        <div className="relative h-36 sm:h-44 md:h-52">
-          <div className="absolute inset-0 opacity-[0.35] [background:radial-gradient(ellipse_at_20%_0%,rgba(255,32,121,0.45),transparent_55%),radial-gradient(ellipse_at_80%_30%,rgba(0,229,255,0.22),transparent_50%)]" />
-          <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(255,255,255,0.28)_1px,transparent_1px)] [background-size:18px_18px]" />
-        </div>
-
-        <div className="relative px-5 pb-8 pt-0 sm:px-8 md:px-10">
-          <div className="-mt-16 flex flex-col gap-8 md:-mt-20 md:flex-row md:items-end md:justify-between">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:gap-8">
-              <div className="relative mx-auto h-36 w-36 shrink-0 overflow-hidden rounded-full border-[3px] border-fuchsia-300/35 bg-[rgba(12,10,40,0.96)] shadow-[0_20px_50px_rgba(15,23,42,0.55)] ring-4 ring-[rgba(15,18,48,0.85)] sm:mx-0 sm:h-40 sm:w-40">
+      <div className="overflow-hidden rounded-[var(--panel-radius)] border border-white/10 bg-[linear-gradient(135deg,rgba(72,28,140,0.55),rgba(10,14,42,0.95))] shadow-[0_18px_44px_rgba(6,8,28,0.45)]">
+        <div className="relative px-[var(--panel-pad)] py-[var(--panel-pad)]">
+          <div className="pointer-events-none absolute inset-0 opacity-30 [background:radial-gradient(ellipse_at_20%_0%,rgba(255,32,121,0.4),transparent_55%),radial-gradient(ellipse_at_80%_30%,rgba(0,229,255,0.2),transparent_50%)]" />
+          <div className="relative grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+            <div className="flex items-center gap-4">
+              <div
+                className="relative shrink-0 overflow-hidden rounded-full border-[3px] border-fuchsia-300/35 bg-[rgba(12,10,40,0.96)] shadow-[0_18px_40px_rgba(15,23,42,0.5)] ring-4 ring-[rgba(15,18,48,0.85)]"
+                style={{ width: "var(--avatar-xl)", height: "var(--avatar-xl)" }}
+              >
                 {avatarSrc.startsWith("http://") || avatarSrc.startsWith("https://") ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatarSrc} alt="" className="absolute inset-0 h-full w-full object-cover" />
                 ) : (
-                  <Image src={avatarSrc} alt="" fill sizes="160px" className="object-cover" priority />
+                  <Image src={avatarSrc} alt="" fill sizes="120px" className="object-cover" priority />
                 )}
               </div>
 
-              <div className="min-w-0 flex-1 text-center sm:pb-2 sm:text-left">
-                <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                  <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl">{displayName}</h1>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="truncate text-[var(--fs-2xl)] font-bold tracking-tight text-white">{displayName}</h1>
                   {user.isEmailVerified ? (
                     <span
                       className="inline-flex items-center rounded-full border border-emerald-300/35 bg-emerald-400/14 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-emerald-100"
@@ -353,9 +352,9 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-1.5 text-base font-medium text-cyan-100/75">@{user.username}</p>
+                <p className="mt-1 text-[var(--fs-sm)] font-medium text-cyan-100/75">@{user.username}</p>
 
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span
                     className={cx(
                       "rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em]",
@@ -447,14 +446,21 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
           </div>
 
           {relation.kind === "friends" ? (
-            <p className="mt-6 text-center text-xs text-cyan-100/55 sm:text-left">
+            <p className="relative mt-3 text-[var(--fs-xs)] text-cyan-100/55">
               Friends since {formatJoined(relation.friendsSince)}
             </p>
           ) : null}
 
           {relation.kind === "blocked_you" ? (
-            <p className="mt-6 rounded-[1rem] border border-pink-300/22 bg-pink-500/10 px-4 py-3 text-sm text-pink-100">
+            <p className="relative mt-3 rounded-[1rem] border border-pink-300/22 bg-pink-500/10 px-4 py-3 text-[var(--fs-sm)] text-pink-100">
               You cannot interact with this account.
+            </p>
+          ) : null}
+
+          {user.bio?.trim() ? (
+            <p className="relative mt-3 max-w-3xl text-[var(--fs-sm)] leading-relaxed text-[var(--text-muted)]">
+              <span className="mr-1 text-fuchsia-300">✦</span>
+              {user.bio.trim()}
             </p>
           ) : null}
         </div>
@@ -467,36 +473,34 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
       ) : null}
 
       {/* Stats */}
-      <div>
-        <p className="mb-3 text-[0.65rem] font-bold uppercase tracking-[0.28em] text-cyan-100/48">Activity</p>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard label="Friends" value={counts.friends} tone="cyan" />
-          <StatCard label="Rooms" value={counts.rooms} tone="fuchsia" />
-          <StatCard label="Snaps" value={counts.snaps} tone="emerald" />
-          <StatCard label="Reels" value={counts.reels} tone="amber" />
-        </div>
+      <div className="grid grid-cols-2 gap-[var(--col-gap)] lg:grid-cols-4">
+        <StatCard label="Friends" value={counts.friends} tone="cyan" />
+        <StatCard label="Rooms" value={counts.rooms} tone="fuchsia" />
+        <StatCard label="Snaps" value={counts.snaps} tone="emerald" />
+        <StatCard label="Reels" value={counts.reels} tone="amber" />
       </div>
 
-      {/* Bio */}
-      <Panel className="border border-white/10 bg-[linear-gradient(160deg,rgba(28,18,82,0.45),rgba(12,10,40,0.65))] p-6 sm:p-8">
-        <p className="text-[0.65rem] font-bold uppercase tracking-[0.26em] text-cyan-100/52">About</p>
-        {user.bio?.trim() ? (
-          <p className="mt-4 text-base leading-relaxed text-[var(--text-muted)]">{user.bio.trim()}</p>
-        ) : (
-          <p className="mt-4 text-sm text-[var(--text-soft)]">No bio yet.</p>
-        )}
-      </Panel>
+      {/* Bio (only shown if no bio in hero) */}
+      {!user.bio?.trim() ? (
+        <Panel className="border border-white/10 bg-[linear-gradient(160deg,rgba(28,18,82,0.45),rgba(12,10,40,0.65))] p-[var(--panel-pad)]">
+          <p className="text-[var(--fs-2xs)] font-bold uppercase tracking-[0.26em] text-cyan-100/52">About</p>
+          <p className="mt-2 text-[var(--fs-sm)] text-[var(--text-soft)]">No bio yet.</p>
+          <p className="mt-1 text-[var(--fs-xs)] text-[var(--text-soft)]">@{user.username} hasn&apos;t written a bio yet.</p>
+        </Panel>
+      ) : null}
 
       {/* Hosted rooms */}
-      <Panel className="p-6 sm:p-8">
+      <Panel className="p-[var(--panel-pad)]">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[0.65rem] font-bold uppercase tracking-[0.26em] text-cyan-100/52">Rooms</p>
-            <h2 className="mt-2 text-xl font-bold text-white">Hosted spaces</h2>
-            <p className="mt-1 text-sm text-[var(--text-soft)]">Rooms owned by @{user.username}</p>
+            <p className="text-[var(--fs-2xs)] font-bold uppercase tracking-[0.22em] text-cyan-100/52">Hosted Spaces</p>
+            <p className="mt-0.5 text-[var(--fs-xs)] text-[var(--text-soft)]">Rooms owned by @{user.username}</p>
           </div>
+          <Link href="/app#rooms" className="text-[var(--fs-xs)] font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100">
+            View all rooms →
+          </Link>
         </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {hostedRooms.length === 0 ? (
             <p className="text-sm text-[var(--text-muted)]">No rooms hosted yet.</p>
           ) : (
@@ -520,17 +524,23 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
       </Panel>
 
       {/* Discover */}
-      <Panel className="border border-white/10 p-6 sm:p-8">
-        <p className="text-[0.65rem] font-bold uppercase tracking-[0.26em] text-cyan-100/52">Explore</p>
-        <h2 className="mt-2 text-xl font-bold text-white">Snaps & reels</h2>
-        <p className="mt-2 max-w-xl text-sm text-[var(--text-soft)]">
-          Browse public feeds — posts from @{user.username} appear alongside community content based on visibility.
-        </p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link href="/app/snaps" className="suzi-secondary-btn px-5 py-3 text-sm font-semibold">
+      <Panel className="border border-white/10 p-[var(--panel-pad)]">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[var(--fs-2xs)] font-bold uppercase tracking-[0.22em] text-cyan-100/52">Snaps & Reels</p>
+            <p className="mt-0.5 text-[var(--fs-xs)] text-[var(--text-soft)]">
+              Recent snaps and reels from @{user.username}
+            </p>
+          </div>
+          <Link href="/app/snaps" className="text-[var(--fs-xs)] font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100">
+            View all →
+          </Link>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link href="/app/snaps" className="suzi-secondary-btn px-4 py-2 text-[var(--fs-xs)] font-semibold">
             Open snaps
           </Link>
-          <Link href="/app/reels" className="suzi-secondary-btn px-5 py-3 text-sm font-semibold">
+          <Link href="/app/reels" className="suzi-secondary-btn px-4 py-2 text-[var(--fs-xs)] font-semibold">
             Open reels
           </Link>
         </div>

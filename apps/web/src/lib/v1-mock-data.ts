@@ -117,11 +117,6 @@ export const appNavItems: NavItem[] = [
     icon: "M8 5h8l4 4v10a2 2 0 0 1-2 2H8a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4Z M11 11.5v4l3-2-3-2Z",
   },
   {
-    href: "/app/games",
-    label: "Games",
-    icon: "M7 8h10l3 3v5l-3 3H7l-3-3v-5l3-3ZM9 12h.01M15 12h.01M10 15h4",
-  },
-  {
     href: "/app/notifications",
     label: "Notifications",
     icon: "M15 17H5l2-2.5V10a5 5 0 1 1 10 0v4.5L19 17h-4ZM10 20a2 2 0 0 0 4 0",
@@ -133,7 +128,7 @@ export const mobileNavItems: NavItem[] = [
   appNavItems[1],
   appNavItems[3],
   appNavItems[2],
-  appNavItems[5],
+  appNavItems[4],
 ];
 
 export const createMenuItems = [
@@ -689,6 +684,7 @@ export const games = [
     icon: "/games/Chess_icon.png",
     copy: "Play with friends or keep a private table open.",
     tone: "from-cyan-400/24 via-blue-400/10 to-transparent",
+    playing: "1.2K playing",
   },
   {
     id: "checkers",
@@ -696,6 +692,7 @@ export const games = [
     icon: "/games/Checker_icon.png",
     copy: "Fast two-player tables with public or friends-only queues.",
     tone: "from-pink-400/24 via-fuchsia-400/12 to-transparent",
+    playing: "842 playing",
   },
   {
     id: "poker",
@@ -703,6 +700,7 @@ export const games = [
     icon: "/games/Poker_icon.png",
     copy: "Private and public lobbies with easy invite flow.",
     tone: "from-emerald-400/24 via-cyan-400/12 to-transparent",
+    playing: "1.5K playing",
   },
   {
     id: "connect4",
@@ -710,6 +708,7 @@ export const games = [
     icon: "/games/Connect4_icon.png",
     copy: "Quick lobby matches for short sessions and low friction.",
     tone: "from-amber-400/24 via-orange-400/12 to-transparent",
+    playing: "623 playing",
   },
 ];
 
