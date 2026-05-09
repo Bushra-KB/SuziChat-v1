@@ -4,12 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ProfilePageFriendsSection } from "@/components/app/profile-page-friends";
-import {
-  Chip,
-  Panel,
-  SectionHeader,
-  cx,
-} from "@/components/ui/suzi-primitives";
+import { Icon, Panel } from "@/components/ui/suzi-primitives";
 import {
   clearAuthSession,
   getStoredAuthSession,
@@ -25,38 +20,13 @@ import {
 } from "@/lib/users-client";
 import { getFriendsSummary, type FriendsSummary } from "@/lib/friends-client";
 import {
-  deleteMyPost,
   listMyAuthoredPosts,
   type ApiPost,
 } from "@/lib/posts-client";
-import { apiPostToReel, apiPostToSnap } from "@/lib/post-ui-mappers";
 import type { ApiRoom } from "@/lib/rooms-client";
-import {
-  deleteRoom,
-  leaveRoom,
-  listRoomsForMe,
-} from "@/lib/rooms-client";
-
-const ACCOUNT_ROOM_COVER: Record<string, string> = {
-  "general-chat": "/banner/general_chat_banner.png",
-  "music-lounge": "/banner/Music_lounch_banner.png",
-  "late-night-chat": "/banner/Late_Night_chat_banner.png",
-  "movie-nights": "/banner/hobbies_banner.png",
-  "gaming-hangout": "/banner/gamming_hangout_banner.png",
-};
+import { listRoomsForMe } from "@/lib/rooms-client";
 
 const DEFAULT_AVATAR = "/ppic/ppic1.jpeg";
-
-const PROFILE_TABS = [
-  { id: "overview", label: "About & account" },
-  { id: "reels", label: "Reels" },
-  { id: "snaps", label: "Snaps" },
-  { id: "rooms", label: "Rooms" },
-] as const;
-
-type TabId = (typeof PROFILE_TABS)[number]["id"];
-
-const languageOptions = ["English", "Deutsch", "Français", "Español", "Italiano", "Nederlands", "Polski"] as const;
 
 function sessionFromStorage(): AuthSession | null {
   if (typeof window === "undefined") {
@@ -78,18 +48,37 @@ function resolveAvatarSrc(profile: UserProfile | null, session: AuthSession | nu
   if (!u) {
     return DEFAULT_AVATAR;
   }
-  if (u.startsWith("http://") || u.startsWith("https://")) {
-    return u;
-  }
   return u;
 }
 
-function roomCover(room: ApiRoom): string {
-  if (room.imageUrl?.trim()) {
-    return room.imageUrl.trim();
-  }
-  return ACCOUNT_ROOM_COVER[room.slug] ?? "/banner/general_chat_banner.png";
-}
+const QUICK_DEFAULTS: Array<{ id: string; label: string; copy: string }> = [
+  {
+    id: "showOnline",
+    label: "Show online status",
+    copy: "Let friends see when you're online",
+  },
+  {
+    id: "darkMode",
+    label: "Enable dark mode",
+    copy: "Use dark theme across Suzi Chat",
+  },
+  {
+    id: "snapsFriends",
+    label: "Default snaps to friends",
+    copy: "Your snaps will be visible to friends by default",
+  },
+  {
+    id: "roomInvites",
+    label: "Allow room invitations from friends",
+    copy: "Let friends invite you to rooms",
+  },
+];
+
+const PRIVACY_FIELDS: Array<{ id: string; label: string; options: string[] }> = [
+  { id: "messages", label: "Who can send you messages", options: ["Friends", "Everyone", "Nobody"] },
+  { id: "snaps", label: "Who can see your snaps", options: ["Friends", "Everyone", "Nobody"] },
+  { id: "reels", label: "Who can see your reels", options: ["Everyone", "Friends", "Nobody"] },
+];
 
 export function AccountProfilePage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -101,20 +90,21 @@ export function AccountProfilePage() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [saveMessage, setSaveMessage] = useState("");
   const [avatarBusy, setAvatarBusy] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabId>("overview");
-  const [langSelection, setLangSelection] = useState(0);
   const [prefToggles, setPrefToggles] = useState<Record<string, boolean>>({
-    "Show online status": true,
-    "Enable dating profile": true,
-    "Default snaps to friends-only": true,
-    "Allow room invitations from friends": false,
+    showOnline: true,
+    darkMode: true,
+    snapsFriends: true,
+    roomInvites: true,
+  });
+  const [privacy, setPrivacy] = useState<Record<string, string>>({
+    messages: "Friends",
+    snaps: "Friends",
+    reels: "Everyone",
   });
   const [dashFriends, setDashFriends] = useState<FriendsSummary | null>(null);
   const [dashRooms, setDashRooms] = useState<ApiRoom[]>([]);
   const [dashSnaps, setDashSnaps] = useState<ApiPost[]>([]);
   const [dashReels, setDashReels] = useState<ApiPost[]>([]);
-  const [postBusyId, setPostBusyId] = useState<string | null>(null);
-  const [roomBusySlug, setRoomBusySlug] = useState<string | null>(null);
 
   const displayLabel = useMemo(() => {
     if (!session) {
@@ -139,7 +129,6 @@ export function AccountProfilePage() {
     setDashReels(reelList);
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect -- bootstrap session + GET /users/me on mount */
   useEffect(() => {
     const s = sessionFromStorage();
     if (!s) {
@@ -176,7 +165,6 @@ export function AccountProfilePage() {
       cancelled = true;
     };
   }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!session || loadState !== "ready") {
@@ -250,10 +238,7 @@ export function AccountProfilePage() {
       setProfile(updated);
       const next: AuthSession = {
         ...session,
-        user: {
-          ...session.user,
-          avatarUrl: updated.avatarUrl,
-        },
+        user: { ...session.user, avatarUrl: updated.avatarUrl },
       };
       saveAuthSession(next);
       setSession(next);
@@ -262,534 +247,374 @@ export function AccountProfilePage() {
       setSaveMessage(parseUsersApiError(e));
     } finally {
       setAvatarBusy(false);
-    }
-  }
-
-  async function handleClearAvatar() {
-    const s = sessionFromStorage();
-    if (!s) {
-      return;
-    }
-    setAvatarBusy(true);
-    try {
-      const updated = await updateMyProfile(s.accessToken, { avatarUrl: "" });
-      setProfile(updated);
-      const next: AuthSession = {
-        ...s,
-        user: {
-          ...s.user,
-          avatarUrl: updated.avatarUrl,
-        },
-      };
-      saveAuthSession(next);
-      setSession(next);
-    } catch (e) {
-      setSaveState("error");
-      setSaveMessage(parseUsersApiError(e));
-    } finally {
-      setAvatarBusy(false);
-    }
-  }
-
-  async function handleDeletePost(postId: string, kind: "REEL" | "SNAP") {
-    const s = sessionFromStorage();
-    if (!s) {
-      return;
-    }
-    if (!window.confirm("Delete this post permanently? This cannot be undone.")) {
-      return;
-    }
-    setPostBusyId(postId);
-    try {
-      await deleteMyPost(s.accessToken, postId);
-      if (kind === "REEL") {
-        setDashReels((prev) => prev.filter((p) => p.id !== postId));
-      } else {
-        setDashSnaps((prev) => prev.filter((p) => p.id !== postId));
-      }
-    } catch (e) {
-      setSaveState("error");
-      setSaveMessage(parseUsersApiError(e));
-    } finally {
-      setPostBusyId(null);
-    }
-  }
-
-  async function handleLeaveRoom(slug: string) {
-    const s = sessionFromStorage();
-    if (!s) {
-      return;
-    }
-    if (!window.confirm("Leave this room? You can rejoin later if it stays open.")) {
-      return;
-    }
-    setRoomBusySlug(slug);
-    try {
-      await leaveRoom(s.accessToken, slug);
-      await refreshOwnedContent(s.accessToken);
-    } catch (e) {
-      setSaveState("error");
-      setSaveMessage(parseUsersApiError(e));
-    } finally {
-      setRoomBusySlug(null);
-    }
-  }
-
-  async function handleDeleteRoom(slug: string) {
-    const s = sessionFromStorage();
-    if (!s) {
-      return;
-    }
-    if (!window.confirm("Delete this room permanently? All messages will be removed.")) {
-      return;
-    }
-    setRoomBusySlug(slug);
-    try {
-      await deleteRoom(s.accessToken, slug);
-      await refreshOwnedContent(s.accessToken);
-    } catch (e) {
-      setSaveState("error");
-      setSaveMessage(parseUsersApiError(e));
-    } finally {
-      setRoomBusySlug(null);
     }
   }
 
   const avatarSrc = resolveAvatarSrc(profile, session);
+  const friendsCount = dashFriends?.friends.length ?? 0;
+  const roomsCount = myRooms.length;
+  const snapsCount = dashSnaps.length;
+  const reelsCount = dashReels.length;
+  const lastUpdatedLabel = profile?.updatedAt
+    ? `Last updated ${new Date(profile.updatedAt).toLocaleString()}`
+    : null;
 
   return (
     <section className="suzi-app-frame-fill">
-      <div className="suzi-app-frame-scroll suzi-scrollbar space-y-5 pb-8 pr-1">
-      {/* Hero */}
-      <div className="overflow-hidden rounded-[1.35rem] border border-white/10 bg-[linear-gradient(135deg,rgba(56,20,120,0.55),rgba(12,18,48,0.92))] shadow-[0_24px_60px_rgba(8,6,28,0.55)]">
-        <div className="relative px-5 pb-6 pt-8 sm:px-8 sm:pb-8 sm:pt-10">
-          <div className="pointer-events-none absolute inset-0 opacity-40 [background:radial-gradient(ellipse_at_30%_0%,rgba(255,32,121,0.35),transparent_55%)]" />
-          <div className="relative flex flex-col items-center gap-5 sm:flex-row sm:items-start sm:gap-8">
-            <div className="flex flex-col items-center">
-              <div className="relative h-36 w-36 overflow-hidden rounded-full border-2 border-fuchsia-300/35 bg-[linear-gradient(145deg,rgba(232,77,255,0.22),rgba(82,213,255,0.12))] shadow-[0_18px_40px_rgba(15,23,42,0.45)]">
+      <div className="suzi-profile-grid">
+        {/* HERO */}
+        <Panel className="shrink-0 overflow-hidden p-0">
+          <div className="relative grid grid-cols-1 gap-4 p-[var(--panel-pad)] xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <div className="pointer-events-none absolute inset-0 opacity-40 [background:radial-gradient(ellipse_at_30%_0%,rgba(255,32,121,0.32),transparent_55%)]" />
+            <div className="relative flex items-center gap-4">
+              <div className="relative shrink-0 overflow-hidden rounded-full border-2 border-fuchsia-300/40 shadow-[0_18px_40px_rgba(15,23,42,0.45)]" style={{ width: "var(--avatar-xl)", height: "var(--avatar-xl)" }}>
                 {avatarSrc.startsWith("/") ? (
-                  <Image src={avatarSrc} alt="" fill sizes="144px" className="object-cover" priority />
+                  <Image src={avatarSrc} alt="" fill sizes="120px" className="object-cover" priority />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatarSrc} alt="" className="absolute inset-0 h-full w-full object-cover" />
                 )}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  e.target.value = "";
-                  void handleAvatarFile(f ?? null);
-                }}
-              />
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                 <button
                   type="button"
                   disabled={avatarBusy}
                   onClick={() => fileInputRef.current?.click()}
-                  className="suzi-primary-btn px-4 py-2.5 text-sm"
+                  aria-label="Edit avatar"
+                  className="absolute bottom-0 right-0 inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-fuchsia-500/95 text-white shadow-[0_0_10px_rgba(255,32,121,0.6)] transition hover:scale-105"
                 >
-                  {avatarBusy ? "Working…" : "Change photo"}
+                  <Icon path="M4 20h4l10-10-4-4L4 16v4Zm12-14 2-2 4 4-2 2-4-4Z" className="h-3.5 w-3.5" />
                 </button>
-                {(profile?.avatarUrl?.trim() || session?.user.avatarUrl?.trim()) ? (
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    void handleAvatarFile(f ?? null);
+                  }}
+                />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.28em] text-cyan-100/55">My account</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <h1 className="truncate text-[var(--fs-2xl)] font-bold tracking-tight text-white">{displayLabel}</h1>
+                  {session?.user.isEmailVerified ? (
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-cyan-400 text-[10px] font-bold text-cyan-950">
+                      <Icon path="M5 13l4 4L19 7" className="h-3 w-3" />
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-[var(--fs-xs)] text-[var(--text-muted)]">
+                  <span>@{session?.user.username ?? "—"}</span>
+                  <span className="opacity-30">·</span>
+                  <span className="inline-flex items-center gap-1.5 text-emerald-300/85">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(110,255,178,0.7)]" />
+                    Online
+                  </span>
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => fileInputRef.current?.click()}
                     disabled={avatarBusy}
-                    onClick={() => void handleClearAvatar()}
-                    className="rounded-full border border-white/16 bg-white/6 px-4 py-2.5 text-sm font-semibold text-[var(--text-muted)] transition hover:border-white/22 hover:text-white"
+                    className="suzi-primary-btn inline-flex items-center gap-2 px-3 py-1.5 text-[var(--fs-xs)]"
                   >
-                    Remove photo
+                    <Icon path="M4 20h4l10-10-4-4L4 16v4Zm12-14 2-2 4 4-2 2-4-4Z" className="h-3.5 w-3.5" />
+                    Edit profile
                   </button>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="min-w-0 flex-1 text-center sm:text-left">
-              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-cyan-100/55">Profile</p>
-              <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">{displayLabel}</h1>
-              {session ? (
-                <p className="mt-2 text-sm text-[var(--text-muted)]">
-                  @{session.user.username}
-                  <span className="mx-2 text-slate-500">·</span>
-                  {session.user.email}
-                </p>
-              ) : (
-                <p className="mt-2 text-sm text-[var(--text-muted)]">Loading session…</p>
-              )}
-              <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
-                {session?.user.isEmailVerified ? (
-                  <span className="rounded-full border border-emerald-300/35 bg-emerald-400/12 px-2.5 py-0.5 text-[0.68rem] font-semibold text-emerald-100">
-                    Email verified
-                  </span>
-                ) : (
-                  <span className="rounded-full border border-amber-300/35 bg-amber-400/10 px-2.5 py-0.5 text-[0.68rem] font-semibold text-amber-100">
-                    Email not verified
-                  </span>
-                )}
-                {session?.user.isAdultConfirmed ? (
-                  <span className="rounded-full border border-cyan-300/35 bg-cyan-400/10 px-2.5 py-0.5 text-[0.68rem] font-semibold">
-                    18+ confirmed
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="rounded-[1rem] border border-white/10 bg-white/6 px-3 py-3 text-center sm:text-left">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-cyan-100/55">Friends</p>
-                  <p className="mt-1 text-xl font-bold text-white">{dashFriends?.friends.length ?? "—"}</p>
-                </div>
-                <div className="rounded-[1rem] border border-white/10 bg-white/6 px-3 py-3 text-center sm:text-left">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-cyan-100/55">Reels</p>
-                  <p className="mt-1 text-xl font-bold text-white">{dashReels.length}</p>
-                </div>
-                <div className="rounded-[1rem] border border-white/10 bg-white/6 px-3 py-3 text-center sm:text-left">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-cyan-100/55">Snaps</p>
-                  <p className="mt-1 text-xl font-bold text-white">{dashSnaps.length}</p>
-                </div>
-                <div className="rounded-[1rem] border border-white/10 bg-white/6 px-3 py-3 text-center sm:text-left">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-cyan-100/55">Rooms</p>
-                  <p className="mt-1 text-xl font-bold text-white">{myRooms.length}</p>
-                </div>
-              </div>
-
-              <div className="mt-5 flex flex-wrap justify-center gap-2 sm:justify-start">
-                <Link href="/app" className="suzi-secondary-btn px-4 py-2.5 text-sm">
-                  Discover on home
-                </Link>
-                <Link href="/app/reels?create=1" className="suzi-secondary-btn px-4 py-2.5 text-sm">
-                  New reel
-                </Link>
-                <Link href="/app/snaps?create=1" className="suzi-secondary-btn px-4 py-2.5 text-sm">
-                  New snap
-                </Link>
-                <Link href="/app/dating" className="rounded-full border border-pink-300/22 bg-pink-500/10 px-4 py-2.5 text-sm font-semibold text-pink-100/90 transition hover:border-pink-300/35">
-                  Dating
-                </Link>
-                <Link href="/app/games" className="rounded-full border border-white/12 bg-white/5 px-4 py-2.5 text-sm font-semibold text-[var(--text-muted)] transition hover:border-white/18 hover:text-white">
-                  Games
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <Panel className="p-5 sm:p-6">
-        <SectionHeader eyebrow="Network" title="Friends" copy="Same live list style as home — message, unfriend, and presence." />
-        <div className="mt-5">
-          <ProfilePageFriendsSection initialFriends={dashFriends} accessToken={session?.accessToken ?? null} />
-        </div>
-      </Panel>
-
-      <Panel className="p-5 sm:p-6">
-        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.26em] text-cyan-100/58">Content</p>
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1 suzi-scrollbar sm:flex-wrap">
-          {PROFILE_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={cx(
-                "shrink-0 rounded-full border px-4 py-2 text-[0.84rem] font-semibold transition",
-                activeTab === tab.id
-                  ? "border-fuchsia-300/45 bg-fuchsia-400/16 text-white shadow-[0_0_16px_rgba(255,32,121,0.2)]"
-                  : "border-white/10 bg-white/5 text-[var(--text-muted)] hover:border-white/18 hover:bg-white/8 hover:text-white",
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </Panel>
-
-      {loadState === "loading" ? (
-        <Panel className="p-6">
-          <p className="text-sm text-[var(--text-muted)]">Loading profile from API…</p>
-        </Panel>
-      ) : null}
-
-      {loadState === "error" && loadMessage ? (
-        <Panel className="border border-amber-300/28 bg-amber-500/10 p-5">
-          <p className="text-sm font-medium text-amber-100">{loadMessage}</p>
-          <p className="mt-2 text-xs text-[var(--text-muted)]">
-            Check that the API is running and you are signed in. You can retry once the server is reachable.
-          </p>
-          <button type="button" onClick={() => window.location.reload()} className="suzi-secondary-btn mt-4 px-4 py-2 text-sm">
-            Retry
-          </button>
-        </Panel>
-      ) : null}
-
-      {saveMessage && saveState === "error" ? (
-        <Panel className="border border-pink-300/25 bg-pink-500/10 p-4">
-          <p className="text-sm text-pink-100">{saveMessage}</p>
-        </Panel>
-      ) : null}
-
-      {activeTab === "overview" ? (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <Panel className="p-6">
-            <SectionHeader eyebrow="Identity" title="Edit profile" />
-            <form onSubmit={handleSaveProfile} className="mt-6 space-y-5">
-              <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                  Display name
-                </label>
-                <input
-                  className="suzi-input"
-                  value={form.displayName}
-                  onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))}
-                  maxLength={40}
-                  autoComplete="name"
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                  Bio
-                </label>
-                <textarea
-                  className="suzi-input min-h-28 resize-none"
-                  value={form.bio}
-                  onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
-                  maxLength={280}
-                  placeholder="Short line about you"
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                  Country / region
-                </label>
-                <input
-                  className="suzi-input"
-                  value={form.country}
-                  onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
-                  maxLength={60}
-                  placeholder="Optional"
-                  autoComplete="country-name"
-                />
-              </div>
-              {profile?.updatedAt ? (
-                <p className="text-xs text-[var(--text-soft)]">
-                  Last updated {new Date(profile.updatedAt).toLocaleString()}
-                </p>
-              ) : null}
-              <div className="flex flex-wrap items-center gap-3">
-                <button type="submit" disabled={saveState === "saving"} className="suzi-primary-btn px-5 py-3 text-sm">
-                  {saveState === "saving" ? "Saving…" : "Save profile"}
-                </button>
-                {saveMessage && saveState === "success" ? (
-                  <span className="text-sm text-emerald-200">{saveMessage}</span>
-                ) : null}
-              </div>
-            </form>
-
-            <div className="mt-10 border-t border-white/10 pt-8">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-100/65">Preferred language</p>
-              <p className="mt-1 text-xs text-[var(--text-soft)]">Synced with the header language picker when strings are wired.</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {languageOptions.map((language, index) => (
-                  <button key={language} type="button" onClick={() => setLangSelection(index)} className="inline-flex">
-                    <Chip active={langSelection === index} tone={langSelection === index ? "cyan" : "default"}>
-                      {language}
-                    </Chip>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </Panel>
-
-          <Panel className="p-5">
-            <SectionHeader eyebrow="Privacy" title="Quick defaults" />
-            <div className="mt-5 space-y-3">
-              {Object.entries(prefToggles).map(([label, on]) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setPrefToggles((p) => ({ ...p, [label]: !p[label] }))}
-                  className="flex w-full items-center justify-between gap-4 rounded-[1rem] border border-white/8 bg-white/4 px-4 py-3 text-left transition hover:bg-white/8"
-                >
-                  <span className="text-sm text-slate-200">{label}</span>
-                  <span
-                    className={cx(
-                      "relative h-6 w-11 shrink-0 rounded-full border p-1 transition",
-                      on ? "border-cyan-300/35 bg-cyan-400/18" : "border-white/12 bg-white/6",
-                    )}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={avatarBusy}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/14 bg-white/5 px-3 py-1.5 text-[var(--fs-xs)] font-semibold text-white/85 transition hover:border-white/25 hover:text-white"
                   >
-                    <span
-                      className={cx(
-                        "block h-4 w-4 rounded-full transition-all",
-                        on ? "ml-auto bg-cyan-200" : "bg-slate-400",
-                      )}
-                    />
-                  </span>
-                </button>
-              ))}
+                    <Icon path="M12 4v12m0 0-4-4m4 4 4-4M4 20h16" className="h-3.5 w-3.5" />
+                    Change avatar
+                  </button>
+                </div>
+              </div>
             </div>
-            <button type="button" onClick={handleLogout} className="suzi-secondary-btn mt-8 w-full px-4 py-3 text-sm text-pink-100">
-              Log out
-            </button>
-          </Panel>
-        </div>
-      ) : null}
 
-      {activeTab === "reels" ? (
-        <Panel className="p-6">
-          <SectionHeader eyebrow="Reels" title="Your reels" copy="Delete removes the reel for everyone." />
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {dashReels.map((post) => {
-              const reel = apiPostToReel(post);
-              return (
-                <div
-                  key={reel.id}
-                  className="overflow-hidden rounded-[1.1rem] border border-white/10 bg-white/5 transition hover:border-cyan-300/25"
-                >
-                  <Link href={`/app/reels?focus=${reel.id}`} className="block">
-                    <div className="relative aspect-video overflow-hidden bg-black/40">
-                      {reel.avatar.startsWith("/") ? (
-                        <Image src={reel.avatar} alt="" fill sizes="33vw" className="object-cover" />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={reel.avatar} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                      )}
-                      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent,rgba(8,10,28,0.75))]" />
-                    </div>
-                    <div className="p-4">
-                      <p className="truncate font-semibold text-white">{reel.title}</p>
-                      <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{reel.caption}</p>
-                    </div>
-                  </Link>
-                  <div className="border-t border-white/8 px-4 pb-4">
-                    <button
-                      type="button"
-                      disabled={postBusyId === post.id}
-                      onClick={() => void handleDeletePost(post.id, "REEL")}
-                      className="w-full rounded-[0.85rem] border border-pink-300/28 bg-pink-500/12 py-2 text-xs font-semibold text-pink-100 transition hover:border-pink-300/45"
-                    >
-                      {postBusyId === post.id ? "Deleting…" : "Delete reel"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            <div className="relative grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-4">
+              <StatCard
+                label="Friends"
+                value={friendsCount}
+                href="/app#friends"
+                icon="M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-4 8a8 8 0 0 1 16 0H12Z"
+              />
+              <StatCard
+                label="Rooms"
+                value={roomsCount}
+                href="/app#rooms"
+                icon="M3 4h18v6H3V4Zm0 10h18v6H3v-6Z"
+              />
+              <StatCard
+                label="Snaps"
+                value={snapsCount}
+                href="/app/snaps"
+                icon="M4 7h3l2-2h6l2 2h3v12H4V7Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+              />
+              <StatCard
+                label="Reels"
+                value={reelsCount}
+                href="/app/reels"
+                icon="M6 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm4 4 5 3-5 3V9Z"
+              />
+            </div>
           </div>
-          {dashReels.length === 0 ? (
-            <p className="mt-6 text-sm text-[var(--text-muted)]">No reels yet. Create one from the hero shortcuts.</p>
-          ) : null}
-          <Link href="/app/reels" className="suzi-secondary-btn mt-8 inline-flex px-4 py-3 text-sm">
-            Open reels feed
-          </Link>
         </Panel>
-      ) : null}
 
-      {activeTab === "snaps" ? (
-        <Panel className="p-6">
-          <SectionHeader eyebrow="Snaps" title="Your snaps" copy="Remove snaps you no longer want visible." />
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {dashSnaps.map((post) => {
-              const snap = apiPostToSnap(post);
-              return (
-                <div key={snap.id} className="overflow-hidden rounded-[1.1rem] border border-white/10 bg-white/5 transition hover:border-fuchsia-300/25">
-                  <Link href={`/app/snaps?focus=${encodeURIComponent(snap.id)}`} className="block">
-                    <div className="relative aspect-[4/3]">
-                      {snap.image.startsWith("/") ? (
-                        <Image src={snap.image} alt="" fill sizes="33vw" className="object-cover" />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={snap.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <p className="truncate font-semibold text-white">{snap.title}</p>
-                      <p className="mt-1 text-xs text-[var(--text-muted)]">{snap.likes} likes</p>
-                    </div>
-                  </Link>
-                  <div className="border-t border-white/8 px-4 pb-4">
-                    <button
-                      type="button"
-                      disabled={postBusyId === post.id}
-                      onClick={() => void handleDeletePost(post.id, "SNAP")}
-                      className="w-full rounded-[0.85rem] border border-pink-300/28 bg-pink-500/12 py-2 text-xs font-semibold text-pink-100 transition hover:border-pink-300/45"
-                    >
-                      {postBusyId === post.id ? "Deleting…" : "Delete snap"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {dashSnaps.length === 0 ? (
-            <p className="mt-6 text-sm text-[var(--text-muted)]">No snaps yet.</p>
-          ) : null}
-          <Link href="/app/snaps" className="suzi-secondary-btn mt-8 inline-flex px-4 py-3 text-sm">
-            Open snaps feed
-          </Link>
-        </Panel>
-      ) : null}
-
-      {activeTab === "rooms" ? (
-        <Panel className="p-6">
-          <SectionHeader eyebrow="Rooms" title="Your rooms" copy="Leave memberships or delete rooms you own." />
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {myRooms.map((room) => {
-              const isOwner = session?.user.id === room.owner.id;
-              const busy = roomBusySlug === room.slug;
-              const cover = roomCover(room);
-              return (
-                <div
-                  key={room.id}
-                  className="flex flex-col gap-3 rounded-[1.15rem] border border-cyan-300/18 bg-[linear-gradient(155deg,rgba(255,32,121,0.08),rgba(0,229,255,0.06))] p-4 sm:flex-row"
-                >
-                  <Link href={`/app/rooms/${room.slug}`} className="flex min-w-0 flex-1 gap-4">
-                    <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-[0.85rem] border border-white/10">
-                      {cover.startsWith("http") ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={cover} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <Image src={cover} alt="" fill sizes="96px" className="object-cover" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-white">{room.name}</p>
-                      <p className="mt-1 line-clamp-2 text-sm text-[var(--text-muted)]">{room.description ?? ""}</p>
-                      <p className="mt-2 text-[0.65rem] font-medium uppercase tracking-[0.12em] text-cyan-100/45">
-                        {isOwner ? "You own this room" : "Member"}
+        {/* BODY */}
+        <div className="suzi-profile-body min-h-0">
+          {/* LEFT — Friends + About + Country */}
+          <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
+            <div className="suzi-thin-scroll flex-1 space-y-4 overflow-y-auto pr-1">
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.7rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-cyan-100">
+                      <Icon path="M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-4 8a8 8 0 0 1 16 0H12Z" className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <h2 className="text-[var(--fs-lg)] font-semibold tracking-tight text-white">Friends</h2>
+                      <p className="text-[var(--fs-xs)] text-[var(--text-muted)]">
+                        Manage your connections and see who&apos;s online.
                       </p>
                     </div>
+                  </div>
+                  <Link
+                    href="/app#friends"
+                    className="text-[var(--fs-xs)] font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100"
+                  >
+                    View all friends →
                   </Link>
-                  <div className="flex shrink-0 flex-col gap-2 sm:w-36">
-                    {isOwner ? (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void handleDeleteRoom(room.slug)}
-                        className="rounded-[0.85rem] border border-pink-300/30 bg-pink-500/14 px-3 py-2 text-xs font-semibold text-pink-100"
-                      >
-                        {busy ? "Please wait…" : "Delete room"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void handleLeaveRoom(room.slug)}
-                        className="rounded-[0.85rem] border border-white/14 bg-white/6 px-3 py-2 text-xs font-semibold text-[var(--text-muted)] hover:text-white"
-                      >
-                        {busy ? "Please wait…" : "Leave room"}
-                      </button>
-                    )}
+                </div>
+                <div className="mt-3">
+                  <ProfilePageFriendsSection
+                    initialFriends={dashFriends}
+                    accessToken={session?.accessToken ?? null}
+                  />
+                </div>
+              </div>
+
+              <div className="suzi-divider" />
+
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.7rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-cyan-100">
+                    <Icon path="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z" className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <h2 className="text-[var(--fs-lg)] font-semibold tracking-tight text-white">About me</h2>
+                    <p className="text-[var(--fs-xs)] text-[var(--text-muted)]">
+                      Tell others a bit about yourself.
+                    </p>
                   </div>
                 </div>
-              );
-            })}
+                <form onSubmit={handleSaveProfile} className="mt-3 space-y-3">
+                  <textarea
+                    className="suzi-input min-h-[5rem] resize-none text-[var(--fs-sm)]"
+                    value={form.bio}
+                    placeholder="Short line about you"
+                    maxLength={280}
+                    onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+                  />
+
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.7rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-cyan-100">
+                      <Icon path="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 3v18M3 12h18" className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <h3 className="text-[var(--fs-md)] font-semibold text-white">Country / Region</h3>
+                      <p className="text-[var(--fs-xs)] text-[var(--text-muted)]">
+                        This helps us personalize your experience.
+                      </p>
+                    </div>
+                  </div>
+                  <input
+                    className="suzi-input text-[var(--fs-sm)]"
+                    placeholder="Ethiopia"
+                    value={form.country}
+                    maxLength={60}
+                    onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
+                  />
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-[var(--fs-xs)] text-[var(--text-soft)]">
+                      {lastUpdatedLabel ?? ""}
+                      {saveMessage && saveState === "success" ? (
+                        <span className="ml-2 text-emerald-200">{saveMessage}</span>
+                      ) : null}
+                      {saveMessage && saveState === "error" ? (
+                        <span className="ml-2 text-pink-200">{saveMessage}</span>
+                      ) : null}
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={saveState === "saving"}
+                      className="suzi-primary-btn px-4 py-1.5 text-[var(--fs-xs)]"
+                    >
+                      {saveState === "saving" ? "Saving…" : "Save profile"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+            {loadState === "error" && loadMessage ? (
+              <p className="shrink-0 rounded-[var(--panel-radius)] border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-[var(--fs-xs)] text-amber-100">
+                {loadMessage}
+              </p>
+            ) : null}
+          </Panel>
+
+          {/* RIGHT — Quick defaults + Privacy + Account */}
+          <div className="suzi-thin-scroll flex h-full min-h-0 flex-col gap-[var(--row-gap)] overflow-y-auto pr-1">
+            <Panel className="shrink-0 p-[var(--panel-pad)]">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.7rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-cyan-100">
+                  <Icon path="M12 14a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm6.4-3a6.4 6.4 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a6.4 6.4 0 0 0-1.7-1L14 2h-4l-.2 2a6.4 6.4 0 0 0-1.7 1L5.7 4l-2 3.4L5.7 9c-.1.3-.1.6-.1 1s0 .7.1 1l-2 1.6 2 3.4 2.4-1c.5.4 1 .7 1.7 1L10 20h4l.2-2c.7-.3 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.6c.1-.3.1-.6.1-1Z" className="h-4 w-4" />
+                </span>
+                <h2 className="text-[var(--fs-lg)] font-semibold text-white">Quick defaults</h2>
+              </div>
+              <div className="mt-3 space-y-2">
+                {QUICK_DEFAULTS.map((row) => {
+                  const on = prefToggles[row.id] ?? false;
+                  return (
+                    <button
+                      key={row.id}
+                      type="button"
+                      onClick={() => setPrefToggles((p) => ({ ...p, [row.id]: !on }))}
+                      className="flex w-full items-center justify-between gap-4 rounded-[var(--panel-radius)] border border-white/8 bg-white/5 px-3 py-2 text-left transition hover:bg-white/8"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[var(--fs-sm)] font-medium text-white">{row.label}</p>
+                        <p className="text-[var(--fs-2xs)] text-[var(--text-muted)]">{row.copy}</p>
+                      </div>
+                      <span className="suzi-switch" data-on={on ? "true" : "false"} aria-hidden />
+                    </button>
+                  );
+                })}
+              </div>
+            </Panel>
+
+            <Panel className="shrink-0 p-[var(--panel-pad)]">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.7rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-cyan-100">
+                  <Icon path="M12 2 4 5v7a8 8 0 0 0 8 8 8 8 0 0 0 8-8V5l-8-3Z" className="h-4 w-4" />
+                </span>
+                <h2 className="text-[var(--fs-lg)] font-semibold text-white">Privacy</h2>
+              </div>
+              <div className="mt-3 space-y-2">
+                {PRIVACY_FIELDS.map((field) => (
+                  <div
+                    key={field.id}
+                    className="flex items-center justify-between gap-3 rounded-[var(--panel-radius)] border border-white/8 bg-white/5 px-3 py-2"
+                  >
+                    <p className="text-[var(--fs-sm)] text-white">{field.label}</p>
+                    <select
+                      value={privacy[field.id] ?? field.options[0]}
+                      onChange={(e) => setPrivacy((prev) => ({ ...prev, [field.id]: e.target.value }))}
+                      className="rounded-md border border-white/14 bg-white/8 px-2 py-1 text-[var(--fs-xs)] font-semibold text-white outline-none transition hover:border-white/22"
+                    >
+                      {field.options.map((opt) => (
+                        <option key={opt} value={opt} className="bg-[#1a1245]">
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+
+            <Panel className="shrink-0 p-[var(--panel-pad)]">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.7rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-cyan-100">
+                  <Icon path="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z" className="h-4 w-4" />
+                </span>
+                <h2 className="text-[var(--fs-lg)] font-semibold text-white">Account</h2>
+              </div>
+              <div className="mt-3 divide-y divide-white/8">
+                <AccountRow label="Change password" trailing={<Icon path="M9 6l6 6-6 6" className="h-3.5 w-3.5 text-white/55" />} />
+                <AccountRow
+                  label="Email address"
+                  trailing={
+                    <span className="flex items-center gap-2">
+                      <span className="text-[var(--fs-2xs)] text-[var(--text-muted)]">
+                        {session?.user.email}
+                      </span>
+                      <Icon path="M9 6l6 6-6 6" className="h-3.5 w-3.5 text-white/55" />
+                    </span>
+                  }
+                />
+                <AccountRow
+                  label="Two-factor authentication"
+                  trailing={
+                    <span className="flex items-center gap-2">
+                      <span className="text-[var(--fs-2xs)] font-semibold text-emerald-300/90">Enabled</span>
+                      <Icon path="M9 6l6 6-6 6" className="h-3.5 w-3.5 text-white/55" />
+                    </span>
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center justify-between py-3 text-left text-[var(--fs-sm)] font-semibold text-pink-200/90 transition hover:text-pink-100"
+                >
+                  <span>Log out</span>
+                  <Icon path="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" className="h-4 w-4" />
+                </button>
+              </div>
+            </Panel>
           </div>
-          {myRooms.length === 0 ? (
-            <p className="mt-6 text-sm text-[var(--text-muted)]">You have not joined any rooms yet.</p>
-          ) : null}
-        </Panel>
-      ) : null}
+        </div>
       </div>
     </section>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  icon,
+  href,
+}: {
+  label: string;
+  value: number;
+  icon: string;
+  href: string;
+}) {
+  return (
+    <Link href={href} className="suzi-stat-card group transition hover:border-cyan-300/30">
+      <div className="flex items-center gap-2">
+        <span className="inline-flex h-7 w-7 items-center justify-center rounded-[0.6rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-cyan-100">
+          <Icon path={icon} className="h-3.5 w-3.5" />
+        </span>
+        <span className="suzi-stat-card-label">{label}</span>
+      </div>
+      <div>
+        <p className="suzi-stat-card-value">{value}</p>
+        <p className="text-[var(--fs-2xs)] text-cyan-100/65 transition group-hover:text-fuchsia-200/90">
+          View all →
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+function AccountRow({
+  label,
+  trailing,
+}: {
+  label: string;
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-3 text-[var(--fs-sm)] text-white">
+      <span>{label}</span>
+      {trailing}
+    </div>
   );
 }

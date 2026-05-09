@@ -1,7 +1,7 @@
 "use client";
 
 import type { Socket } from "socket.io-client";
-import type { ApiGameSession } from "@/lib/games-client";
+import type { ApiGameChatMessage, ApiGameLobby, ApiGameSession, ApiGameType } from "@/lib/games-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 
 export function openGamesSocket(accessToken: string) {
@@ -23,6 +23,76 @@ export function subscribeGameLobbyListChannel(socket: Socket) {
 
 export function sendSessionAction(socket: Socket, sessionId: string, action: Record<string, unknown>) {
   socket.emit("game:session:action", { sessionId, action });
+}
+
+function emitWithAck<T>(socket: Socket, event: string, payload: Record<string, unknown>, key: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    socket
+      .timeout(20_000)
+      .emit(event, payload, (err: Error | null, response?: Record<string, unknown>) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        const value = response?.[key];
+        if (value) {
+          resolve(value as T);
+          return;
+        }
+        reject(new Error(`Socket ${event} returned no ${key}.`));
+      });
+  });
+}
+
+export function postGameLobbyCreate(
+  socket: Socket,
+  payload: { gameType: ApiGameType; title: string; isPrivate?: boolean; maxSeats?: number },
+) {
+  return emitWithAck<ApiGameLobby>(socket, "game:lobby:create", payload, "lobby");
+}
+
+export function postGameLobbySeat(socket: Socket, lobbyId: string, seatIndex: number) {
+  return emitWithAck<ApiGameLobby>(socket, "game:lobby:seat", { lobbyId, seatIndex }, "lobby");
+}
+
+export function postGameLobbyStart(socket: Socket, lobbyId: string, options?: Record<string, unknown>) {
+  return emitWithAck<ApiGameSession>(socket, "game:lobby:start", { lobbyId, options: options ?? {} }, "session");
+}
+
+export function postGameLobbyDelete(socket: Socket, lobbyId: string): Promise<{ ok: true; lobbyId: string }> {
+  return new Promise((resolve, reject) => {
+    socket
+      .timeout(20_000)
+      .emit("game:lobby:delete", { lobbyId }, (err: Error | null, response?: { ok?: boolean; lobbyId?: string }) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        if (response?.ok) {
+          resolve({ ok: true, lobbyId: response.lobbyId ?? lobbyId });
+          return;
+        }
+        reject(new Error("Socket delete failed."));
+      });
+  });
+}
+
+export function postGameLobbyInvite(socket: Socket, lobbyId: string, targetUserId: string): Promise<{ ok: true }> {
+  return new Promise((resolve, reject) => {
+    socket
+      .timeout(20_000)
+      .emit("game:lobby:invite", { lobbyId, targetUserId }, (err: Error | null, response?: { ok?: boolean }) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        if (response?.ok) {
+          resolve({ ok: true });
+          return;
+        }
+        reject(new Error("Socket invite failed."));
+      });
+  });
 }
 
 /** Applies a move/action via WebSocket (same effect as POST …/action); falls back to HTTP if disconnected. */
@@ -49,6 +119,28 @@ export function postGameSessionAction(
             return;
           }
           reject(new Error("Socket action returned no session."));
+        },
+      );
+  });
+}
+
+export function postGameSessionChat(socket: Socket, sessionId: string, body: string): Promise<ApiGameChatMessage> {
+  return new Promise((resolve, reject) => {
+    socket
+      .timeout(20_000)
+      .emit(
+        "game:session:chat",
+        { sessionId, body },
+        (err: Error | null, response?: { ok?: boolean; message?: ApiGameChatMessage }) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          if (response?.message) {
+            resolve(response.message);
+            return;
+          }
+          reject(new Error("Socket chat returned no message."));
         },
       );
   });

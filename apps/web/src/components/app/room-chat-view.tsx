@@ -407,31 +407,32 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
 
   return (
     <section className="suzi-app-frame-fill">
-      <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto suzi-scrollbar xl:grid-cols-[minmax(0,1fr)_340px] xl:overflow-hidden xl:pr-1">
-      <Panel className="flex min-h-[22rem] flex-col overflow-hidden border border-cyan-300/24 bg-[linear-gradient(180deg,rgba(36,45,116,0.52),rgba(40,16,117,0.52))] p-0 shadow-[0_14px_38px_rgba(15,23,42,0.2)] xl:h-full xl:min-h-0">
-        <div className="border-b border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-5 py-4 sm:px-6">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.3em] text-cyan-100/64">
-                Room Chat
+      <div className="suzi-room-grid">
+      <Panel className="flex h-full min-h-0 flex-col overflow-hidden border border-cyan-300/24 bg-[linear-gradient(180deg,rgba(36,45,116,0.52),rgba(40,16,117,0.52))] p-0 shadow-[0_14px_38px_rgba(15,23,42,0.2)]">
+        <div className="shrink-0 border-b border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.3em] text-cyan-100/64">
+                <span>Room Chat</span>
+                <span className="inline-flex items-center gap-1.5 normal-case tracking-normal text-emerald-300/85">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(110,255,178,0.7)]" />
+                  {socketReady ? "Realtime connected" : "Reconnecting…"}
+                </span>
               </p>
-              <p className="mt-1 text-xs text-cyan-100/64">
-                {socketReady ? "Realtime connected" : "Realtime reconnecting..."}
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold text-white">
+              <h1 className="mt-1 truncate text-[var(--fs-2xl)] font-semibold text-white">
                 {loading ? "…" : room?.name ?? roomSlug}
               </h1>
-              <p className="mt-1 max-w-2xl text-sm text-cyan-100/82">
+              <p className="mt-1 max-w-2xl truncate text-[var(--fs-sm)] text-cyan-100/82">
                 {room?.description ?? ""}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex rounded-md border border-cyan-300/35 bg-cyan-400/15 px-3 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-cyan-100">
+              <span className="inline-flex rounded-md border border-cyan-300/35 bg-cyan-400/15 px-3 py-1 text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.12em] text-cyan-100">
                 {room?.category ?? "—"}
               </span>
               <span
                 className={cx(
-                  "inline-flex rounded-md border px-3 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.12em]",
+                  "inline-flex rounded-md border px-3 py-1 text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.12em]",
                   room?.privacy === "Private"
                     ? "border-pink-300/35 bg-pink-400/15 text-pink-100"
                     : room?.privacy === "Friends"
@@ -446,7 +447,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                   <button
                     type="button"
                     onClick={() => setShowEditModal(true)}
-                    className="suzi-secondary-btn px-4 py-1.5 text-sm"
+                    className="suzi-secondary-btn px-3 py-1 text-[var(--fs-xs)]"
                   >
                     Edit
                   </button>
@@ -456,7 +457,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                       setShowManageModal(true);
                       void refreshManagement();
                     }}
-                    className="suzi-secondary-btn px-4 py-1.5 text-sm"
+                    className="suzi-secondary-btn px-3 py-1 text-[var(--fs-xs)]"
                   >
                     Manage
                   </button>
@@ -467,13 +468,15 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         </div>
 
         {error ? (
-          <div className="border-b border-red-300/30 bg-red-500/15 px-5 py-3 text-sm text-red-100">{error}</div>
+          <div className="shrink-0 border-b border-red-300/30 bg-red-500/15 px-[var(--panel-pad)] py-2 text-[var(--fs-xs)] text-red-100">
+            {error}
+          </div>
         ) : null}
 
         {!access?.canOpen && hasSession ? (
-          <div className="flex min-h-0 flex-1 items-center justify-center bg-white px-6">
+          <div className="flex flex-1 items-center justify-center bg-[linear-gradient(180deg,rgba(20,16,60,0.6),rgba(14,12,42,0.6))] px-6">
             <div className="max-w-md text-center">
-              <p className="text-sm text-slate-600">
+              <p className="text-[var(--fs-sm)] text-cyan-100/82">
                 {access?.isBlocked
                   ? "You are blocked from this room."
                   : access?.hasPendingRequest
@@ -485,7 +488,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                   type="button"
                   disabled={actionBusyId === "join"}
                   onClick={() => void handleRoomJoinOrRequest()}
-                  className="suzi-primary-btn mt-3 px-4 py-2 text-sm"
+                  className="suzi-primary-btn mt-3 px-4 py-2 text-[var(--fs-sm)]"
                 >
                   {access?.privacy?.toLowerCase() === "public" ? "Join room" : "Request access"}
                 </button>
@@ -495,7 +498,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         ) : (
           <div
             ref={messagesScrollRef}
-            className="suzi-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto bg-white px-5 py-5 sm:px-6"
+            className="suzi-thin-scroll mx-[var(--panel-pad-tight)] my-[var(--panel-pad-tight)] flex-1 space-y-3 overflow-y-auto rounded-[var(--panel-radius)] bg-white px-[var(--panel-pad)] py-[var(--panel-pad)] shadow-[inset_0_2px_8px_rgba(7,4,28,0.22),inset_0_0_0_1px_rgba(0,0,0,0.04)]"
           >
             {messages.map((m) => {
               const mine = meId !== null && m.sender.id === meId;
@@ -513,7 +516,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
           </div>
         )}
 
-        <div className="border-t border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-5 py-4 sm:px-6">
+        <div className="shrink-0 border-t border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
           {typingName ? (
             <p className="mb-2 text-xs font-medium text-cyan-100/85">{typingName} is typing...</p>
           ) : null}
@@ -547,16 +550,16 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         </div>
       </Panel>
 
-      <div className="flex min-h-[22rem] flex-col gap-6 xl:h-full xl:min-h-0 xl:overflow-hidden">
-        <Panel className="flex min-h-0 flex-1 flex-col p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-[1.35rem] font-semibold tracking-tight text-white">Room Members</h2>
-            <span className="inline-flex items-center gap-1.5 text-[0.78rem] font-semibold text-emerald-100">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,255,178,0.72)]" />
+      <div className="suzi-col-stack">
+        <Panel className="flex min-h-0 flex-[3_1_0%] flex-col overflow-hidden p-[var(--panel-pad)]">
+          <div className="flex shrink-0 items-center justify-between gap-3">
+            <h2 className="text-[var(--fs-lg)] font-semibold tracking-tight text-white">Room Members</h2>
+            <span className="inline-flex items-center gap-1.5 text-[var(--fs-xs)] font-semibold text-emerald-100">
+              <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,255,178,0.72)]" />
               {onlineCount} online
             </span>
           </div>
-          <div className="suzi-scrollbar mt-4 min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
+          <div className="suzi-thin-scroll mt-3 flex-1 space-y-4 overflow-y-auto pr-1">
             <div>
               <p className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
                 Room Hosts
@@ -718,10 +721,10 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
           </div>
         </Panel>
 
-        <Panel className="p-5">
-          <h2 className="text-[1.35rem] font-semibold tracking-tight text-white">Options</h2>
-          <div className="mt-4 grid gap-3">
-            <button type="button" className="suzi-secondary-btn px-4 py-3 text-sm">
+        <Panel className="shrink-0 p-[var(--panel-pad)]">
+          <h2 className="text-[var(--fs-lg)] font-semibold tracking-tight text-white">Options</h2>
+          <div className="mt-3 grid gap-2">
+            <button type="button" className="suzi-secondary-btn px-3 py-2 text-[var(--fs-sm)]">
               Invite friends
             </button>
             {access?.isMember && !access?.isOwner ? (
@@ -729,7 +732,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 type="button"
                 onClick={() => void handleLeaveRoom()}
                 disabled={actionBusyId === "leave-room"}
-                className="suzi-secondary-btn px-4 py-3 text-sm"
+                className="suzi-secondary-btn px-3 py-2 text-[var(--fs-sm)]"
               >
                 {actionBusyId === "leave-room" ? "Leaving..." : "Leave room"}
               </button>
@@ -741,7 +744,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                   setDeleteConfirmName("");
                   setShowDeleteRoomModal(true);
                 }}
-                className="rounded-[0.75rem] border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100/95 transition hover:border-red-300/55 hover:bg-red-500/18"
+                className="rounded-[0.75rem] border border-red-400/40 bg-red-500/10 px-3 py-2 text-[var(--fs-sm)] font-semibold text-red-100/95 transition hover:border-red-300/55 hover:bg-red-500/18"
               >
                 Delete room…
               </button>

@@ -9,7 +9,7 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
-import { MoveKind } from '@prisma/client';
+import { GameType, MoveKind } from '@prisma/client';
 import type { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { DatingService } from '../dating/dating.service';
@@ -409,6 +409,31 @@ export class RealtimeGateway
     return { ok: true };
   }
 
+  @SubscribeMessage('game:lobby:create')
+  async onGameLobbyCreate(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody()
+    payload: {
+      gameType?: GameType;
+      title?: string;
+      isPrivate?: boolean;
+      maxSeats?: number;
+    },
+  ) {
+    const userId = this.getUserId(client);
+    if (!payload?.gameType || !payload.title?.trim()) {
+      throw new WsException('gameType and title are required');
+    }
+    const lobby = await this.gamesService.createLobby(userId, {
+      gameType: payload.gameType,
+      title: payload.title,
+      isPrivate: payload.isPrivate,
+      maxSeats: payload.maxSeats,
+    });
+    this.markUserActive(userId);
+    return { ok: true, lobby };
+  }
+
   @SubscribeMessage('game:lobby:join')
   async onGameLobbyJoin(
     @ConnectedSocket() client: AuthSocket,
@@ -432,6 +457,75 @@ export class RealtimeGateway
       );
       throw this.toWsException(err);
     }
+  }
+
+  @SubscribeMessage('game:lobby:seat')
+  async onGameLobbySeat(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { lobbyId?: string; seatIndex?: number },
+  ) {
+    const userId = this.getUserId(client);
+    const lobbyId = payload?.lobbyId?.trim();
+    if (!lobbyId || typeof payload?.seatIndex !== 'number') {
+      throw new WsException('lobbyId and seatIndex are required');
+    }
+    const lobby = await this.gamesService.joinLobby(lobbyId, userId, {
+      seatIndex: payload.seatIndex,
+    });
+    this.markUserActive(userId);
+    return { ok: true, lobby };
+  }
+
+  @SubscribeMessage('game:lobby:start')
+  async onGameLobbyStart(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { lobbyId?: string; options?: Record<string, unknown> },
+  ) {
+    const userId = this.getUserId(client);
+    const lobbyId = payload?.lobbyId?.trim();
+    if (!lobbyId) {
+      throw new WsException('lobbyId is required');
+    }
+    const session = await this.gamesService.startSession(lobbyId, userId, {
+      options: payload.options ?? {},
+    });
+    this.markUserActive(userId);
+    return { ok: true, session };
+  }
+
+  @SubscribeMessage('game:lobby:delete')
+  async onGameLobbyDelete(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { lobbyId?: string },
+  ) {
+    const userId = this.getUserId(client);
+    const lobbyId = payload?.lobbyId?.trim();
+    if (!lobbyId) {
+      throw new WsException('lobbyId is required');
+    }
+    const result = await this.gamesService.deleteLobby(lobbyId, userId);
+    this.markUserActive(userId);
+    return result;
+  }
+
+  @SubscribeMessage('game:lobby:invite')
+  async onGameLobbyInvite(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { lobbyId?: string; targetUserId?: string },
+  ) {
+    const userId = this.getUserId(client);
+    const lobbyId = payload?.lobbyId?.trim();
+    const targetUserId = payload?.targetUserId?.trim();
+    if (!lobbyId || !targetUserId) {
+      throw new WsException('lobbyId and targetUserId are required');
+    }
+    const result = await this.gamesService.sendInvite(
+      lobbyId,
+      userId,
+      targetUserId,
+    );
+    this.markUserActive(userId);
+    return result;
   }
 
   @SubscribeMessage('game:session:join')
@@ -494,6 +588,26 @@ export class RealtimeGateway
     });
     this.markUserActive(userId);
     return { ok: true, session: snapshot };
+  }
+
+  @SubscribeMessage('game:session:chat')
+  async onGameSessionChat(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { sessionId?: string; body?: string },
+  ) {
+    const userId = this.getUserId(client);
+    const sessionId = payload?.sessionId?.trim();
+    const body = payload?.body?.trim();
+    if (!sessionId || !body) {
+      throw new WsException('sessionId and body are required');
+    }
+    const message = await this.gamesService.sendSessionChat(
+      sessionId,
+      userId,
+      body,
+    );
+    this.markUserActive(userId);
+    return { ok: true, message };
   }
 
   private toWsException(err: unknown): WsException {

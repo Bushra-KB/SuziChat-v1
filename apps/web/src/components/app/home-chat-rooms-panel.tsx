@@ -165,30 +165,10 @@ function nextGuestAction(room: Pick<HomeRoom, "privacy" | "hasPendingRequest">):
 
 function getTabClasses(active: boolean) {
   return cx(
-    "inline-flex shrink-0 items-center rounded-[0.78rem] border px-3 py-2 text-[0.95rem] font-medium leading-none transition",
+    "inline-flex shrink-0 items-center rounded-[0.6rem] border px-2 py-1 text-[var(--fs-2xs)] font-medium leading-none transition",
     active
       ? "border-fuchsia-300/50 bg-[linear-gradient(90deg,rgba(157,78,221,0.95),rgba(255,32,121,0.85))] text-white shadow-[0_0_16px_rgba(255,32,121,0.28)]"
       : "border-cyan-300/20 bg-[rgba(26,18,74,0.66)] text-cyan-100/78 hover:border-cyan-300/36 hover:text-white",
-  );
-}
-
-function RoomSectionHeader({ title }: { title: string }) {
-  return (
-    <div
-      className={cx(
-        "sticky top-0 z-10 flex items-center gap-2.5 px-3 py-2.5 sm:px-4",
-        "border-b border-cyan-300/15",
-        "bg-[linear-gradient(105deg,rgba(157,78,221,0.28),rgba(67,28,155,0.38)_48%,rgba(14,165,233,0.12))]",
-        "backdrop-blur-md",
-        "shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_24px_rgba(6,4,20,0.35)]",
-      )}
-    >
-      <span
-        className="h-5 w-0.5 shrink-0 rounded-full bg-gradient-to-b from-fuchsia-300 to-cyan-300/70 shadow-[0_0_12px_rgba(236,72,153,0.55)]"
-        aria-hidden
-      />
-      <span className="text-[0.84rem] font-semibold tracking-tight text-white/95">{title}</span>
-    </div>
   );
 }
 
@@ -604,46 +584,42 @@ export function HomeChatRoomsPanel({
       <article
         key={room.id}
         className={cx(
-          "flex items-center gap-3.5 px-3 py-3 sm:px-4 sm:py-3.5",
+          "flex items-center gap-2.5 px-2.5 py-2 sm:px-3 sm:py-2.5",
           index > 0 && "border-t border-cyan-300/12",
         )}
       >
-        <Link href={`/app/rooms/${room.id}`} className="relative h-20 w-24 shrink-0 overflow-hidden rounded-[0.85rem] border border-cyan-300/24">
+        <Link
+          href={`/app/rooms/${room.id}`}
+          className="relative shrink-0 overflow-hidden rounded-[0.7rem] border border-cyan-300/24"
+          style={{ width: "clamp(3.6rem, 5.2vw, 4.4rem)", height: "clamp(2.8rem, 4.5vh + 0.5rem, 3.5rem)" }}
+        >
           <img src={room.image} alt={`${room.name} cover`} className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0.05),rgba(4,8,26,0.42))]" />
         </Link>
 
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <Link
-              href={`/app/rooms/${room.id}`}
-              className="truncate text-[1.1rem] font-semibold leading-tight text-white transition hover:text-cyan-50"
-            >
-              {room.name}
-              {room.emoji ? ` ${room.emoji}` : ""}
-            </Link>
-            {room.featured ? (
-              <span className="inline-flex items-center rounded-full bg-fuchsia-500/86 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white">
-                Featured
-              </span>
-            ) : null}
-          </div>
+          <Link
+            href={`/app/rooms/${room.id}`}
+            className="block truncate text-[var(--fs-xs)] font-semibold leading-tight text-white transition hover:text-cyan-50"
+          >
+            {room.name}
+            {room.emoji ? ` ${room.emoji}` : ""}
+          </Link>
 
-          <p className="mt-1 truncate text-[0.95rem] text-cyan-50/86">{room.summary}</p>
-          <div className="mt-1 flex items-center gap-2 text-[0.72rem] text-cyan-100/76">
-            <span className="rounded-full border border-white/15 bg-white/10 px-2 py-0.5">{room.category}</span>
+          <p className="mt-0.5 truncate text-[var(--fs-2xs)] text-cyan-50/82">{room.summary}</p>
+          <div className="mt-1 flex items-center gap-1.5 text-[var(--fs-2xs)] text-cyan-100/72">
+            <span className="rounded-full border border-white/15 bg-white/10 px-1.5 py-0.5">{room.category}</span>
             <span className="inline-flex items-center gap-1">
               <span aria-hidden="true">{room.privacy.toLowerCase() === "public" ? "🌐" : "🔒"}</span>
               {room.privacy}
             </span>
             <span>{room.totalMembers} members</span>
           </div>
-          {room.detail ? <p className="mt-1 truncate text-[0.88rem] text-cyan-100/64">{room.detail}</p> : null}
         </div>
 
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-          <p className="inline-flex items-center gap-2 text-[0.95rem] text-cyan-100/76">
-            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(92,255,190,0.78)]" />
+        <div className="ml-auto flex shrink-0 items-center justify-end gap-2">
+          <p className="hidden md:inline-flex items-center gap-1.5 text-[var(--fs-2xs)] text-cyan-100/72">
+            <span className="inline-flex h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(92,255,190,0.78)]" />
             {room.onlineUsers} online
           </p>
 
@@ -652,9 +628,10 @@ export function HomeChatRoomsPanel({
               type="button"
               disabled={busy}
               onClick={() => void handleCancelRoomRequest(room)}
-              className="inline-flex h-10 items-center justify-center rounded-[0.8rem] border border-cyan-300/28 bg-[rgba(26,18,74,0.66)] px-3 text-[0.85rem] font-semibold text-cyan-50 transition hover:border-cyan-300/50 disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-[0.7rem] border border-cyan-300/28 bg-[rgba(26,18,74,0.66)] px-2.5 text-[var(--fs-2xs)] font-semibold text-cyan-50 transition hover:border-cyan-300/50 disabled:opacity-60"
+              style={{ height: "var(--btn-h-sm)" }}
             >
-              Cancel request
+              Cancel
             </button>
           ) : null}
 
@@ -663,7 +640,8 @@ export function HomeChatRoomsPanel({
               type="button"
               disabled={busy}
               onClick={() => void handleLeaveRoom(room)}
-              className="inline-flex h-10 items-center justify-center rounded-[0.8rem] border border-cyan-300/28 bg-[rgba(26,18,74,0.66)] px-3 text-[0.85rem] font-semibold text-cyan-50 transition hover:border-cyan-300/50 disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-[0.7rem] border border-cyan-300/28 bg-[rgba(26,18,74,0.66)] px-2.5 text-[var(--fs-2xs)] font-semibold text-cyan-50 transition hover:border-cyan-300/50 disabled:opacity-60"
+              style={{ height: "var(--btn-h-sm)" }}
             >
               Leave
             </button>
@@ -675,12 +653,13 @@ export function HomeChatRoomsPanel({
               disabled={busy || room.action === "requested" || room.action === "blocked"}
               onClick={() => void handleRoomAction(room)}
               className={cx(
-                "inline-flex h-10 min-w-10 items-center justify-center rounded-[0.8rem] border text-[1rem] font-semibold transition",
+                "inline-flex items-center justify-center rounded-[0.7rem] border px-3 text-[var(--fs-xs)] font-semibold transition",
                 (room.action === "requested" || room.action === "blocked") && "cursor-not-allowed opacity-70",
                 room.featured
-                  ? "border-fuchsia-300/45 bg-[linear-gradient(90deg,rgba(157,78,221,0.8),rgba(255,32,121,0.76))] px-3 text-white hover:border-fuchsia-200/72"
+                  ? "border-fuchsia-300/45 bg-[linear-gradient(90deg,rgba(157,78,221,0.8),rgba(255,32,121,0.76))] text-white hover:border-fuchsia-200/72"
                   : "border-fuchsia-300/28 bg-[rgba(67,28,155,0.52)] text-cyan-100/92 hover:border-fuchsia-300/50",
               )}
+              style={{ height: "var(--btn-h-sm)" }}
             >
               {primaryActionLabel(room)}
             </button>
@@ -693,17 +672,17 @@ export function HomeChatRoomsPanel({
   return (
     <Panel
       className={cx(
-        "overflow-hidden p-4 sm:p-5",
+        "overflow-hidden p-[var(--panel-pad)]",
         variant === "dashboard" && "flex h-full min-h-0 flex-col",
       )}
     >
       <div className={cx("flex flex-wrap items-center justify-between gap-3", variant === "dashboard" && "shrink-0")}>
         <div className="flex items-center gap-2.5">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.75rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-[0.7rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
             <svg
               aria-hidden="true"
               viewBox="0 0 24 24"
-              className="h-4.5 w-4.5"
+              className="h-4 w-4"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.9"
@@ -714,21 +693,22 @@ export function HomeChatRoomsPanel({
               <path d="M10 12h.01M13 12h.01M16 12h.01" />
             </svg>
           </span>
-          <h2 className="text-[1.65rem] font-bold tracking-tight text-white">Suzi Chat Rooms</h2>
+          <h2 className="text-[var(--fs-xl)] font-bold tracking-tight text-white">Suzi Chat Rooms</h2>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setIsCreateOpen(true)}
-            className="inline-flex items-center rounded-full border border-fuchsia-200/44 bg-[linear-gradient(90deg,#ff2da7,#ce2fff)] px-4 py-1.5 text-[0.85rem] font-semibold text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_0_14px_rgba(255,45,167,0.56),0_8px_22px_rgba(101,24,194,0.45)] transition hover:brightness-110"
+            className="inline-flex items-center rounded-full border border-fuchsia-200/44 bg-[linear-gradient(90deg,#ff2da7,#ce2fff)] px-3 text-[var(--fs-xs)] font-semibold text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_0_14px_rgba(255,45,167,0.56),0_8px_22px_rgba(101,24,194,0.45)] transition hover:brightness-110"
+            style={{ height: "var(--btn-h-sm)" }}
           >
             + Create Room
           </button>
         </div>
       </div>
 
-      <div className={cx("mt-4 flex items-center gap-2", variant === "dashboard" && "shrink-0")}>
+      <div className={cx("mt-3 flex items-center gap-2", variant === "dashboard" && "shrink-0")}>
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div className="suzi-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto pb-1 pr-1">
             {primaryCategories.map((category) => (
@@ -778,12 +758,12 @@ export function HomeChatRoomsPanel({
           </div>
         </div>
 
-        <label className="relative ml-auto w-52 shrink-0">
-          <span className="pointer-events-none absolute inset-y-0 left-3 inline-flex items-center text-cyan-100/58">
+        <label className="relative ml-auto w-44 shrink-0 sm:w-48">
+          <span className="pointer-events-none absolute inset-y-0 left-2.5 inline-flex items-center text-cyan-100/58">
             <svg
               aria-hidden="true"
               viewBox="0 0 24 24"
-              className="h-4 w-4"
+              className="h-3.5 w-3.5"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.85"
@@ -795,10 +775,11 @@ export function HomeChatRoomsPanel({
             </svg>
           </span>
           <input
-            className="h-10 w-full rounded-[0.8rem] border border-cyan-300/24 bg-[linear-gradient(95deg,rgba(36,22,101,0.62),rgba(24,14,76,0.7))] py-2 pl-9 pr-4 text-[0.95rem] text-cyan-50/94 placeholder:text-cyan-100/45 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24"
+            className="w-full rounded-[0.7rem] border border-cyan-300/24 bg-[linear-gradient(95deg,rgba(36,22,101,0.62),rgba(24,14,76,0.7))] py-1.5 pl-8 pr-3 text-[var(--fs-xs)] text-cyan-50/94 placeholder:text-cyan-100/45 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24"
             placeholder="Search rooms..."
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            style={{ height: "var(--btn-h-sm)" }}
           />
         </label>
       </div>
@@ -818,27 +799,14 @@ export function HomeChatRoomsPanel({
             No rooms match this filter.
           </div>
         ) : (
-          <div className="space-y-2.5 p-1 sm:p-1.5">
-            {groupedFilteredRooms.mine.length > 0 ? (
-              <section className={roomGroupShellClassName()}>
-                <RoomSectionHeader title="My rooms" />
-                {groupedFilteredRooms.mine.map((room, index) => renderRoomRow(room, index))}
-              </section>
-            ) : null}
-
-            {groupedFilteredRooms.joined.length > 0 ? (
-              <section className={roomGroupShellClassName()}>
-                <RoomSectionHeader title="Joined" />
-                {groupedFilteredRooms.joined.map((room, index) => renderRoomRow(room, index))}
-              </section>
-            ) : null}
-
-            {groupedFilteredRooms.other.length > 0 ? (
-              <section className={roomGroupShellClassName()}>
-                <RoomSectionHeader title="Other rooms" />
-                {groupedFilteredRooms.other.map((room, index) => renderRoomRow(room, index))}
-              </section>
-            ) : null}
+          <div className="p-1">
+            <section className={roomGroupShellClassName()}>
+              {[
+                ...groupedFilteredRooms.mine,
+                ...groupedFilteredRooms.joined,
+                ...groupedFilteredRooms.other,
+              ].map((room, index) => renderRoomRow(room, index))}
+            </section>
           </div>
         )}
       </div>

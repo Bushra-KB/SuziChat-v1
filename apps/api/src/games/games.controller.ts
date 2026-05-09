@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Headers,
@@ -62,6 +63,15 @@ export class GamesController {
     return this.gamesService.joinLobby(lobbyId, user.id, dto);
   }
 
+  @Delete('lobbies/:lobbyId')
+  @UseGuards(AccessTokenGuard)
+  deleteLobby(
+    @Param('lobbyId') lobbyId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.gamesService.deleteLobby(lobbyId, user.id);
+  }
+
   @Post('lobbies/:lobbyId/leave')
   @UseGuards(AccessTokenGuard)
   leaveLobby(
@@ -98,6 +108,29 @@ export class GamesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.gamesService.getSession(sessionId, user.id);
+  }
+
+  @Get('sessions/:sessionId/chat')
+  @UseGuards(AccessTokenGuard)
+  listSessionChat(
+    @Param('sessionId') sessionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.gamesService.listSessionChat(sessionId, user.id);
+  }
+
+  @Post('sessions/:sessionId/chat')
+  @UseGuards(AccessTokenGuard)
+  sendSessionChat(
+    @Param('sessionId') sessionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: { body?: string },
+  ) {
+    return this.gamesService.sendSessionChat(
+      sessionId,
+      user.id,
+      dto.body ?? '',
+    );
   }
 
   /** Active lobbies/sessions, action latency, socket counters — admin or `GAMES_METRICS_KEY` header. */

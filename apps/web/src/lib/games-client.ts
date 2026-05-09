@@ -53,6 +53,15 @@ export type ApiGameSession = {
   }>;
 };
 
+export type ApiGameChatMessage = {
+  id: string;
+  sessionId: string;
+  userId: string | null;
+  body: string;
+  createdAt: string;
+  user?: { id: string; username: string; displayName: string | null; avatarUrl?: string | null } | null;
+};
+
 export async function listGameCatalog() {
   return apiJson<ApiGameCatalog[]>("/v1/games/catalog", { method: "GET" });
 }
@@ -88,6 +97,13 @@ export async function joinGameLobby(accessToken: string, lobbyId: string, seatIn
     method: "POST",
     accessToken,
     body: JSON.stringify({ seatIndex }),
+  });
+}
+
+export async function deleteGameLobby(accessToken: string, lobbyId: string) {
+  return apiJson<{ ok: true; lobbyId: string }>(`/v1/games/lobbies/${encodeURIComponent(lobbyId)}`, {
+    method: "DELETE",
+    accessToken,
   });
 }
 
@@ -130,5 +146,20 @@ export async function postGameAction(
     method: "POST",
     accessToken,
     body: JSON.stringify({ payload, kind }),
+  });
+}
+
+export async function listGameSessionChat(accessToken: string, sessionId: string) {
+  return apiJson<ApiGameChatMessage[]>(`/v1/games/sessions/${encodeURIComponent(sessionId)}/chat`, {
+    method: "GET",
+    accessToken,
+  });
+}
+
+export async function sendGameSessionChat(accessToken: string, sessionId: string, body: string) {
+  return apiJson<ApiGameChatMessage>(`/v1/games/sessions/${encodeURIComponent(sessionId)}/chat`, {
+    method: "POST",
+    accessToken,
+    body: JSON.stringify({ body }),
   });
 }
