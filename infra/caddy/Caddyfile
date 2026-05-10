@@ -22,3 +22,10 @@
     reverse_proxy web:3000
   }
 }
+
+# Redirect the www subdomain to the canonical apex domain.
+# Caddy will auto-provision a TLS cert for this hostname on first request
+# (DNS for www.* must already point to this server, which it does).
+www.{$SUZI_DOMAIN} {
+  redir https://{$SUZI_DOMAIN}{uri} permanent
+}
