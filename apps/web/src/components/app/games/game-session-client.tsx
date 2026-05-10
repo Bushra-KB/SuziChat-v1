@@ -277,7 +277,7 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
         : "Finished";
 
   return (
-    <section className="suzi-app-frame-fill">
+    <section className="suzi-app-frame-fill suzi-game-session-page">
       <div className="h-full min-h-0">
         {!session ? (
           <Panel className="p-6">

@@ -1071,3 +1071,609 @@ h5 {
   background: #ffffff;
   transform: translateX(1.05rem);
 }
+
+/* ==================================================================
+ * MOBILE LAYOUT (< 768px) — fixed top bar + scroll content + bottom nav.
+ * The desktop SPA layout is intentionally untouched above 768px.
+ * ================================================================== */
+
+/* Always-defined helpers (work on all viewports). */
+.suzi-mobile-only {
+  display: none;
+}
+.suzi-desktop-only {
+  display: contents;
+}
+
+@media (max-width: 767px) {
+  :root {
+    /* Mobile-specific shell tokens. */
+    --shell-pad-x: 0;
+    --shell-pad-y: 0;
+    --shell-gap: 0;
+    --shell-header-h: 3.4rem;
+    --shell-footer-h: 0rem;
+    --logo-w: 7.4rem;
+    --logo-h: 2.6rem;
+
+    /* Reset desktop fluid type scale to mobile-app sizes. */
+    --fs-2xs: 0.66rem;
+    --fs-xs: 0.74rem;
+    --fs-sm: 0.82rem;
+    --fs-base: 0.88rem;
+    --fs-md: 0.95rem;
+    --fs-lg: 1.05rem;
+    --fs-xl: 1.18rem;
+    --fs-2xl: 1.35rem;
+    --fs-3xl: 1.6rem;
+
+    /* Mobile spacing/sizing. */
+    --panel-radius: 1.05rem;
+    --panel-pad: 0.85rem;
+    --panel-pad-tight: 0.65rem;
+    --col-gap: 0.7rem;
+    --row-gap: 0.7rem;
+    --btn-h: 2.5rem;
+    --btn-h-sm: 2.1rem;
+    --icon-btn-size: 2.5rem;
+
+    --avatar-sm: 1.85rem;
+    --avatar-md: 2.4rem;
+    --avatar-lg: 3rem;
+    --avatar-xl: 4.4rem;
+
+    /* Mobile chrome. */
+    --m-top-h: 3.5rem;
+    --m-bottom-h: 4rem;
+    --m-content-pad-x: 0.85rem;
+    --m-content-pad-y: 0.85rem;
+  }
+
+  /* Show/hide helpers. */
+  .suzi-mobile-only {
+    display: contents;
+  }
+  .suzi-desktop-only {
+    display: none !important;
+  }
+
+  /* Allow main content area to scroll vertically inside the locked shell. */
+  .suzi-app-frame-fill {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-left: var(--m-content-pad-x);
+    padding-right: var(--m-content-pad-x);
+    padding-top: var(--m-content-pad-y);
+    /* Bottom-nav clearance + iOS safe-area. */
+    padding-bottom: calc(var(--m-bottom-h) + env(safe-area-inset-bottom, 0px) + 0.75rem);
+    /* Native-app feel: hide the scrollbar track. Page is still scrollable. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .suzi-app-frame-fill::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+  /* Bulletproof: hide ANY scrollbar UI inside the mobile shell. Scrolling
+   * still works — just no visible track or thumb. This catches every
+   * scroll container our pages spawn (chat lists, friends, etc.). */
+  [data-suzi-app-frame],
+  [data-suzi-app-frame] * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  [data-suzi-app-frame] *::-webkit-scrollbar,
+  [data-suzi-app-frame]::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+    background: transparent !important;
+  }
+
+  /* Stack desktop grids vertically; rows size by intrinsic content. */
+  .suzi-page-grid,
+  .suzi-home-grid,
+  .suzi-messages-grid,
+  .suzi-room-grid,
+  .suzi-lobby-grid,
+  .suzi-profile-body,
+  .suzi-stage-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto !important;
+    grid-auto-rows: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    row-gap: var(--row-gap);
+  }
+
+  /* Inside col-stacks (Home), let children size to content. */
+  .suzi-col-stack {
+    height: auto;
+  }
+  .suzi-col-stack > * {
+    flex: none !important;
+  }
+
+  /* Per-section min-heights so panels feel like real cards on mobile. */
+  .suzi-home-grid .suzi-col-stack > div {
+    min-height: 14rem;
+  }
+  /* Friends and Chat Rooms are tall; Dating is a compact banner. */
+  .suzi-home-grid .suzi-col-stack > div.m-tall {
+    min-height: 22rem;
+  }
+  .suzi-home-grid .suzi-col-stack > div.m-compact {
+    min-height: 6rem;
+  }
+
+  /* Internal scroll areas — on mobile we want most lists to flow with the
+   * page rather than nest a scroll inside a scroll. Specific layouts that
+   * need an internal scroll opt back in via .suzi-mobile-keep-scroll. */
+  .suzi-home-grid .suzi-panel-scroll,
+  .suzi-home-grid .suzi-thin-scroll {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Footer is hidden on mobile (replaced by bottom nav). */
+  .suzi-app-mobile-hide-footer {
+    display: none !important;
+  }
+}
+
+/* ------------------------------------------------------------------
+ * Mobile chrome primitives.
+ *
+ * IMPORTANT: globals.css imports AFTER Tailwind utilities. If we set
+ * `display: flex|grid|inline-flex` directly on these classes at the top
+ * level of the cascade, those declarations beat Tailwind's `md:hidden`
+ * (which is `display: none` inside `@media (min-width: 768px)`), causing
+ * the mobile chrome to leak onto desktop.
+ *
+ * To keep `md:hidden` working on desktop, every `display:` rule for
+ * mobile-only primitives is scoped inside `@media (max-width: 767px)`.
+ * On desktop those classes provide no `display` rule, so Tailwind's
+ * `md:hidden` wins and elements stay hidden.
+ * ------------------------------------------------------------------ */
+
+.suzi-m-top {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  height: var(--m-top-h, 3.5rem);
+  padding: 0 var(--m-content-pad-x, 0.85rem);
+  padding-top: env(safe-area-inset-top, 0px);
+  background:
+    linear-gradient(180deg, rgba(11, 8, 32, 0.62), rgba(11, 8, 32, 0.32) 70%, transparent);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+}
+
+.suzi-m-bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  align-items: center;
+  height: calc(var(--m-bottom-h, 4rem) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background:
+    linear-gradient(180deg, rgba(15, 10, 40, 0.78), rgba(11, 7, 30, 0.94));
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  border-top: 1px solid rgba(86, 196, 255, 0.18);
+  box-shadow: 0 -8px 28px rgba(6, 4, 24, 0.42);
+}
+
+.suzi-m-bottom__item {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18rem;
+  height: 100%;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(195, 211, 239, 0.74);
+  text-decoration: none;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 160ms ease;
+}
+
+@media (max-width: 767px) {
+  .suzi-m-top { display: flex; }
+  .suzi-m-bottom { display: grid; }
+  .suzi-m-bottom__item { display: flex; }
+}
+
+.suzi-m-bottom__item[data-active="true"] {
+  color: #ffffff;
+}
+
+.suzi-m-bottom__item[data-active="true"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 38%;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: linear-gradient(90deg, #00e5ff, #ff2079);
+  box-shadow: 0 0 14px rgba(255, 32, 121, 0.55);
+}
+
+.suzi-m-bottom__icon {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.suzi-m-bottom__item[data-active="true"] .suzi-m-bottom__icon {
+  filter: drop-shadow(0 0 8px rgba(255, 32, 121, 0.55));
+  color: #ff5fb0;
+}
+
+.suzi-m-icon-btn {
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.suzi-m-icon-btn:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.suzi-m-logo-pill {
+  position: relative;
+  align-items: center;
+  height: 2.55rem;
+  width: 7.2rem;
+  pointer-events: auto;
+}
+
+@media (max-width: 767px) {
+  .suzi-m-icon-btn { display: inline-flex; }
+  .suzi-m-logo-pill { display: inline-flex; }
+}
+
+/* Mobile slide-in drawer (hamburger menu). */
+.suzi-m-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(4, 3, 20, 0.55);
+  backdrop-filter: blur(4px) saturate(120%);
+  -webkit-backdrop-filter: blur(4px) saturate(120%);
+}
+
+.suzi-m-drawer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 61;
+  width: min(82vw, 20rem);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background:
+    linear-gradient(180deg, rgba(28, 18, 78, 0.96), rgba(15, 10, 40, 0.96));
+  border-right: 1px solid rgba(86, 196, 255, 0.18);
+  box-shadow: 6px 0 32px rgba(0, 0, 0, 0.55);
+  transform: translateX(-100%);
+  transition: transform 220ms ease;
+  overflow-y: auto;
+}
+
+.suzi-m-drawer[data-open="true"] {
+  transform: translateX(0);
+}
+
+/* Bottom-sheet primitive used for room members, invite, etc. */
+.suzi-m-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 62;
+  max-height: 82vh;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+  border-top-left-radius: 1.4rem;
+  border-top-right-radius: 1.4rem;
+  border: 1px solid rgba(86, 196, 255, 0.2);
+  border-bottom: 0;
+  background:
+    linear-gradient(180deg, rgba(28, 18, 78, 0.96), rgba(15, 10, 40, 0.96));
+  box-shadow: 0 -22px 60px rgba(0, 0, 0, 0.65);
+  transform: translateY(102%);
+  transition: transform 240ms ease;
+  overflow-y: auto;
+}
+.suzi-m-sheet[data-open="true"] {
+  transform: translateY(0);
+}
+
+/* Touch target helper (≥44px). */
+.suzi-tap-row {
+  min-height: 3rem;
+}
+@media (max-width: 767px) {
+  .suzi-tap-row {
+    min-height: 3.25rem;
+  }
+}
+
+/* Section title on mobile pages. */
+.suzi-m-section-title {
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+}
+@media (max-width: 767px) {
+  .suzi-m-section-title { display: flex; }
+}
+
+/* Hide the desktop scrollbar styling defaults inside mobile if needed. */
+@media (max-width: 767px) {
+  /* Avoid horizontal jiggle. */
+  html, body {
+    overflow-x: hidden;
+  }
+  /* The shell content wrapper carries inline padding/max-width tuned for
+   * desktop. On mobile we want a flush layout (top bar + content + bottom
+   * nav take the full viewport), so we zero those out. */
+  .suzi-shell-content {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    max-width: 100% !important;
+    row-gap: 0 !important;
+  }
+
+  /* DM page: list ↔ thread routing on mobile.
+   * The Quick-Invite right rail is desktop-only on mobile.
+   * - Inbox-only when no peer is selected.
+   * - Thread-only when a peer is selected. */
+  .suzi-msg-invite {
+    display: none !important;
+  }
+  .suzi-msg-with-active .suzi-msg-inbox {
+    display: none !important;
+  }
+  .suzi-msg-without-active .suzi-msg-thread {
+    display: none !important;
+  }
+
+  /* Chat-style pages (DM, Room) lock to the viewport so the composer sits
+   * just above the bottom nav. Body scroll is disabled — only the message
+   * list scrolls inside. */
+  .suzi-app-frame-fill.suzi-msg-with-active,
+  .suzi-app-frame-fill.suzi-msg-without-active,
+  .suzi-app-frame-fill.suzi-room-active {
+    overflow: hidden !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: calc(var(--m-bottom-h) + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .suzi-app-frame-fill.suzi-msg-with-active .suzi-messages-grid,
+  .suzi-app-frame-fill.suzi-msg-without-active .suzi-messages-grid,
+  .suzi-app-frame-fill.suzi-room-active .suzi-room-grid {
+    height: 100% !important;
+    min-height: 0 !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+
+  /* Game lobby on mobile: lock to viewport, full-height panel with the
+   * lobby list as the ONLY scroll surface inside. Mirrors the chat-page
+   * pattern so the header stays sticky and only tables scroll. */
+  .suzi-app-frame-fill.suzi-lobby-page {
+    overflow: hidden !important;
+    padding-left: var(--m-content-pad-x) !important;
+    padding-right: var(--m-content-pad-x) !important;
+    padding-top: var(--m-content-pad-y) !important;
+    padding-bottom: calc(var(--m-bottom-h) + env(safe-area-inset-bottom, 0px) + 0.5rem) !important;
+  }
+  .suzi-lobby-page .suzi-lobby-grid {
+    height: 100% !important;
+    min-height: 0 !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+  .suzi-lobby-page .suzi-lobby-grid > .suzi-lobby-main {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .suzi-lobby-page .suzi-thin-scroll {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    max-height: none !important;
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Lobby header on mobile: stack create button on its own row so the
+   * title + active/open badge can use the full first line. */
+  .suzi-lobby-page .suzi-lobby-header {
+    row-gap: 0.55rem !important;
+  }
+  .suzi-lobby-page .suzi-lobby-header > div:first-child {
+    flex: 1 1 100% !important;
+    min-width: 0;
+  }
+  .suzi-lobby-page .suzi-lobby-header h1 {
+    font-size: var(--fs-md) !important;
+  }
+  .suzi-lobby-page .suzi-lobby-create {
+    flex: 1 1 100% !important;
+    text-align: center;
+    justify-content: center;
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+  }
+
+  /* Lobby card: reshape from vertical (desktop) to a compact horizontal
+   * row on mobile — small image on the left, info + actions stacked
+   * on the right. Listing scans much faster on a phone. */
+  .suzi-lobby-page .suzi-lobby-card {
+    display: grid !important;
+    grid-template-columns: 5.75rem minmax(0, 1fr);
+    grid-template-areas:
+      "img header"
+      "img meta"
+      "img actions"
+      "invite invite";
+    column-gap: 0.7rem;
+    row-gap: 0.35rem;
+    padding: 0.55rem 0.65rem !important;
+    align-items: center;
+  }
+  .suzi-lobby-page .suzi-lobby-card [data-section="header"] {
+    grid-area: header;
+    margin: 0 !important;
+    align-items: flex-start;
+  }
+  .suzi-lobby-page .suzi-lobby-card [data-section="header"] h3 {
+    font-size: var(--fs-sm);
+  }
+  .suzi-lobby-page .suzi-lobby-card [data-section="image"] {
+    grid-area: img;
+    margin: 0 !important;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    height: auto;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(86, 196, 255, 0.18);
+    background: rgba(20, 12, 72, 0.55);
+  }
+  .suzi-lobby-page .suzi-lobby-card [data-section="image"] img {
+    height: 88% !important;
+    width: auto !important;
+    object-fit: contain;
+  }
+  .suzi-lobby-page .suzi-lobby-card [data-section="meta"] {
+    grid-area: meta;
+    margin: 0 !important;
+    text-align: left !important;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+  .suzi-lobby-page .suzi-lobby-card [data-section="meta"] > p:first-child {
+    margin: 0;
+    flex: 1 1 100%;
+    text-align: left;
+    font-size: var(--fs-2xs);
+    color: rgba(207, 226, 255, 0.78);
+  }
+  .suzi-lobby-page .suzi-lobby-card [data-section="meta"] > p:last-child {
+    margin: 0;
+  }
+  .suzi-lobby-page .suzi-lobby-card [data-section="actions"] {
+    grid-area: actions;
+    margin: 0 !important;
+    justify-content: flex-start !important;
+  }
+  .suzi-lobby-page .suzi-lobby-card [data-section="actions"] > a:first-child,
+  .suzi-lobby-page .suzi-lobby-card [data-section="actions"] > button:first-child,
+  .suzi-lobby-page .suzi-lobby-card [data-section="actions"] > span:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .suzi-lobby-page .suzi-lobby-card [data-section="invite"] {
+    grid-area: invite;
+    margin: 0 !important;
+  }
+
+  /* Game session: 3 panels stack, each sized by content. */
+  .suzi-game-session-page > div {
+    height: auto !important;
+  }
+  .suzi-game-session-page > div > div {
+    height: auto !important;
+  }
+  .suzi-game-session-page .suzi-panel {
+    height: auto !important;
+  }
+  .suzi-game-session-page .suzi-scrollbar {
+    overflow: visible !important;
+    max-height: 24rem;
+  }
+
+  /* Reels & Snaps: full-bleed mobile experience (no header, no padding). */
+  .suzi-app-frame-fill.suzi-reels-page,
+  .suzi-app-frame-fill.suzi-snaps-page {
+    overflow: hidden !important;
+    padding: 0 !important;
+  }
+  .suzi-reels-page > .suzi-panel,
+  .suzi-snaps-page > .suzi-panel {
+    border: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    height: 100% !important;
+  }
+  .suzi-reels-page .suzi-reels-header,
+  .suzi-snaps-page .suzi-snaps-header {
+    display: none !important;
+  }
+
+  /* Room view — members rail becomes a bottom-sheet drawer. */
+  .suzi-room-members {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 62;
+    max-height: 88vh;
+    transform: translateY(102%);
+    transition: transform 240ms ease;
+    border-top-left-radius: 1.4rem;
+    border-top-right-radius: 1.4rem;
+    border: 1px solid rgba(86, 196, 255, 0.22);
+    border-bottom: 0;
+    background:
+      linear-gradient(180deg, rgba(28, 18, 78, 0.96), rgba(15, 10, 40, 0.96));
+    box-shadow: 0 -22px 60px rgba(0, 0, 0, 0.65);
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .suzi-room-members.suzi-room-members--open {
+    transform: translateY(0);
+  }
+  .suzi-room-members > .suzi-panel {
+    border: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    height: 100%;
+  }
+}
+

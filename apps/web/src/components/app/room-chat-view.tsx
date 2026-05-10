@@ -67,6 +67,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const [editCategory, setEditCategory] = useState("Social");
   const [editPrivacy, setEditPrivacy] = useState<"Public" | "Friends" | "Private">("Public");
   const [editImageUrl, setEditImageUrl] = useState("");
+  const [mobileMembersOpen, setMobileMembersOpen] = useState(false);
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const typingHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingAtRef = useRef(0);
@@ -406,11 +407,21 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   }
 
   return (
-    <section className="suzi-app-frame-fill">
+    <section className="suzi-app-frame-fill suzi-room-active">
       <div className="suzi-room-grid">
-      <Panel className="flex h-full min-h-0 flex-col overflow-hidden border border-cyan-300/24 bg-[linear-gradient(180deg,rgba(36,45,116,0.52),rgba(40,16,117,0.52))] p-0 shadow-[0_14px_38px_rgba(15,23,42,0.2)]">
+      <Panel className="suzi-room-chat flex h-full min-h-0 flex-col overflow-hidden border border-cyan-300/24 bg-[linear-gradient(180deg,rgba(36,45,116,0.52),rgba(40,16,117,0.52))] p-0 shadow-[0_14px_38px_rgba(15,23,42,0.2)]">
         <div className="shrink-0 border-b border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
           <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-start gap-2">
+              <Link
+                href="/app"
+                aria-label="Back"
+                className="suzi-m-icon-btn shrink-0 md:hidden"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </Link>
             <div className="min-w-0">
               <p className="flex items-center gap-2 text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.3em] text-cyan-100/64">
                 <span>Room Chat</span>
@@ -426,7 +437,20 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 {room?.description ?? ""}
               </p>
             </div>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                aria-label="Room members"
+                onClick={() => setMobileMembersOpen(true)}
+                className="suzi-m-icon-btn md:hidden"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+                  <circle cx="9.5" cy="7" r="4" />
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </button>
               <span className="inline-flex rounded-md border border-cyan-300/35 bg-cyan-400/15 px-3 py-1 text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.12em] text-cyan-100">
                 {room?.category ?? "—"}
               </span>
@@ -550,7 +574,33 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         </div>
       </Panel>
 
-      <div className="suzi-col-stack">
+      {mobileMembersOpen ? (
+        <div
+          className="suzi-m-drawer-backdrop md:hidden"
+          role="presentation"
+          onClick={() => setMobileMembersOpen(false)}
+        />
+      ) : null}
+      <div
+        className={cx(
+          "suzi-col-stack suzi-room-members",
+          mobileMembersOpen && "suzi-room-members--open",
+        )}
+      >
+        {/* Mobile sheet header — only renders on phones */}
+        <div className="hidden items-center justify-between border-b border-cyan-300/18 px-4 py-3 max-md:flex">
+          <h2 className="text-[var(--fs-lg)] font-semibold text-white">Room Info</h2>
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => setMobileMembersOpen(false)}
+            className="suzi-m-icon-btn"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
         <Panel className="flex min-h-0 flex-[3_1_0%] flex-col overflow-hidden p-[var(--panel-pad)]">
           <div className="flex shrink-0 items-center justify-between gap-3">
             <h2 className="text-[var(--fs-lg)] font-semibold tracking-tight text-white">Room Members</h2>

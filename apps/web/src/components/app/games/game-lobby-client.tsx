@@ -7,6 +7,7 @@ import { gameMeta, gameTypeToId } from "@/components/app/games/game-meta";
 import { HomeFriendsPanel } from "@/components/app/home-friends-panel";
 import { Panel } from "@/components/ui/suzi-primitives";
 import { explorePeople, getFriendsSummary, type FriendSummaryUser } from "@/lib/friends-client";
+import { useIsMobile } from "@/lib/use-is-mobile";
 import {
   createGameLobby,
   deleteGameLobby,
@@ -41,6 +42,9 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
   const [selectedInviteUser, setSelectedInviteUser] = useState<FriendSummaryUser | null>(null);
   const [friendDirectory, setFriendDirectory] = useState<FriendSummaryUser[]>([]);
   const [openInviteLobbyId, setOpenInviteLobbyId] = useState<string | null>(null);
+  // Friends rail is only shown at xl and above (1280px+). Skip mounting it
+  // entirely below that breakpoint so we don't fetch friends data unused.
+  const { isMobile: belowXl } = useIsMobile("(max-width: 1279px)");
 
   async function refresh() {
     setLoading(true);
@@ -288,26 +292,29 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
   }
 
   return (
-    <section className="suzi-app-frame-fill">
+    <section className="suzi-app-frame-fill suzi-lobby-page">
       <div className="suzi-lobby-grid">
-        {/* LEFT RAIL — Friends (full height) */}
-        <div className="suzi-col-stack hidden xl:flex">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <HomeFriendsPanel />
+        {/* LEFT RAIL — Friends (full height, xl+ only). Below xl we skip
+          * mounting the panel entirely so it doesn't fetch friend data. */}
+        {!belowXl ? (
+          <div className="suzi-col-stack hidden xl:flex">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <HomeFriendsPanel />
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {/* MAIN — Lobby tables */}
-        <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2">
+        <Panel className="suzi-lobby-main flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
+          <div className="suzi-lobby-header flex shrink-0 flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
               <Link
                 href="/app"
                 className="suzi-secondary-btn shrink-0 px-2.5 py-1 text-[var(--fs-2xs)]"
               >
                 ← Back
               </Link>
-              <h1 className="truncate text-[var(--fs-xl)] font-bold tracking-tight text-white">
+              <h1 className="min-w-0 flex-1 truncate text-[var(--fs-xl)] font-bold leading-tight tracking-tight text-white sm:flex-none">
                 {game.name} tables
               </h1>
               <span className="shrink-0 rounded-full border border-cyan-300/22 bg-[rgba(20,16,72,0.55)] px-2 py-0.5 text-[var(--fs-2xs)] text-cyan-100/82">
@@ -317,7 +324,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
             <button
               type="button"
               disabled={creating}
-              className="suzi-primary-btn shrink-0 px-3 py-1 text-[var(--fs-2xs)] disabled:opacity-60"
+              className="suzi-primary-btn suzi-lobby-create shrink-0 px-3 py-1 text-[var(--fs-2xs)] disabled:opacity-60"
               onClick={() => void onCreateLobby()}
             >
               {creating ? "Creating..." : "+ Create lobby"}
@@ -362,11 +369,11 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
               return (
                 <div
                   key={lobby.id}
-                  className="relative flex flex-col overflow-hidden rounded-[var(--panel-radius)] border border-fuchsia-300/28 bg-[radial-gradient(circle_at_50%_8%,rgba(255,32,121,0.18),transparent_42%),linear-gradient(180deg,rgba(91,26,151,0.5),rgba(44,12,114,0.82))] p-2 shadow-[0_0_18px_rgba(157,78,221,0.18),inset_0_1px_0_rgba(255,255,255,0.08)]"
+                  className="suzi-lobby-card relative flex flex-col overflow-hidden rounded-[var(--panel-radius)] border border-fuchsia-300/28 bg-[radial-gradient(circle_at_50%_8%,rgba(255,32,121,0.18),transparent_42%),linear-gradient(180deg,rgba(91,26,151,0.5),rgba(44,12,114,0.82))] p-2 shadow-[0_0_18px_rgba(157,78,221,0.18),inset_0_1px_0_rgba(255,255,255,0.08)]"
                 >
                   <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent)] opacity-40" />
 
-                  <div className="relative z-10 flex items-center justify-between gap-2">
+                  <div data-section="header" className="relative z-10 flex items-center justify-between gap-2">
                     <h3 className="text-[var(--fs-sm)] font-bold tracking-tight text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)]">
                       <span className="text-fuchsia-200/80">←</span> Table {index + 1} <span className="text-fuchsia-200/80">→</span>
                     </h3>
@@ -375,7 +382,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                     </span>
                   </div>
 
-                  <div className="relative z-10 mt-1 flex aspect-[5/3] items-center justify-center overflow-hidden">
+                  <div data-section="image" className="relative z-10 mt-1 flex aspect-[5/3] items-center justify-center overflow-hidden">
                     <Image
                       src="/games/table-chess.png"
                       alt=""
@@ -385,7 +392,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                     />
                   </div>
 
-                  <div className="relative z-10 mt-1.5 text-center">
+                  <div data-section="meta" className="relative z-10 mt-1.5 text-center">
                     <p className="truncate text-[var(--fs-xs)] font-bold text-white">
                       {seatName(firstSeat)} <span className="text-cyan-100/58">vs</span> {seatName(secondSeat)}
                     </p>
@@ -395,7 +402,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                     </p>
                   </div>
 
-                  <div className="relative z-10 mt-2 flex shrink-0 items-center justify-center gap-1.5">
+                  <div data-section="actions" className="relative z-10 mt-2 flex shrink-0 items-center justify-center gap-1.5">
                     {session?.status === "ACTIVE" ? (
                       <Link
                         href={`/app/games/${gameTypeToId(lobby.gameType)}/session/${session.id}`}
@@ -468,7 +475,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                   </div>
 
                   {canManage && inviteOpen ? (
-                    <div className="relative z-10 mt-2 rounded-[0.7rem] border border-cyan-300/22 bg-[rgba(20,13,62,0.7)] p-1.5">
+                    <div data-section="invite" className="relative z-10 mt-2 rounded-[0.7rem] border border-cyan-300/22 bg-[rgba(20,13,62,0.7)] p-1.5">
                       <div className="relative">
                         <input
                           value={inviteQuery}
