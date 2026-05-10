@@ -917,7 +917,7 @@ export function AppShell({
 
       {/* MOBILE BOTTOM NAV — < md only. */}
       <nav
-        className="suzi-m-bottom md:hidden"
+        className="suzi-m-bottom fixed inset-x-0 bottom-0 z-40 hidden h-[calc(var(--m-bottom-h,4rem)+env(safe-area-inset-bottom,0px))] grid-cols-5 items-center md:hidden"
         aria-label="Primary"
       >
         {mobileNavItems.map((item) => {
@@ -929,11 +929,11 @@ export function AppShell({
             <Link
               key={item.href}
               href={item.href}
-              className="suzi-m-bottom__item"
+              className="suzi-m-bottom__item flex h-full flex-col items-center justify-center gap-[0.18rem] text-[0.66rem] font-semibold tracking-[0.04em]"
               data-active={active ? "true" : "false"}
               aria-current={active ? "page" : undefined}
             >
-              <Icon path={item.icon} className="suzi-m-bottom__icon" />
+              <Icon path={item.icon} className="suzi-m-bottom__icon h-[1.45rem] w-[1.45rem] shrink-0" />
               <span>{item.label}</span>
             </Link>
           );
