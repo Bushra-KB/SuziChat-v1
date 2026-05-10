@@ -16,7 +16,7 @@ import {
 } from "@/lib/notifications-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
-import { createMenuItems } from "@/lib/v1-mock-data";
+import { createMenuItems, mobileNavItems } from "@/lib/v1-mock-data";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
 
 const globeIconPath = "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 3v18M3 12h18";
@@ -97,6 +97,7 @@ export function AppShell({
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string>("en");
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const createRef = useRef<HTMLDivElement | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const languageRef = useRef<HTMLDivElement | null>(null);
@@ -150,9 +151,7 @@ export function AppShell({
   useEffect(() => {
     /* eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted seen-inbox ids on user change */
     setSeenInboxHydrated(false);
-    /* eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted seen-inbox ids on user change */
     setSeenInboxMessageIds(readSeenInboxMessageIds(session.user.id));
-    /* eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted seen-inbox ids on user change */
     setSeenInboxHydrated(true);
   }, [session.user.id]);
 
@@ -310,6 +309,11 @@ export function AppShell({
     return () => root.classList.remove("suzi-app-frame-lock");
   }, []);
 
+  useEffect(() => {
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- close drawer on route change */
+    setIsMobileDrawerOpen(false);
+  }, [pathname]);
+
   return (
     <main
       data-suzi-app-frame
@@ -333,7 +337,7 @@ export function AppShell({
       </div>
 
       <div
-        className="relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col"
+        className="suzi-shell-content relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col"
         style={{
           maxWidth: "var(--shell-max-w)",
           paddingLeft: "var(--shell-pad-x)",
@@ -343,8 +347,151 @@ export function AppShell({
           rowGap: "var(--shell-pad-y)",
         }}
       >
+        {/* MOBILE TOP BAR — < md only. */}
         <header
-          className="relative z-[220] flex shrink-0 items-center justify-between gap-3"
+          className="suzi-m-top relative z-[220] flex shrink-0 items-center justify-between gap-2 md:hidden"
+        >
+          <button
+            type="button"
+            aria-label="Open menu"
+            onClick={() => setIsMobileDrawerOpen(true)}
+            className="suzi-m-icon-btn"
+          >
+            <Icon path="M4 6h16M4 12h16M4 18h16" className="h-5 w-5" />
+          </button>
+
+          <Link href="/app" className="suzi-m-logo-pill" aria-label="Suzi Chat home">
+            <span className="relative block w-full h-full overflow-hidden">
+              <Image
+                src="/logo/logo.png"
+                alt="SuziChat"
+                width={1536}
+                height={1024}
+                priority
+                className="absolute left-1/2 top-1/2 h-[185%] w-auto max-w-none -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_0_18px_rgba(232,77,255,0.32)]"
+              />
+            </span>
+          </Link>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href="/app/notifications"
+              aria-label="Notifications"
+              className="suzi-m-icon-btn"
+            >
+              <Icon path="M15 17H5l2-2.5V10a5 5 0 1 1 10 0v4.5L19 17h-4ZM10 20a2 2 0 0 0 4 0" className="h-4.5 w-4.5" />
+              {unreadNotifications > 0 ? (
+                <span className="absolute -right-1 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-fuchsia-500 px-1 text-[0.58rem] font-semibold leading-none text-white">
+                  {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                </span>
+              ) : null}
+            </Link>
+            <Link
+              href="/app/profile"
+              aria-label="Account"
+              className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-fuchsia-300/40 ring-2 ring-fuchsia-400/20"
+            >
+              <Image
+                src={accountAvatarSrc}
+                alt={`${accountName} avatar`}
+                width={36}
+                height={36}
+                className="h-9 w-9 rounded-full object-cover"
+              />
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0e0a30] bg-emerald-400" />
+            </Link>
+          </div>
+        </header>
+
+        {/* MOBILE DRAWER */}
+        {isMobileDrawerOpen ? (
+          <>
+            <div
+              className="suzi-m-drawer-backdrop md:hidden"
+              role="presentation"
+              onClick={() => setIsMobileDrawerOpen(false)}
+            />
+            <aside
+              className="suzi-m-drawer md:hidden"
+              data-open="true"
+              aria-label="Main menu"
+            >
+              <div className="flex items-center justify-between gap-2 px-5 pb-3 pt-5">
+                <div className="flex items-center gap-3">
+                  <Image
+                    src={accountAvatarSrc}
+                    alt={`${accountName} avatar`}
+                    width={44}
+                    height={44}
+                    className="h-11 w-11 rounded-full border border-white/10 object-cover"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-white">{accountName}</p>
+                    <p className="truncate text-xs text-[var(--text-soft)]">{accountHandle}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close menu"
+                  onClick={() => setIsMobileDrawerOpen(false)}
+                  className="suzi-m-icon-btn"
+                >
+                  <Icon path="M6 6l12 12M18 6L6 18" className="h-4.5 w-4.5" />
+                </button>
+              </div>
+              <div className="suzi-divider mx-5 my-2" />
+              <nav className="px-3 py-2">
+                {[
+                  { href: "/app", label: "Home", icon: "M3 11.5 12 4l9 7.5M6.5 10.5V20h11v-9.5" },
+                  { href: "/app/messages", label: "Chat", icon: "M4 6h16v10H8l-4 4V6Z" },
+                  { href: "/app/friends", label: "Friends", icon: "M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4ZM6 21a6 6 0 0 1 12 0M8 13a3 3 0 1 0-3-3 3 3 0 0 0 3 3ZM2 19a4 4 0 0 1 6-3.5" },
+                  { href: "/app/reels", label: "Reels", icon: "M8 5h8l4 4v10a2 2 0 0 1-2 2H8a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4Z M11 11.5v4l3-2-3-2Z" },
+                  { href: "/app/snaps", label: "Snaps", icon: "M7 7h10v10H7zM5 5h14v14H5zM9 2v3M15 2v3" },
+                  { href: "/app/dating", label: "Dating", icon: "M12 20s-6.5-4.3-8.6-7.4C.8 9.4 2 4.9 6.3 4.3 8.7 4 10.5 5.2 12 7c1.5-1.8 3.3-3 5.7-2.7 4.3.6 5.5 5.1 2.9 8.3C18.5 15.7 12 20 12 20Z" },
+                  { href: "/app/notifications", label: "Notifications", icon: "M15 17H5l2-2.5V10a5 5 0 1 1 10 0v4.5L19 17h-4ZM10 20a2 2 0 0 0 4 0" },
+                  { href: "/app/profile", label: "My account", icon: "M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8" },
+                  { href: "/app/settings", label: "Settings", icon: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM19.4 12a7.4 7.4 0 0 0-.1-1.4l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-2.4-1.4l-.4-2.6h-4l-.4 2.6a7.5 7.5 0 0 0-2.4 1.4l-2.4-1-2 3.4 2 1.6c-.1.5-.1 1-.1 1.4s0 .9.1 1.4l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 2.4 1.4l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2.4-1.4l2.4 1 2-3.4-2-1.6c.1-.5.1-1 .1-1.4Z" },
+                ].map((item) => {
+                  const active =
+                    item.href === "/app"
+                      ? pathname === "/app"
+                      : pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cx(
+                        "flex items-center gap-3 rounded-[0.95rem] px-3 text-sm transition suzi-tap-row",
+                        active
+                          ? "bg-fuchsia-400/16 text-white shadow-[inset_0_0_0_1px_rgba(255,32,121,0.32)]"
+                          : "text-[var(--text-muted)] hover:bg-white/8 hover:text-white",
+                      )}
+                    >
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/6">
+                        <Icon path={item.icon} className="h-4.5 w-4.5 text-cyan-100" />
+                      </span>
+                      <span className="font-medium">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+              <div className="suzi-divider mx-5 my-2" />
+              <button
+                type="button"
+                onClick={onLogout}
+                className="mx-3 mb-4 flex w-[calc(100%-1.5rem)] items-center gap-3 rounded-[0.95rem] px-3 text-sm text-pink-100 suzi-tap-row hover:bg-pink-400/12 hover:text-white"
+              >
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-pink-400/14">
+                  <Icon path="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" className="h-4.5 w-4.5" />
+                </span>
+                <span className="font-medium">Log out</span>
+              </button>
+            </aside>
+          </>
+        ) : null}
+
+        <header
+          className="relative z-[220] hidden shrink-0 items-center justify-between gap-3 md:flex"
           style={{ minHeight: "var(--shell-header-h)" }}
         >
         <div className="flex items-center gap-2">
@@ -750,7 +897,7 @@ export function AppShell({
         </div>
 
         <footer
-          className="mt-auto grid shrink-0 grid-cols-3 items-center gap-3 px-1 font-medium tracking-[0.1em] text-cyan-100/72"
+          className="mt-auto hidden shrink-0 grid-cols-3 items-center gap-3 px-1 font-medium tracking-[0.1em] text-cyan-100/72 md:grid"
           style={{
             minHeight: "var(--shell-footer-h)",
             fontSize: "clamp(0.5rem, 0.28vw + 0.34rem, 0.6rem)",
@@ -767,6 +914,31 @@ export function AppShell({
           </span>
         </footer>
       </div>
+
+      {/* MOBILE BOTTOM NAV — < md only. */}
+      <nav
+        className="suzi-m-bottom md:hidden"
+        aria-label="Primary"
+      >
+        {mobileNavItems.map((item) => {
+          const active =
+            item.exact
+              ? pathname === item.href
+              : pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="suzi-m-bottom__item"
+              data-active={active ? "true" : "false"}
+              aria-current={active ? "page" : undefined}
+            >
+              <Icon path={item.icon} className="suzi-m-bottom__icon" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </main>
   );
 }

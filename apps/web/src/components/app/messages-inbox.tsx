@@ -18,6 +18,7 @@ import {
 } from "@/lib/conversations-client";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { getRealtimeSocket } from "@/lib/realtime-client";
+import { useIsMobile } from "@/lib/use-is-mobile";
 import type { Person } from "@/lib/v1-mock-data";
 
 function peerToPerson(peer: ConversationThread["peer"]): Person {
@@ -42,6 +43,7 @@ export function MessagesInbox() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const withParam = searchParams.get("with");
+  const { isMobile } = useIsMobile();
 
   const [threads, setThreads] = useState<ConversationThread[]>([]);
   const [error, setError] = useState("");
@@ -121,15 +123,26 @@ export function MessagesInbox() {
     if (withParam) {
       return withParam;
     }
+    // On mobile, /app/messages always lands on the conversation list first.
+    // The user picks a thread to open it (CSS-driven via ?with=). Desktop
+    // keeps the side-by-side experience and auto-selects the first thread.
+    if (isMobile) {
+      return null;
+    }
     return threads[0]?.peer.id ?? null;
-  }, [withParam, threads]);
+  }, [withParam, threads, isMobile]);
 
   useEffect(() => {
+    // Don't auto-rewrite the URL on mobile — that would re-open a thread
+    // every time the user navigates back to /app/messages.
+    if (isMobile) {
+      return;
+    }
     if (!threads.length || !selectedPeerId || withParam) {
       return;
     }
     router.replace(`/app/messages?with=${encodeURIComponent(selectedPeerId)}`, { scroll: false });
-  }, [threads, selectedPeerId, withParam, router]);
+  }, [threads, selectedPeerId, withParam, router, isMobile]);
 
   useEffect(() => {
     const s = getStoredAuthSession();
@@ -376,10 +389,12 @@ export function MessagesInbox() {
   const myAvatarUrl = authSnap?.user.avatarUrl?.trim() || null;
 
   return (
-    <section className="suzi-app-frame-fill">
+    <section
+      className={`suzi-app-frame-fill ${selectedPeerId ? "suzi-msg-with-active" : "suzi-msg-without-active"}`}
+    >
       <div className="suzi-messages-grid">
         {/* INBOX — left rail */}
-        <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
+        <Panel className="suzi-msg-inbox flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
           <div className="shrink-0">
             <p className="text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.22em] text-cyan-100/65">Inbox</p>
             <h2 className="mt-1 text-[var(--fs-xl)] font-bold tracking-tight text-white">Direct messages</h2>
@@ -422,9 +437,16 @@ export function MessagesInbox() {
         </Panel>
 
         {/* THREAD — center column */}
-        <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-0">
+        <Panel className="suzi-msg-thread flex h-full min-h-0 flex-col overflow-hidden p-0">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/8 px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
             <div className="flex min-w-0 items-center gap-3">
+              <Link
+                href="/app/messages"
+                aria-label="Back to inbox"
+                className="suzi-m-icon-btn -ml-1 md:hidden"
+              >
+                <Icon path="M15 18l-6-6 6-6" className="h-4.5 w-4.5" />
+              </Link>
               {activeThread ? (
                 <>
                   <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10">
@@ -523,7 +545,7 @@ export function MessagesInbox() {
         </Panel>
 
         {/* QUICK INVITE — right rail */}
-        <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
+        <Panel className="suzi-msg-invite flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
           <div className="shrink-0">
             <p className="text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.22em] text-cyan-100/65">Friends</p>
             <h2 className="mt-1 text-[var(--fs-xl)] font-bold tracking-tight text-white">Quick invite</h2>

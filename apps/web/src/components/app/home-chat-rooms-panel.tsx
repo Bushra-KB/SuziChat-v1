@@ -189,7 +189,9 @@ export function HomeChatRoomsPanel({
   const [activeCategory, setActiveCategory] = useState("All");
   const [query, setQuery] = useState("");
   const [showMoreCategories, setShowMoreCategories] = useState(false);
+  const [showMobileFilter, setShowMobileFilter] = useState(false);
   const moreCategoriesRef = useRef<HTMLDivElement>(null);
+  const mobileFilterRef = useRef<HTMLDivElement>(null);
   const [sourceRooms, setSourceRooms] = useState<HomeRoom[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [roomsError, setRoomsError] = useState("");
@@ -306,6 +308,12 @@ export function HomeChatRoomsPanel({
         !moreCategoriesRef.current.contains(event.target as Node)
       ) {
         setShowMoreCategories(false);
+      }
+      if (
+        mobileFilterRef.current &&
+        !mobileFilterRef.current.contains(event.target as Node)
+      ) {
+        setShowMobileFilter(false);
       }
     };
 
@@ -708,7 +716,76 @@ export function HomeChatRoomsPanel({
         </div>
       </div>
 
-      <div className={cx("mt-3 flex items-center gap-2", variant === "dashboard" && "shrink-0")}>
+      {/* MOBILE TOOLBAR (< md) — search + single filter button that opens
+        * a popover with all categories. Categories chips are hidden on
+        * mobile so the panel stays clean and tall. */}
+      <div className={cx("mt-3 flex items-center gap-2 md:hidden", variant === "dashboard" && "shrink-0")}>
+        <label className="relative min-w-0 flex-1">
+          <span className="pointer-events-none absolute inset-y-0 left-2.5 inline-flex items-center text-cyan-100/58">
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.2-3.2" />
+            </svg>
+          </span>
+          <input
+            className="w-full rounded-[0.7rem] border border-cyan-300/24 bg-[linear-gradient(95deg,rgba(36,22,101,0.62),rgba(24,14,76,0.7))] py-1.5 pl-8 pr-3 text-[var(--fs-xs)] text-cyan-50/94 placeholder:text-cyan-100/45 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24"
+            placeholder="Search rooms..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            style={{ height: "var(--btn-h-sm)" }}
+          />
+        </label>
+        <div className="relative shrink-0" ref={mobileFilterRef}>
+          <button
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={showMobileFilter}
+            aria-label="Filter rooms by category"
+            onClick={() => setShowMobileFilter((value) => !value)}
+            className={cx(
+              "inline-flex items-center justify-center gap-1.5 rounded-[0.7rem] border px-2.5 transition",
+              activeCategory !== "All" || showMobileFilter
+                ? "border-fuchsia-300/55 bg-[linear-gradient(90deg,rgba(157,78,221,0.95),rgba(255,32,121,0.85))] text-white shadow-[0_0_14px_rgba(255,32,121,0.32)]"
+                : "border-cyan-300/24 bg-[rgba(26,18,74,0.66)] text-cyan-100/82",
+            )}
+            style={{ height: "var(--btn-h-sm)", minWidth: "var(--btn-h-sm)" }}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18M6 12h12M10 18h4" />
+            </svg>
+            {activeCategory !== "All" ? (
+              <span className="max-w-[6rem] truncate text-[var(--fs-2xs)] font-semibold">
+                {activeCategory}
+              </span>
+            ) : null}
+          </button>
+          {showMobileFilter ? (
+            <div className="absolute right-0 top-[calc(100%+0.35rem)] z-30 min-w-[9.5rem] rounded-[0.85rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(24,14,72,0.98),rgba(18,11,56,0.96))] p-1 shadow-[0_14px_30px_rgba(8,6,34,0.6)] backdrop-blur">
+              {[...primaryCategories, ...extraCategories].map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  className={cx(
+                    "flex w-full items-center rounded-[0.58rem] px-2.5 py-2 text-left text-[var(--fs-xs)] transition",
+                    activeCategory === category
+                      ? "bg-fuchsia-500/26 text-white"
+                      : "text-cyan-100/84 hover:bg-cyan-400/10 hover:text-white",
+                  )}
+                  onClick={() => {
+                    setActiveCategory(category);
+                    setShowMobileFilter(false);
+                  }}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* DESKTOP TOOLBAR (>= md) — chips + ... overflow + search. */}
+      <div className={cx("mt-3 hidden items-center gap-2 md:flex", variant === "dashboard" && "shrink-0")}>
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div className="suzi-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto pb-1 pr-1">
             {primaryCategories.map((category) => (

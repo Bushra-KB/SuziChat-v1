@@ -939,9 +939,9 @@ export function SnapsFeed() {
   };
 
   return (
-    <section className="suzi-app-frame-fill">
+    <section className="suzi-app-frame-fill suzi-snaps-page">
       <Panel className="flex min-h-0 flex-1 flex-col overflow-hidden [background:transparent] border-cyan-300/24 p-[var(--panel-pad)] shadow-none">
-        <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
+        <div className="suzi-snaps-header flex shrink-0 flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2.5">
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.8rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">

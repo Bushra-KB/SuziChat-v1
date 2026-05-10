@@ -13,6 +13,7 @@ import { Panel } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { listGameLobbies, type ApiGameLobby } from "@/lib/games-client";
 import { openGamesSocket, subscribeGameLobbyListChannel } from "@/lib/games-realtime";
+import { useIsMobile } from "@/lib/use-is-mobile";
 import { games } from "@/lib/v1-mock-data";
 
 /*
@@ -34,6 +35,18 @@ import { games } from "@/lib/v1-mock-data";
  */
 export default function AppHomePage() {
   const [lobbies, setLobbies] = useState<ApiGameLobby[]>([]);
+  const [mobileGamesOpen, setMobileGamesOpen] = useState(false);
+  const { isMobile } = useIsMobile();
+
+  // Lock body scroll while the games bottom-sheet is open on mobile.
+  useEffect(() => {
+    if (!mobileGamesOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [mobileGamesOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +90,186 @@ export default function AppHomePage() {
     }
     return counts;
   }, [lobbies]);
+
+  if (isMobile) {
+    const totalPlaying = Array.from(playingByGameType.values()).reduce(
+      (acc, value) => acc + value,
+      0,
+    );
+
+    const mobileGamesCard = (
+      <button
+        type="button"
+        onClick={() => setMobileGamesOpen(true)}
+        aria-label="Browse Suzi Games lobbies"
+        className="group relative flex h-full w-full flex-col overflow-hidden rounded-[var(--panel-radius)] border border-cyan-300/22 bg-[linear-gradient(165deg,rgba(48,28,128,0.72),rgba(20,14,72,0.78))] p-[var(--panel-pad)] text-left shadow-[0_0_22px_rgba(157,78,221,0.18)] transition active:scale-[0.985]"
+      >
+        <div className="flex shrink-0 items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-[0.7rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="8" width="16" height="9" rx="4.5" />
+                <path d="M8 12h3M9.5 10.5v3" />
+                <circle cx="15.5" cy="11.5" r=".8" fill="currentColor" stroke="none" />
+                <circle cx="17.5" cy="13.5" r=".8" fill="currentColor" stroke="none" />
+              </svg>
+            </span>
+            <h2 className="whitespace-nowrap text-[var(--fs-xl)] font-bold tracking-tight text-white">
+              Suzi Games
+            </h2>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-fuchsia-300/40 bg-[rgba(67,28,155,0.42)] px-2 py-0.5 text-[var(--fs-2xs)] font-semibold text-fuchsia-100/92">
+            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(92,255,190,0.85)]" />
+            {totalPlaying} live
+          </span>
+        </div>
+
+        <div className="mt-3 grid min-h-0 flex-1 grid-cols-2 gap-2">
+          {games.map((game) => {
+            const meta = gameMeta.find((entry) => entry.id === game.id);
+            const playing = meta ? (playingByGameType.get(meta.type) ?? 0) : 0;
+            return (
+              <div
+                key={game.id}
+                className="relative min-h-0 overflow-hidden rounded-[0.75rem] border border-cyan-300/20 bg-[rgba(20,12,72,0.55)]"
+              >
+                <Image
+                  src={game.icon}
+                  alt={game.name}
+                  fill
+                  sizes="46vw"
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0)_38%,rgba(4,8,26,0.55)_72%,rgba(4,8,26,0.92)_100%)]" />
+                <span className="absolute left-1.5 top-1.5 inline-flex items-center rounded-full border border-white/16 bg-black/40 px-1.5 py-0.5 text-[10px] font-medium text-white/90 backdrop-blur-sm">
+                  {playing} playing
+                </span>
+                <p className="absolute inset-x-1.5 bottom-1.5 truncate text-center text-[var(--fs-xs)] font-bold leading-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
+                  {game.name}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-2.5 flex shrink-0 items-center justify-between gap-2">
+          <span className="text-[var(--fs-2xs)] text-cyan-100/72">
+            Tap to browse all tables
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-[linear-gradient(90deg,rgba(157,78,221,0.95),rgba(255,32,121,0.85))] px-2.5 py-1 text-[var(--fs-2xs)] font-semibold text-white shadow-[0_0_10px_rgba(255,45,167,0.45)]">
+            Open
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </span>
+        </div>
+      </button>
+    );
+
+    return (
+      <>
+        <section className="suzi-app-frame-fill">
+          <div className="flex flex-col gap-[var(--row-gap)]">
+            <div className="h-[44rem]">
+              <HomeChatRoomsPanel variant="dashboard" />
+            </div>
+            <div className="h-[18rem]">{mobileGamesCard}</div>
+            <div id="friends" className="h-[36rem] scroll-mt-20">
+              <HomeFriendsPanel />
+            </div>
+            <div className="h-[7rem]">
+              <HomeDatingPanel />
+            </div>
+            <div className="h-[20rem]">
+              <HomeSnapsPanel layout="dashboard" />
+            </div>
+            <div className="h-[20rem]">
+              <HomeReelsPanel />
+            </div>
+          </div>
+        </section>
+
+        {/* Bottom sheet — full game list on mobile only. */}
+        {mobileGamesOpen ? (
+          <>
+            <button
+              type="button"
+              aria-label="Close games"
+              className="suzi-m-drawer-backdrop"
+              onClick={() => setMobileGamesOpen(false)}
+            />
+            <div
+              className="suzi-m-sheet"
+              data-open="true"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Suzi Games"
+            >
+              <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-3">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-[0.7rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="4" y="8" width="16" height="9" rx="4.5" />
+                      <path d="M8 12h3M9.5 10.5v3" />
+                      <circle cx="15.5" cy="11.5" r=".8" fill="currentColor" stroke="none" />
+                      <circle cx="17.5" cy="13.5" r=".8" fill="currentColor" stroke="none" />
+                    </svg>
+                  </span>
+                  <h3 className="text-[var(--fs-xl)] font-bold text-white">Suzi Games</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileGamesOpen(false)}
+                  aria-label="Close"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-cyan-300/24 bg-[rgba(20,12,72,0.6)] text-cyan-50/90"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 6l12 12M18 6 6 18" />
+                  </svg>
+                </button>
+              </div>
+              <div className="max-h-[68vh] overflow-y-auto px-3 pb-2">
+                <ul className="flex flex-col gap-2">
+                  {games.map((game) => {
+                    const meta = gameMeta.find((entry) => entry.id === game.id);
+                    const playing = meta ? (playingByGameType.get(meta.type) ?? 0) : 0;
+                    return (
+                      <li key={game.id}>
+                        <Link
+                          href={`/app/games/${game.id}`}
+                          onClick={() => setMobileGamesOpen(false)}
+                          className="suzi-tap-row group flex items-center gap-3 overflow-hidden rounded-[0.95rem] border border-cyan-300/22 bg-[linear-gradient(165deg,rgba(42,26,108,0.55),rgba(18,11,46,0.55))] p-2 transition active:scale-[0.99]"
+                        >
+                          <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[0.75rem] border border-cyan-300/22">
+                            <Image src={game.icon} alt={game.name} fill sizes="56px" className="object-cover" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[var(--fs-sm)] font-semibold text-white">
+                              {game.name}
+                            </p>
+                            <p className="mt-0.5 inline-flex items-center gap-1.5 text-[var(--fs-2xs)] text-cyan-100/76">
+                              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(92,255,190,0.85)]" />
+                              {playing} playing now
+                            </p>
+                          </div>
+                          <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-300/55 bg-[linear-gradient(90deg,rgba(157,78,221,0.92),rgba(255,32,121,0.88))] px-3 py-1.5 text-[var(--fs-2xs)] font-semibold text-white shadow-[0_0_10px_rgba(255,45,167,0.45)]">
+                            Open
+                            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M9 6l6 6-6 6" />
+                            </svg>
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+          </>
+        ) : null}
+      </>
+    );
+  }
 
   return (
     <section className="suzi-app-frame-fill">

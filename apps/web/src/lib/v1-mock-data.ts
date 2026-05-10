@@ -123,12 +123,37 @@ export const appNavItems: NavItem[] = [
   },
 ];
 
+/**
+ * Bottom-nav items for the mobile app shell.
+ * Order matches the mobile design references: Home · Chat · Reels · Snaps · Profile.
+ */
 export const mobileNavItems: NavItem[] = [
-  appNavItems[0],
-  appNavItems[1],
-  appNavItems[3],
-  appNavItems[2],
-  appNavItems[4],
+  {
+    href: "/app",
+    label: "Home",
+    icon: "M3 11.5 12 4l9 7.5M6.5 10.5V20h11v-9.5",
+    exact: true,
+  },
+  {
+    href: "/app/messages",
+    label: "Chat",
+    icon: "M4 6h16v10H8l-4 4V6Z",
+  },
+  {
+    href: "/app/reels",
+    label: "Reels",
+    icon: "M8 5h8l4 4v10a2 2 0 0 1-2 2H8a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4Z M11 11.5v4l3-2-3-2Z",
+  },
+  {
+    href: "/app/snaps",
+    label: "Snaps",
+    icon: "M7 7h10v10H7zM5 5h14v14H5zM9 2v3M15 2v3",
+  },
+  {
+    href: "/app/profile",
+    label: "Profile",
+    icon: "M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8",
+  },
 ];
 
 export const createMenuItems = [
