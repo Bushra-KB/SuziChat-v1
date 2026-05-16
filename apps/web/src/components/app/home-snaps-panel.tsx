@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
+import { listEmpty, listL3, panelLink, panelTitle } from "@/components/app/home-typography";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { listMyPosts, listPosts } from "@/lib/posts-client";
 import { apiPostToSnap } from "@/lib/post-ui-mappers";
@@ -28,6 +29,8 @@ function SnapTileMedia({ src, alt }: { src: string; alt: string }) {
 }
 
 export type HomeSnapsPanelLayout = "default" | "dashboard";
+
+const DASHBOARD_SNAP_COUNT = 6;
 
 function getViews(snap: Snap) {
   return snap.views ?? snap.likes + snap.comments * 4;
@@ -60,7 +63,7 @@ export function HomeSnapsPanel({
   useEffect(() => {
     let cancelled = false;
     const session = getStoredAuthSession();
-    const loader = session?.accessToken ? listMyPosts(session.accessToken, "SNAP", 40) : listPosts("SNAP", 40);
+    const loader = session?.accessToken ? listMyPosts(session.accessToken, "SNAP", 24) : listPosts("SNAP", 24);
     void loader
       .then((rows) => {
         if (cancelled) {
@@ -80,7 +83,7 @@ export function HomeSnapsPanel({
   }, []);
 
   const isDashboard = layout === "dashboard";
-  const tileCount = isDashboard ? 6 : 4;
+  const tileCount = isDashboard ? DASHBOARD_SNAP_COUNT : 4;
   const popularSlots = useMemo(() => {
     if (loading && catalog.length === 0) {
       return Array.from({ length: tileCount }, (_, index) => ({ kind: "skeleton" as const, key: `popular-sk-${index}` }));
@@ -96,7 +99,7 @@ export function HomeSnapsPanel({
     <Panel
       className={cx(
         "p-[var(--panel-pad)]",
-        isDashboard && "flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden",
+        isDashboard && "suzi-home-row1-panel flex min-h-0 w-full flex-col overflow-hidden",
       )}
     >
       <div className="flex shrink-0 items-center justify-between gap-3">
@@ -116,20 +119,20 @@ export function HomeSnapsPanel({
               <circle cx="12" cy="13" r="3.2" />
             </svg>
           </span>
-          <h2 className="whitespace-nowrap text-[var(--fs-xl)] font-bold tracking-tight text-white">Suzi Snaps</h2>
+          <h2 className={panelTitle}>Suzi Snaps</h2>
         </div>
 
-        <Link href="/app/snaps" className="shrink-0 whitespace-nowrap text-[var(--fs-2xs)] font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100">
+        <Link href="/app/snaps" className={panelLink}>
           Open feed
         </Link>
       </div>
 
       <div
         className={cx(
-          "mt-3 grid gap-2",
+          "grid gap-2",
           isDashboard
-            ? "min-h-0 flex-1 grid-cols-3 grid-rows-2 overflow-hidden"
-            : "min-h-[12rem] shrink-0 grid-cols-2 grid-rows-2",
+            ? "mt-3 min-h-0 flex-1 grid-cols-2 grid-rows-3 overflow-hidden"
+            : "mt-3 min-h-[12rem] shrink-0 grid-cols-2 grid-rows-2",
         )}
       >
         {popularSlots.map((slot) => {
@@ -137,7 +140,10 @@ export function HomeSnapsPanel({
             return (
               <div
                 key={slot.key}
-                className="relative min-h-0 overflow-hidden rounded-[0.78rem] border border-fuchsia-300/16 bg-[rgba(28,16,72,0.45)]"
+                className={cx(
+                  "relative min-h-0 overflow-hidden rounded-[0.78rem] border border-fuchsia-300/16 bg-[rgba(28,16,72,0.45)]",
+                  isDashboard && "h-full w-full",
+                )}
               >
                 <div className="absolute inset-0 animate-pulse bg-white/8" />
                 <div className="absolute inset-x-1.5 bottom-1.5 flex items-center justify-between">
@@ -151,12 +157,15 @@ export function HomeSnapsPanel({
             return (
               <div
                 key={slot.key}
-                className="relative min-h-0 overflow-hidden rounded-[0.78rem] border border-dashed border-cyan-300/22 bg-[rgba(20,13,62,0.35)]"
+                className={cx(
+                  "relative min-h-0 overflow-hidden rounded-[0.78rem] border border-dashed border-cyan-300/22 bg-[rgba(20,13,62,0.35)]",
+                  isDashboard && "h-full w-full",
+                )}
               >
                 <div className="flex h-full w-full items-center justify-center">
-                  <span className="text-[var(--fs-2xs)] text-cyan-100/55">No snap</span>
+                  <span className={cx(listEmpty, "text-cyan-100/55")}>No snap</span>
                 </div>
-                <div className="absolute inset-x-1.5 bottom-1.5 flex items-center justify-between text-[var(--fs-2xs)] font-medium text-cyan-100/40">
+                <div className={cx(listL3, "absolute inset-x-1.5 bottom-1.5 flex items-center justify-between font-medium text-cyan-100/40")}>
                   <span>—</span>
                   <span>—</span>
                 </div>
@@ -168,13 +177,16 @@ export function HomeSnapsPanel({
             <Link
               key={slot.key}
               href={`/app/snaps?focus=${encodeURIComponent(snap.id)}`}
-              className="group relative min-h-0 overflow-hidden rounded-[0.78rem] border border-fuchsia-300/24 bg-[rgba(28,16,72,0.7)]"
+              className={cx(
+                "group relative min-h-0 overflow-hidden rounded-[0.78rem] border border-fuchsia-300/24 bg-[rgba(28,16,72,0.7)]",
+                isDashboard && "h-full w-full",
+              )}
             >
               <div className="absolute inset-0">
                 <SnapTileMedia src={snap.image} alt={snap.title} />
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0.12),rgba(4,8,26,0.66))]" />
               </div>
-              <div className="absolute inset-x-1.5 bottom-1.5 flex items-center justify-between text-[var(--fs-2xs)] font-semibold text-white">
+              <div className={cx(listL3, "absolute inset-x-1.5 bottom-1.5 flex items-center justify-between font-semibold text-white")}>
                 <span className="inline-flex items-center gap-1">
                   <svg
                     aria-hidden="true"

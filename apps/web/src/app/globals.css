@@ -32,11 +32,18 @@
   --shell-pad-x: clamp(0.75rem, 1.6vw, 1.75rem);
   --shell-pad-y: clamp(0.5rem, 1vh, 1rem);
   --shell-gap: clamp(0.65rem, 1vw + 0.2vh, 1.1rem);
-  --shell-header-h: clamp(3.5rem, 5.4vh + 1.4rem, 4.75rem);
-  --shell-footer-h: clamp(1.1rem, 1.1vh + 0.4rem, 1.55rem);
+  --shell-header-h: clamp(2.75rem, 3.8vh + 0.85rem, 3.45rem);
+  --shell-toolbar-btn: clamp(1.6rem, 1.75vh + 0.4rem, 1.85rem);
+  --shell-footer-h: clamp(0.45rem, 0.5vh + 0.12rem, 0.65rem);
   --shell-max-w: 1640px;
-  --logo-w: clamp(7.6rem, 14vw, 11.6rem);
-  --logo-h: clamp(2.6rem, 4.2vh + 1rem, 3.6rem);
+  /* Layout box (mobile pill) vs hero display size (desktop overlay — does not affect panel flow). */
+  --logo-w: clamp(6.8rem, 12vw, 10.2rem);
+  --logo-h: clamp(2.15rem, 3.4vh + 0.7rem, 2.85rem);
+  --logo-display-w: clamp(14rem, 26vw, 21rem);
+  --logo-display-h: clamp(7rem, 12vh + 1.35rem, 9.75rem);
+  /* ~2px viewport gap to visible bubble (lift cancels PNG transparent top + glow offset). */
+  --logo-top-gap: 2px;
+  --logo-lift: clamp(3.15rem, 7.25vh, 4.85rem);
   --panel-radius: clamp(0.85rem, 1vw + 0.25rem, 1.35rem);
   --panel-pad: clamp(0.65rem, 0.7vw + 0.3rem, 1.1rem);
   --panel-pad-tight: clamp(0.55rem, 0.5vw + 0.25rem, 0.85rem);
@@ -248,9 +255,12 @@ html.suzi-app-frame-lock body {
     --panel-pad-tight: clamp(0.45rem, 0.45vw + 0.2rem, 0.7rem);
     --row-gap: clamp(0.4rem, 0.7vh, 0.7rem);
     --col-gap: clamp(0.45rem, 0.7vw, 0.8rem);
-    --shell-header-h: clamp(3rem, 4.2vh + 1rem, 3.8rem);
-    --logo-h: clamp(2.2rem, 3.2vh + 0.7rem, 2.9rem);
-    --logo-w: clamp(6.6rem, 11vw, 9.6rem);
+    --shell-header-h: clamp(2.5rem, 3.2vh + 0.65rem, 3rem);
+    --shell-toolbar-btn: clamp(1.5rem, 1.6vh + 0.35rem, 1.7rem);
+    --logo-h: clamp(1.95rem, 2.8vh + 0.55rem, 2.45rem);
+    --logo-w: clamp(6.2rem, 10vw, 8.8rem);
+    --logo-display-w: clamp(11rem, 20vw, 15.5rem);
+    --logo-display-h: clamp(5.25rem, 9vh + 0.85rem, 7rem);
   }
 }
 
@@ -397,6 +407,19 @@ h5 {
   transform: translateZ(0);
 }
 
+/* Portaled menus — fixed to trigger, opaque, above panels/logo */
+.suzi-dropdown-popover {
+  z-index: 500;
+  border: 1px solid rgba(86, 196, 255, 0.38);
+  background: linear-gradient(165deg, rgba(34, 20, 101, 0.98), rgba(18, 11, 56, 0.98));
+  box-shadow:
+    0 20px 40px rgba(8, 6, 38, 0.58),
+    0 0 20px rgba(157, 78, 221, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+}
+
 .suzi-panel-muted {
   position: relative;
   border: 1px solid rgba(0, 229, 255, 0.18);
@@ -438,6 +461,84 @@ h5 {
   box-shadow:
     0 0 0 2px rgba(0, 229, 255, 0.2),
     0 0 16px rgba(255, 32, 121, 0.22);
+}
+
+.suzi-create-room-modal__label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: rgba(186, 230, 253, 0.88);
+}
+
+.suzi-create-room-modal .suzi-input {
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.suzi-create-room-modal select.suzi-input {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a5f3fc' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  padding-right: 2.25rem;
+}
+
+.suzi-create-room-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: min(90dvh, 40rem);
+}
+
+.suzi-create-room-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: min(58dvh, 26rem);
+  overflow-y: auto;
+}
+
+.suzi-create-room-modal__footer {
+  border-top: 1px solid rgba(0, 229, 255, 0.14);
+  background: linear-gradient(180deg, rgba(28, 18, 88, 0.55), rgba(20, 14, 76, 0.92));
+}
+
+/* Home — Suzi Dating decorative hearts */
+.suzi-dating-hearts__cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.suzi-dating-hearts__group {
+  position: relative;
+  flex-shrink: 0;
+  width: var(--dating-hearts-group-w);
+  height: var(--dating-hearts-group-h);
+  --dating-heart-outline-left: 2.85rem;
+  --dating-hearts-group-w: calc(var(--dating-heart-outline-left) + 7.35rem);
+  --dating-hearts-group-h: 7.35rem;
+}
+
+.suzi-dating-hearts__group svg {
+  flex-shrink: 0;
+}
+
+.suzi-dating-hearts__solid {
+  width: 6.25rem;
+  height: 6.25rem;
+}
+
+.suzi-dating-hearts__outline {
+  width: 7.35rem;
+  height: 7.35rem;
 }
 
 .suzi-primary-btn {
@@ -497,6 +598,124 @@ h5 {
   background: rgba(33, 25, 91, 0.72);
   box-shadow: 0 0 16px rgba(0, 229, 255, 0.22);
   transform: translateY(-1px);
+}
+
+/* Desktop shell — compact top-right toolbar */
+.suzi-shell-toolbar {
+  position: relative;
+  z-index: 230;
+  margin-top: 1.5px;
+  gap: 0.3rem;
+  padding: 0.22rem 0.38rem;
+  border-radius: 0.85rem;
+}
+
+.suzi-shell-toolbar-btn {
+  width: var(--shell-toolbar-btn);
+  height: var(--shell-toolbar-btn);
+  min-width: var(--shell-toolbar-btn);
+  min-height: var(--shell-toolbar-btn);
+  border-radius: 0.6rem;
+}
+
+.suzi-shell-toolbar-btn svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.suzi-shell-toolbar-badge {
+  min-height: 0.85rem;
+  min-width: 0.85rem;
+  padding-inline: 0.2rem;
+  font-size: 0.46rem;
+  line-height: 1;
+}
+
+.suzi-shell-account-btn {
+  gap: 0.3rem;
+  padding: 0.18rem 0.4rem 0.18rem 0.18rem;
+  border-radius: 0.6rem;
+}
+
+.suzi-shell-account-btn img {
+  width: calc(var(--shell-toolbar-btn) - 0.15rem);
+  height: calc(var(--shell-toolbar-btn) - 0.15rem);
+}
+
+.suzi-shell-account-name {
+  font-size: 0.625rem;
+  line-height: 1.15;
+  font-weight: 600;
+}
+
+.suzi-shell-account-handle {
+  font-size: 0.5rem;
+  line-height: 1.1;
+}
+
+.suzi-shell-account-chevron {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.suzi-shell-content {
+  max-width: var(--shell-max-w);
+  padding-left: var(--shell-pad-x);
+  padding-right: var(--shell-pad-x);
+  padding-bottom: var(--shell-pad-y);
+  row-gap: var(--shell-pad-y);
+}
+
+@media (min-width: 768px) {
+  .suzi-shell-content {
+    overflow: visible;
+    padding-top: 0 !important;
+  }
+}
+
+/* Hero logo — fixed; 2px target gap via top + translateY lift */
+.suzi-shell-logo-overlay {
+  position: fixed;
+  left: 50%;
+  top: calc(env(safe-area-inset-top, 0px) + var(--logo-top-gap));
+  z-index: 225;
+  display: none;
+  width: var(--logo-display-w);
+  height: var(--logo-display-h);
+  margin: 0;
+  padding: 0;
+  transform: translate(-50%, calc(-1 * var(--logo-lift)));
+  overflow: visible;
+  pointer-events: auto;
+}
+
+@media (min-width: 768px) {
+  .suzi-shell-logo-overlay {
+    display: block;
+  }
+}
+
+.suzi-shell-logo-overlay__frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 22px rgba(232, 77, 255, 0.38))
+    drop-shadow(0 8px 28px rgba(8, 6, 34, 0.45));
+}
+
+.suzi-shell-logo-overlay__frame img {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 235%;
+  width: auto;
+  max-width: none;
+  transform: translateX(-50%);
+  transform-origin: top center;
+  object-fit: contain;
+  object-position: top center;
 }
 
 .suzi-scrollbar {
@@ -831,17 +1050,253 @@ h5 {
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: minmax(0, 1fr);
-  gap: var(--col-gap);
+  gap: 5px;
   height: 100%;
   min-height: 0;
+  --home-panel-pad: 0.38rem;
+  /* Chat rooms list — thumbnail + row padding (dashboard desktop). */
+  --home-chat-thumb-h: clamp(2.5rem, 3.35vh + 0.4rem, 2.9rem);
+  --home-chat-room-row-h: calc(var(--home-chat-thumb-h) + 1rem);
+  --home-chat-visible-rows: 4;
+  --home-chat-max-rows: 4;
+  --home-chat-list-chrome: 0.4rem;
+  --home-chat-list-h-min: calc(
+    var(--home-chat-visible-rows) * var(--home-chat-room-row-h) + var(--home-chat-list-chrome)
+  );
+  --home-chat-list-h-max: calc(
+    var(--home-chat-max-rows) * var(--home-chat-room-row-h) + var(--home-chat-list-chrome)
+  );
+  /* Title + filters + gap above list (chat rooms reference layout). */
+  --home-row1-header-chrome: 5.25rem;
+  --home-row1-panel-h: calc(
+    var(--home-row1-header-chrome) + var(--home-chat-list-h-max) + 2 * var(--home-panel-pad)
+  );
+}
+
+.suzi-home-chat-room-thumb {
+  width: clamp(3rem, 4.5vw, 3.6rem);
+  height: clamp(2.5rem, 4vh + 0.4rem, 3rem);
+}
+
+/* Home dashboard — compact gutters and panel header chrome */
+.suzi-home-mobile-stack {
+  gap: 5px;
+}
+
+.suzi-home-grid .suzi-panel,
+.suzi-home-mobile-stack .suzi-panel {
+  padding: var(--home-panel-pad) !important;
+}
+
+.suzi-home-grid .suzi-home-area-dating .suzi-panel {
+  padding: 0.32rem 0.38rem !important;
+}
+
+.suzi-home-grid .suzi-panel > .shrink-0:first-child,
+.suzi-home-mobile-stack .suzi-panel > .shrink-0:first-child {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.suzi-home-grid .suzi-panel > .mt-3,
+.suzi-home-grid .suzi-panel > .mt-2\.5,
+.suzi-home-grid .suzi-panel > .shrink-0 .mt-3,
+.suzi-home-mobile-stack .suzi-panel > .mt-3 {
+  margin-top: 0.25rem !important;
+}
+
+.suzi-home-grid .suzi-panel > .shrink-0:first-child .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.35rem;
+}
+
+.suzi-home-grid .suzi-panel .flex.items-center.gap-2\.5:has(h2),
+.suzi-home-grid .suzi-panel > .shrink-0:first-child > .flex.items-center.gap-3 {
+  gap: 0.35rem;
+}
+
+/* Home panel chrome — section title > link / meta */
+.suzi-home-panel-title {
+  font-size: 0.75rem;
+  line-height: 1.15;
+}
+
+.suzi-home-panel-link {
+  font-size: 0.55rem;
+  line-height: 1;
+}
+
+.suzi-home-panel-meta {
+  font-size: 0.5rem;
+  line-height: 1.1;
+}
+
+/* Compact list typography — L1 title > L2 subtitle > L3 meta / actions */
+.suzi-home-list-l1 {
+  font-size: 0.625rem;
+  line-height: 1.2;
+}
+
+.suzi-home-list-l2 {
+  font-size: 0.55rem;
+  line-height: 1.1;
+}
+
+.suzi-home-list-l3 {
+  font-size: 0.5rem;
+  line-height: 1.15;
+}
+
+.suzi-home-list-section {
+  font-size: 0.5rem;
+  line-height: 1.1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.suzi-home-list-empty {
+  font-size: 0.55rem;
+  line-height: 1.25;
+}
+
+.suzi-home-list-action {
+  font-size: 0.5rem;
+  line-height: 1;
+}
+
+.suzi-home-mobile-stack > button[class*="rounded-"] {
+  padding: var(--home-panel-pad) !important;
 }
 
 @media (min-width: 1280px) {
   .suzi-home-grid {
     grid-template-columns:
-      clamp(17rem, 19.5vw, 22rem)
+      clamp(calc(17rem + 15px), calc(19.5vw + 15px), calc(22rem + 15px))
       minmax(0, 1fr)
       clamp(13rem, 14.5vw, 16.5rem);
+    /* Row 1 / row 2 — 65% / 35% of home grid height. */
+    grid-template-rows: minmax(0, 13fr) minmax(0, 7fr);
+  }
+
+  .suzi-home-area {
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .suzi-home-area > * {
+    flex: 1 1 0%;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .suzi-home-area-friends {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .suzi-home-area-reels {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .suzi-home-area-friends,
+  .suzi-home-area-chat,
+  .suzi-home-area-snaps {
+    align-self: stretch;
+    align-items: stretch;
+  }
+
+  .suzi-home-area-friends > *,
+  .suzi-home-area-chat > *,
+  .suzi-home-area-snaps > * {
+    flex: 1 1 0%;
+    height: 100%;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .suzi-home-area-reels,
+  .suzi-home-area-games,
+  .suzi-home-area-dating {
+    align-self: stretch;
+    min-height: 0;
+  }
+
+  .suzi-home-area-reels > *,
+  .suzi-home-area-games > *,
+  .suzi-home-area-dating > * {
+    flex: 1 1 0%;
+    height: 100%;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .suzi-home-area-chat {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .suzi-home-area-games {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  /* Home games — always 5 tiles in one row (no wrap / clip). */
+  .suzi-home-games-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
+    align-content: stretch;
+  }
+
+  .suzi-home-games-grid > article {
+    min-width: 0;
+  }
+
+  .suzi-home-area-snaps {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .suzi-home-area-dating {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  /* Row 1 — Friends | Chat rooms | Snaps fill the 65% row; lists scroll inside. */
+  .suzi-home-row1-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .suzi-home-row1-scroll {
+    flex: 1 1 0%;
+    min-height: 0;
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .suzi-home-chat-rooms-list {
+    flex: 1 1 0%;
+    margin-top: 0.75rem !important;
+    min-height: 0;
+  }
+
+  .suzi-home-chat-room-row {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+
+  .suzi-home-chat-room-thumb {
+    width: clamp(3.15rem, 4.1vw, 3.6rem) !important;
+    height: var(--home-chat-thumb-h) !important;
   }
 }
 
@@ -1091,7 +1546,8 @@ h5 {
     --shell-pad-x: 0;
     --shell-pad-y: 0;
     --shell-gap: 0;
-    --shell-header-h: 3.4rem;
+    --shell-header-h: 2.85rem;
+    --shell-toolbar-btn: 1.75rem;
     --shell-footer-h: 0rem;
     --logo-w: 7.4rem;
     --logo-h: 2.6rem;
@@ -1325,9 +1781,9 @@ h5 {
 .suzi-m-icon-btn {
   align-items: center;
   justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 0.85rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.7rem;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.06);
   color: #ffffff;
@@ -1342,8 +1798,8 @@ h5 {
 .suzi-m-logo-pill {
   position: relative;
   align-items: center;
-  height: 2.55rem;
-  width: 7.2rem;
+  height: 2.2rem;
+  width: 6.4rem;
   pointer-events: auto;
 }
 

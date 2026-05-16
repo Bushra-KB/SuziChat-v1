@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Panel } from "@/components/ui/suzi-primitives";
+import { Panel, cx } from "@/components/ui/suzi-primitives";
+import { listEmpty, listL1, listL3, listMeta, panelLink, panelTitle } from "@/components/app/home-typography";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { listMyPosts, listPosts } from "@/lib/posts-client";
 import { apiPostToReel } from "@/lib/post-ui-mappers";
@@ -17,25 +18,49 @@ function formatCompact(value: number) {
   return String(value);
 }
 
+function formatDuration(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${minutes}:${secs.toString().padStart(2, "0")}`;
+}
+
+function formatTimeAgo(iso: string | undefined) {
+  if (!iso) {
+    return "";
+  }
+  try {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    if (!Number.isFinite(diffMs) || diffMs < 0) {
+      return "";
+    }
+    const minutes = Math.floor(diffMs / 60_000);
+    if (minutes < 60) {
+      return `${Math.max(1, minutes)}m ago`;
+    }
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) {
+      return `${hours}h ago`;
+    }
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  } catch {
+    return "";
+  }
+}
+
+function reelDurationSeconds(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    hash = (hash + id.charCodeAt(i)) % 997;
+  }
+  return 10 + (hash % 31);
+}
+
 function getViews(reel: Reel) {
   return reel.views ?? reel.likes + reel.comments * 4;
 }
 
-function fillToCount(items: Reel[], count: number): Reel[] {
-  if (items.length === 0) {
-    return [];
-  }
-  if (items.length >= count) {
-    return items.slice(0, count);
-  }
-  const next = [...items];
-  let i = 0;
-  while (next.length < count) {
-    next.push(items[i % items.length] as Reel);
-    i += 1;
-  }
-  return next;
-}
+const MAX_REELS = 6;
 
 export function HomeReelsPanel() {
   const [catalog, setCatalog] = useState<Reel[]>([]);
@@ -44,7 +69,7 @@ export function HomeReelsPanel() {
   useEffect(() => {
     let cancelled = false;
     const session = getStoredAuthSession();
-    const loader = session?.accessToken ? listMyPosts(session.accessToken, "REEL", 40) : listPosts("REEL", 40);
+    const loader = session?.accessToken ? listMyPosts(session.accessToken, "REEL", 24) : listPosts("REEL", 24);
     void loader
       .then((rows) => {
         if (cancelled) {
@@ -63,16 +88,15 @@ export function HomeReelsPanel() {
     };
   }, []);
 
-  const tileCount = 4;
-  const reelSlots = useMemo(() => {
+  const reelRows = useMemo(() => {
     if (loading && catalog.length === 0) {
-      return Array.from({ length: tileCount }, (_, index) => ({ kind: "skeleton" as const, key: `reel-sk-${index}` }));
+      return Array.from({ length: MAX_REELS }, (_, index) => ({ kind: "skeleton" as const, key: `reel-sk-${index}` }));
     }
     if (!loading && catalog.length === 0) {
-      return Array.from({ length: tileCount }, (_, index) => ({ kind: "empty" as const, key: `reel-empty-${index}` }));
+      return [{ kind: "empty" as const, key: "reel-empty" }];
     }
     const ranked = [...catalog].sort((left, right) => getViews(right) - getViews(left));
-    return fillToCount(ranked, tileCount).map((reel, index) => ({ kind: "reel" as const, reel, key: `reel-${reel.id}-${index}` }));
+    return ranked.slice(0, MAX_REELS).map((reel) => ({ kind: "reel" as const, reel, key: reel.id }));
   }, [catalog, loading]);
 
   return (
@@ -94,103 +118,102 @@ export function HomeReelsPanel() {
               <path d="m10 9 5 3-5 3V9Z" />
             </svg>
           </span>
-          <h2 className="whitespace-nowrap text-[var(--fs-xl)] font-bold tracking-tight text-white">
-            Suzi Reels
-          </h2>
+          <h2 className={panelTitle}>Suzi Reels</h2>
         </div>
 
-        <Link
-          href="/app/reels"
-          className="shrink-0 whitespace-nowrap text-[var(--fs-2xs)] font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100"
-        >
+        <Link href="/app/reels" className={panelLink}>
           Open feed
         </Link>
       </div>
 
-      <div className="mt-3 grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2 overflow-hidden">
-        {reelSlots.map((slot) => {
-          if (slot.kind === "skeleton") {
+      <div className="suzi-scrollbar mt-2 min-h-0 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden pr-0.5">
+        {reelRows.map((row, index) => {
+          if (row.kind === "skeleton") {
             return (
               <div
-                key={slot.key}
-                className="relative min-h-0 overflow-hidden rounded-[0.78rem] border border-fuchsia-300/16 bg-[rgba(28,16,72,0.45)]"
+                key={row.key}
+                className={cx(
+                  "flex shrink-0 items-center gap-2.5 rounded-[0.75rem] px-0.5 py-1",
+                  index > 0 && "border-t border-cyan-300/12",
+                )}
               >
-                <div className="absolute inset-0 animate-pulse bg-white/8" />
-                <div className="absolute inset-x-1.5 bottom-1.5 flex items-center justify-between">
-                  <span className="h-3 w-9 rounded bg-white/10" />
-                  <span className="h-3 w-7 rounded bg-white/10" />
+                <div className="h-[3.15rem] w-[5.25rem] shrink-0 animate-pulse rounded-[0.65rem] bg-white/10" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="h-3 w-24 animate-pulse rounded bg-white/10" />
+                  <div className="h-2.5 w-32 animate-pulse rounded bg-white/8" />
                 </div>
               </div>
             );
           }
-          if (slot.kind === "empty") {
+          if (row.kind === "empty") {
             return (
-              <div
-                key={slot.key}
-                className="relative min-h-0 overflow-hidden rounded-[0.78rem] border border-dashed border-cyan-300/22 bg-[rgba(20,13,62,0.35)]"
-              >
-                <div className="flex h-full w-full items-center justify-center">
-                  <span className="text-[var(--fs-2xs)] text-cyan-100/55">No reel</span>
-                </div>
-                <div className="absolute inset-x-1.5 bottom-1.5 flex items-center justify-between text-[var(--fs-2xs)] font-medium text-cyan-100/40">
-                  <span>—</span>
-                  <span>—</span>
-                </div>
-              </div>
+              <p key={row.key} className={cx(listEmpty, "px-2 py-6 text-center text-cyan-100/60")}>
+                No reels yet.
+              </p>
             );
           }
-          const { reel } = slot;
+
+          const { reel } = row;
+          const duration = formatDuration(reelDurationSeconds(reel.id));
+          const timeAgo = formatTimeAgo(reel.createdAt);
+
           return (
             <Link
-              key={slot.key}
+              key={row.key}
               href={`/app/reels?focus=${encodeURIComponent(reel.id)}`}
-              className="group relative min-h-0 overflow-hidden rounded-[0.78rem] border border-fuchsia-300/24 bg-[rgba(28,16,72,0.7)]"
+              className={cx(
+                "group flex shrink-0 items-center gap-2.5 rounded-[0.75rem] px-0.5 py-1 transition hover:bg-white/6",
+                index > 0 && "border-t border-cyan-300/12",
+              )}
             >
-              <video
-                src={reel.video}
-                className="absolute inset-0 h-full w-full object-cover transition duration-200 group-hover:scale-[1.04]"
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="metadata"
-                aria-label={`${reel.title} preview`}
-              />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0.12),rgba(4,8,26,0.66))]" />
-              <span className="pointer-events-none absolute left-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/24 bg-black/40 text-white/92">
-                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="currentColor">
-                  <path d="m8 6.5 9 5.5-9 5.5v-11Z" />
-                </svg>
+              <span className="relative h-[3.15rem] w-[5.25rem] shrink-0 overflow-hidden rounded-[0.65rem] border border-fuchsia-300/24 bg-[rgba(28,16,72,0.7)]">
+                <video
+                  src={reel.video}
+                  className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+                  muted
+                  playsInline
+                  preload="metadata"
+                  aria-hidden="true"
+                />
+                <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0.08),rgba(4,8,26,0.55))]" />
+                <span className="pointer-events-none absolute left-1/2 top-1/2 inline-flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/28 bg-black/45 text-white">
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="ml-0.5 h-2.5 w-2.5" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </span>
+                <span className={cx(listMeta, "absolute bottom-1 left-1 rounded bg-black/55 px-1 py-0.5 font-medium text-white")}>
+                  {duration}
+                </span>
               </span>
-              <div className="absolute inset-x-1.5 bottom-1.5 flex items-center justify-between text-[var(--fs-2xs)] font-semibold text-white">
-                <span className="inline-flex items-center gap-1">
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    className="h-3 w-3"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
-                    <circle cx="12" cy="12" r="2.5" />
-                  </svg>
-                  {formatCompact(getViews(reel))}
+
+              <span className="min-w-0 flex-1">
+                <span className={cx(listL1, "block truncate font-semibold text-white")}>{reel.author}</span>
+                <span className={cx(listL3, "mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-cyan-100/72")}>
+                  <span className="inline-flex items-center gap-1">
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-3 w-3"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+                      <circle cx="12" cy="12" r="2.5" />
+                    </svg>
+                    {formatCompact(getViews(reel))}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-pink-100/90">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
+                      <path d="M12 21s-7-4.7-9.5-8c-2-2.7-.7-7 3-7 2 0 3.3 1 4.5 2.5C11.2 7 12.5 6 14.5 6c3.7 0 5 4.3 3 7C19 16.3 12 21 12 21Z" />
+                    </svg>
+                    {formatCompact(reel.likes)}
+                  </span>
+                  {timeAgo ? <span>{timeAgo}</span> : null}
                 </span>
-                <span className="inline-flex items-center gap-1 text-pink-100">
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    className="h-3 w-3"
-                    fill="currentColor"
-                  >
-                    <path d="M12 21s-7-4.7-9.5-8c-2-2.7-.7-7 3-7 2 0 3.3 1 4.5 2.5C11.2 7 12.5 6 14.5 6c3.7 0 5 4.3 3 7C19 16.3 12 21 12 21Z" />
-                  </svg>
-                  {formatCompact(reel.likes)}
-                </span>
-              </div>
+              </span>
             </Link>
           );
         })}

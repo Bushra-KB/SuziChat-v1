@@ -5,6 +5,12 @@ export const gameMeta = [
   { id: "checkers", type: "CHECKERS", name: "Checkers", copy: "Turn-based board strategy with captures and king promotion." },
   { id: "poker", type: "POKER_HOLDEM", name: "Poker", copy: "Texas Hold'em table with blinds, raises, side pots, and showdown." },
   { id: "connect4", type: "CONNECT4", name: "Connect 4", copy: "Fast multiplayer drop-grid game with realtime turns." },
+  {
+    id: "texasholdem",
+    type: "POKER_HOLDEM",
+    name: "Texas Hold'em",
+    copy: "Texas Hold'em tables with blinds, raises, side pots, and showdown.",
+  },
 ] as const satisfies ReadonlyArray<{ id: string; type: ApiGameType; name: string; copy: string }>;
 
 export function gameIdToType(gameId: string): ApiGameType {

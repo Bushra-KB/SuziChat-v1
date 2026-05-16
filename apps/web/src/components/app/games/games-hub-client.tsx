@@ -81,7 +81,7 @@ export function GamesHubClient() {
             copy="Create or join game lobbies, invite friends, and play in synced sessions with authoritative server state."
           />
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {gameMeta.map((game) => (
               <article key={game.id} className="rounded-[1.4rem] border border-white/10 bg-white/4 p-4">
                 <p className="text-2xl font-semibold text-white">{game.name}</p>
