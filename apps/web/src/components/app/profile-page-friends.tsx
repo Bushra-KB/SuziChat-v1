@@ -4,18 +4,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cx } from "@/components/ui/suzi-primitives";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import {
   getFriendsSummary,
   unfriend,
-  type FriendSummaryUser,
   type FriendsSummary,
 } from "@/lib/friends-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 
-const defaultAvatar = "/ppic/ppic1.jpeg";
-
 type Presence = "online" | "away" | "offline";
+
+const PREVIEW_COUNT = 4;
 
 function displayName(user: { displayName: string | null; username: string }) {
   return user.displayName?.trim() || user.username;
@@ -64,6 +64,7 @@ export function ProfilePageFriendsSection({
   const [friends, setFriends] = useState<FriendsSummary | null>(initialFriends);
   const [presenceById, setPresenceById] = useState<Record<string, Presence>>({});
   const [busy, setBusy] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const refresh = useCallback(async () => {
     const s = getStoredAuthSession();
@@ -136,6 +137,8 @@ export function ProfilePageFriendsSection({
     return sortFriendsForDisplay(friends.friends, presenceById);
   }, [friends, presenceById]);
 
+  const visibleFriends = showAll ? sortedFriends : sortedFriends.slice(0, PREVIEW_COUNT);
+
   async function runAction(fn: () => Promise<void>) {
     setBusy(true);
     try {
@@ -159,74 +162,109 @@ export function ProfilePageFriendsSection({
           to discover people and send requests — your list appears here.
         </div>
       ) : (
-        <div className="suzi-scrollbar max-h-[22rem] space-y-2 overflow-y-auto pr-1">
-          {sortedFriends.map((friend) => {
-            const status = presenceById[friend.id] ?? "offline";
-            return (
-              <div
-                key={friend.id}
-                className="flex items-center gap-3 rounded-[1rem] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(32,20,89,0.72),rgba(18,13,65,0.56))] px-3 py-2.5"
-              >
-                <div className="relative h-11 w-11 shrink-0">
-                  <Image
-                    src={defaultAvatar}
-                    alt={displayName(friend)}
-                    width={44}
-                    height={44}
-                    className="h-11 w-11 rounded-full border border-white/14 object-cover"
-                  />
-                  <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[rgba(24,16,82,0.95)] bg-[rgba(24,16,82,0.95)]">
-                    <span className={cx("block h-full w-full rounded-full", presenceDotClass(status))} />
-                  </span>
-                </div>
-                <div className="min-w-0 flex-1">
+        <>
+          <div className="space-y-2">
+            {visibleFriends.map((friend) => {
+              const status = presenceById[friend.id] ?? "offline";
+              return (
+                <div
+                  key={friend.id}
+                  className="flex items-center gap-3 rounded-[1rem] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(32,20,89,0.72),rgba(18,13,65,0.56))] px-3 py-2.5"
+                >
+                  <div className="relative h-11 w-11 shrink-0">
+                    <Image
+                      src={resolveUserAvatarUrl(friend.avatarUrl ?? null)}
+                      alt={displayName(friend)}
+                      width={44}
+                      height={44}
+                      unoptimized={Boolean(friend.avatarUrl?.startsWith("http"))}
+                      className="h-11 w-11 rounded-full border border-white/14 object-cover"
+                    />
+                    <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[rgba(24,16,82,0.95)] bg-[rgba(24,16,82,0.95)]">
+                      <span
+                        className={cx("block h-full w-full rounded-full", presenceDotClass(status))}
+                      />
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/app/profile/u/${encodeURIComponent(friend.id)}`}
+                      className="block truncate text-[1.02rem] font-semibold leading-tight text-white hover:text-cyan-100"
+                    >
+                      {displayName(friend)}
+                    </Link>
+                    <p className="mt-0.5 truncate text-[0.82rem] text-cyan-100/66">@{friend.username}</p>
+                    {status === "online" ? (
+                      <p className="mt-0.5 text-[0.72rem] font-medium text-emerald-300/90">Online</p>
+                    ) : status === "away" ? (
+                      <p className="mt-0.5 text-[0.72rem] font-medium text-amber-200/85">Away</p>
+                    ) : null}
+                  </div>
                   <Link
-                    href={`/app/profile/u/${encodeURIComponent(friend.id)}`}
-                    className="block truncate text-[1.05rem] font-semibold leading-tight text-white hover:text-cyan-100"
+                    href={`/app/messages?with=${encodeURIComponent(friend.id)}`}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.8rem] border border-fuchsia-300/22 bg-[linear-gradient(150deg,rgba(86,30,173,0.54),rgba(46,17,111,0.74))] text-cyan-100/88 transition hover:border-fuchsia-300/42 hover:text-white"
+                    aria-label={`Message ${displayName(friend)}`}
                   >
-                    {displayName(friend)}
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.85"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M4 6h16v10H8l-4 4V6Z" />
+                    </svg>
                   </Link>
-                  <p className="mt-1 truncate text-[0.86rem] leading-none text-cyan-100/66">@{friend.username}</p>
-                </div>
-                <Link
-                  href={`/app/messages?with=${encodeURIComponent(friend.id)}`}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.8rem] border border-fuchsia-300/22 bg-[linear-gradient(150deg,rgba(86,30,173,0.54),rgba(46,17,111,0.74))] text-cyan-100/88 transition hover:border-fuchsia-300/42 hover:text-white"
-                  aria-label={`Message ${displayName(friend)}`}
-                >
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.85"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void runAction(async () => {
+                        const s = getStoredAuthSession();
+                        if (!s) {
+                          return;
+                        }
+                        await unfriend(s.accessToken, friend.id);
+                      })
+                    }
+                    className="shrink-0 rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-2.5 py-1 text-[0.66rem] font-semibold text-pink-100 transition hover:border-fuchsia-300/45"
                   >
-                    <path d="M4 6h16v10H8l-4 4V6Z" />
-                  </svg>
-                </Link>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    void runAction(async () => {
-                      const s = getStoredAuthSession();
-                      if (!s) {
-                        return;
-                      }
-                      await unfriend(s.accessToken, friend.id);
-                    })
-                  }
-                  className="shrink-0 rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-2 py-1 text-[0.66rem] font-semibold text-pink-100"
-                >
-                  Unfriend
-                </button>
-              </div>
-            );
-          })}
-        </div>
+                    Unfriend
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {sortedFriends.length > PREVIEW_COUNT ? (
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              className="flex w-full items-center justify-center gap-1 rounded-[0.75rem] border border-cyan-300/16 bg-white/4 py-2 text-[0.78rem] font-semibold text-cyan-100/75 transition hover:bg-white/7 hover:text-cyan-50"
+            >
+              {showAll ? "Show fewer friends" : "Show more friends"}
+              <IconChevron open={showAll} />
+            </button>
+          ) : null}
+        </>
       )}
     </div>
+  );
+}
+
+function IconChevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className={cx("h-4 w-4 transition-transform", open ? "rotate-180" : undefined)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
   );
 }

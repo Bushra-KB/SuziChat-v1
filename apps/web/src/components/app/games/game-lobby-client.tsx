@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { gameMeta, gameTypeToId } from "@/components/app/games/game-meta";
-import { gameIconForId } from "@/lib/game-icons";
+import { gameLobbyArtForId } from "@/lib/game-icons";
 import { HomeFriendsPanel } from "@/components/app/home-friends-panel";
 import { Panel } from "@/components/ui/suzi-primitives";
 import { explorePeople, getFriendsSummary, type FriendSummaryUser } from "@/lib/friends-client";
@@ -33,7 +33,7 @@ import {
 
 export function GameLobbyClient({ gameId }: { gameId: string }) {
   const game = gameMeta.find((entry) => entry.id === gameId) ?? gameMeta[0];
-  const gameArt = gameIconForId(game.id);
+  const gameArt = gameLobbyArtForId(game.id);
   const [rows, setRows] = useState<ApiGameLobby[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -391,7 +391,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                       alt=""
                       fill
                       sizes="(max-width: 640px) 45vw, 220px"
-                      className="object-cover drop-shadow-[0_8px_18px_rgba(8,4,32,0.55)]"
+                      className="object-contain drop-shadow-[0_8px_18px_rgba(8,4,32,0.55)]"
                     />
                   </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Chess, type Square } from "chess.js";
 import { Chessboard, ChessboardProvider } from "react-chessboard";
 
@@ -27,8 +27,16 @@ export function ChessBoardView({
   lastMove = null,
 }: ChessBoardViewProps) {
   const canDrag = !readOnly && myTurn && !busy;
+  const [optimisticFen, setOptimisticFen] = useState<string | null>(null);
+  const displayFen = optimisticFen ?? fen;
+
+  useEffect(() => {
+    setOptimisticFen(null);
+  }, [fen]);
 
   const [promo, setPromo] = useState<{ from: string; to: string } | null>(null);
+
+  const myColor = boardOrientation === "white" ? "w" : "b";
 
   const squareStyles = useMemo(() => {
     const o: Record<string, React.CSSProperties> = {};
@@ -41,6 +49,22 @@ export function ChessBoardView({
     return o;
   }, [lastMove]);
 
+  const canDragPiece = useCallback(
+    ({ square }: { square: string | null }) => {
+      if (!canDrag || !square) return false;
+      try {
+        const chess = new Chess(displayFen);
+        if (chess.isGameOver()) return false;
+        const piece = chess.get(square as Square);
+        if (!piece) return false;
+        return piece.color === myColor && chess.turn() === myColor;
+      } catch {
+        return false;
+      }
+    },
+    [canDrag, displayFen, myColor],
+  );
+
   const onPieceDrop = useCallback(
     ({
       sourceSquare,
@@ -50,8 +74,10 @@ export function ChessBoardView({
       targetSquare: string | null;
     }) => {
       if (!targetSquare || !canDrag) return false;
-      const chess = new Chess(fen);
-      const moves = chess.moves({ square: sourceSquare as Square, verbose: true }).filter((m) => m.to === targetSquare);
+      const chess = new Chess(displayFen);
+      const moves = chess
+        .moves({ square: sourceSquare as Square, verbose: true })
+        .filter((m) => m.to === targetSquare);
       if (moves.length === 0) return false;
 
       const withPromo = moves.filter((m) => Boolean(m.promotion));
@@ -62,48 +88,79 @@ export function ChessBoardView({
 
       const m = moves[0];
       const uci = `${m.from}${m.to}${m.promotion ?? ""}`;
+      const applied = chess.move(
+        m.promotion
+          ? {
+              from: m.from,
+              to: m.to,
+              promotion: m.promotion as "q" | "r" | "b" | "n",
+            }
+          : { from: m.from, to: m.to },
+      );
+      if (!applied) return false;
+
+      setOptimisticFen(chess.fen());
       onUciMove(uci);
       return true;
     },
-    [fen, canDrag, onUciMove],
+    [displayFen, canDrag, onUciMove],
   );
 
   const finishPromotion = useCallback(
     (piece: "q" | "r" | "b" | "n") => {
       if (!promo) return;
+      const chess = new Chess(displayFen);
+      const applied = chess.move({
+        from: promo.from,
+        to: promo.to,
+        promotion: piece,
+      });
+      if (!applied) {
+        setPromo(null);
+        return;
+      }
       const uci = `${promo.from}${promo.to}${piece}`;
+      setOptimisticFen(chess.fen());
       setPromo(null);
       onUciMove(uci);
     },
-    [promo, onUciMove],
+    [promo, displayFen, onUciMove],
   );
 
   const options = useMemo(
     () => ({
       id: "suzi-chess-board",
-      position: fen,
+      position: displayFen,
       boardOrientation,
       allowDragging: canDrag,
+      canDragPiece,
       showNotation: true,
-      boardStyle: { borderRadius: "0.75rem" },
+      boardStyle: { borderRadius: "0.75rem", width: "100%", height: "100%" },
       darkSquareStyle: { backgroundColor: "#2b235c" },
       lightSquareStyle: { backgroundColor: "#4a3d8a" },
       squareStyles,
       onPieceDrop,
     }),
-    [fen, boardOrientation, canDrag, onPieceDrop, squareStyles],
+    [displayFen, boardOrientation, canDrag, canDragPiece, onPieceDrop, squareStyles],
   );
 
   return (
-    <div className="relative mx-auto w-full max-w-[min(100%,28rem)]" data-testid="chess-board-root">
-      <ChessboardProvider options={options}>
-        <Chessboard />
-      </ChessboardProvider>
+    <div
+      className="relative mx-auto flex aspect-square w-full max-w-[min(100%,32rem,min(85vw,58vh))] flex-col"
+      data-testid="chess-board-root"
+    >
+      <div className="relative min-h-0 w-full flex-1">
+        <ChessboardProvider options={options}>
+          <Chessboard />
+        </ChessboardProvider>
+      </div>
 
-      <p className="mt-3 text-center text-xs text-cyan-100/65">
+      <p className="mt-3 shrink-0 text-center text-xs text-cyan-100/65">
         {readOnly
           ? "You’re watching — moves apply when seated players act."
-          : "Drag to move; choose promotion when a pawn reaches the last rank. The board syncs live over the session."}
+          : myTurn
+            ? "Your turn — drag your pieces to move."
+            : "Waiting for opponent…"}
       </p>
 
       {promo ? (

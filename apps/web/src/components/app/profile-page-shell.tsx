@@ -1,0 +1,31 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { cx } from "@/components/ui/suzi-primitives";
+
+/** Centers profile content and provides one vertical scroll area. */
+export function ProfilePageShell({
+  children,
+  variant = "default",
+}: {
+  children: ReactNode;
+  variant?: "default" | "account";
+}) {
+  return (
+    <section
+      className={cx(
+        "suzi-app-frame-fill suzi-profile-page",
+        variant === "account" && "suzi-account-page",
+      )}
+    >
+      <div
+        className={cx(
+          "suzi-profile-page-inner suzi-app-frame-scroll suzi-thin-scroll pb-4 pr-1",
+          variant === "account" ? "suzi-account-page-scroll space-y-[var(--row-gap)]" : "space-y-[var(--row-gap)]",
+        )}
+      >
+        {children}
+      </div>
+    </section>
+  );
+}

@@ -8,7 +8,7 @@ import { Connect4BoardView } from "@/components/app/games/connect4-board-view";
 import { GameFrame } from "@/components/app/games/game-frame";
 import { gameTypeToId } from "@/components/app/games/game-meta";
 import { PokerTableView } from "@/components/app/games/poker-table-view";
-import { Panel } from "@/components/ui/suzi-primitives";
+import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { formatMoveListForSession, getLastChessMoveSquares } from "@/lib/format-game-move";
 import {
@@ -28,7 +28,13 @@ function asArray(value: unknown): unknown[] {
 
 const RECONNECT_HINT = "Moves and chat sync automatically as soon as the live link is restored.";
 
-export function GameSessionClient({ sessionId }: { sessionId: string }) {
+export function GameSessionClient({
+  sessionId,
+  gameRouteId,
+}: {
+  sessionId: string;
+  gameRouteId?: string;
+}) {
   const [session, setSession] = useState<ApiGameSession | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -138,12 +144,13 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
       return;
     }
 
-    if (session.moves.length > prevMovesLen.current) {
+    if (session.gameType !== "POKER_HOLDEM" && session.moves.length > prevMovesLen.current) {
       playMoveSound();
     }
     prevMovesLen.current = session.moves.length;
 
     if (
+      session.gameType !== "POKER_HOLDEM" &&
       session.status === "ACTIVE" &&
       meId &&
       session.turnUserId === meId &&
@@ -222,7 +229,11 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
   }
 
   const state = (session?.state ?? {}) as Record<string, unknown>;
-  const isTurn = session?.turnUserId === meId;
+  const stateTurnUserId =
+    typeof state.turnUserId === "string" ? state.turnUserId : null;
+  const isTurn =
+    session?.turnUserId === meId ||
+    (session?.turnUserId == null && stateTurnUserId === meId);
   const turnSeatUser =
     session?.lobby?.seats?.find((seat) => seat.userId === session?.turnUserId)?.user ?? null;
   const turnDisplay =
@@ -239,8 +250,12 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
       .filter((s) => s.userId)
       .sort((a, b) => a.seatIndex - b.seatIndex)
       .map((s) => s.userId as string) ?? [];
+  const whitePlayerId =
+    typeof state.whitePlayerId === "string" ? state.whitePlayerId : seatUserIds[0];
+  const blackPlayerId =
+    typeof state.blackPlayerId === "string" ? state.blackPlayerId : seatUserIds[1];
   const boardOrientation: "white" | "black" =
-    seatUserIds[0] === meId ? "white" : seatUserIds[1] === meId ? "black" : "white";
+    whitePlayerId === meId ? "white" : blackPlayerId === meId ? "black" : "white";
 
   const rawCheckers = asArray(state.board);
   const checkersBoard = Array.from({ length: 8 }, (_, r) =>
@@ -266,15 +281,18 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
   const lastChessMove =
     session?.gameType === "CHESS" ? getLastChessMoveSquares(session.moves) : null;
 
+  const pokerPhase = session?.gameType === "POKER_HOLDEM" ? String(state.phase ?? "") : "";
   const frameSubtitle = !session
     ? undefined
     : spectator
       ? "You’re watching — open a seat in the lobby to play."
-      : session.status === "ACTIVE"
-        ? isTurn
-          ? "Your turn"
-          : `Waiting for ${turnDisplay}`
-        : "Finished";
+      : session.gameType === "POKER_HOLDEM" && pokerPhase === "COMPLETE"
+        ? "Hand complete — deal next hand when ready"
+        : session.status === "ACTIVE"
+          ? isTurn
+            ? "Your turn"
+            : `Waiting for ${turnDisplay}`
+          : "Finished";
 
   return (
     <section className="suzi-app-frame-fill suzi-game-session-page">
@@ -318,7 +336,7 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
                 >
                   Back to lobby
                 </Link>
-                {!spectator ? (
+                {!spectator && session.gameType !== "POKER_HOLDEM" ? (
                   <button
                     type="button"
                     onClick={() => void runAction({ type: "resign" }, "RESIGN")}
@@ -359,12 +377,26 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
             </Panel>
 
             <GameFrame
-              title={`${session.gameType.replace("_", " ")} Session`}
+              title={
+                session.gameType === "POKER_HOLDEM"
+                  ? gameRouteId === "texasholdem"
+                    ? "Texas Hold'em"
+                    : "Poker"
+                  : `${session.gameType.replace("_", " ")} Session`
+              }
               subtitle={frameSubtitle}
               reconnecting={!socketReady}
               reconnectHint={RECONNECT_HINT}
+              immersive={session.gameType === "POKER_HOLDEM"}
             >
-              <div key={shakeKey} className={shakeKey > 0 ? "suzi-game-shake" : undefined}>
+              <div
+                key={shakeKey}
+                className={cx(
+                  "h-full min-h-0",
+                  shakeKey > 0 ? "suzi-game-shake" : undefined,
+                  session.gameType === "POKER_HOLDEM" ? "suzi-poker-arcade-frame" : undefined,
+                )}
+              >
                 {error ? (
                   <p
                     className="mb-3 rounded-lg border border-pink-400/30 bg-pink-500/12 px-3 py-2 text-sm text-pink-100"
@@ -415,8 +447,12 @@ export function GameSessionClient({ sessionId }: { sessionId: string }) {
                     state={state}
                     busy={busy}
                     meId={meId}
+                    myTurn={session.status === "ACTIVE" && isTurn}
+                    soundOn={soundOn}
+                    gameRouteId={gameRouteId ?? gameTypeToId(session.gameType)}
                     readOnly={spectator}
-                    onAction={(kind, amount) => void runAction({ kind, amount })}
+                    onAction={(kind, amount) => void runAction({ kind, amount }, "POKER_ACTION")}
+                    onNextHand={() => void runAction({ kind: "NEXT_HAND" }, "POKER_ACTION")}
                   />
                 ) : null}
               </div>

@@ -82,6 +82,23 @@ export class PostsController {
     );
   }
 
+  @Get('user/:userId')
+  @UseGuards(AccessTokenGuard)
+  listAuthorPostsForProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('userId') userId: string,
+    @Query('kind', new ParseEnumPipe(PostKind)) kind: PostKind,
+    @Query('take') take?: string,
+  ) {
+    const n = take ? Number.parseInt(take, 10) : 40;
+    return this.postsService.listAuthorPostsForProfile(
+      user.id,
+      userId,
+      kind,
+      Number.isFinite(n) ? Math.min(80, Math.max(1, n)) : 40,
+    );
+  }
+
   @Delete(':id')
   @UseGuards(AccessTokenGuard)
   async deleteMyPost(

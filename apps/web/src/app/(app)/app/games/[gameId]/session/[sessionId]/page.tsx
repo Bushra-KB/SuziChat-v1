@@ -5,6 +5,6 @@ export default async function GameSessionPage({
 }: {
   params: Promise<{ gameId: string; sessionId: string }>;
 }) {
-  const { sessionId } = await params;
-  return <GameSessionClient sessionId={sessionId} />;
+  const { sessionId, gameId } = await params;
+  return <GameSessionClient sessionId={sessionId} gameRouteId={gameId} />;
 }
