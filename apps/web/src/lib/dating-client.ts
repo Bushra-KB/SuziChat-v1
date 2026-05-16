@@ -100,6 +100,34 @@ export async function upsertMyDatingProfile(
   );
 }
 
+export type DatingSummary = {
+  hasProfile: boolean;
+  isDiscoverable: boolean;
+  matchCount: number;
+  likesReceivedCount: number;
+  preview: Array<{
+    userId: string;
+    photoUrl: string | null;
+    avatarUrl: string | null;
+    displayName: string | null;
+    username: string;
+  }>;
+};
+
+export async function getDatingSummary(accessToken: string) {
+  return apiJson<DatingSummary>("/v1/dating/summary", {
+    method: "GET",
+    accessToken,
+  });
+}
+
+export async function listDatingLikesReceived(accessToken: string) {
+  return apiJson<{ items: DatingDiscoverItem[] }>("/v1/dating/likes-received", {
+    method: "GET",
+    accessToken,
+  });
+}
+
 export async function discoverDating(
   accessToken: string,
   params: {
@@ -135,7 +163,7 @@ export async function discoverDating(
     q.set("skip", String(params.skip));
   }
   const suffix = q.toString() ? `?${q.toString()}` : "";
-  return apiJson<{ items: DatingDiscoverItem[] }>(`/v1/dating/discover${suffix}`, {
+  return apiJson<{ items: DatingDiscoverItem[]; hasMore?: boolean }>(`/v1/dating/discover${suffix}`, {
     method: "GET",
     accessToken,
   });

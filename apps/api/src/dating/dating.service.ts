@@ -183,6 +183,56 @@ export class DatingService {
     };
   }
 
+  private reciprocalPrefFilter(
+    mine: { age: number | null; gender: string | null },
+  ): Prisma.DatingProfileWhereInput {
+    const parts: Prisma.DatingProfileWhereInput[] = [];
+    if (mine.gender?.trim()) {
+      const g = mine.gender.trim();
+      parts.push({
+        OR: [{ seekGender: 'any' }, { seekGender: g }],
+      });
+    }
+    if (mine.age != null) {
+      parts.push({
+        minAgePref: { lte: mine.age },
+        maxAgePref: { gte: mine.age },
+      });
+    }
+    if (parts.length === 0) {
+      return {};
+    }
+    return { AND: parts };
+  }
+
+  private async createMatchNotifications(
+    userAId: string,
+    userBId: string,
+    userA: { displayName: string | null; username: string },
+    userB: { displayName: string | null; username: string },
+  ) {
+    const labelA = userA.displayName?.trim() || userA.username;
+    const labelB = userB.displayName?.trim() || userB.username;
+    const pairs: Array<{ userId: string; peerLabel: string }> = [
+      { userId: userAId, peerLabel: labelB },
+      { userId: userBId, peerLabel: labelA },
+    ];
+    for (const { userId, peerLabel } of pairs) {
+      await this.prisma.notification
+        .create({
+          data: {
+            userId,
+            title: 'New dating match',
+            body: `You matched with ${peerLabel}. Open Dating to say hi.`,
+          },
+        })
+        .catch(() => undefined);
+      this.realtimeEvents.emitToUser(userId, 'notifications:update', {
+        reason: 'dating_match',
+      });
+    }
+  }
+
   async discover(
     viewerId: string,
     query: {
@@ -207,16 +257,19 @@ export class DatingService {
     const exclusion = await this.datingExclusionIds(viewerId);
     const notIn = [...exclusion];
 
-    const ageFilter: Prisma.IntFilter | undefined =
-      query.minAge !== undefined || query.maxAge !== undefined
-        ? {
-            ...(query.minAge !== undefined ? { gte: query.minAge } : {}),
-            ...(query.maxAge !== undefined ? { lte: query.maxAge } : {}),
-          }
-        : undefined;
+    const minAge = query.minAge ?? mine.minAgePref;
+    const maxAge = query.maxAge ?? mine.maxAgePref;
+    const ageFilter: Prisma.IntFilter = {
+      gte: minAge,
+      lte: maxAge,
+    };
 
     const genderFilter =
-      query.gender && query.gender !== 'any' ? query.gender : undefined;
+      query.gender && query.gender !== 'any'
+        ? query.gender
+        : mine.seekGender && mine.seekGender !== 'any'
+          ? mine.seekGender
+          : undefined;
 
     const countryFilter =
       query.country && query.country.trim() && query.country !== 'all'
@@ -229,8 +282,9 @@ export class DatingService {
       where: {
         userId: { notIn },
         isDiscoverable: true,
-        ...(ageFilter ? { age: ageFilter } : {}),
+        age: ageFilter,
         ...(genderFilter ? { gender: genderFilter } : {}),
+        ...this.reciprocalPrefFilter(mine),
         user: {
           ...(countryFilter ? { country: countryFilter } : {}),
           ...(search
@@ -257,6 +311,131 @@ export class DatingService {
         ...row,
         interests: interestsFromJson(row.interests),
       })),
+      hasMore: rows.length === take,
+    };
+  }
+
+  async listLikesReceived(userId: string) {
+    const mine = await this.prisma.datingProfile.findUnique({
+      where: { userId },
+    });
+    if (!mine) {
+      throw new ForbiddenException('Create your dating profile first.');
+    }
+
+    const [inbound, mySwipes, matchesA, matchesB] = await Promise.all([
+      this.prisma.datingSwipe.findMany({
+        where: { toUserId: userId, action: DatingSwipeAction.LIKE },
+        select: { fromUserId: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.datingSwipe.findMany({
+        where: { fromUserId: userId },
+        select: { toUserId: true },
+      }),
+      this.prisma.datingMatch.findMany({
+        where: { userAId: userId },
+        select: { userBId: true },
+      }),
+      this.prisma.datingMatch.findMany({
+        where: { userBId: userId },
+        select: { userAId: true },
+      }),
+    ]);
+
+    const blocked = await this.blockedUserIds(userId);
+    const responded = new Set(mySwipes.map((s) => s.toUserId));
+    const matched = new Set([
+      ...matchesA.map((m) => m.userBId),
+      ...matchesB.map((m) => m.userAId),
+    ]);
+
+    const candidateIds = [
+      ...new Set(
+        inbound
+          .map((s) => s.fromUserId)
+          .filter(
+            (id) =>
+              !responded.has(id) &&
+              !matched.has(id) &&
+              !blocked.has(id) &&
+              id !== userId,
+          ),
+      ),
+    ];
+
+    if (candidateIds.length === 0) {
+      return { items: [] };
+    }
+
+    const profiles = await this.prisma.datingProfile.findMany({
+      where: {
+        userId: { in: candidateIds },
+        isDiscoverable: true,
+      },
+      select: {
+        ...datingProfileSelect,
+        user: { select: userCardSelect },
+      },
+    });
+
+    const byUserId = new Map(profiles.map((p) => [p.userId, p]));
+    const items = candidateIds
+      .map((id) => byUserId.get(id))
+      .filter((p): p is NonNullable<typeof p> => Boolean(p))
+      .map((row) => ({
+        ...row,
+        interests: interestsFromJson(row.interests),
+      }));
+
+    return { items };
+  }
+
+  async getSummary(userId: string) {
+    const [profile, matchCount] = await Promise.all([
+      this.prisma.datingProfile.findUnique({
+        where: { userId },
+        select: { isDiscoverable: true },
+      }),
+      this.prisma.datingMatch.count({
+        where: { OR: [{ userAId: userId }, { userBId: userId }] },
+      }),
+    ]);
+
+    let likesReceivedCount = 0;
+    let preview: Array<{
+      userId: string;
+      photoUrl: string | null;
+      avatarUrl: string | null;
+      displayName: string | null;
+      username: string;
+    }> = [];
+
+    if (profile) {
+      const likes = await this.listLikesReceived(userId).catch(() => ({ items: [] }));
+      likesReceivedCount = likes.items.length;
+      if (profile.isDiscoverable) {
+        try {
+          const { items } = await this.discover(userId, { take: 4, skip: 0 });
+          preview = items.map((item) => ({
+            userId: item.userId,
+            photoUrl: item.photoUrl,
+            avatarUrl: item.user.avatarUrl,
+            displayName: item.user.displayName,
+            username: item.user.username,
+          }));
+        } catch {
+          preview = [];
+        }
+      }
+    }
+
+    return {
+      hasProfile: Boolean(profile),
+      isDiscoverable: profile?.isDiscoverable ?? false,
+      matchCount,
+      likesReceivedCount,
+      preview,
     };
   }
 
@@ -328,6 +507,12 @@ export class DatingService {
     const payloadB = this.serializeMatchSocket(match, match.userBId);
     this.realtimeEvents.emitToUser(match.userAId, 'dating:match', payloadA);
     this.realtimeEvents.emitToUser(match.userBId, 'dating:match', payloadB);
+    await this.createMatchNotifications(
+      match.userAId,
+      match.userBId,
+      match.userA,
+      match.userB,
+    );
 
     return {
       matched: true,

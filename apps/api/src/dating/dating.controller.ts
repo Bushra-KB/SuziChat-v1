@@ -36,6 +36,18 @@ export class DatingController {
     return this.datingService.upsertMyProfile(user.id, dto);
   }
 
+  @Get('summary')
+  @UseGuards(AccessTokenGuard)
+  getSummary(@CurrentUser() user: AuthenticatedUser) {
+    return this.datingService.getSummary(user.id);
+  }
+
+  @Get('likes-received')
+  @UseGuards(AccessTokenGuard)
+  listLikesReceived(@CurrentUser() user: AuthenticatedUser) {
+    return this.datingService.listLikesReceived(user.id);
+  }
+
   @Get('discover')
   @UseGuards(AccessTokenGuard)
   discover(
