@@ -392,7 +392,7 @@ export function GameSessionClient({
               <div
                 key={shakeKey}
                 className={cx(
-                  "h-full min-h-0",
+                  session.gameType === "CHESS" ? "suzi-chess-session-wrap" : "h-full min-h-0",
                   shakeKey > 0 ? "suzi-game-shake" : undefined,
                   session.gameType === "POKER_HOLDEM" ? "suzi-poker-arcade-frame" : undefined,
                 )}

@@ -508,6 +508,12 @@ h5 {
 }
 
 /* Home — Suzi Dating decorative hearts */
+.suzi-dating-page .suzi-app-frame-scroll {
+  width: 100%;
+  max-width: min(100%, 80rem);
+  margin-inline: auto;
+}
+
 .suzi-dating-hearts__cluster {
   display: flex;
   align-items: center;
@@ -1040,18 +1046,34 @@ h5 {
   animation: suzi-game-shake 0.42s ease-in-out;
 }
 
-/* Chess session — square board fits center panel without vertical crop */
+/* Chess session — square stage; status line sits below without clipping ranks */
 .suzi-game-session-page [data-testid="chess-board-root"] {
-  width: min(100%, 32rem, 85vw, 58vh);
-  max-height: min(58vh, 32rem, 85vw);
+  width: min(100%, 32rem, 85vw, 70vh);
+  max-width: min(32rem, 85vw, 70vh);
+}
+
+.suzi-game-session-page [data-testid="chess-board-stage"] {
+  width: 100%;
   aspect-ratio: 1;
 }
 
-.suzi-game-session-page [data-testid="chess-board-root"] #suzi-chess-board {
+.suzi-game-session-page [data-testid="chess-board-stage"] #suzi-chess-board {
   width: 100% !important;
   max-width: 100%;
   height: 100% !important;
+}
+
+.suzi-game-session-page .suzi-chess-session-wrap {
+  display: flex;
+  flex: 1;
   min-height: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.suzi-game-session-page .suzi-panel:has([data-testid="chess-board-root"]) > .min-h-0.flex-1 {
+  overflow: visible;
 }
 
 /* —— Poker arcade (MSN-style 3D table) —— */

@@ -670,6 +670,13 @@ export function AccountProfilePage() {
                 <h2 className="text-[var(--fs-lg)] font-semibold text-white">Account</h2>
               </div>
               <div className="mt-3 divide-y divide-white/8">
+                <Link
+                  href="/app/dating"
+                  className="flex items-center justify-between gap-3 py-3 text-[var(--fs-sm)] text-white transition hover:text-fuchsia-100"
+                >
+                  <span>Suzi Dating</span>
+                  <Icon path="M9 6l6 6-6 6" className="h-3.5 w-3.5 text-white/55" />
+                </Link>
                 <AccountRow label="Change password" trailing={<Icon path="M9 6l6 6-6 6" className="h-3.5 w-3.5 text-white/55" />} />
                 <AccountRow
                   label="Email address"

@@ -2,19 +2,21 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useId } from "react";
 import { listL2, listActionPrimary, panelTitle } from "@/components/app/home-typography";
 import { cx } from "@/components/ui/suzi-primitives";
+import { getStoredAuthSession } from "@/lib/auth-client";
+import { getDatingSummary, type DatingSummary } from "@/lib/dating-client";
 
-const datingAvatars = [
-  { src: "/ppic/ppic1.jpeg", alt: "Suzi member 1" },
-  { src: "/ppic/ppic2.png", alt: "Suzi member 2" },
-  { src: "/ppic/ppic3.jpg", alt: "Suzi member 3" },
-];
-
-/** Symmetric heart — sharp bottom point, no balloon tail. */
 const HEART_PATH =
   "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z";
+
+const FALLBACK_AVATARS = [
+  { src: "/ppic/ppic1.jpeg", alt: "Suzi member" },
+  { src: "/ppic/ppic2.png", alt: "Suzi member" },
+  { src: "/ppic/ppic3.jpg", alt: "Suzi member" },
+];
 
 function DatingHeartsBackdrop() {
   const uid = useId().replace(/:/g, "");
@@ -26,60 +28,52 @@ function DatingHeartsBackdrop() {
       <div className="suzi-dating-hearts__cluster">
         <div className="suzi-dating-hearts__group">
           <div
-          className="absolute left-1/2 top-1/2 h-[8.5rem] w-[11rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,45,167,0.5)_0%,rgba(157,78,221,0.2)_48%,transparent_72%)] blur-[5px]"
-          aria-hidden
-        />
-
-        <svg
-          viewBox="0 0 24 24"
-          className="suzi-dating-hearts__solid absolute left-0 top-1/2 z-[1] -translate-y-[56%] -rotate-[20deg]"
-          style={{ filter: `url(#${solidGlowId})` }}
-        >
-          <defs>
-            <filter id={solidGlowId} x="-60%" y="-60%" width="220%" height="220%">
-              <feGaussianBlur stdDeviation="2.4" result="blur" />
-              <feColorMatrix
-                in="blur"
-                type="matrix"
-                values="1 0 0 0 0  0 0.2 0 0 0  0 0 0.5 0 0  0 0 0 0.72 0"
-                result="glow"
-              />
-              <feMerge>
-                <feMergeNode in="glow" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
+            className="absolute left-1/2 top-1/2 h-[8.5rem] w-[11rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,45,167,0.5)_0%,rgba(157,78,221,0.2)_48%,transparent_72%)] blur-[5px]"
+            aria-hidden
+          />
+          <svg
+            viewBox="0 0 24 24"
+            className="suzi-dating-hearts__solid absolute left-0 top-1/2 z-[1] -translate-y-[56%] -rotate-[20deg]"
+            style={{ filter: `url(#${solidGlowId})` }}
+          >
+            <defs>
+              <filter id={solidGlowId} x="-60%" y="-60%" width="220%" height="220%">
+                <feGaussianBlur stdDeviation="2.4" result="blur" />
+                <feColorMatrix
+                  in="blur"
+                  type="matrix"
+                  values="1 0 0 0 0  0 0.2 0 0 0  0 0 0.5 0 0  0 0 0 0.72 0"
+                  result="glow"
+                />
+                <feMerge>
+                  <feMergeNode in="glow" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
             <path d={HEART_PATH} fill="#d4187f" />
           </svg>
-
           <svg
             viewBox="0 0 24 24"
             className="suzi-dating-hearts__outline absolute top-1/2 z-[2] -translate-y-[50%] rotate-[14deg]"
             style={{ filter: `url(#${outlineGlowId})`, left: "var(--dating-heart-outline-left)" }}
           >
             <defs>
-            <filter id={outlineGlowId} x="-60%" y="-60%" width="220%" height="220%">
-              <feGaussianBlur stdDeviation="2" result="blur" />
-              <feColorMatrix
-                in="blur"
-                type="matrix"
-                values="1 0 0 0 0  0 0.15 0 0 0  0 0 0.35 0 0  0 0 0 0.62 0"
-                result="glow"
-              />
-              <feMerge>
-                <feMergeNode in="glow" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-          <path
-            d={HEART_PATH}
-            fill="none"
-            stroke="#ff6ec8"
-            strokeWidth="1.2"
-              strokeLinejoin="round"
-            />
+              <filter id={outlineGlowId} x="-60%" y="-60%" width="220%" height="220%">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feColorMatrix
+                  in="blur"
+                  type="matrix"
+                  values="1 0 0 0 0  0 0.15 0 0 0  0 0 0.35 0 0  0 0 0 0.62 0"
+                  result="glow"
+                />
+                <feMerge>
+                  <feMergeNode in="glow" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <path d={HEART_PATH} fill="none" stroke="#ff6ec8" strokeWidth="1.2" strokeLinejoin="round" />
           </svg>
         </div>
       </div>
@@ -87,10 +81,50 @@ function DatingHeartsBackdrop() {
   );
 }
 
+function previewSrc(person: DatingSummary["preview"][0]) {
+  return person.photoUrl?.trim() || person.avatarUrl || "";
+}
+
 export function HomeDatingPanel() {
+  const [summary, setSummary] = useState<DatingSummary | null>(null);
+
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      return;
+    }
+    void getDatingSummary(session.accessToken)
+      .then(setSummary)
+      .catch(() => setSummary(null));
+  }, []);
+
+  const avatars =
+    summary?.preview && summary.preview.length > 0
+      ? summary.preview.slice(0, 3).map((p, i) => ({
+          src: previewSrc(p) || FALLBACK_AVATARS[i]?.src || FALLBACK_AVATARS[0].src,
+          alt: p.displayName ?? p.username,
+        }))
+      : FALLBACK_AVATARS;
+
+  const subline =
+    summary && summary.hasProfile
+      ? summary.matchCount > 0
+        ? `${summary.matchCount} match${summary.matchCount === 1 ? "" : "es"}`
+        : summary.likesReceivedCount > 0
+          ? `${summary.likesReceivedCount} like${summary.likesReceivedCount === 1 ? "" : "s"} you`
+          : "Find your match nearby"
+      : "Set up your dating profile";
+
+  const href =
+    summary && summary.likesReceivedCount > 0
+      ? "/app/dating?panel=likes"
+      : summary && summary.matchCount > 0
+        ? "/app/dating?panel=matches"
+        : "/app/dating";
+
   return (
     <Link
-      href="/app/dating"
+      href={href}
       aria-label="Open Suzi Dating"
       className="suzi-panel group relative flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad-tight)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/60"
     >
@@ -105,7 +139,7 @@ export function HomeDatingPanel() {
         </span>
         <div className="min-w-0 flex-1">
           <p className={cx(panelTitle, "truncate")}>Suzi Dating</p>
-          <p className={cx(listL2, "truncate leading-tight text-pink-100/82")}>Find your match nearby</p>
+          <p className={cx(listL2, "truncate leading-tight text-pink-100/82")}>{subline}</p>
         </div>
       </div>
 
@@ -122,13 +156,18 @@ export function HomeDatingPanel() {
           Explore
         </span>
         <div className="flex shrink-0 items-center -space-x-1.5">
-          {datingAvatars.map((person) => (
+          {avatars.map((person) => (
             <span
-              key={person.src}
+              key={person.src + person.alt}
               className="relative inline-block overflow-hidden rounded-full border-2 border-[rgba(46,18,116,0.95)] bg-[rgba(20,13,62,0.6)]"
               style={{ width: "var(--avatar-sm)", height: "var(--avatar-sm)" }}
             >
-              <Image src={person.src} alt={person.alt} fill sizes="32px" className="object-cover" />
+              {person.src.startsWith("http") ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={person.src} alt={person.alt} className="h-full w-full object-cover" />
+              ) : (
+                <Image src={person.src} alt={person.alt} fill sizes="32px" className="object-cover" />
+              )}
             </span>
           ))}
         </div>

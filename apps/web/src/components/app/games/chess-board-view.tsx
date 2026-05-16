@@ -135,7 +135,7 @@ export function ChessBoardView({
       allowDragging: canDrag,
       canDragPiece,
       showNotation: true,
-      boardStyle: { borderRadius: "0.75rem", width: "100%", height: "100%" },
+      boardStyle: { borderRadius: "0.75rem", width: "100%" },
       darkSquareStyle: { backgroundColor: "#2b235c" },
       lightSquareStyle: { backgroundColor: "#4a3d8a" },
       squareStyles,
@@ -146,10 +146,10 @@ export function ChessBoardView({
 
   return (
     <div
-      className="relative mx-auto flex aspect-square w-full max-w-[min(100%,32rem,min(85vw,58vh))] flex-col"
+      className="relative mx-auto flex w-full max-w-[min(100%,32rem,min(85vw,70vh))] flex-col items-center"
       data-testid="chess-board-root"
     >
-      <div className="relative min-h-0 w-full flex-1">
+      <div className="relative aspect-square w-full shrink-0" data-testid="chess-board-stage">
         <ChessboardProvider options={options}>
           <Chessboard />
         </ChessboardProvider>
