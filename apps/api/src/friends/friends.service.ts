@@ -14,6 +14,7 @@ const friendUserSelect = {
   email: true,
   username: true,
   displayName: true,
+  avatarUrl: true,
   country: true,
 } as const;
 

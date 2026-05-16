@@ -16,6 +16,21 @@ export function isUploadedReelPath(url: string) {
   return url.trim().startsWith("/api/uploads/reels/");
 }
 
+/** Absolute URL for displaying post media in img/video tags. */
+export function resolvePostMediaUrl(mediaUrl: string): string {
+  const value = mediaUrl.trim();
+  if (!value) {
+    return "";
+  }
+  if (isHttpMediaUrl(value) || isDataMediaUrl(value) || value.startsWith("blob:")) {
+    return value;
+  }
+  if (value.startsWith("/")) {
+    return value;
+  }
+  return value;
+}
+
 /** Client-side validation before createPost. */
 export function validatePostMediaUrl(
   url: string,

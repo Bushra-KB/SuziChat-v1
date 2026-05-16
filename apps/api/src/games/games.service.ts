@@ -33,6 +33,7 @@ import type { EngineContext, SeatSnapshot } from './engines/game-engine.types';
 import {
   applyPokerAction,
   buildInitialPokerState,
+  buildNextPokerHand,
 } from './engines/poker-holdem.engine';
 import { CreateGameLobbyDto } from './dto/create-game-lobby.dto';
 import { GameActionDto } from './dto/game-action.dto';
@@ -458,13 +459,17 @@ export class GamesService {
       options: dto.options,
     };
     const state = this.buildInitialState(context);
+    const pokerTurnUserId =
+      lobby.gameType === GameType.POKER_HOLDEM
+        ? this.pokerActorUserId(state, seated)
+        : null;
     const session = await this.prisma.gameSession.create({
       data: {
         lobbyId,
         gameType: lobby.gameType,
         status: GameSessionStatus.ACTIVE,
         state: toJson(state),
-        turnUserId: seated[0]?.userId ?? null,
+        turnUserId: pokerTurnUserId ?? seated[0]?.userId ?? null,
         startedAt: new Date(),
       },
     });
@@ -473,28 +478,8 @@ export class GamesService {
       data: { status: GameLobbyStatus.IN_PROGRESS },
     });
     if (lobby.gameType === GameType.POKER_HOLDEM) {
-      const pokerState = state as {
-        phase?: PokerRound;
-        board?: unknown[];
-        currentBet?: number;
-        minRaise?: number;
-        pot?: number;
-        actionSeatIndex?: number;
-      };
-      await this.prisma.pokerHandState.create({
-        data: {
-          sessionId: session.id,
-          dealerSeatIndex: seated[0]?.seatIndex ?? 0,
-          smallBlindSeatIndex: seated[1 % seated.length]?.seatIndex ?? 0,
-          bigBlindSeatIndex: seated[2 % seated.length]?.seatIndex ?? 0,
-          communityCards: (pokerState.board ?? []) as object,
-          round: pokerState.phase ?? PokerRound.PREFLOP,
-          currentBet: Number(pokerState.currentBet ?? 0),
-          minRaise: Number(pokerState.minRaise ?? 0),
-          pot: Number(pokerState.pot ?? 0),
-          actionSeatIndex: Number(pokerState.actionSeatIndex ?? 0),
-        },
-      });
+      await this.createPokerHandStateRow(session.id, state);
+      await this.syncPokerSeatStacks(lobbyId, state);
     }
     this.realtimeEvents.emitToChannel(
       this.lobbyChannel(lobbyId),
@@ -628,6 +613,71 @@ export class GamesService {
     };
   }
 
+  private pokerActorUserId(
+    state: Record<string, unknown>,
+    seated: SeatSnapshot[],
+  ): string | null {
+    const pokerState = state as {
+      currentTurnSeatIndex?: number;
+      players?: Array<{ seatIndex: number; userId: string }>;
+    };
+    const seatIndex = pokerState.currentTurnSeatIndex;
+    if (typeof seatIndex !== 'number') {
+      return seated[0]?.userId ?? null;
+    }
+    const actor = pokerState.players?.find((p) => p.seatIndex === seatIndex);
+    return actor?.userId ?? seated[0]?.userId ?? null;
+  }
+
+  private async syncPokerSeatStacks(
+    lobbyId: string,
+    state: Record<string, unknown>,
+  ) {
+    const players = (
+      state as { players?: Array<{ userId: string; stack: number }> }
+    ).players;
+    if (!Array.isArray(players)) return;
+    await Promise.all(
+      players.map((player) =>
+        this.prisma.gameSeat.updateMany({
+          where: { lobbyId, userId: player.userId },
+          data: { stackChips: Math.max(0, Number(player.stack ?? 0)) },
+        }),
+      ),
+    );
+  }
+
+  private async createPokerHandStateRow(
+    sessionId: string,
+    state: Record<string, unknown>,
+  ) {
+    const pokerState = state as {
+      phase?: PokerRound;
+      board?: unknown[];
+      currentBet?: number;
+      minRaise?: number;
+      pot?: number;
+      currentTurnSeatIndex?: number;
+      buttonSeatIndex?: number;
+      smallBlindSeatIndex?: number;
+      bigBlindSeatIndex?: number;
+    };
+    await this.prisma.pokerHandState.create({
+      data: {
+        sessionId,
+        dealerSeatIndex: Number(pokerState.buttonSeatIndex ?? 0),
+        smallBlindSeatIndex: Number(pokerState.smallBlindSeatIndex ?? 0),
+        bigBlindSeatIndex: Number(pokerState.bigBlindSeatIndex ?? 0),
+        communityCards: (pokerState.board ?? []) as object,
+        round: pokerState.phase ?? PokerRound.PREFLOP,
+        currentBet: Number(pokerState.currentBet ?? 0),
+        minRaise: Number(pokerState.minRaise ?? 0),
+        pot: Number(pokerState.pot ?? 0),
+        actionSeatIndex: Number(pokerState.currentTurnSeatIndex ?? 0),
+      },
+    });
+  }
+
   private maskSessionForViewer(
     session: Awaited<ReturnType<GamesService['fetchSessionSnapshot']>>,
     viewerId: string,
@@ -705,6 +755,71 @@ export class GamesService {
       .filter((seat) => seat.userId)
       .sort((a, b) => a.seatIndex - b.seatIndex)
       .map((seat) => seat.userId as string);
+    const seated: SeatSnapshot[] = session.lobby.seats
+      .filter((seat) => seat.userId)
+      .map((seat) => ({
+        seatIndex: seat.seatIndex,
+        userId: seat.userId as string,
+      }))
+      .sort((a, b) => a.seatIndex - b.seatIndex);
+
+    const actionKind = jsonPrimitiveString(dto.payload.kind).toUpperCase();
+    if (session.gameType === GameType.POKER_HOLDEM && actionKind === 'NEXT_HAND') {
+      const phase = jsonPrimitiveString(
+        (session.state as Record<string, unknown>).phase,
+      );
+      if (phase !== PokerRound.COMPLETE) {
+        throw new BadRequestException('Current hand is still in progress.');
+      }
+      const nextState = buildNextPokerHand(
+        session.state as Record<string, unknown>,
+        {
+          gameType: GameType.POKER_HOLDEM,
+          seats: seated,
+          options: {},
+        },
+      );
+      const nextTurnUserId = this.pokerActorUserId(nextState, seated);
+      const updated = await this.prisma.gameSession.update({
+        where: { id: sessionId },
+        data: {
+          state: toJson(nextState),
+          status: GameSessionStatus.ACTIVE,
+          turnUserId: nextTurnUserId,
+          winnerUserId: null,
+          endedAt: null,
+        },
+      });
+      await this.prisma.pokerHandState.update({
+        where: { sessionId },
+        data: {
+          dealerSeatIndex: Number(
+            (nextState as { buttonSeatIndex?: number }).buttonSeatIndex ?? 0,
+          ),
+          smallBlindSeatIndex: Number(
+            (nextState as { smallBlindSeatIndex?: number }).smallBlindSeatIndex ??
+              0,
+          ),
+          bigBlindSeatIndex: Number(
+            (nextState as { bigBlindSeatIndex?: number }).bigBlindSeatIndex ?? 0,
+          ),
+          communityCards: [],
+          round: PokerRound.PREFLOP,
+          currentBet: Number((nextState as { currentBet?: number }).currentBet ?? 0),
+          minRaise: Number((nextState as { minRaise?: number }).minRaise ?? 0),
+          pot: Number((nextState as { pot?: number }).pot ?? 0),
+          actionSeatIndex: Number(
+            (nextState as { currentTurnSeatIndex?: number }).currentTurnSeatIndex ??
+              0,
+          ),
+        },
+      });
+      await this.syncPokerSeatStacks(session.lobbyId, nextState);
+      const snapshot = await this.fetchSessionSnapshot(updated.id);
+      this.emitSessionState(snapshot);
+      this.gamesMetrics.recordSessionActionOk(Date.now() - t0);
+      return this.maskSessionForViewer(snapshot, userId);
+    }
 
     const result = this.applyActionForGame(
       session.gameType,
@@ -730,18 +845,28 @@ export class GamesService {
       );
       nextTurnUserId = actor?.userId ?? null;
     }
+    const pokerPhase =
+      session.gameType === GameType.POKER_HOLDEM
+        ? jsonPrimitiveString((result.state as Record<string, unknown>).phase)
+        : '';
+    const pokerHandComplete =
+      session.gameType === GameType.POKER_HOLDEM &&
+      pokerPhase === PokerRound.COMPLETE;
+    const sessionFinished = result.status === 'finished';
+
     const updated = await this.prisma.gameSession.update({
       where: { id: sessionId },
       data: {
         state: toJson(result.state),
-        status:
-          result.status === 'finished'
-            ? GameSessionStatus.FINISHED
-            : GameSessionStatus.ACTIVE,
+        status: sessionFinished
+          ? GameSessionStatus.FINISHED
+          : GameSessionStatus.ACTIVE,
         winnerUserId:
-          result.status === 'finished' ? (result.winnerUserId ?? null) : null,
-        turnUserId: nextTurnUserId,
-        endedAt: result.status === 'finished' ? new Date() : null,
+          sessionFinished || pokerHandComplete
+            ? (result.winnerUserId ?? null)
+            : null,
+        turnUserId: pokerHandComplete ? null : nextTurnUserId,
+        endedAt: sessionFinished ? new Date() : null,
       },
     });
     const ply = await this.prisma.gameMove.count({ where: { sessionId } });
@@ -812,7 +937,10 @@ export class GamesService {
         });
       }
     }
-    if (result.status === 'finished') {
+    if (session.gameType === GameType.POKER_HOLDEM) {
+      await this.syncPokerSeatStacks(session.lobbyId, result.state);
+    }
+    if (sessionFinished) {
       await this.prisma.gameLobby.update({
         where: { id: session.lobbyId },
         data: { status: GameLobbyStatus.OPEN },

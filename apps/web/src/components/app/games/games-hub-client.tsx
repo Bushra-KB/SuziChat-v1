@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { gameMeta } from "@/components/app/games/game-meta";
+import { gameMeta, gameTypeToId } from "@/components/app/games/game-meta";
 import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
 import { createGameLobby, listGameLobbies, type ApiGameLobby } from "@/lib/games-client";
 import { getStoredAuthSession } from "@/lib/auth-client";
@@ -63,7 +63,7 @@ export function GamesHubClient() {
         gameType,
         title: `${gameName} Quick Table`,
       });
-      window.location.href = `/app/games/${lobby.gameType.toLowerCase()}`;
+      window.location.href = `/app/games/${gameTypeToId(lobby.gameType)}`;
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Could not create lobby.");
     } finally {

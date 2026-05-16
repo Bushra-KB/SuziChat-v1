@@ -66,6 +66,20 @@ export async function listMyAuthoredPosts(accessToken: string, kind: PostKind, t
   });
 }
 
+/** Snaps/reels by another user visible to the signed-in viewer (profile page). */
+export async function listUserProfilePosts(
+  accessToken: string,
+  userId: string,
+  kind: PostKind,
+  take = 40,
+) {
+  const q = new URLSearchParams({ kind, take: String(take) });
+  return apiJson<ApiPost[]>(
+    `/v1/posts/user/${encodeURIComponent(userId)}?${q.toString()}`,
+    { method: "GET", accessToken },
+  );
+}
+
 export async function getPost(id: string) {
   return apiJson<ApiPost>(`/v1/posts/${encodeURIComponent(id)}`, { method: "GET" });
 }

@@ -4,8 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ProfileMediaGallery } from "@/components/app/profile-media-gallery";
+import { ProfilePageShell } from "@/components/app/profile-page-shell";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
+import { getStoredAuthSession } from "@/lib/auth-client";
+import { listUserProfilePosts, type ApiPost } from "@/lib/posts-client";
+import { usePublicProfileRealtime, useUserPresence } from "@/lib/use-profile-realtime";
 import {
   acceptFriendRequest,
   blockPerson,
@@ -15,7 +20,6 @@ import {
   unfriend,
   unblockPerson,
 } from "@/lib/friends-client";
-import { getStoredAuthSession } from "@/lib/auth-client";
 import { listRooms } from "@/lib/rooms-client";
 import {
   getUserProfileView,
@@ -23,6 +27,16 @@ import {
   parseUsersApiError,
   type UserProfileView,
 } from "@/lib/users-client";
+
+function presenceLabel(status: "online" | "away" | "offline") {
+  if (status === "online") {
+    return "Online";
+  }
+  if (status === "away") {
+    return "Away";
+  }
+  return "Offline";
+}
 
 function formatJoined(iso: string) {
   try {
@@ -72,9 +86,12 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
   const [hostedRooms, setHostedRooms] = useState<Array<{ id: string; slug: string; name: string; description: string | null }>>(
     [],
   );
+  const [profileSnaps, setProfileSnaps] = useState<ApiPost[]>([]);
+  const [profileReels, setProfileReels] = useState<ApiPost[]>([]);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     const s = getStoredAuthSession();
@@ -90,13 +107,18 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
       setProfileView(null);
       return;
     }
-    const [view, rooms] = await Promise.all([
-      id
-        ? getUserProfileViewByUserId(s.accessToken, id)
-        : getUserProfileView(s.accessToken, slug!),
+    setAccessToken(s.accessToken);
+    const view = id
+      ? await getUserProfileViewByUserId(s.accessToken, id)
+      : await getUserProfileView(s.accessToken, slug!);
+    const [rooms, snaps, reels] = await Promise.all([
       listRooms(),
+      listUserProfilePosts(s.accessToken, view.profile.id, "SNAP", 24).catch(() => []),
+      listUserProfilePosts(s.accessToken, view.profile.id, "REEL", 24).catch(() => []),
     ]);
     setProfileView(view);
+    setProfileSnaps(snaps);
+    setProfileReels(reels);
     setHostedRooms(
       rooms
         .filter((room) => room.owner.username === view.profile.username)
@@ -108,6 +130,12 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
         })),
     );
   }, [username, userId]);
+
+  usePublicProfileRealtime(accessToken, profileView?.profile.id ?? null, () => {
+    void loadData().catch(() => {});
+  });
+
+  const presence = useUserPresence(accessToken, profileView?.profile.id ?? null);
 
   useEffect(() => {
     let cancelled = false;
@@ -256,34 +284,40 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
 
   if (loading) {
     return (
-      <div className="suzi-app-frame-fill flex items-center justify-center px-6">
-        <div className="text-center">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-200" />
-          <p className="mt-4 text-sm text-[var(--text-muted)]">Loading profile…</p>
+      <ProfilePageShell>
+        <div className="flex flex-1 items-center justify-center px-6">
+          <div className="text-center">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-200" />
+            <p className="mt-4 text-sm text-[var(--text-muted)]">Loading profile…</p>
+          </div>
         </div>
-      </div>
+      </ProfilePageShell>
     );
   }
 
   if (!profileView) {
     return (
-      <div className="suzi-app-frame-fill flex items-center justify-center px-4 py-6">
-      <Panel className="border border-amber-300/22 bg-amber-500/10 p-8">
-        <p className="text-lg font-semibold text-amber-100">{error || "Profile not found."}</p>
-        <p className="mt-2 text-sm text-[var(--text-muted)]">Check the username or try again later.</p>
-        <Link href="/app" className="suzi-secondary-btn mt-6 inline-flex px-5 py-3 text-sm">
-          Back to home
-        </Link>
-      </Panel>
-      </div>
+      <ProfilePageShell>
+        <div className="flex flex-1 items-center justify-center px-4 py-6">
+          <Panel className="border border-amber-300/22 bg-amber-500/10 p-8 text-center">
+            <p className="text-lg font-semibold text-amber-100">{error || "Profile not found."}</p>
+            <p className="mt-2 text-sm text-[var(--text-muted)]">Check the username or try again later.</p>
+            <Link href="/app" className="suzi-secondary-btn mt-6 inline-flex px-5 py-3 text-sm">
+              Back to home
+            </Link>
+          </Panel>
+        </div>
+      </ProfilePageShell>
     );
   }
 
   if (profileView.relationship.kind === "self") {
     return (
-      <div className="suzi-app-frame-fill flex items-center justify-center px-6">
-        <p className="text-sm text-[var(--text-muted)]">Opening your profile…</p>
-      </div>
+      <ProfilePageShell>
+        <div className="flex flex-1 items-center justify-center px-6">
+          <p className="text-sm text-[var(--text-muted)]">Opening your profile…</p>
+        </div>
+      </ProfilePageShell>
     );
   }
 
@@ -315,8 +349,8 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
   const showCancelRequest = relation.kind === "outgoing_request";
 
   return (
-    <section className="suzi-app-frame-fill">
-      <div className="suzi-app-frame-scroll suzi-thin-scroll space-y-[var(--row-gap)] pb-2 pr-1">
+    <ProfilePageShell>
+      <div className="w-full space-y-[var(--row-gap)]">
       {/* Cover + identity */}
       <div className="overflow-hidden rounded-[var(--panel-radius)] border border-white/10 bg-[linear-gradient(135deg,rgba(72,28,140,0.55),rgba(10,14,42,0.95))] shadow-[0_18px_44px_rgba(6,8,28,0.45)]">
         <div className="relative px-[var(--panel-pad)] py-[var(--panel-pad)]">
@@ -352,7 +386,36 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-1 text-[var(--fs-sm)] font-medium text-cyan-100/75">@{user.username}</p>
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-[var(--fs-sm)] font-medium text-cyan-100/75">
+                  <span>@{user.username}</span>
+                  {relation.kind !== "blocked_you" ? (
+                    <>
+                      <span className="opacity-30">·</span>
+                      <span
+                        className={cx(
+                          "inline-flex items-center gap-1.5 text-[var(--fs-xs)]",
+                          presence === "online"
+                            ? "text-emerald-300/90"
+                            : presence === "away"
+                              ? "text-amber-200/85"
+                              : "text-[var(--text-muted)]",
+                        )}
+                      >
+                        <span
+                          className={cx(
+                            "h-1.5 w-1.5 rounded-full",
+                            presence === "online"
+                              ? "bg-emerald-400 shadow-[0_0_8px_rgba(110,255,178,0.7)]"
+                              : presence === "away"
+                                ? "bg-amber-300"
+                                : "bg-slate-500",
+                          )}
+                        />
+                        {presenceLabel(presence)}
+                      </span>
+                    </>
+                  ) : null}
+                </p>
 
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span
@@ -523,29 +586,13 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
         </div>
       </Panel>
 
-      {/* Discover */}
-      <Panel className="border border-white/10 p-[var(--panel-pad)]">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-[var(--fs-2xs)] font-bold uppercase tracking-[0.22em] text-cyan-100/52">Snaps & Reels</p>
-            <p className="mt-0.5 text-[var(--fs-xs)] text-[var(--text-soft)]">
-              Recent snaps and reels from @{user.username}
-            </p>
-          </div>
-          <Link href="/app/snaps" className="text-[var(--fs-xs)] font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100">
-            View all →
-          </Link>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link href="/app/snaps" className="suzi-secondary-btn px-4 py-2 text-[var(--fs-xs)] font-semibold">
-            Open snaps
-          </Link>
-          <Link href="/app/reels" className="suzi-secondary-btn px-4 py-2 text-[var(--fs-xs)] font-semibold">
-            Open reels
-          </Link>
-        </div>
-      </Panel>
+      <ProfileMediaGallery
+        username={user.username}
+        snaps={profileSnaps}
+        reels={profileReels}
+        loading={busy}
+      />
       </div>
-    </section>
+    </ProfilePageShell>
   );
 }

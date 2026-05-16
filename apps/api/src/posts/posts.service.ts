@@ -135,6 +135,38 @@ export class PostsService {
     });
   }
 
+  /** Posts by a user visible on their profile to the signed-in viewer. */
+  async listAuthorPostsForProfile(
+    viewerId: string,
+    authorId: string,
+    kind: PostKind,
+    take = 40,
+  ) {
+    if (viewerId === authorId) {
+      return this.listAuthoredPosts(authorId, kind, take);
+    }
+    const friends = await this.friendIdsFor(viewerId);
+    const isFriend = friends.includes(authorId);
+    const visibilityOr: Prisma.PostWhereInput[] = [
+      { visibility: { equals: 'Public', mode: 'insensitive' } },
+    ];
+    if (isFriend) {
+      visibilityOr.push({
+        visibility: { equals: 'Friends', mode: 'insensitive' },
+      });
+    }
+    return this.prisma.post.findMany({
+      where: {
+        kind,
+        authorId,
+        OR: visibilityOr,
+      },
+      orderBy: { createdAt: 'desc' },
+      take,
+      select: this.postSelect(),
+    });
+  }
+
   async deletePostAsAuthor(postId: string, authorId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },

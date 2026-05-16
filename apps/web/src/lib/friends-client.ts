@@ -5,6 +5,7 @@ export type FriendSummaryUser = {
   email: string;
   username: string;
   displayName: string | null;
+  avatarUrl?: string | null;
   country: string | null;
 };
 
