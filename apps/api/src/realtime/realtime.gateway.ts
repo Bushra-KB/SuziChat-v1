@@ -9,7 +9,7 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
-import { GameType, MoveKind } from '@prisma/client';
+import { GameType, MoveKind, PostKind } from '@prisma/client';
 import type { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { DatingService } from '../dating/dating.service';
@@ -18,6 +18,7 @@ import { GamesService } from '../games/games.service';
 import { PostsService } from '../posts/posts.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { GamesMetricsService } from '../games/games-metrics.service';
+import { postsFeedChannel, ROOMS_CATALOG_CHANNEL } from './realtime-channels';
 import { RealtimeEventsService } from './realtime-events.service';
 import { RealtimeStateService } from './realtime-state.service';
 
@@ -378,6 +379,27 @@ export class RealtimeGateway
       userId,
       typing: Boolean(payload?.typing),
     });
+    return { ok: true };
+  }
+
+  @SubscribeMessage('posts:feed:subscribe')
+  async onPostsFeedSubscribe(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { kind?: string },
+  ) {
+    this.getUserId(client);
+    const kind = payload?.kind?.trim().toUpperCase();
+    if (kind !== PostKind.REEL && kind !== PostKind.SNAP) {
+      throw new WsException('kind must be REEL or SNAP');
+    }
+    await client.join(postsFeedChannel(kind as PostKind));
+    return { ok: true };
+  }
+
+  @SubscribeMessage('rooms:catalog:subscribe')
+  async onRoomsCatalogSubscribe(@ConnectedSocket() client: AuthSocket) {
+    this.getUserId(client);
+    await client.join(ROOMS_CATALOG_CHANNEL);
     return { ok: true };
   }
 

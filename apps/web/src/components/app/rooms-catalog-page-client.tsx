@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Panel } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
+import { subscribeRoomsCatalog } from "@/lib/realtime-feed";
 import { joinRoom, listRooms, listRoomsForMe, requestRoomAccess, type ApiRoom } from "@/lib/rooms-client";
 
 function formatPrivacyLabel(privacy: string) {
@@ -25,18 +26,18 @@ export function RoomsCatalogPageClient() {
   const [onlineBySlug, setOnlineBySlug] = useState<Record<string, number>>({});
   const [actingSlug, setActingSlug] = useState<string | null>(null);
 
+  const reloadRooms = useCallback(async () => {
+    const session = getStoredAuthSession();
+    const loader = session?.accessToken ? listRoomsForMe(session.accessToken) : listRooms();
+    const rows = await loader;
+    setRooms(rows);
+    setError("");
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    const session = getStoredAuthSession();
-    const loader = session?.accessToken ? listRoomsForMe(session.accessToken) : listRooms();
-    void loader
-      .then((rows) => {
-        if (!cancelled) {
-          setRooms(rows);
-          setError("");
-        }
-      })
+    void reloadRooms()
       .catch((e: unknown) => {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "Could not load rooms.");
@@ -50,7 +51,17 @@ export function RoomsCatalogPageClient() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadRooms]);
+
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      return;
+    }
+    return subscribeRoomsCatalog(session.accessToken, () => {
+      void reloadRooms().catch(() => {});
+    });
+  }, [reloadRooms]);
 
   useEffect(() => {
     const session = getStoredAuthSession();

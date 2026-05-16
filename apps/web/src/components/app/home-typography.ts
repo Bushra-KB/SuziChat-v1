@@ -4,18 +4,22 @@
  */
 
 export const panelTitle = "suzi-home-panel-title font-bold tracking-tight text-white";
+export const homePanelHeader = "suzi-home-panel-header";
+export const homePanelIcon = "suzi-home-panel-icon";
+export const homeInset = "suzi-home-inset";
+export const homeRow = "suzi-home-row";
 export const panelLink =
   "suzi-home-panel-link shrink-0 whitespace-nowrap font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100";
-export const panelMeta = "suzi-home-panel-meta text-cyan-100/62";
+export const panelMeta = "suzi-home-panel-meta";
 
 export const listL1 = "suzi-home-list-l1";
 export const listL2 = "suzi-home-list-l2";
 export const listL3 = "suzi-home-list-l3";
 
 export const listTitle = `${listL1} font-semibold leading-tight text-white`;
-export const listSubtitle = `${listL2} truncate leading-none text-cyan-100/66`;
-export const listMeta = `${listL3} text-cyan-100/72`;
-export const listSection = "suzi-home-list-section font-semibold text-cyan-100/62";
+export const listSubtitle = `${listL2} suzi-home-list-subtitle truncate leading-none`;
+export const listMeta = `${listL3}`;
+export const listSection = "suzi-home-list-section font-semibold";
 export const listEmpty = "suzi-home-list-empty";
 export const listAction = "suzi-home-list-action font-semibold leading-none";
 
@@ -28,7 +32,22 @@ export const listActionPrimary = `${listL2} inline-flex items-center justify-cen
 
 export const homeTabChip = `${listL1} inline-flex h-[1.35rem] shrink-0 items-center gap-1 rounded-[0.45rem] border px-1.5 font-medium leading-none transition`;
 
-export const homeSearchInput = `${listL1} leading-none`;
+export const homeTabActive = `${homeTabChip} suzi-home-tab-active`;
+export const homeTabInactive = `${homeTabChip} suzi-home-tab-inactive`;
+
+export function homeTabClasses(active: boolean) {
+  return active ? homeTabActive : homeTabInactive;
+}
+
+export const homeBtnPrimary = `${listActionPrimary} suzi-home-btn-primary`;
+export const homeBtnSecondary = `${listActionChip} suzi-home-btn-secondary`;
+
+export const homeGameCard = "suzi-home-game-card";
+export const homeStatPill = "suzi-home-stat-pill";
+export const homeStatPillLive = "suzi-home-stat-pill suzi-home-stat-pill--live";
+export const homeSnapTile = "suzi-home-snap-tile";
+
+export const homeSearchInput = `${listL1} suzi-home-search-field leading-none`;
 
 export const modalTitle = `${panelTitle} font-semibold`;
 export const modalLabel = `${listSection} mb-1 block tracking-[0.14em] text-cyan-100/76`;

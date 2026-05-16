@@ -137,7 +137,7 @@ export class PostsService {
   async deletePostAsAuthor(postId: string, authorId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
-      select: { id: true, authorId: true },
+      select: { id: true, authorId: true, kind: true },
     });
     if (!post) {
       throw new NotFoundException('Post not found');
@@ -146,7 +146,7 @@ export class PostsService {
       throw new ForbiddenException('You can only delete your own posts');
     }
     await this.prisma.post.delete({ where: { id: postId } });
-    return { status: 'deleted' as const, id: postId };
+    return { status: 'deleted' as const, id: postId, kind: post.kind };
   }
 
   async createPost(authorId: string, dto: CreatePostDto) {

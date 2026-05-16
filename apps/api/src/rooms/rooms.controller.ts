@@ -11,6 +11,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
+import { ROOMS_CATALOG_CHANNEL } from '../realtime/realtime-channels';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { CreateRoomMessageDto } from './dto/create-room-message.dto';
@@ -29,6 +30,13 @@ export class RoomsController {
     this.realtimeEvents.emitToChannel(`roomstats:${slug}`, 'room:stats', {
       roomSlug: slug,
       totalMembers: room._count?.memberships ?? 0,
+    });
+  }
+
+  private emitRoomsCatalogUpdate(reason: string, roomSlug?: string) {
+    this.realtimeEvents.emitToChannel(ROOMS_CATALOG_CHANNEL, 'rooms:update', {
+      reason,
+      roomSlug,
     });
   }
 
@@ -73,11 +81,13 @@ export class RoomsController {
 
   @Post()
   @UseGuards(AccessTokenGuard)
-  createRoom(
+  async createRoom(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateRoomDto,
   ) {
-    return this.roomsService.createRoom(user.id, dto);
+    const room = await this.roomsService.createRoom(user.id, dto);
+    this.emitRoomsCatalogUpdate('created', room.slug);
+    return room;
   }
 
   @Patch(':slug')
@@ -92,8 +102,10 @@ export class RoomsController {
 
   @Delete(':slug')
   @UseGuards(AccessTokenGuard)
-  deleteRoom(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.roomsService.deleteRoom(slug, user.id);
+  async deleteRoom(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.roomsService.deleteRoom(slug, user.id);
+    this.emitRoomsCatalogUpdate('deleted', slug);
+    return result;
   }
 
   @Post(':slug/messages')
@@ -114,19 +126,24 @@ export class RoomsController {
   async joinRoom(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
     const result = await this.roomsService.joinRoom(slug, user.id);
     await this.emitRoomStats(slug);
+    this.emitRoomsCatalogUpdate('joined', slug);
     return result;
   }
 
   @Post(':slug/request-access')
   @UseGuards(AccessTokenGuard)
   async requestAccess(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.roomsService.requestAccess(slug, user.id);
+    const result = await this.roomsService.requestAccess(slug, user.id);
+    this.emitRoomsCatalogUpdate('access_requested', slug);
+    return result;
   }
 
   @Post(':slug/cancel-request')
   @UseGuards(AccessTokenGuard)
   async cancelJoinRequest(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.roomsService.cancelJoinRequest(slug, user.id);
+    const result = await this.roomsService.cancelJoinRequest(slug, user.id);
+    this.emitRoomsCatalogUpdate('access_canceled', slug);
+    return result;
   }
 
   @Post(':slug/leave')
@@ -134,6 +151,7 @@ export class RoomsController {
   async leaveRoom(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
     const result = await this.roomsService.leaveRoom(slug, user.id);
     await this.emitRoomStats(slug);
+    this.emitRoomsCatalogUpdate('left', slug);
     return result;
   }
 
@@ -152,6 +170,7 @@ export class RoomsController {
   ) {
     return this.roomsService.approveJoinRequest(slug, user.id, userId).then(async (result) => {
       await this.emitRoomStats(slug);
+      this.emitRoomsCatalogUpdate('member_approved', slug);
       return result;
     });
   }
@@ -175,6 +194,7 @@ export class RoomsController {
   ) {
     return this.roomsService.removeMember(slug, user.id, userId).then(async (result) => {
       await this.emitRoomStats(slug);
+      this.emitRoomsCatalogUpdate('member_removed', slug);
       return result;
     });
   }
@@ -188,6 +208,7 @@ export class RoomsController {
   ) {
     return this.roomsService.banMember(slug, user.id, userId).then(async (result) => {
       await this.emitRoomStats(slug);
+      this.emitRoomsCatalogUpdate('member_banned', slug);
       return result;
     });
   }
@@ -199,6 +220,9 @@ export class RoomsController {
     @Param('userId') userId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.roomsService.unbanMember(slug, user.id, userId);
+    return this.roomsService.unbanMember(slug, user.id, userId).then((result) => {
+      this.emitRoomsCatalogUpdate('member_unbanned', slug);
+      return result;
+    });
   }
 }

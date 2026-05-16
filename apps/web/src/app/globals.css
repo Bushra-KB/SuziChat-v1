@@ -671,54 +671,89 @@ h5 {
 
 @media (min-width: 768px) {
   .suzi-shell-content {
+    position: relative;
     overflow: visible;
     padding-top: 0 !important;
   }
+
+  /* Top bar in document flow; logo is a separate fixed overlay in the center. */
+  .suzi-shell-header-desktop {
+    flex-shrink: 0;
+    width: 100%;
+    pointer-events: none;
+  }
+
+  .suzi-shell-header-desktop .suzi-shell-toolbar {
+    pointer-events: auto;
+  }
+
+  .suzi-shell-content > .suzi-app-frame-fill {
+    position: relative;
+    z-index: 0;
+    flex: 1 1 0%;
+    min-height: 0;
+  }
+
+  .suzi-shell-game-invites {
+    top: calc(var(--shell-header-h) + 0.5rem);
+  }
 }
 
-/* Hero logo — fixed; 2px target gap via top + translateY lift */
+/* Hero logo — fixed overlay; avoid filter+transform on one layer (Chrome ghost/reflection). */
 .suzi-shell-logo-overlay {
   position: fixed;
-  left: 50%;
+  inset-inline: 0;
   top: calc(env(safe-area-inset-top, 0px) + var(--logo-top-gap));
-  z-index: 225;
+  z-index: 300;
   display: none;
   width: var(--logo-display-w);
   height: var(--logo-display-h);
-  margin: 0;
+  margin-inline: auto;
   padding: 0;
-  transform: translate(-50%, calc(-1 * var(--logo-lift)));
   overflow: visible;
+  justify-content: center;
+  align-items: flex-start;
+  line-height: 0;
   pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  translate: 0 calc(-1 * var(--logo-lift));
 }
 
 @media (min-width: 768px) {
   .suzi-shell-logo-overlay {
-    display: block;
+    display: flex;
   }
 }
 
-.suzi-shell-logo-overlay__frame {
-  position: relative;
+.suzi-shell-logo-overlay__img {
   display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  filter: drop-shadow(0 0 22px rgba(232, 77, 255, 0.38))
-    drop-shadow(0 8px 28px rgba(8, 6, 34, 0.45));
-}
-
-.suzi-shell-logo-overlay__frame img {
-  position: absolute;
-  left: 50%;
-  top: 0;
   height: 235%;
   width: auto;
   max-width: none;
-  transform: translateX(-50%);
-  transform-origin: top center;
+  flex-shrink: 0;
   object-fit: contain;
   object-position: top center;
+  filter: drop-shadow(0 0 12px rgba(232, 77, 255, 0.22))
+    drop-shadow(0 6px 18px rgba(8, 6, 34, 0.32));
+}
+
+@supports not (translate: 0 1px) {
+  .suzi-shell-logo-overlay {
+    left: 50%;
+    right: auto;
+    margin-inline: 0;
+    translate: none;
+    transform: translate(-50%, calc(-1 * var(--logo-lift)));
+  }
+
+  .suzi-shell-logo-overlay__img {
+    filter: none;
+  }
+
+  .suzi-shell-logo-overlay {
+    filter: drop-shadow(0 0 12px rgba(232, 77, 255, 0.22))
+      drop-shadow(0 6px 18px rgba(8, 6, 34, 0.32));
+  }
 }
 
 .suzi-scrollbar {
@@ -1167,8 +1202,271 @@ h5 {
   line-height: 1;
 }
 
+/* ------------------------------------------------------------------
+ * Home dashboard — medium-weight blue glass (readable on hybrid sky bg).
+ * Applied via `.suzi-panel--home` (dating uses grid-scoped panel rule).
+ * ------------------------------------------------------------------ */
+.suzi-panel.suzi-panel--home {
+  --home-surface: rgba(48, 72, 140, 0.58);
+  --home-surface-raised: rgba(56, 84, 156, 0.54);
+  --home-surface-inset: rgba(36, 56, 112, 0.65);
+  --panel-bg: var(--home-surface);
+  border: 1px solid rgba(130, 200, 255, 0.34);
+  background:
+    linear-gradient(180deg, rgba(176, 208, 255, 0.1), rgba(255, 255, 255, 0.03)),
+    linear-gradient(165deg, rgba(64, 96, 180, 0.56), rgba(44, 68, 136, 0.5));
+  box-shadow:
+    0 12px 28px rgba(16, 36, 88, 0.26),
+    0 0 14px rgba(0, 229, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(13px) saturate(145%);
+  -webkit-backdrop-filter: blur(13px) saturate(145%);
+}
+
+/* Dating panel — same medium blue glass family. */
+.suzi-home-grid .suzi-home-area-dating .suzi-panel {
+  border: 1px solid rgba(170, 140, 255, 0.36);
+  background:
+    linear-gradient(180deg, rgba(200, 180, 255, 0.08), rgba(255, 255, 255, 0.03)),
+    linear-gradient(155deg, rgba(88, 56, 168, 0.52), rgba(48, 72, 140, 0.5));
+  box-shadow:
+    0 12px 28px rgba(24, 20, 72, 0.24),
+    0 0 14px rgba(255, 45, 167, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(13px) saturate(145%);
+  -webkit-backdrop-filter: blur(13px) saturate(145%);
+}
+
+.suzi-home-panel-header {
+  flex-shrink: 0;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.2rem;
+  border-bottom: 1px solid rgba(140, 200, 255, 0.14);
+}
+
+.suzi-panel--home .suzi-home-panel-title {
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(12, 28, 64, 0.35);
+}
+
+.suzi-panel--home .suzi-home-panel-meta {
+  color: rgba(224, 240, 255, 0.88);
+}
+
+.suzi-panel--home .suzi-home-list-l1 {
+  color: #fff;
+}
+
+.suzi-panel--home .suzi-home-list-l2 {
+  color: rgba(224, 240, 255, 0.9);
+}
+
+.suzi-panel--home .suzi-home-list-l3 {
+  color: rgba(214, 232, 255, 0.86);
+}
+
+.suzi-panel--home .suzi-home-list-subtitle {
+  color: rgba(224, 240, 255, 0.9);
+  text-shadow: 0 1px 2px rgba(8, 20, 48, 0.42);
+}
+
+.suzi-panel--home .suzi-home-list-section {
+  color: rgba(214, 232, 255, 0.86);
+}
+
+.suzi-panel--home .suzi-home-list-empty {
+  color: rgba(210, 228, 255, 0.84);
+}
+
+.suzi-panel--home .suzi-home-inset-card {
+  border-color: rgba(130, 200, 255, 0.28);
+  background: rgba(40, 60, 118, 0.55);
+}
+
+.suzi-panel--home .suzi-home-dropdown {
+  border-color: rgba(120, 190, 255, 0.28);
+  background: linear-gradient(
+    160deg,
+    rgba(52, 76, 142, 0.96),
+    rgba(40, 60, 118, 0.94)
+  );
+  box-shadow: 0 14px 30px rgba(16, 32, 72, 0.35);
+}
+
+.suzi-home-panel-icon {
+  display: inline-flex;
+  height: 1.75rem;
+  width: 1.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(140, 200, 255, 0.32);
+  background: rgba(64, 92, 168, 0.45);
+  color: rgba(232, 246, 255, 0.96);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.suzi-home-inset {
+  border-radius: 0.85rem;
+  border: 1px solid rgba(120, 190, 255, 0.24);
+  background: var(--home-surface-inset);
+  box-shadow: inset 0 1px 3px rgba(12, 28, 64, 0.22);
+}
+
+.suzi-panel--home .suzi-home-search-field {
+  border-color: rgba(130, 200, 255, 0.34) !important;
+  background: linear-gradient(
+    95deg,
+    rgba(44, 68, 132, 0.72),
+    rgba(36, 56, 112, 0.68)
+  ) !important;
+  color: rgba(248, 252, 255, 0.98) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.suzi-panel--home .suzi-home-search-field::placeholder {
+  color: rgba(200, 220, 255, 0.68) !important;
+}
+
+.suzi-panel--home .suzi-home-empty-note {
+  border-color: rgba(130, 200, 255, 0.24) !important;
+  background: rgba(40, 60, 118, 0.48) !important;
+  color: rgba(220, 238, 255, 0.86) !important;
+}
+
+.suzi-home-inset > .suzi-home-row + .suzi-home-row,
+.suzi-home-inset > a.suzi-home-row + a.suzi-home-row,
+.suzi-home-inset > article + article,
+.suzi-home-inset > a + a,
+.suzi-home-inset > .suzi-home-row + a.suzi-home-row,
+.suzi-home-inset > a.suzi-home-row + .suzi-home-row {
+  border-top: 1px solid rgba(86, 196, 255, 0.1);
+}
+
+.suzi-home-row {
+  border-radius: 0.72rem;
+  transition: background-color 0.15s ease;
+}
+
+.suzi-home-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.suzi-panel--home .suzi-home-chat-room-row {
+  background: rgba(32, 48, 96, 0.28);
+}
+
+.suzi-panel--home .suzi-home-chat-room-row + .suzi-home-chat-room-row {
+  border-top: 1px solid rgba(120, 190, 255, 0.14);
+}
+
+.suzi-home-tab-active {
+  border-color: rgba(244, 114, 182, 0.42) !important;
+  background: linear-gradient(90deg, rgba(157, 78, 221, 0.88), rgba(255, 32, 121, 0.74)) !important;
+  color: #fff !important;
+  box-shadow: 0 0 10px rgba(255, 32, 121, 0.18);
+}
+
+.suzi-home-tab-inactive {
+  border-color: rgba(120, 190, 255, 0.28) !important;
+  background: rgba(56, 84, 156, 0.48) !important;
+  color: rgba(232, 246, 255, 0.92) !important;
+}
+
+.suzi-home-tab-inactive:hover {
+  border-color: rgba(86, 196, 255, 0.32) !important;
+  color: #fff !important;
+}
+
+.suzi-home-btn-primary {
+  border-color: rgba(244, 114, 182, 0.44) !important;
+  background: linear-gradient(90deg, #ff2da7, #ce2fff) !important;
+  color: #fff !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 12px rgba(255, 45, 167, 0.42);
+}
+
+.suzi-home-btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.suzi-home-btn-secondary {
+  border-color: rgba(130, 200, 255, 0.34) !important;
+  background: rgba(52, 80, 152, 0.58) !important;
+  color: rgba(240, 248, 255, 0.96) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.suzi-home-btn-secondary:hover {
+  border-color: rgba(86, 196, 255, 0.4) !important;
+  color: #fff !important;
+}
+
+.suzi-home-game-card {
+  border-color: rgba(130, 200, 255, 0.28) !important;
+  background: rgba(48, 72, 140, 0.45);
+  box-shadow: 0 4px 14px rgba(16, 32, 72, 0.2);
+}
+
+.suzi-home-game-card .suzi-home-game-scrim {
+  background: linear-gradient(
+    180deg,
+    rgba(4, 8, 26, 0) 38%,
+    rgba(4, 8, 26, 0.62) 72%,
+    rgba(4, 8, 26, 0.96) 100%
+  ) !important;
+}
+
+.suzi-home-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  border: 1px solid rgba(180, 220, 255, 0.32);
+  background: rgba(36, 56, 112, 0.58);
+  color: rgba(240, 248, 255, 0.94);
+  backdrop-filter: blur(4px);
+}
+
+.suzi-home-stat-pill--live::before {
+  content: "";
+  height: 0.35rem;
+  width: 0.35rem;
+  border-radius: 999px;
+  background: #6ee7b7;
+  box-shadow: 0 0 8px rgba(92, 255, 190, 0.75);
+}
+
+.suzi-home-snap-tile {
+  border-color: rgba(130, 200, 255, 0.28) !important;
+  background: rgba(48, 72, 140, 0.42);
+}
+
+.suzi-home-snap-tile .suzi-home-snap-scrim {
+  background: linear-gradient(180deg, rgba(4, 8, 26, 0.08), rgba(4, 8, 26, 0.62)) !important;
+}
+
 .suzi-home-mobile-stack > button[class*="rounded-"] {
   padding: var(--home-panel-pad) !important;
+}
+
+.suzi-home-mobile-games-card {
+  border-color: rgba(130, 200, 255, 0.34) !important;
+  background: linear-gradient(
+    165deg,
+    rgba(64, 96, 180, 0.56),
+    rgba(44, 68, 136, 0.5)
+  ) !important;
+  box-shadow:
+    0 10px 24px rgba(16, 32, 72, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+.suzi-panel--home .suzi-home-reel-thumb {
+  border-color: rgba(130, 200, 255, 0.28) !important;
+  background: rgba(48, 72, 140, 0.42) !important;
 }
 
 /* Compact home (< 1280px): safety net if `.suzi-home-grid` is in the DOM. */

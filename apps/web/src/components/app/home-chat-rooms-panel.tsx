@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
+import { subscribeRoomsCatalog } from "@/lib/realtime-feed";
 import {
   cancelRoomJoinRequest,
   createRoom,
@@ -18,10 +19,14 @@ import {
   type ApiRoom,
 } from "@/lib/rooms-client";
 import {
+  homeBtnPrimary,
+  homeBtnSecondary,
+  homeInset,
+  homePanelHeader,
+  homePanelIcon,
+  homeRow,
   homeSearchInput,
-  homeTabChip,
-  listActionChip,
-  listActionPrimary,
+  homeTabClasses,
   listEmpty,
   listMeta,
   listSubtitle,
@@ -176,24 +181,6 @@ function nextGuestAction(room: Pick<HomeRoom, "privacy" | "hasPendingRequest">):
   return room.hasPendingRequest ? "requested" : "request";
 }
 
-function getTabClasses(active: boolean) {
-  return cx(
-    homeTabChip,
-    active
-      ? "border-fuchsia-300/46 bg-[linear-gradient(90deg,rgba(157,78,221,0.86),rgba(255,32,121,0.72))] text-white shadow-[0_0_12px_rgba(255,32,121,0.2)]"
-      : "border-cyan-300/22 bg-[rgba(23,16,71,0.62)] text-cyan-100/84 hover:border-cyan-300/38 hover:text-white",
-  );
-}
-
-function roomGroupShellClassName() {
-  return cx(
-    "overflow-hidden rounded-[0.95rem]",
-    "border border-cyan-300/16",
-    "bg-[linear-gradient(165deg,rgba(42,26,108,0.45),rgba(18,11,46,0.42))]",
-    "shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_22px_rgba(8,6,34,0.28)]",
-  );
-}
-
 export function HomeChatRoomsPanel({
   variant = "default",
 }: {
@@ -245,27 +232,25 @@ export function HomeChatRoomsPanel({
 
   const roomSlugKey = useMemo(() => sourceRooms.map((room) => room.id).join("\0"), [sourceRooms]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const reloadRooms = useCallback(async () => {
     const session = getStoredAuthSession();
     setViewerId(session?.user.id);
-    setRoomsLoading(true);
     setRoomsError("");
     const loader = session?.accessToken ? listRoomsForMe(session.accessToken) : listRooms();
-    void loader
-      .then((rows) => {
-        if (cancelled) {
-          return;
-        }
-        const myId = session?.user.id;
-        setSourceRooms(rows.map((row) => apiRoomToHomeRoom(row, myId)));
-      })
+    const rows = await loader;
+    const myId = session?.user.id;
+    setSourceRooms(rows.map((row) => apiRoomToHomeRoom(row, myId)));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setRoomsLoading(true);
+    void reloadRooms()
       .catch((e: unknown) => {
-        if (cancelled) {
-          return;
+        if (!cancelled) {
+          setRoomsError(e instanceof Error ? e.message : "Could not load rooms.");
+          setSourceRooms([]);
         }
-        setRoomsError(e instanceof Error ? e.message : "Could not load rooms.");
-        setSourceRooms([]);
       })
       .finally(() => {
         if (!cancelled) {
@@ -275,7 +260,17 @@ export function HomeChatRoomsPanel({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadRooms]);
+
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      return;
+    }
+    return subscribeRoomsCatalog(session.accessToken, () => {
+      void reloadRooms().catch(() => {});
+    });
+  }, [reloadRooms]);
 
   useEffect(() => {
     const session = getStoredAuthSession();
@@ -628,9 +623,9 @@ export function HomeChatRoomsPanel({
       <article
         key={room.id}
         className={cx(
+          homeRow,
           "flex items-center gap-2.5 px-2.5 py-2 sm:px-3 sm:py-2.5",
           variant === "dashboard" && "suzi-home-chat-room-row",
-          index > 0 && "border-t border-cyan-300/12",
         )}
       >
         <Link
@@ -683,7 +678,7 @@ export function HomeChatRoomsPanel({
               type="button"
               disabled={busy}
               onClick={() => void handleCancelRoomRequest(room)}
-              className={cx(listActionChip, "border-cyan-300/28 bg-[rgba(26,18,74,0.66)] px-2.5 text-cyan-50 hover:border-cyan-300/50")}
+              className={cx(homeBtnSecondary, "px-2.5")}
               style={{ height: "var(--btn-h-sm)" }}
             >
               Cancel
@@ -695,7 +690,7 @@ export function HomeChatRoomsPanel({
               type="button"
               disabled={busy}
               onClick={() => void handleLeaveRoom(room)}
-              className={cx(listActionChip, "border-cyan-300/28 bg-[rgba(26,18,74,0.66)] px-2.5 text-cyan-50 hover:border-cyan-300/50")}
+              className={cx(homeBtnSecondary, "px-2.5")}
               style={{ height: "var(--btn-h-sm)" }}
             >
               Leave
@@ -708,12 +703,9 @@ export function HomeChatRoomsPanel({
               disabled={busy || room.action === "requested" || room.action === "blocked"}
               onClick={() => void handleRoomAction(room)}
               className={cx(
-                listActionPrimary,
-                "border px-3",
+                room.featured ? homeBtnPrimary : homeBtnSecondary,
+                "px-3",
                 (room.action === "requested" || room.action === "blocked") && "cursor-not-allowed opacity-70",
-                room.featured
-                  ? "border-fuchsia-300/45 bg-[linear-gradient(90deg,rgba(157,78,221,0.8),rgba(255,32,121,0.76))] text-white hover:border-fuchsia-200/72"
-                  : "border-fuchsia-300/28 bg-[rgba(67,28,155,0.52)] text-cyan-100/92 hover:border-fuchsia-300/50",
               )}
               style={{ height: "var(--btn-h-sm)" }}
             >
@@ -728,13 +720,13 @@ export function HomeChatRoomsPanel({
   return (
     <Panel
       className={cx(
-        "overflow-hidden p-[var(--panel-pad)]",
+        "suzi-panel--home overflow-hidden p-[var(--panel-pad)]",
         variant === "dashboard" && "suzi-home-row1-panel flex w-full min-h-0 flex-col",
       )}
     >
-      <div className={cx("flex flex-wrap items-center justify-between gap-3", variant === "dashboard" && "shrink-0")}>
+      <div className={cx(homePanelHeader, "flex flex-wrap items-center justify-between gap-3", variant === "dashboard" && "shrink-0")}>
         <div className="flex items-center gap-2.5">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-[0.7rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
+          <span className={homePanelIcon}>
             <svg
               aria-hidden="true"
               viewBox="0 0 24 24"
@@ -756,10 +748,7 @@ export function HomeChatRoomsPanel({
           <button
             type="button"
             onClick={() => setIsCreateOpen(true)}
-            className={cx(
-              listActionPrimary,
-              "border-fuchsia-200/44 bg-[linear-gradient(90deg,#ff2da7,#ce2fff)] px-3 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_0_14px_rgba(255,45,167,0.56),0_8px_22px_rgba(101,24,194,0.45)] hover:brightness-110",
-            )}
+            className={cx(homeBtnPrimary, "px-3")}
             style={{ height: "var(--btn-h-sm)" }}
           >
             + Create Room
@@ -781,7 +770,7 @@ export function HomeChatRoomsPanel({
           <input
             className={cx(
               homeSearchInput,
-              "w-full rounded-[0.7rem] border border-cyan-300/24 bg-[linear-gradient(95deg,rgba(36,22,101,0.62),rgba(24,14,76,0.7))] py-1.5 pl-8 pr-3 text-cyan-50/94 placeholder:text-cyan-100/45 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24",
+              "w-full rounded-[0.7rem] border py-1.5 pl-8 pr-3 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24",
             )}
             placeholder="Search rooms..."
             value={query}
@@ -797,7 +786,7 @@ export function HomeChatRoomsPanel({
             aria-label="Filter rooms by category"
             onClick={() => setShowMobileFilter((value) => !value)}
             className={cx(
-              getTabClasses(activeCategory !== "All" || showMobileFilter),
+              homeTabClasses(activeCategory !== "All" || showMobileFilter),
               "justify-center gap-1 px-2",
             )}
             style={{ minWidth: "1.35rem" }}
@@ -812,7 +801,7 @@ export function HomeChatRoomsPanel({
             ) : null}
           </button>
           {showMobileFilter ? (
-            <div className="absolute right-0 top-[calc(100%+0.35rem)] z-30 min-w-[9.5rem] rounded-[0.85rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(24,14,72,0.98),rgba(18,11,56,0.96))] p-1 shadow-[0_14px_30px_rgba(8,6,34,0.6)] backdrop-blur">
+            <div className="suzi-home-dropdown absolute right-0 top-[calc(100%+0.35rem)] z-30 min-w-[9.5rem] rounded-[0.85rem] border p-1 backdrop-blur">
               {[...primaryCategories, ...extraCategories].map((category) => (
                 <button
                   key={category}
@@ -845,7 +834,7 @@ export function HomeChatRoomsPanel({
               <button
                 key={category}
                 type="button"
-                className={getTabClasses(activeCategory === category)}
+                className={homeTabClasses(activeCategory === category)}
                 onClick={() => setActiveCategory(category)}
               >
                 {category}
@@ -858,13 +847,13 @@ export function HomeChatRoomsPanel({
               type="button"
               aria-haspopup="menu"
               aria-expanded={showMoreCategories}
-              className={getTabClasses(showMoreCategories || moreCategoryActive)}
+              className={homeTabClasses(showMoreCategories || moreCategoryActive)}
               onClick={() => setShowMoreCategories((value) => !value)}
             >
               ...
             </button>
             {showMoreCategories ? (
-              <div className="absolute right-0 top-[calc(100%+0.2rem)] z-30 min-w-[9rem] rounded-[0.8rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(24,14,72,0.98),rgba(18,11,56,0.96))] p-1 shadow-[0_10px_24px_rgba(8,6,34,0.55)]">
+              <div className="suzi-home-dropdown absolute right-0 top-[calc(100%+0.2rem)] z-30 min-w-[9rem] rounded-[0.8rem] border p-1">
                 {extraCategories.map((category) => (
                   <button
                     key={category}
@@ -908,7 +897,7 @@ export function HomeChatRoomsPanel({
           <input
             className={cx(
               homeSearchInput,
-              "w-full rounded-[0.7rem] border border-cyan-300/24 bg-[linear-gradient(95deg,rgba(36,22,101,0.62),rgba(24,14,76,0.7))] py-1.5 pl-8 pr-3 text-cyan-50/94 placeholder:text-cyan-100/45 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24",
+              "w-full rounded-[0.7rem] border py-1.5 pl-8 pr-3 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24",
             )}
             placeholder="Search rooms..."
             value={query}
@@ -920,7 +909,7 @@ export function HomeChatRoomsPanel({
 
       <div
         className={cx(
-          "suzi-scrollbar mt-4 overflow-y-auto rounded-[1.15rem] border border-cyan-300/22 bg-transparent",
+          "suzi-scrollbar mt-4 min-h-0 overflow-y-auto",
           variant === "dashboard"
             ? "suzi-home-chat-rooms-list suzi-home-row1-scroll min-h-0"
             : "h-[550px]",
@@ -938,7 +927,7 @@ export function HomeChatRoomsPanel({
           </div>
         ) : (
           <div className="p-1">
-            <section className={roomGroupShellClassName()}>
+            <section className={cx(homeInset, "overflow-hidden")}>
               {[
                 ...groupedFilteredRooms.mine,
                 ...groupedFilteredRooms.joined,

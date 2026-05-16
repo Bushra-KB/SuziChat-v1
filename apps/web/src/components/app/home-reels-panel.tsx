@@ -1,11 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
-import { listEmpty, listL1, listL3, listMeta, panelLink, panelTitle } from "@/components/app/home-typography";
+import {
+  homeInset,
+  homePanelHeader,
+  homePanelIcon,
+  homeRow,
+  listEmpty,
+  listL1,
+  listL3,
+  listMeta,
+  panelLink,
+  panelTitle,
+} from "@/components/app/home-typography";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { listMyPosts, listPosts } from "@/lib/posts-client";
+import { subscribePostsFeedChannel, watchPostsEngagement } from "@/lib/realtime-feed";
 import { apiPostToReel } from "@/lib/post-ui-mappers";
 import type { Reel } from "@/lib/v1-mock-data";
 
@@ -66,18 +78,22 @@ export function HomeReelsPanel() {
   const [catalog, setCatalog] = useState<Reel[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadCatalog = useCallback(async () => {
     const session = getStoredAuthSession();
     const loader = session?.accessToken ? listMyPosts(session.accessToken, "REEL", 24) : listPosts("REEL", 24);
-    void loader
-      .then((rows) => {
-        if (cancelled) {
-          return;
+    const rows = await loader;
+    setCatalog(rows.map(apiPostToReel));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void loadCatalog()
+      .catch(() => {
+        if (!cancelled) {
+          setCatalog([]);
         }
-        setCatalog(rows.map(apiPostToReel));
       })
-      .catch(() => {})
       .finally(() => {
         if (!cancelled) {
           setLoading(false);
@@ -86,7 +102,40 @@ export function HomeReelsPanel() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadCatalog]);
+
+  const catalogIdsKey = useMemo(() => catalog.map((row) => row.id).join("\0"), [catalog]);
+
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      return;
+    }
+    const unsubFeed = subscribePostsFeedChannel(session.accessToken, "REEL", () => {
+      void loadCatalog().catch(() => {});
+    });
+    const unsubEngagement = watchPostsEngagement(session.accessToken, catalog.map((row) => row.id), (payload) => {
+      if (!payload.postId) {
+        return;
+      }
+      setCatalog((prev) =>
+        prev.map((reel) =>
+          reel.id === payload.postId
+            ? {
+                ...reel,
+                likes: typeof payload.likes === "number" ? payload.likes : reel.likes,
+                comments: typeof payload.comments === "number" ? payload.comments : reel.comments,
+                views: typeof payload.views === "number" ? payload.views : reel.views,
+              }
+            : reel,
+        ),
+      );
+    });
+    return () => {
+      unsubFeed();
+      unsubEngagement();
+    };
+  }, [catalogIdsKey, loadCatalog]);
 
   const reelRows = useMemo(() => {
     if (loading && catalog.length === 0) {
@@ -100,10 +149,10 @@ export function HomeReelsPanel() {
   }, [catalog, loading]);
 
   return (
-    <Panel className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden p-[var(--panel-pad)]">
-      <div className="flex shrink-0 items-center justify-between gap-2.5">
+    <Panel className="suzi-panel--home flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden p-[var(--panel-pad)]">
+      <div className={cx(homePanelHeader, "flex shrink-0 items-center justify-between gap-2.5")}>
         <div className="flex items-center gap-2.5">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-[0.7rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
+          <span className={homePanelIcon}>
             <svg
               aria-hidden="true"
               viewBox="0 0 24 24"
@@ -126,16 +175,13 @@ export function HomeReelsPanel() {
         </Link>
       </div>
 
-      <div className="suzi-scrollbar mt-2 min-h-0 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden pr-0.5">
+      <div className={cx(homeInset, "suzi-scrollbar mt-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-1")}>
         {reelRows.map((row, index) => {
           if (row.kind === "skeleton") {
             return (
               <div
                 key={row.key}
-                className={cx(
-                  "flex shrink-0 items-center gap-2.5 rounded-[0.75rem] px-0.5 py-1",
-                  index > 0 && "border-t border-cyan-300/12",
-                )}
+                className={cx(homeRow, "flex shrink-0 items-center gap-2.5 px-0.5 py-1")}
               >
                 <div className="h-[3.15rem] w-[5.25rem] shrink-0 animate-pulse rounded-[0.65rem] bg-white/10" />
                 <div className="min-w-0 flex-1 space-y-1.5">
@@ -161,12 +207,9 @@ export function HomeReelsPanel() {
             <Link
               key={row.key}
               href={`/app/reels?focus=${encodeURIComponent(reel.id)}`}
-              className={cx(
-                "group flex shrink-0 items-center gap-2.5 rounded-[0.75rem] px-0.5 py-1 transition hover:bg-white/6",
-                index > 0 && "border-t border-cyan-300/12",
-              )}
+              className={cx(homeRow, "group flex shrink-0 items-center gap-2.5 px-0.5 py-1")}
             >
-              <span className="relative h-[3.15rem] w-[5.25rem] shrink-0 overflow-hidden rounded-[0.65rem] border border-fuchsia-300/24 bg-[rgba(28,16,72,0.7)]">
+              <span className="suzi-home-reel-thumb relative h-[3.15rem] w-[5.25rem] shrink-0 overflow-hidden rounded-[0.65rem] border">
                 <video
                   src={reel.video}
                   className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"

@@ -340,20 +340,18 @@ export function AppShell({
         <span className="suzi-bottom-star suzi-bottom-star-10" />
       </div>
 
-      <div className="suzi-shell-content relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col">
-        <Link href="/app" className="suzi-shell-logo-overlay" aria-label="SuziChat">
-          <span className="suzi-shell-logo-overlay__frame">
-            <Image
-              src="/logo/logo.png"
-              alt="SuziChat"
-              width={1536}
-              height={1024}
-              priority
-              className="object-contain"
-            />
-          </span>
-        </Link>
+      <Link href="/app" className="suzi-shell-logo-overlay" aria-label="SuziChat">
+        <img
+          src="/logo/logo.png"
+          alt=""
+          width={1536}
+          height={1024}
+          decoding="async"
+          className="suzi-shell-logo-overlay__img"
+        />
+      </Link>
 
+      <div className="suzi-shell-content relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col">
         {/* MOBILE TOP BAR — < md only. */}
         <header
           className="suzi-m-top relative z-[220] flex shrink-0 items-center justify-between gap-2 md:hidden"
@@ -498,12 +496,12 @@ export function AppShell({
         ) : null}
 
         <header
-          className="relative z-[220] hidden shrink-0 items-center justify-between gap-3 overflow-visible md:flex"
+          className="suzi-shell-header-desktop relative z-[270] hidden shrink-0 items-center justify-between gap-3 overflow-visible md:flex"
           style={{ minHeight: "var(--shell-header-h)" }}
         >
-        <div className="min-w-0 flex-1" aria-hidden="true" />
+          <div className="min-w-0 flex-1" aria-hidden="true" />
 
-        <div className="suzi-shell-toolbar pointer-events-auto flex items-center border border-white/10 bg-[linear-gradient(140deg,rgba(15,13,43,0.76),rgba(34,18,79,0.56))] backdrop-blur-md">
+          <div className="suzi-shell-toolbar pointer-events-auto flex shrink-0 items-center border border-white/10 bg-[linear-gradient(140deg,rgba(15,13,43,0.76),rgba(34,18,79,0.56))] backdrop-blur-md">
           <div ref={createRef} className="relative">
             <button
               type="button"
@@ -856,8 +854,7 @@ export function AppShell({
 
         {gameInvites.length > 0 ? (
           <div
-            className="pointer-events-auto absolute right-3 z-[219] w-[min(26rem,calc(100vw-1.5rem))] space-y-2 sm:right-4"
-            style={{ top: "calc(var(--shell-header-h) + 0.5rem)" }}
+            className="suzi-shell-game-invites pointer-events-auto absolute right-3 z-[219] w-[min(26rem,calc(100vw-1.5rem))] space-y-2 sm:right-4"
           >
             {gameInvites.map((invite) => (
               <div key={invite.lobbyId} className="rounded-xl border border-cyan-300/28 bg-[linear-gradient(155deg,rgba(30,18,84,0.94),rgba(20,12,60,0.92))] px-3 py-2.5 shadow-[0_10px_30px_rgba(6,9,28,0.48)]">
