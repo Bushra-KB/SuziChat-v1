@@ -10,6 +10,12 @@ import { HomeFriendsPanel } from "@/components/app/home-friends-panel";
 import { HomeReelsPanel } from "@/components/app/home-reels-panel";
 import { HomeSnapsPanel } from "@/components/app/home-snaps-panel";
 import {
+  homeBtnPrimary,
+  homeGameCard,
+  homePanelHeader,
+  homePanelIcon,
+  homeStatPill,
+  homeStatPillLive,
   listActionPrimary,
   listL1,
   listL3,
@@ -105,7 +111,7 @@ export default function AppHomePage() {
         type="button"
         onClick={() => setMobileGamesOpen(true)}
         aria-label="Browse Suzi Games lobbies"
-        className="group relative flex h-full w-full flex-col overflow-hidden rounded-[var(--panel-radius)] border border-cyan-300/22 bg-[linear-gradient(165deg,rgba(48,28,128,0.72),rgba(20,14,72,0.78))] p-[var(--panel-pad)] text-left shadow-[0_0_22px_rgba(157,78,221,0.18)] transition active:scale-[0.985]"
+        className="suzi-home-mobile-games-card group relative flex h-full w-full flex-col overflow-hidden rounded-[var(--panel-radius)] border p-[var(--panel-pad)] text-left transition active:scale-[0.985]"
       >
         <div className="flex shrink-0 items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
@@ -119,8 +125,7 @@ export default function AppHomePage() {
             </span>
             <h2 className={panelTitle}>Suzi Games</h2>
           </div>
-          <span className={cx(listL3, "inline-flex items-center gap-1.5 rounded-full border border-fuchsia-300/40 bg-[rgba(67,28,155,0.42)] px-2 py-0.5 font-semibold text-fuchsia-100/92")}>
-            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(92,255,190,0.85)]" />
+          <span className={cx(homeStatPillLive, listL3, "px-2 py-0.5 font-semibold text-fuchsia-100/92")}>
             {totalPlaying} live
           </span>
         </div>
@@ -132,7 +137,7 @@ export default function AppHomePage() {
             return (
               <div
                 key={game.id}
-                className="relative min-h-0 overflow-hidden rounded-[0.75rem] border border-cyan-300/20 bg-[rgba(20,12,72,0.55)]"
+                className={cx(homeGameCard, "relative min-h-0 overflow-hidden rounded-[0.75rem] border")}
               >
                 <Image
                   src={game.icon}
@@ -141,8 +146,8 @@ export default function AppHomePage() {
                   sizes="46vw"
                   className="object-cover"
                 />
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0)_38%,rgba(4,8,26,0.55)_72%,rgba(4,8,26,0.92)_100%)]" />
-                <span className={cx(listL3, "absolute left-1.5 top-1.5 inline-flex items-center rounded-full border border-white/16 bg-black/40 px-1.5 py-0.5 font-medium text-white/90 backdrop-blur-sm")}>
+                <div className="suzi-home-game-scrim absolute inset-0" />
+                <span className={cx(homeStatPill, listL3, "absolute left-1.5 top-1.5 px-1.5 py-0.5 font-medium text-white/90")}>
                   {playing} playing
                 </span>
                 <p className={cx(listL1, "absolute inset-x-1.5 bottom-1.5 truncate text-center font-bold leading-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]")}>
@@ -157,7 +162,7 @@ export default function AppHomePage() {
           <span className={cx(listMeta, "text-cyan-100/72")}>
             Tap to browse all tables
           </span>
-          <span className={cx(listActionPrimary, "gap-1 rounded-full bg-[linear-gradient(90deg,rgba(157,78,221,0.95),rgba(255,32,121,0.85))] px-2.5 py-1 text-white shadow-[0_0_10px_rgba(255,45,167,0.45)]")}>
+          <span className={cx(homeBtnPrimary, listActionPrimary, "gap-1 px-2.5 py-1")}>
             Open
             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 6l6 6-6 6" />
@@ -292,10 +297,10 @@ export default function AppHomePage() {
         </div>
 
         <div className="suzi-home-area suzi-home-area-games">
-            <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
-              <div className="flex shrink-0 items-center justify-between gap-3">
+            <Panel className="suzi-panel--home flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
+              <div className={cx(homePanelHeader, "flex shrink-0 items-center justify-between gap-3")}>
                 <div className="flex items-center gap-2.5">
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-[0.7rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
+                  <span className={homePanelIcon}>
                     <svg
                       aria-hidden="true"
                       viewBox="0 0 24 24"
@@ -328,7 +333,7 @@ export default function AppHomePage() {
                     return (
                     <article
                       key={game.id}
-                      className="group relative h-full min-h-0 min-w-0 overflow-hidden rounded-[0.75rem] border border-cyan-300/22 bg-[rgba(20,12,72,0.6)] shadow-[0_0_14px_rgba(157,78,221,0.14)]"
+                      className={cx(homeGameCard, "group relative h-full min-h-0 min-w-0 overflow-hidden rounded-[0.75rem] border")}
                     >
                       <Image
                         src={game.icon}
@@ -338,9 +343,9 @@ export default function AppHomePage() {
                         className="object-cover transition duration-200 group-hover:scale-[1.04]"
                       />
 
-                      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0)_42%,rgba(4,8,26,0.55)_70%,rgba(4,8,26,0.94)_100%)]" />
+                      <div className="suzi-home-game-scrim absolute inset-0" />
 
-                      <span className={cx(listL3, "absolute left-1.5 top-1.5 inline-flex items-center rounded-full border border-white/16 bg-black/42 px-1.5 py-0.5 font-medium text-white/92 backdrop-blur-sm")}>
+                      <span className={cx(homeStatPill, listL3, "absolute left-1.5 top-1.5 px-1.5 py-0.5 font-medium text-white/92")}>
                         {playing} playing
                       </span>
 
@@ -350,10 +355,7 @@ export default function AppHomePage() {
                         </p>
                         <Link
                           href={`/app/games/${game.id}`}
-                          className={cx(
-                            listActionPrimary,
-                            "w-full min-w-0 justify-center rounded-full border border-fuchsia-300/55 bg-[linear-gradient(90deg,rgba(157,78,221,0.92),rgba(255,32,121,0.88))] px-1.5 text-white shadow-[0_0_8px_rgba(255,45,167,0.4)] transition hover:brightness-110",
-                          )}
+                          className={cx(homeBtnPrimary, listActionPrimary, "w-full min-w-0 justify-center rounded-full px-1.5")}
                           style={{ height: "var(--btn-h-sm)" }}
                         >
                           <span className="truncate">Open lobby</span>

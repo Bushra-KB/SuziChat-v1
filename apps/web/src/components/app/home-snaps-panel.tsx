@@ -2,11 +2,21 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
-import { listEmpty, listL3, panelLink, panelTitle } from "@/components/app/home-typography";
+import {
+  homePanelHeader,
+  homePanelIcon,
+  homeSnapTile,
+  homeStatPill,
+  listEmpty,
+  listL3,
+  panelLink,
+  panelTitle,
+} from "@/components/app/home-typography";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { listMyPosts, listPosts } from "@/lib/posts-client";
+import { subscribePostsFeedChannel, watchPostsEngagement } from "@/lib/realtime-feed";
 import { apiPostToSnap } from "@/lib/post-ui-mappers";
 import type { Snap } from "@/lib/v1-mock-data";
 
@@ -60,18 +70,22 @@ export function HomeSnapsPanel({
   const [catalog, setCatalog] = useState<Snap[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadCatalog = useCallback(async () => {
     const session = getStoredAuthSession();
     const loader = session?.accessToken ? listMyPosts(session.accessToken, "SNAP", 24) : listPosts("SNAP", 24);
-    void loader
-      .then((rows) => {
-        if (cancelled) {
-          return;
+    const rows = await loader;
+    setCatalog(rows.map(apiPostToSnap));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void loadCatalog()
+      .catch(() => {
+        if (!cancelled) {
+          setCatalog([]);
         }
-        setCatalog(rows.map(apiPostToSnap));
       })
-      .catch(() => {})
       .finally(() => {
         if (!cancelled) {
           setLoading(false);
@@ -80,7 +94,40 @@ export function HomeSnapsPanel({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadCatalog]);
+
+  const catalogIdsKey = useMemo(() => catalog.map((row) => row.id).join("\0"), [catalog]);
+
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      return;
+    }
+    const unsubFeed = subscribePostsFeedChannel(session.accessToken, "SNAP", () => {
+      void loadCatalog().catch(() => {});
+    });
+    const unsubEngagement = watchPostsEngagement(session.accessToken, catalog.map((row) => row.id), (payload) => {
+      if (!payload.postId) {
+        return;
+      }
+      setCatalog((prev) =>
+        prev.map((snap) =>
+          snap.id === payload.postId
+            ? {
+                ...snap,
+                likes: typeof payload.likes === "number" ? payload.likes : snap.likes,
+                comments: typeof payload.comments === "number" ? payload.comments : snap.comments,
+                views: typeof payload.views === "number" ? payload.views : snap.views,
+              }
+            : snap,
+        ),
+      );
+    });
+    return () => {
+      unsubFeed();
+      unsubEngagement();
+    };
+  }, [catalogIdsKey, loadCatalog]);
 
   const isDashboard = layout === "dashboard";
   const tileCount = isDashboard ? DASHBOARD_SNAP_COUNT : 4;
@@ -99,12 +146,13 @@ export function HomeSnapsPanel({
     <Panel
       className={cx(
         "p-[var(--panel-pad)]",
-        isDashboard && "suzi-home-row1-panel flex min-h-0 w-full flex-col overflow-hidden",
+        isDashboard && "suzi-panel--home suzi-home-row1-panel flex min-h-0 w-full flex-col overflow-hidden",
+        !isDashboard && "suzi-panel--home",
       )}
     >
-      <div className="flex shrink-0 items-center justify-between gap-3">
+      <div className={cx(homePanelHeader, "flex shrink-0 items-center justify-between gap-3")}>
         <div className="flex items-center gap-2.5">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-[0.7rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(157,78,221,0.28)]">
+          <span className={homePanelIcon}>
             <svg
               aria-hidden="true"
               viewBox="0 0 24 24"
@@ -141,7 +189,8 @@ export function HomeSnapsPanel({
               <div
                 key={slot.key}
                 className={cx(
-                  "relative min-h-0 overflow-hidden rounded-[0.78rem] border border-fuchsia-300/16 bg-[rgba(28,16,72,0.45)]",
+                  homeSnapTile,
+                  "relative min-h-0 overflow-hidden rounded-[0.78rem] border",
                   isDashboard && "h-full w-full",
                 )}
               >
@@ -158,7 +207,8 @@ export function HomeSnapsPanel({
               <div
                 key={slot.key}
                 className={cx(
-                  "relative min-h-0 overflow-hidden rounded-[0.78rem] border border-dashed border-cyan-300/22 bg-[rgba(20,13,62,0.35)]",
+                  homeSnapTile,
+                  "relative min-h-0 overflow-hidden rounded-[0.78rem] border border-dashed border-cyan-300/22",
                   isDashboard && "h-full w-full",
                 )}
               >
@@ -178,16 +228,17 @@ export function HomeSnapsPanel({
               key={slot.key}
               href={`/app/snaps?focus=${encodeURIComponent(snap.id)}`}
               className={cx(
-                "group relative min-h-0 overflow-hidden rounded-[0.78rem] border border-fuchsia-300/24 bg-[rgba(28,16,72,0.7)]",
+                homeSnapTile,
+                "group relative min-h-0 overflow-hidden rounded-[0.78rem] border",
                 isDashboard && "h-full w-full",
               )}
             >
               <div className="absolute inset-0">
                 <SnapTileMedia src={snap.image} alt={snap.title} />
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0.12),rgba(4,8,26,0.66))]" />
+                <div className="suzi-home-snap-scrim absolute inset-0" />
               </div>
               <div className={cx(listL3, "absolute inset-x-1.5 bottom-1.5 flex items-center justify-between font-semibold text-white")}>
-                <span className="inline-flex items-center gap-1">
+                <span className={cx(homeStatPill, "gap-1 px-1.5 py-0.5")}>
                   <svg
                     aria-hidden="true"
                     viewBox="0 0 24 24"
@@ -203,7 +254,7 @@ export function HomeSnapsPanel({
                   </svg>
                   {getViews(snap)}
                 </span>
-                <span className="inline-flex items-center gap-1 text-pink-100">
+                <span className={cx(homeStatPill, "gap-1 px-1.5 py-0.5 text-pink-100")}>
                   <svg
                     aria-hidden="true"
                     viewBox="0 0 24 24"

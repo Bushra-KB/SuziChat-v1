@@ -23,8 +23,14 @@ import {
 } from "@/lib/friends-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 import {
+  homeBtnPrimary,
+  homeBtnSecondary,
+  homeInset,
+  homePanelHeader,
+  homePanelIcon,
+  homeRow,
   homeSearchInput,
-  homeTabChip,
+  homeTabClasses,
   listActionBtn,
   listEmpty,
   listMeta,
@@ -57,14 +63,6 @@ type ProfileUser = {
 const friendIconBtn =
   "inline-flex shrink-0 items-center justify-center rounded-full border transition hover:brightness-110 disabled:opacity-60";
 
-function getTabClasses(active: boolean) {
-  return cx(
-    homeTabChip,
-    active
-      ? "border-fuchsia-300/46 bg-[linear-gradient(90deg,rgba(157,78,221,0.86),rgba(255,32,121,0.72))] text-white shadow-[0_0_12px_rgba(255,32,121,0.2)]"
-      : "border-cyan-300/22 bg-[rgba(23,16,71,0.62)] text-cyan-100/84 hover:border-cyan-300/38 hover:text-white",
-  );
-}
 
 function displayName(user: { displayName: string | null; username: string }) {
   return user.displayName?.trim() || user.username;
@@ -304,12 +302,12 @@ export function HomeFriendsPanel() {
   return (
     <Panel
       ref={panelRef}
-      className="suzi-home-row1-panel flex min-h-0 w-full flex-col overflow-hidden p-[var(--panel-pad)]"
+      className="suzi-panel--home suzi-home-row1-panel flex min-h-0 w-full flex-col overflow-hidden p-[var(--panel-pad)]"
     >
-      <div className="shrink-0 overflow-visible">
+      <div className={cx(homePanelHeader, "shrink-0 overflow-visible")}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[rgba(157,78,221,0.26)] text-fuchsia-200/95 shadow-[0_0_14px_rgba(157,78,221,0.3)]">
+          <span className={homePanelIcon}>
             <svg
               aria-hidden="true"
               viewBox="0 0 24 24"
@@ -351,7 +349,7 @@ export function HomeFriendsPanel() {
           <input
             className={cx(
               homeSearchInput,
-              "h-[var(--btn-h-sm)] w-full rounded-[0.8rem] border border-cyan-300/24 bg-[linear-gradient(95deg,rgba(36,22,101,0.62),rgba(24,14,76,0.7))] py-1.5 pl-9 pr-10 text-cyan-50/96 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] placeholder:text-cyan-100/48 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24",
+              "h-[var(--btn-h-sm)] w-full rounded-[0.8rem] border py-1.5 pl-9 pr-10 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24",
             )}
             placeholder="Search friends..."
             value={query}
@@ -380,14 +378,14 @@ export function HomeFriendsPanel() {
         </div>
 
         <div className="relative z-20 flex min-w-0 flex-nowrap items-center gap-1 pb-1">
-          <button type="button" className={getTabClasses(true)}>
+          <button type="button" className={homeTabClasses(true)}>
             All
           </button>
           <div className="relative shrink-0">
             <button
               ref={requestsBtnRef}
               type="button"
-              className={getTabClasses(isRequestsOpen)}
+              className={homeTabClasses(isRequestsOpen)}
               onClick={(event) => {
                 event.stopPropagation();
                 setIsRequestsOpen((v) => !v);
@@ -411,7 +409,7 @@ export function HomeFriendsPanel() {
                 </p>
                 <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
                   {(summary?.incomingRequests ?? []).map((row) => (
-                    <div key={row.id} className="rounded-[0.7rem] border border-cyan-300/20 bg-[rgba(22,14,72,0.66)] p-2">
+                    <div key={row.id} className="suzi-home-inset-card rounded-[0.7rem] border p-2">
                       <button
                         type="button"
                         onClick={() => profileFromUser(row.user)}
@@ -419,7 +417,7 @@ export function HomeFriendsPanel() {
                       >
                         {displayName(row.user)}
                       </button>
-                      <p className={cx(listSubtitle, "text-cyan-100/70")}>@{row.user.username}</p>
+                      <p className={listSubtitle}>@{row.user.username}</p>
                       <div className="mt-2 flex gap-1.5">
                         <button
                           type="button"
@@ -458,7 +456,7 @@ export function HomeFriendsPanel() {
             <button
               ref={blockedBtnRef}
               type="button"
-              className={getTabClasses(isBlockedOpen)}
+              className={homeTabClasses(isBlockedOpen)}
               onClick={(event) => {
                 event.stopPropagation();
                 setIsBlockedOpen((v) => !v);
@@ -482,7 +480,7 @@ export function HomeFriendsPanel() {
                 </p>
                 <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
                   {blockedRows.map((row) => (
-                    <div key={row.id} className="rounded-[0.7rem] border border-cyan-300/20 bg-[rgba(22,14,72,0.66)] p-2">
+                    <div key={row.id} className="suzi-home-inset-card rounded-[0.7rem] border p-2">
                       <button
                         type="button"
                         onClick={() => profileFromUser(row.user)}
@@ -490,7 +488,7 @@ export function HomeFriendsPanel() {
                       >
                         {displayName(row.user)}
                       </button>
-                      <p className={cx(listSubtitle, "text-cyan-100/70")}>@{row.user.username}</p>
+                      <p className={listSubtitle}>@{row.user.username}</p>
                       <button
                         type="button"
                         disabled={busy}
@@ -515,7 +513,7 @@ export function HomeFriendsPanel() {
       </div>
       </div>
 
-      <div className="suzi-home-row1-scroll suzi-scrollbar mt-3 space-y-1.5 overscroll-contain rounded-[0.95rem] border border-cyan-300/16 p-1.5 shadow-[inset_0_1px_3px_rgba(0,0,0,0.32),inset_0_0_0_1px_rgba(255,255,255,0.02)]">
+      <div className="suzi-home-row1-scroll suzi-home-inset suzi-scrollbar mt-3 space-y-0 overscroll-contain p-1">
         {error ? (
           <div className={cx(listEmpty, "rounded-[0.9rem] border border-pink-400/20 bg-pink-500/10 px-3 py-2 text-pink-100")}>
             {error}
@@ -523,7 +521,7 @@ export function HomeFriendsPanel() {
         ) : null}
 
         {[...friendsOnline, ...friendsAway, ...friendsOffline].length === 0 ? (
-          <div className={cx(listEmpty, "rounded-[0.8rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-2 text-cyan-100/56")}>
+          <div className={cx(listEmpty, "suzi-home-empty-note rounded-[0.8rem] border px-3 py-2")}>
             You have no friends yet. Explore people below and send friend requests.
           </div>
         ) : (
@@ -532,7 +530,7 @@ export function HomeFriendsPanel() {
             return (
               <div
                 key={friend.id}
-                className="flex items-center gap-2.5 rounded-[0.95rem] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(32,20,89,0.72),rgba(18,13,65,0.56))] px-2.5 py-1.5"
+                className={cx(homeRow, "flex items-center gap-2.5 px-2.5 py-1.5")}
               >
                 <div className="relative shrink-0" style={{ width: "var(--avatar-md)", height: "var(--avatar-md)" }}>
                   <Image
@@ -617,7 +615,7 @@ export function HomeFriendsPanel() {
         )}
 
         <div className="space-y-1.5 pt-1">
-          <p className={cx(listSection, "px-1 tracking-[0.1em] text-cyan-100/62")}>
+          <p className={cx(listSection, "px-1 tracking-[0.1em]")}>
             Other People On SuziChat
           </p>
           {filteredOthers.length > 0 ? (
@@ -626,7 +624,7 @@ export function HomeFriendsPanel() {
               return (
                 <div
                   key={person.id}
-                  className="flex items-center gap-2.5 rounded-[0.95rem] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(32,20,89,0.72),rgba(18,13,65,0.56))] px-2.5 py-1.5"
+                  className={cx(homeRow, "flex items-center gap-2.5 px-2.5 py-1.5")}
                 >
                   <div className="relative shrink-0" style={{ width: "var(--avatar-md)", height: "var(--avatar-md)" }}>
                     <Image

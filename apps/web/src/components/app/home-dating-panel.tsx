@@ -94,8 +94,8 @@ export function HomeDatingPanel() {
       aria-label="Open Suzi Dating"
       className="suzi-panel group relative flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad-tight)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/60"
     >
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(54,18,124,0.92),rgba(91,26,151,0.84),rgba(24,10,68,0.9))]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_70%_at_50%_55%,rgba(255,32,121,0.28),transparent_68%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(80,52,152,0.62),rgba(96,48,168,0.5),rgba(44,68,136,0.55))]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_70%_at_50%_55%,rgba(255,32,121,0.22),transparent_68%)]" />
 
       <div className="relative z-10 flex shrink-0 items-center gap-2">
         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.7rem] border border-pink-300/40 bg-[linear-gradient(160deg,rgba(157,78,221,0.7),rgba(54,18,124,0.85))] text-pink-200 shadow-[0_0_12px_rgba(255,45,167,0.32)]">

@@ -23,6 +23,7 @@ import { diskStorage } from 'multer';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
+import { postsFeedChannel } from '../realtime/realtime-channels';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CreatePostCommentDto } from './dto/create-post-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -81,11 +82,16 @@ export class PostsController {
 
   @Delete(':id')
   @UseGuards(AccessTokenGuard)
-  deleteMyPost(
+  async deleteMyPost(
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.postsService.deletePostAsAuthor(id, user.id);
+    const result = await this.postsService.deletePostAsAuthor(id, user.id);
+    this.realtimeEvents.emitToChannel(postsFeedChannel(result.kind), 'posts:feed:update', {
+      kind: result.kind,
+      postId: result.id,
+    });
+    return result;
   }
 
   @Get(':id')
@@ -140,11 +146,16 @@ export class PostsController {
 
   @Post()
   @UseGuards(AccessTokenGuard)
-  createPost(
+  async createPost(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreatePostDto,
   ) {
-    return this.postsService.createPost(user.id, dto);
+    const post = await this.postsService.createPost(user.id, dto);
+    this.realtimeEvents.emitToChannel(postsFeedChannel(dto.kind), 'posts:feed:update', {
+      kind: dto.kind,
+      postId: post.id,
+    });
+    return post;
   }
 
   @Get(':id/comments')
