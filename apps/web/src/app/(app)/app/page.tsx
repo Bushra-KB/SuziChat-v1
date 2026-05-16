@@ -22,26 +22,24 @@ import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { listGameLobbies, type ApiGameLobby } from "@/lib/games-client";
 import { openGamesSocket, subscribeGameLobbyListChannel } from "@/lib/games-realtime";
+import { MQ_HOME_COMPACT } from "@/lib/breakpoints";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import { games } from "@/lib/v1-mock-data";
 
 /*
- * Home dashboard — desktop SPA grid, fits 100dvh without page scroll.
+ * Home dashboard — at >=1280px (xl): 6-panel SPA grid in 100dvh, no page scroll.
+ * Below 1280px: stacked sections in `.suzi-home-mobile-stack` (see MQ_HOME_COMPACT).
  *
  *   ┌──────────────┬──────────────────────────┬────────────────┐
  *   │  Friends     │  Suzi Chat Rooms         │  Suzi Snaps    │
- *   │  (auto)      │  (auto)                  │  (auto)        │
  *   ├──────────────┼──────────────────────────┼────────────────┤
  *   │  Reels       │  Suzi Games              │  Suzi Dating   │
- *   │  (1fr — fills remaining viewport)      │                │
  *   └──────────────┴──────────────────────────┴────────────────┘
- *
- * Friends, Chat Rooms, and Snaps share row 1 (65%); Reels, Games, Dating share row 2 (35%).
  */
 export default function AppHomePage() {
   const [lobbies, setLobbies] = useState<ApiGameLobby[]>([]);
   const [mobileGamesOpen, setMobileGamesOpen] = useState(false);
-  const { isMobile } = useIsMobile();
+  const { isMobile: isCompactHome } = useIsMobile(MQ_HOME_COMPACT);
 
   // Lock body scroll while the games bottom-sheet is open on mobile.
   useEffect(() => {
@@ -96,7 +94,7 @@ export default function AppHomePage() {
     return counts;
   }, [lobbies]);
 
-  if (isMobile) {
+  if (isCompactHome) {
     const totalPlaying = Array.from(playingByGameType.values()).reduce(
       (acc, value) => acc + value,
       0,

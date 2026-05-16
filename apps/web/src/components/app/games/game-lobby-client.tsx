@@ -8,6 +8,7 @@ import { gameIconForId } from "@/lib/game-icons";
 import { HomeFriendsPanel } from "@/components/app/home-friends-panel";
 import { Panel } from "@/components/ui/suzi-primitives";
 import { explorePeople, getFriendsSummary, type FriendSummaryUser } from "@/lib/friends-client";
+import { MQ_HOME_COMPACT } from "@/lib/breakpoints";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import {
   createGameLobby,
@@ -46,7 +47,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
   const [openInviteLobbyId, setOpenInviteLobbyId] = useState<string | null>(null);
   // Friends rail is only shown at xl and above (1280px+). Skip mounting it
   // entirely below that breakpoint so we don't fetch friends data unused.
-  const { isMobile: belowXl } = useIsMobile("(max-width: 1279px)");
+  const { isMobile: belowXl } = useIsMobile(MQ_HOME_COMPACT);
 
   async function refresh() {
     setLoading(true);

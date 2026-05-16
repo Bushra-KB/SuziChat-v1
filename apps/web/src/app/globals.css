@@ -70,6 +70,9 @@
   --avatar-md: clamp(1.8rem, 2vh + 0.65rem, 2.2rem);
   --avatar-lg: clamp(2.2rem, 2.6vh + 0.9rem, 2.8rem);
   --avatar-xl: clamp(3.4rem, 5.5vh + 1.8rem, 5.4rem);
+
+  /* Must match `BP_XL_MIN_PX` in apps/web/src/lib/breakpoints.ts (1280). */
+  --bp-home-desktop: 1280px;
 }
 
 .light {
@@ -1044,8 +1047,9 @@ h5 {
  * ================================================================== */
 
 /* HOME — three columns. Left rail, wide middle, right rail.
- * Reference proportions: 18.5rem | 1fr | 18.5rem at >= 1280px,
- * collapses to single column < 1280px. */
+ * Full 6-panel SPA grid only at >= --bp-home-desktop (1280px).
+ * Below that, React renders `.suzi-home-mobile-stack`; CSS fallback below
+ * ensures `.suzi-home-grid` never clips panels if markup is ever shown. */
 .suzi-home-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -1165,6 +1169,35 @@ h5 {
 
 .suzi-home-mobile-stack > button[class*="rounded-"] {
   padding: var(--home-panel-pad) !important;
+}
+
+/* Compact home (< 1280px): safety net if `.suzi-home-grid` is in the DOM. */
+@media (max-width: 1279px) {
+  .suzi-home-grid {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    gap: var(--row-gap);
+  }
+
+  .suzi-home-grid > .suzi-home-area {
+    flex: none;
+    width: 100%;
+    min-height: 14rem;
+  }
+
+  .suzi-home-grid > .suzi-home-area-dating {
+    min-height: 7rem;
+  }
+
+  /* Desktop shell + stacked home: allow vertical scroll in the content frame. */
+  .suzi-app-frame-fill {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 @media (min-width: 1280px) {
