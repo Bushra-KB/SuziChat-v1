@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer } from "@/components/app/chat-composer";
 import { ChatMessageRow, type LiveChatMessage } from "@/components/app/chat-message-row";
 import { PersonRow, ThreadRow } from "@/components/app/v1-blocks";
-import { Icon, Panel } from "@/components/ui/suzi-primitives";
+import { Icon, Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import {
   getConversationPeer,
@@ -39,6 +39,38 @@ function shortTime(iso: string) {
   }
 }
 
+type Presence = "online" | "away" | "offline";
+
+function presenceLabel(status: Presence) {
+  if (status === "online") {
+    return "Online";
+  }
+  if (status === "away") {
+    return "Away";
+  }
+  return "Offline";
+}
+
+function presenceSubtitleClass(status: Presence) {
+  if (status === "online") {
+    return "text-emerald-300/85";
+  }
+  if (status === "away") {
+    return "text-amber-300/85";
+  }
+  return "text-cyan-100/55";
+}
+
+function presenceDotClass(status: Presence) {
+  if (status === "online") {
+    return "bg-emerald-400 shadow-[0_0_8px_rgba(110,255,178,0.7)]";
+  }
+  if (status === "away") {
+    return "bg-amber-300 shadow-[0_0_8px_rgba(255,204,110,0.55)]";
+  }
+  return "bg-slate-500";
+}
+
 export function MessagesInbox() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -56,6 +88,7 @@ export function MessagesInbox() {
   const [typingName, setTypingName] = useState<string | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
+  const [presenceById, setPresenceById] = useState<Record<string, Presence>>({});
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const typingHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingAtRef = useRef(0);
@@ -291,6 +324,66 @@ export function MessagesInbox() {
     };
   }, []);
 
+  const presenceWatchIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const thread of threads) {
+      ids.add(thread.peer.id);
+    }
+    if (draftPeer) {
+      ids.add(draftPeer.id);
+    }
+    if (selectedPeerId) {
+      ids.add(selectedPeerId);
+    }
+    return [...ids];
+  }, [draftPeer, selectedPeerId, threads]);
+
+  useEffect(() => {
+    const s = getStoredAuthSession();
+    if (!s) {
+      return;
+    }
+    const socket = getRealtimeSocket(s.accessToken);
+    const onPresenceUpdate = (payload: {
+      userId?: string;
+      status?: Presence;
+      online?: boolean;
+    }) => {
+      if (!payload?.userId) {
+        return;
+      }
+      const nextStatus: Presence =
+        payload.status ?? (payload.online ? "online" : "offline");
+      setPresenceById((prev) => ({ ...prev, [payload.userId as string]: nextStatus }));
+    };
+    socket.on("presence:update", onPresenceUpdate);
+    return () => {
+      socket.off("presence:update", onPresenceUpdate);
+    };
+  }, []);
+
+  useEffect(() => {
+    const s = getStoredAuthSession();
+    if (!s || presenceWatchIds.length === 0) {
+      return;
+    }
+    const socket = getRealtimeSocket(s.accessToken);
+    socket.emit(
+      "presence:watch",
+      { userIds: presenceWatchIds },
+      (ack?: { ok?: boolean; statuses?: Record<string, Presence> }) => {
+        if (!ack?.ok || !ack.statuses) {
+          return;
+        }
+        setPresenceById((prev) => ({ ...prev, ...ack.statuses }));
+      },
+    );
+  }, [presenceWatchIds]);
+
+  const peerPresence: Presence = selectedPeerId
+    ? (presenceById[selectedPeerId] ?? "offline")
+    : "offline";
+
   const activeThread = useMemo(() => {
     const found = threads.find((t) => t.peer.id === selectedPeerId);
     if (found) {
@@ -460,9 +553,25 @@ export function MessagesInbox() {
                     <p className="truncate text-[var(--fs-md)] font-semibold text-white">
                       {activeThread.peer.displayName ?? activeThread.peer.username}
                     </p>
-                    <p className="truncate text-[var(--fs-xs)] text-emerald-300/85">
-                      <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 align-middle shadow-[0_0_8px_rgba(110,255,178,0.7)]" />
-                      Online
+                    <p
+                      className={cx(
+                        "truncate text-[var(--fs-xs)]",
+                        typingName ? "text-cyan-100/80" : presenceSubtitleClass(peerPresence),
+                      )}
+                    >
+                      {typingName ? (
+                        "Typing…"
+                      ) : (
+                        <>
+                          <span
+                            className={cx(
+                              "mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle",
+                              presenceDotClass(peerPresence),
+                            )}
+                          />
+                          {presenceLabel(peerPresence)}
+                        </>
+                      )}
                     </p>
                   </div>
                 </>
@@ -484,7 +593,7 @@ export function MessagesInbox() {
           </div>
           <div
             ref={messagesScrollRef}
-            className="suzi-thin-scroll mx-[var(--panel-pad-tight)] my-[var(--panel-pad-tight)] flex-1 space-y-3 overflow-y-auto rounded-[var(--panel-radius)] bg-white px-[var(--panel-pad)] py-[var(--panel-pad)] shadow-[inset_0_2px_8px_rgba(7,4,28,0.22),inset_0_0_0_1px_rgba(0,0,0,0.04)]"
+            className="suzi-chat-log suzi-thin-scroll mx-[var(--panel-pad-tight)] my-[var(--panel-pad-tight)] flex-1 overflow-y-auto rounded-[var(--panel-radius)] bg-white px-[var(--panel-pad)] py-[var(--panel-pad)] shadow-[inset_0_2px_8px_rgba(7,4,28,0.22),inset_0_0_0_1px_rgba(0,0,0,0.04)]"
           >
             {msgLoading ? (
               <p className="text-[var(--fs-sm)] text-[var(--text-muted)]">Loading messages…</p>

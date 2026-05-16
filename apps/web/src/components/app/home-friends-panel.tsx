@@ -522,7 +522,7 @@ export function HomeFriendsPanel() {
 
         {[...friendsOnline, ...friendsAway, ...friendsOffline].length === 0 ? (
           <div className={cx(listEmpty, "suzi-home-empty-note rounded-[0.8rem] border px-3 py-2")}>
-            You have no friends yet. Explore people below and send friend requests.
+            You have no friends yet. Send friend requests to people in this list.
           </div>
         ) : (
           [...friendsOnline, ...friendsAway, ...friendsOffline].map((friend) => {
@@ -614,11 +614,7 @@ export function HomeFriendsPanel() {
           })
         )}
 
-        <div className="space-y-1.5 pt-1">
-          <p className={cx(listSection, "px-1 tracking-[0.1em]")}>
-            Other People On SuziChat
-          </p>
-          {filteredOthers.length > 0 ? (
+        {filteredOthers.length > 0 ? (
             filteredOthers.map((person) => {
               const status = presenceById[person.id] ?? "offline";
               return (
@@ -766,7 +762,6 @@ export function HomeFriendsPanel() {
               No users match this search.
             </div>
           )}
-        </div>
 
       </div>
 

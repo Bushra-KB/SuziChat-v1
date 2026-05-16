@@ -29,6 +29,8 @@ import { CreatePostCommentDto } from './dto/create-post-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { REEL_UPLOAD_FIELD, REEL_UPLOAD_MAX_BYTES } from './reel-upload.constants';
 import { isAllowedReelVideoFile, pickStoredReelExtension } from './reel-upload.util';
+import { SNAP_UPLOAD_FIELD, SNAP_UPLOAD_MAX_BYTES } from './snap-upload.constants';
+import { isAllowedSnapImageFile, pickStoredSnapExtension } from './snap-upload.util';
 import { PostsService } from './posts.service';
 
 @Controller('v1/posts')
@@ -141,6 +143,51 @@ export class PostsController {
     }
     return {
       mediaUrl: `/api/uploads/reels/${file.filename}`,
+    };
+  }
+
+  @Post('upload/snap')
+  @UseGuards(AccessTokenGuard)
+  @UseInterceptors(
+    FileInterceptor(SNAP_UPLOAD_FIELD, {
+      limits: { fileSize: SNAP_UPLOAD_MAX_BYTES },
+      storage: diskStorage({
+        destination: (_req: Request, _file: Express.Multer.File, cb) => {
+          const dir = join(process.cwd(), 'uploads', 'snaps');
+          if (!existsSync(dir)) {
+            mkdirSync(dir, { recursive: true });
+          }
+          cb(null, dir);
+        },
+        filename: (_req: Request, file: Express.Multer.File, cb) => {
+          const ext = pickStoredSnapExtension(file.mimetype, file.originalname);
+          if (!ext) {
+            cb(new Error('Unsupported image type'), '');
+            return;
+          }
+          cb(null, `${randomUUID()}${ext}`);
+        },
+      }),
+      fileFilter: (_req, file, cb) => {
+        if (isAllowedSnapImageFile(file.mimetype, file.originalname)) {
+          cb(null, true);
+          return;
+        }
+        cb(
+          new BadRequestException(
+            'Unsupported image type. Use JPEG, PNG, WebP, or GIF.',
+          ),
+          false,
+        );
+      },
+    }),
+  )
+  uploadSnap(@UploadedFile() file: Express.Multer.File) {
+    if (!file?.filename) {
+      throw new BadRequestException('Image file is required.');
+    }
+    return {
+      mediaUrl: `/api/uploads/snaps/${file.filename}`,
     };
   }
 

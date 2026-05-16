@@ -78,7 +78,7 @@ export function ChatComposer({
               onTyping?.(next);
             }}
             disabled={disabled}
-            className="min-h-[2.75rem] w-0 flex-1 resize-none border-0 bg-transparent px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 disabled:opacity-60"
+            className="suzi-composer-textarea min-h-[2.75rem] max-h-[7.5rem] w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 disabled:opacity-60"
           />
           <div className="w-px shrink-0 bg-slate-200" aria-hidden />
           <button
