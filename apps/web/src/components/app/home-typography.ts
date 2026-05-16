@@ -1,0 +1,51 @@
+/**
+ * Compact typography for home dashboard panels.
+ * Hierarchy: panel title → L1 → L2 → L3 / section / action.
+ */
+
+export const panelTitle = "suzi-home-panel-title font-bold tracking-tight text-white";
+export const panelLink =
+  "suzi-home-panel-link shrink-0 whitespace-nowrap font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100";
+export const panelMeta = "suzi-home-panel-meta text-cyan-100/62";
+
+export const listL1 = "suzi-home-list-l1";
+export const listL2 = "suzi-home-list-l2";
+export const listL3 = "suzi-home-list-l3";
+
+export const listTitle = `${listL1} font-semibold leading-tight text-white`;
+export const listSubtitle = `${listL2} truncate leading-none text-cyan-100/66`;
+export const listMeta = `${listL3} text-cyan-100/72`;
+export const listSection = "suzi-home-list-section font-semibold text-cyan-100/62";
+export const listEmpty = "suzi-home-list-empty";
+export const listAction = "suzi-home-list-action font-semibold leading-none";
+
+export const listTitleLink = `${listTitle} transition hover:text-cyan-100`;
+export const listTitleLinkCyan = `${listTitle} transition hover:text-cyan-50`;
+
+export const listActionBtn = `${listAction} rounded-full border px-2 py-0.5`;
+export const listActionChip = `${listAction} inline-flex items-center justify-center rounded-[0.7rem] border font-semibold transition disabled:opacity-60`;
+export const listActionPrimary = `${listL2} inline-flex items-center justify-center rounded-[0.7rem] border font-semibold leading-none transition`;
+
+export const homeTabChip = `${listL1} inline-flex h-[1.35rem] shrink-0 items-center gap-1 rounded-[0.45rem] border px-1.5 font-medium leading-none transition`;
+
+export const homeSearchInput = `${listL1} leading-none`;
+
+export const modalTitle = `${panelTitle} font-semibold`;
+export const modalLabel = `${listSection} mb-1 block tracking-[0.14em] text-cyan-100/76`;
+export const modalInput = `${listL1} leading-none text-cyan-50 placeholder:text-cyan-100/45`;
+export const modalFieldBtn = `${listActionBtn} border-cyan-300/28 bg-cyan-400/16 text-cyan-50`;
+export const modalPrimaryBtn = `${listActionPrimary} border-fuchsia-200/44 bg-[linear-gradient(90deg,#ff2da7,#ce2fff)] text-white`;
+
+/** Shell header dropdowns — match home panel list scale */
+export const shellDropdownHeading = `${panelTitle} px-2 py-1`;
+export const shellDropdownItem = `${listL1} flex items-center gap-1.5 rounded-[0.7rem] px-2 py-1.5 text-cyan-100/82 transition hover:bg-white/8 hover:text-white`;
+export const shellDropdownItemActive = `${shellDropdownItem} bg-white/12 text-white`;
+export const shellDropdownRow = `${listL1} flex items-center gap-2 rounded-[0.7rem] px-2 py-1.5 transition hover:bg-white/8`;
+export const shellDropdownRowTitle = `${listL1} truncate font-semibold leading-tight text-white`;
+export const shellDropdownRowSubtitle = `${listL2} truncate leading-none text-cyan-100/66`;
+export const shellDropdownRowTime = `${listL3} shrink-0 text-cyan-100/62`;
+export const shellDropdownFooterLink = `${listL2} font-medium text-cyan-100/88 transition hover:text-white`;
+export const shellDropdownFooterAction = `${listAction} uppercase tracking-[0.1em] text-fuchsia-100/88 transition hover:text-white`;
+export const shellDropdownEmpty = `${listEmpty} px-2 py-2 text-cyan-100/58`;
+export const shellDropdownIcon = "h-3 w-3 shrink-0 text-cyan-100/90";
+export const shellDropdownLogout = `${shellDropdownItem} text-pink-100/92 hover:bg-pink-400/12 hover:text-white`;

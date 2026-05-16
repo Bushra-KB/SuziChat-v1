@@ -1,5 +1,5 @@
 import Image from "next/image";
-import type { ReactNode } from "react";
+import { forwardRef, type HTMLAttributes, type ReactNode } from "react";
 
 export function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -28,15 +28,16 @@ export function Icon({
   );
 }
 
-export function Panel({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return <section className={cx("suzi-panel", className)}>{children}</section>;
-}
+export const Panel = forwardRef<
+  HTMLElement,
+  HTMLAttributes<HTMLElement> & { className?: string }
+>(function Panel({ children, className, ...props }, ref) {
+  return (
+    <section ref={ref} className={cx("suzi-panel", className)} {...props}>
+      {children}
+    </section>
+  );
+});
 
 export function PanelMuted({
   children,

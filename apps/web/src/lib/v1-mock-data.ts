@@ -1,3 +1,5 @@
+import { gameIcons } from "@/lib/game-icons";
+
 export type NavItem = {
   href: string;
   label: string;
@@ -59,6 +61,7 @@ export type Snap = {
   comments: number;
   tone: string;
   image: string;
+  createdAt?: string;
 };
 
 export type Reel = {
@@ -77,6 +80,7 @@ export type Reel = {
   comments: number;
   video: string;
   tone: string;
+  createdAt?: string;
 };
 
 export type NotificationItem = {
@@ -706,7 +710,7 @@ export const games = [
   {
     id: "chess",
     name: "Chess",
-    icon: "/games/Chess_icon.png",
+    icon: gameIcons.chess,
     copy: "Play with friends or keep a private table open.",
     tone: "from-cyan-400/24 via-blue-400/10 to-transparent",
     playing: "1.2K playing",
@@ -714,7 +718,7 @@ export const games = [
   {
     id: "checkers",
     name: "Checkers",
-    icon: "/games/Checker_icon.png",
+    icon: gameIcons.checkers,
     copy: "Fast two-player tables with public or friends-only queues.",
     tone: "from-pink-400/24 via-fuchsia-400/12 to-transparent",
     playing: "842 playing",
@@ -722,7 +726,7 @@ export const games = [
   {
     id: "poker",
     name: "Poker",
-    icon: "/games/Poker_icon.png",
+    icon: gameIcons.poker,
     copy: "Private and public lobbies with easy invite flow.",
     tone: "from-emerald-400/24 via-cyan-400/12 to-transparent",
     playing: "1.5K playing",
@@ -730,10 +734,18 @@ export const games = [
   {
     id: "connect4",
     name: "Connect 4",
-    icon: "/games/Connect4_icon.png",
+    icon: gameIcons.connect4,
     copy: "Quick lobby matches for short sessions and low friction.",
     tone: "from-amber-400/24 via-orange-400/12 to-transparent",
     playing: "623 playing",
+  },
+  {
+    id: "texasholdem",
+    name: "Texas Hold'em",
+    icon: gameIcons.texasholdem,
+    copy: "Classic no-limit tables with blinds, raises, and showdown.",
+    tone: "from-rose-400/24 via-fuchsia-400/12 to-transparent",
+    playing: "932 playing",
   },
 ];
 

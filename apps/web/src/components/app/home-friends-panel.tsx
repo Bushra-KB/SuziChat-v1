@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnchoredDropdown, isEventInsideAnchor } from "@/components/ui/anchored-dropdown";
 import { Panel, StatusDot, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import {
@@ -21,6 +22,19 @@ import {
   type FriendsSummary,
 } from "@/lib/friends-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
+import {
+  homeSearchInput,
+  homeTabChip,
+  listActionBtn,
+  listEmpty,
+  listMeta,
+  listSection,
+  listSubtitle,
+  listTitleLink,
+  modalFieldBtn,
+  modalTitle,
+  panelTitle,
+} from "@/components/app/home-typography";
 
 const defaultAvatar = "/ppic/ppic1.jpeg";
 type Presence = "online" | "away" | "offline";
@@ -40,11 +54,14 @@ type ProfileUser = {
   country: string | null;
 };
 
+const friendIconBtn =
+  "inline-flex shrink-0 items-center justify-center rounded-full border transition hover:brightness-110 disabled:opacity-60";
+
 function getTabClasses(active: boolean) {
   return cx(
-    "inline-flex shrink-0 items-center gap-1.5 rounded-[0.6rem] border px-2 py-1 text-[var(--fs-2xs)] font-medium leading-none transition",
+    homeTabChip,
     active
-      ? "border-fuchsia-300/46 bg-[linear-gradient(90deg,rgba(157,78,221,0.86),rgba(255,32,121,0.72))] text-white shadow-[0_0_16px_rgba(255,32,121,0.24)]"
+      ? "border-fuchsia-300/46 bg-[linear-gradient(90deg,rgba(157,78,221,0.86),rgba(255,32,121,0.72))] text-white shadow-[0_0_12px_rgba(255,32,121,0.2)]"
       : "border-cyan-300/22 bg-[rgba(23,16,71,0.62)] text-cyan-100/84 hover:border-cyan-300/38 hover:text-white",
   );
 }
@@ -72,8 +89,9 @@ export function HomeFriendsPanel() {
   const [isBlockedOpen, setIsBlockedOpen] = useState(false);
   const [presenceById, setPresenceById] = useState<Record<string, Presence>>({});
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
-  const requestsRef = useRef<HTMLDivElement | null>(null);
-  const blockedRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
+  const requestsBtnRef = useRef<HTMLButtonElement | null>(null);
+  const blockedBtnRef = useRef<HTMLButtonElement | null>(null);
 
   const refresh = useCallback(async () => {
     const s = getStoredAuthSession();
@@ -165,14 +183,10 @@ export function HomeFriendsPanel() {
 
   useEffect(() => {
     const onWindowClick = (event: MouseEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) {
-        return;
-      }
-      if (requestsRef.current && !requestsRef.current.contains(target)) {
+      if (!isEventInsideAnchor(event, requestsBtnRef)) {
         setIsRequestsOpen(false);
       }
-      if (blockedRef.current && !blockedRef.current.contains(target)) {
+      if (!isEventInsideAnchor(event, blockedBtnRef)) {
         setIsBlockedOpen(false);
       }
     };
@@ -288,8 +302,11 @@ export function HomeFriendsPanel() {
   const blockedCount = blockedRows.length;
 
   return (
-    <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
-      <div className="shrink-0">
+    <Panel
+      ref={panelRef}
+      className="suzi-home-row1-panel flex min-h-0 w-full flex-col overflow-hidden p-[var(--panel-pad)]"
+    >
+      <div className="shrink-0 overflow-visible">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
           <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[rgba(157,78,221,0.26)] text-fuchsia-200/95 shadow-[0_0_14px_rgba(157,78,221,0.3)]">
@@ -309,7 +326,7 @@ export function HomeFriendsPanel() {
               <path d="M16.5 5.5a2.5 2.5 0 0 1 0 5" />
             </svg>
           </span>
-          <h2 className="text-[var(--fs-xl)] font-bold tracking-tight text-white">Friends</h2>
+          <h2 className={panelTitle}>Friends</h2>
         </div>
         </div>
 
@@ -332,7 +349,10 @@ export function HomeFriendsPanel() {
           </span>
 
           <input
-            className="h-[var(--btn-h-sm)] w-full rounded-[0.8rem] border border-cyan-300/24 bg-[linear-gradient(95deg,rgba(36,22,101,0.62),rgba(24,14,76,0.7))] py-1.5 pl-9 pr-10 text-[var(--fs-xs)] text-cyan-50/96 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] placeholder:text-cyan-100/48 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24"
+            className={cx(
+              homeSearchInput,
+              "h-[var(--btn-h-sm)] w-full rounded-[0.8rem] border border-cyan-300/24 bg-[linear-gradient(95deg,rgba(36,22,101,0.62),rgba(24,14,76,0.7))] py-1.5 pl-9 pr-10 text-cyan-50/96 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] placeholder:text-cyan-100/48 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24",
+            )}
             placeholder="Search friends..."
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -359,27 +379,34 @@ export function HomeFriendsPanel() {
           </button>
         </div>
 
-        <div className="relative z-20 flex flex-wrap items-center gap-1.5 pb-1">
+        <div className="relative z-20 flex min-w-0 flex-nowrap items-center gap-1 pb-1">
           <button type="button" className={getTabClasses(true)}>
             All
           </button>
-          <div ref={requestsRef} className="relative">
+          <div className="relative shrink-0">
             <button
+              ref={requestsBtnRef}
               type="button"
               className={getTabClasses(isRequestsOpen)}
-              onClick={() => {
+              onClick={(event) => {
+                event.stopPropagation();
                 setIsRequestsOpen((v) => !v);
                 setIsBlockedOpen(false);
               }}
             >
               Requests
-              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-pink-500 px-1 text-[var(--fs-2xs)] font-semibold leading-none text-white">
+              <span className="inline-flex h-3 min-w-3 items-center justify-center rounded-full bg-pink-500 px-0.5 text-[0.55rem] font-semibold leading-none text-white">
                 {incomingCount}
               </span>
             </button>
-            {isRequestsOpen ? (
-              <div className="suzi-overlay-panel absolute left-0 top-[calc(100%+0.4rem)] z-30 w-72 rounded-[0.9rem] p-2">
-                <p className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">
+            <AnchoredDropdown
+              open={isRequestsOpen}
+              anchorRef={requestsBtnRef}
+              boundsRef={panelRef}
+              align="start"
+              className="w-[16.5rem] min-w-[10.5rem] rounded-[0.9rem] p-2"
+            >
+                <p className={cx(listSection, "px-2 py-1 tracking-[0.14em] text-cyan-100/76")}>
                   Incoming Requests
                 </p>
                 <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
@@ -388,11 +415,11 @@ export function HomeFriendsPanel() {
                       <button
                         type="button"
                         onClick={() => profileFromUser(row.user)}
-                        className="truncate text-sm font-semibold text-white hover:text-cyan-100"
+                        className={cx(listTitleLink, "block w-full truncate text-left")}
                       >
                         {displayName(row.user)}
                       </button>
-                      <p className="truncate text-xs text-cyan-100/70">@{row.user.username}</p>
+                      <p className={cx(listSubtitle, "text-cyan-100/70")}>@{row.user.username}</p>
                       <div className="mt-2 flex gap-1.5">
                         <button
                           type="button"
@@ -402,7 +429,7 @@ export function HomeFriendsPanel() {
                             if (!s) return;
                             await acceptFriendRequest(s.accessToken, row.id);
                           })}
-                          className="rounded-full border border-emerald-300/35 bg-emerald-400/20 px-2 py-1 text-[0.68rem] font-semibold text-emerald-50"
+                          className={cx(listActionBtn, "border-emerald-300/35 bg-emerald-400/20 text-emerald-50")}
                         >
                           Accept
                         </button>
@@ -414,7 +441,7 @@ export function HomeFriendsPanel() {
                             if (!s) return;
                             await declineFriendRequest(s.accessToken, row.id);
                           })}
-                          className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/20 px-2 py-1 text-[0.68rem] font-semibold text-pink-100"
+                          className={cx(listActionBtn, "border-fuchsia-300/30 bg-fuchsia-500/20 text-pink-100")}
                         >
                           Reject
                         </button>
@@ -422,29 +449,35 @@ export function HomeFriendsPanel() {
                     </div>
                   ))}
                   {(summary?.incomingRequests.length ?? 0) === 0 ? (
-                    <p className="px-2 py-2 text-xs text-cyan-100/66">No incoming requests.</p>
+                    <p className={cx(listEmpty, "px-2 py-2")}>No incoming requests.</p>
                   ) : null}
                 </div>
-              </div>
-            ) : null}
+            </AnchoredDropdown>
           </div>
-          <div ref={blockedRef} className="relative">
+          <div className="relative shrink-0">
             <button
+              ref={blockedBtnRef}
               type="button"
               className={getTabClasses(isBlockedOpen)}
-              onClick={() => {
+              onClick={(event) => {
+                event.stopPropagation();
                 setIsBlockedOpen((v) => !v);
                 setIsRequestsOpen(false);
               }}
             >
               Blocked
-              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-600 px-1 text-[var(--fs-2xs)] font-semibold leading-none text-white">
+              <span className="inline-flex h-3 min-w-3 items-center justify-center rounded-full bg-slate-600 px-0.5 text-[0.55rem] font-semibold leading-none text-white">
                 {blockedCount}
               </span>
             </button>
-            {isBlockedOpen ? (
-              <div className="suzi-overlay-panel absolute right-0 top-[calc(100%+0.4rem)] z-30 w-72 rounded-[0.9rem] p-2">
-                <p className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">
+            <AnchoredDropdown
+              open={isBlockedOpen}
+              anchorRef={blockedBtnRef}
+              boundsRef={panelRef}
+              align="end"
+              className="w-[16.5rem] min-w-[10.5rem] rounded-[0.9rem] p-2"
+            >
+                <p className={cx(listSection, "px-2 py-1 tracking-[0.14em] text-cyan-100/76")}>
                   Blocked People
                 </p>
                 <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
@@ -453,11 +486,11 @@ export function HomeFriendsPanel() {
                       <button
                         type="button"
                         onClick={() => profileFromUser(row.user)}
-                        className="truncate text-sm font-semibold text-white hover:text-cyan-100"
+                        className={cx(listTitleLink, "block w-full truncate text-left")}
                       >
                         {displayName(row.user)}
                       </button>
-                      <p className="truncate text-xs text-cyan-100/70">@{row.user.username}</p>
+                      <p className={cx(listSubtitle, "text-cyan-100/70")}>@{row.user.username}</p>
                       <button
                         type="button"
                         disabled={busy}
@@ -466,32 +499,31 @@ export function HomeFriendsPanel() {
                           if (!s) return;
                           await unblockPerson(s.accessToken, row.user.id);
                         })}
-                        className="mt-2 rounded-full border border-cyan-300/30 bg-cyan-400/16 px-2 py-1 text-[0.68rem] font-semibold text-cyan-50"
+                        className={cx(listActionBtn, "mt-2 border-cyan-300/30 bg-cyan-400/16 text-cyan-50")}
                       >
                         Cancel block
                       </button>
                     </div>
                   ))}
                   {blockedRows.length === 0 ? (
-                    <p className="px-2 py-2 text-xs text-cyan-100/66">No blocked users.</p>
+                    <p className={cx(listEmpty, "px-2 py-2")}>No blocked users.</p>
                   ) : null}
                 </div>
-              </div>
-            ) : null}
+            </AnchoredDropdown>
           </div>
         </div>
       </div>
       </div>
 
-      <div className="suzi-scrollbar mt-3 min-h-0 flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden overscroll-contain rounded-[0.95rem] border border-cyan-300/16 p-1.5 shadow-[inset_0_1px_3px_rgba(0,0,0,0.32),inset_0_0_0_1px_rgba(255,255,255,0.02)]">
+      <div className="suzi-home-row1-scroll suzi-scrollbar mt-3 space-y-1.5 overscroll-contain rounded-[0.95rem] border border-cyan-300/16 p-1.5 shadow-[inset_0_1px_3px_rgba(0,0,0,0.32),inset_0_0_0_1px_rgba(255,255,255,0.02)]">
         {error ? (
-          <div className="rounded-[0.9rem] border border-pink-400/20 bg-pink-500/10 px-3 py-2 text-[var(--fs-xs)] text-pink-100">
+          <div className={cx(listEmpty, "rounded-[0.9rem] border border-pink-400/20 bg-pink-500/10 px-3 py-2 text-pink-100")}>
             {error}
           </div>
         ) : null}
 
         {[...friendsOnline, ...friendsAway, ...friendsOffline].length === 0 ? (
-          <div className="rounded-[0.8rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-2 text-[var(--fs-xs)] text-cyan-100/56">
+          <div className={cx(listEmpty, "rounded-[0.8rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-2 text-cyan-100/56")}>
             You have no friends yet. Explore people below and send friend requests.
           </div>
         ) : (
@@ -518,18 +550,19 @@ export function HomeFriendsPanel() {
                   <button
                     type="button"
                     onClick={() => profileFromUser(friend)}
-                    className="block w-full truncate text-left text-[var(--fs-xs)] font-semibold leading-tight text-white hover:text-cyan-100"
+                    className={cx(listTitleLink, "block w-full truncate text-left")}
                   >
                     {displayName(friend)}
                   </button>
-                  <p className="mt-0.5 truncate text-[var(--fs-2xs)] leading-none text-cyan-100/66">
-                    @{friend.username}
-                  </p>
+                  <p className={cx(listSubtitle, "mt-0.5")}>@{friend.username}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <Link
                     href={`/app/messages?with=${encodeURIComponent(friend.id)}`}
-                    className="inline-flex items-center justify-center rounded-full border border-fuchsia-300/22 bg-[linear-gradient(150deg,rgba(86,30,173,0.54),rgba(46,17,111,0.74))] text-cyan-100/88 transition hover:border-fuchsia-300/42 hover:text-white"
+                    className={cx(
+                      friendIconBtn,
+                      "border-fuchsia-300/22 bg-[linear-gradient(150deg,rgba(86,30,173,0.54),rgba(46,17,111,0.74))] text-cyan-100/88 hover:border-fuchsia-300/42 hover:text-white",
+                    )}
                     style={{ width: "var(--btn-h-sm)", height: "var(--btn-h-sm)" }}
                     aria-label={`Message ${displayName(friend)}`}
                     title="Message"
@@ -557,7 +590,7 @@ export function HomeFriendsPanel() {
                         await unfriend(s.accessToken, friend.id);
                       })
                     }
-                    className="inline-flex items-center justify-center rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 text-pink-100"
+                    className={cx(friendIconBtn, "border-fuchsia-300/30 bg-fuchsia-500/16 text-pink-100")}
                     style={{ width: "var(--btn-h-sm)", height: "var(--btn-h-sm)" }}
                     title="Unfriend"
                     aria-label={`Unfriend ${displayName(friend)}`}
@@ -584,10 +617,7 @@ export function HomeFriendsPanel() {
         )}
 
         <div className="space-y-1.5 pt-1">
-          <p
-            className="px-1 font-semibold uppercase tracking-[0.1em] text-cyan-100/62"
-            style={{ fontSize: "clamp(0.46rem, 0.22vw + 0.34rem, 0.56rem)" }}
-          >
+          <p className={cx(listSection, "px-1 tracking-[0.1em] text-cyan-100/62")}>
             Other People On SuziChat
           </p>
           {filteredOthers.length > 0 ? (
@@ -614,13 +644,11 @@ export function HomeFriendsPanel() {
                     <button
                       type="button"
                       onClick={() => profileFromUser(person)}
-                      className="block w-full truncate text-left text-[var(--fs-xs)] font-semibold leading-tight text-white hover:text-cyan-100"
+                      className={cx(listTitleLink, "block w-full truncate text-left")}
                     >
                       {displayName(person)}
                     </button>
-                    <p className="mt-0.5 truncate text-[var(--fs-2xs)] leading-none text-cyan-100/66">
-                      @{person.username}
-                    </p>
+                    <p className={cx(listSubtitle, "mt-0.5")}>@{person.username}</p>
                   </div>
                   {person.relationship === "incoming" ? (
                     <div className="flex shrink-0 gap-1">
@@ -634,7 +662,7 @@ export function HomeFriendsPanel() {
                             await acceptFriendRequest(s.accessToken, person.requestId);
                           })
                         }
-                        className="rounded-full border border-emerald-300/35 bg-emerald-400/20 px-2 py-1 text-[var(--fs-2xs)] font-semibold text-emerald-50"
+                        className={cx(listActionBtn, "border-emerald-300/35 bg-emerald-400/20 text-emerald-50")}
                       >
                         Accept
                       </button>
@@ -648,7 +676,7 @@ export function HomeFriendsPanel() {
                             await declineFriendRequest(s.accessToken, person.requestId);
                           })
                         }
-                        className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-2 py-1 text-[var(--fs-2xs)] font-semibold text-pink-100"
+                        className={cx(listActionBtn, "border-fuchsia-300/30 bg-fuchsia-500/16 text-pink-100")}
                       >
                         Reject
                       </button>
@@ -664,7 +692,7 @@ export function HomeFriendsPanel() {
                           await cancelOutgoingFriendRequest(s.accessToken, person.requestId);
                         })
                       }
-                      className="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-400/16 px-2 py-0.5 text-[var(--fs-2xs)] font-semibold text-cyan-50"
+                      className={cx(listActionBtn, "shrink-0 border-cyan-300/30 bg-cyan-400/16 text-cyan-50")}
                       title="Cancel request"
                     >
                       Cancel
@@ -681,7 +709,7 @@ export function HomeFriendsPanel() {
                             await sendFriendRequest(s.accessToken, person.username);
                           })
                         }
-                        className="inline-flex items-center justify-center rounded-full border border-emerald-300/35 bg-emerald-400/20 text-[var(--fs-2xs)] font-semibold text-emerald-50"
+                        className={cx(friendIconBtn, "border-emerald-300/35 bg-emerald-400/20 text-emerald-50")}
                         style={{ width: "var(--btn-h-sm)", height: "var(--btn-h-sm)" }}
                         title="Add friend"
                         aria-label={`Add ${displayName(person)} as friend`}
@@ -711,7 +739,7 @@ export function HomeFriendsPanel() {
                             await blockPerson(s.accessToken, person.id);
                           })
                         }
-                        className="inline-flex items-center justify-center rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 text-[var(--fs-2xs)] font-semibold text-pink-100"
+                        className={cx(friendIconBtn, "border-fuchsia-300/30 bg-fuchsia-500/16 text-pink-100")}
                         style={{ width: "var(--btn-h-sm)", height: "var(--btn-h-sm)" }}
                         title="Block"
                         aria-label={`Block ${displayName(person)}`}
@@ -736,7 +764,7 @@ export function HomeFriendsPanel() {
               );
             })
           ) : (
-            <div className="flex h-full items-center rounded-[0.9rem] border border-cyan-300/16 bg-[rgba(17,12,58,0.54)] px-3 py-3 text-[var(--fs-xs)] text-cyan-100/70">
+            <div className={cx(listEmpty, "flex h-full items-center rounded-[0.9rem] border border-cyan-300/16 bg-[rgba(17,12,58,0.54)] px-3 py-3 text-cyan-100/70")}>
               No users match this search.
             </div>
           )}
@@ -748,11 +776,11 @@ export function HomeFriendsPanel() {
         <div className="fixed inset-0 z-[260] flex items-center justify-center bg-[rgba(6,10,28,0.72)] p-4">
           <div className="w-full max-w-md rounded-[1.1rem] border border-cyan-300/24 bg-[linear-gradient(160deg,rgba(34,20,101,0.96),rgba(20,14,76,0.94))] p-4 shadow-[0_20px_60px_rgba(7,11,30,0.62)]">
             <div className="flex items-start justify-between gap-3">
-              <h3 className="text-lg font-semibold text-white">Profile</h3>
+              <h3 className={modalTitle}>Profile</h3>
               <button
                 type="button"
                 onClick={() => setProfileUser(null)}
-                className="rounded-full border border-cyan-300/30 bg-cyan-400/16 px-2 py-1 text-xs font-semibold text-cyan-100"
+                className={cx(modalFieldBtn, "px-2 py-1 text-cyan-100")}
               >
                 Close
               </button>
@@ -766,10 +794,10 @@ export function HomeFriendsPanel() {
                 className="h-14 w-14 rounded-full border border-white/14 object-cover"
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-lg font-semibold text-white">{displayName(profileUser)}</p>
-                <p className="truncate text-sm text-cyan-100/74">@{profileUser.username}</p>
+                <p className={cx(listTitleLink, "truncate")}>{displayName(profileUser)}</p>
+                <p className={cx(listSubtitle, "text-cyan-100/74")}>@{profileUser.username}</p>
                 {profileUser.country ? (
-                  <p className="truncate text-xs text-cyan-100/62">{profileUser.country}</p>
+                  <p className={cx(listMeta, "truncate text-cyan-100/62")}>{profileUser.country}</p>
                 ) : null}
               </div>
               <StatusDot status={presenceById[profileUser.id] ?? "offline"} />
@@ -777,14 +805,14 @@ export function HomeFriendsPanel() {
             <div className="mt-3 flex flex-wrap gap-2">
               <Link
                 href={`/app/messages?with=${encodeURIComponent(profileUser.id)}`}
-                className="rounded-full border border-cyan-300/30 bg-cyan-400/16 px-3 py-1.5 text-xs font-semibold text-cyan-50"
+                className={cx(modalFieldBtn, "px-3 py-1.5 text-cyan-50")}
                 onClick={() => setProfileUser(null)}
               >
                 DM
               </Link>
               <Link
                 href={`/app/profile/u/${encodeURIComponent(profileUser.id)}`}
-                className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-3 py-1.5 text-xs font-semibold text-pink-100"
+                className={cx(listActionBtn, "border-fuchsia-300/30 bg-fuchsia-500/16 px-3 py-1.5 text-pink-100")}
                 onClick={() => setProfileUser(null)}
               >
                 View full profile

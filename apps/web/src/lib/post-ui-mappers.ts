@@ -59,6 +59,7 @@ export function apiPostToSnap(p: ApiPost): Snap {
     comments: p._count?.comments ?? 0,
     tone,
     image: p.mediaUrl,
+    createdAt: p.createdAt,
   };
 }
 
@@ -82,5 +83,6 @@ export function apiPostToReel(p: ApiPost): Reel {
     comments: p._count?.comments ?? 0,
     video: p.mediaUrl,
     tone,
+    createdAt: p.createdAt,
   };
 }
