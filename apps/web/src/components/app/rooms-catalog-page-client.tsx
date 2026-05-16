@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Panel } from "@/components/ui/suzi-primitives";
+import {
+  listEmpty,
+  listMeta,
+  listSubtitle,
+  listTitleLink,
+  pageEyebrow,
+  pageLead,
+  pageTitle,
+} from "@/components/app/app-typography";
+import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 import { subscribeRoomsCatalog } from "@/lib/realtime-feed";
@@ -152,13 +161,13 @@ export function RoomsCatalogPageClient() {
       <Panel className="p-6 sm:p-7">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100/66">Rooms</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">Browse all chat rooms</h1>
-            <p className="mt-2 text-sm text-cyan-100/74">
+            <p className={pageEyebrow}>Rooms</p>
+            <h1 className={cx(pageTitle, "mt-2")}>Browse all chat rooms</h1>
+            <p className={cx(pageLead, "mt-1.5")}>
               Join existing rooms or create your own community space.
             </p>
           </div>
-          <Link href="/app/rooms/create" className="suzi-primary-btn px-4 py-2.5 text-sm">
+          <Link href="/app/rooms/create" className="suzi-primary-btn px-3 py-1.5">
             Create room
           </Link>
         </div>
@@ -170,14 +179,14 @@ export function RoomsCatalogPageClient() {
             placeholder="Search rooms by name/category"
           />
         </div>
-        {error ? <p className="mt-3 text-sm text-amber-100">{error}</p> : null}
+        {error ? <p className={cx(listMeta, "mt-3 text-amber-100")}>{error}</p> : null}
       </Panel>
 
       <Panel className="p-5">
         {loading ? (
-          <p className="text-sm text-[var(--text-muted)]">Loading rooms…</p>
+          <p className={listEmpty}>Loading rooms…</p>
         ) : filtered.length === 0 ? (
-          <p className="text-sm text-[var(--text-muted)]">No rooms match this search.</p>
+          <p className={listEmpty}>No rooms match this search.</p>
         ) : (
           <div className="grid gap-3 lg:grid-cols-2">
             {filtered.map((room) => (
@@ -196,11 +205,11 @@ export function RoomsCatalogPageClient() {
                   <div className="min-w-0">
                     <Link
                       href={`/app/rooms/${encodeURIComponent(room.slug)}`}
-                      className="truncate text-xl font-semibold text-white transition hover:text-cyan-100"
+                      className={listTitleLink}
                     >
                       {room.name}
                     </Link>
-                    <div className="mt-1 flex items-center gap-2 text-[11px] text-cyan-100/70">
+                    <div className={cx(listMeta, "mt-1 flex items-center gap-2")}>
                       <span className="rounded-full border border-white/14 bg-white/8 px-2 py-0.5">
                         {room.category}
                       </span>
@@ -208,10 +217,10 @@ export function RoomsCatalogPageClient() {
                         {room.privacy.toLowerCase() === "public" ? "🌐" : "🔒"} {formatPrivacyLabel(room.privacy)}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-cyan-100/74">{room.description ?? "No description"}</p>
+                    <p className={cx(listSubtitle, "mt-1")}>{room.description ?? "No description"}</p>
                   </div>
                 </div>
-                <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-cyan-100/66">
+                <div className={cx(listMeta, "mt-4 flex flex-wrap items-center gap-2")}>
                   <span>Owner: @{room.owner.username}</span>
                   <span>{room._count?.memberships ?? 0} members</span>
                   <span>{onlineBySlug[room.slug] ?? 0} online</span>
@@ -221,7 +230,7 @@ export function RoomsCatalogPageClient() {
                     type="button"
                     disabled={actingSlug === room.slug || room.actor?.action === "requested"}
                     onClick={() => void handleAction(room)}
-                    className="suzi-primary-btn px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-70"
+                    className="suzi-primary-btn px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {room.actor?.action === "open"
                       ? "Open room"

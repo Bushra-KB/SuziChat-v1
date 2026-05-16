@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { forwardRef, type HTMLAttributes, type ReactNode } from "react";
+import { listSection, pageLead, pageTitle, panelTitle } from "@/components/app/app-typography";
 
 export function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -74,7 +75,7 @@ export function Chip({
   return (
     <span
       className={cx(
-        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-[0.15em] uppercase",
+        "suzi-home-list-section inline-flex items-center gap-2 rounded-full border px-2 py-1 font-semibold uppercase",
         active && "shadow-[0_0_18px_rgba(255,32,121,0.24)]",
         toneClass,
         className,
@@ -99,17 +100,9 @@ export function SectionHeader({
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <p className="text-[0.84rem] font-semibold uppercase tracking-[0.2em] text-cyan-100/75">
-          {eyebrow}
-        </p>
-        <h2 className="mt-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          {title}
-        </h2>
-        {copy ? (
-          <p className="mt-2 max-w-2xl text-base leading-7 text-[var(--text-muted)] sm:text-[1rem]">
-            {copy}
-          </p>
-        ) : null}
+        <p className={cx(listSection, "tracking-[0.2em]")}>{eyebrow}</p>
+        <h2 className={cx(pageTitle, "mt-2")}>{title}</h2>
+        {copy ? <p className={cx(pageLead, "mt-1.5 max-w-2xl")}>{copy}</p> : null}
       </div>
       {action ? <div>{action}</div> : null}
     </div>
@@ -132,12 +125,8 @@ export function MetricCard({
         tone && `bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_45%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))]`,
       )}
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-muted)]">
-        {label}
-      </p>
-      <p className="mt-3 text-3xl font-semibold tracking-tight text-white">
-        {value}
-      </p>
+      <p className={cx(listSection, "tracking-[0.2em] text-[var(--text-muted)]")}>{label}</p>
+      <p className={cx(panelTitle, "mt-2")}>{value}</p>
     </div>
   );
 }

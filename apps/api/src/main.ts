@@ -18,6 +18,10 @@ async function bootstrap() {
   if (!existsSync(reelsDir)) {
     mkdirSync(reelsDir, { recursive: true });
   }
+  const snapsDir = join(process.cwd(), 'uploads', 'snaps');
+  if (!existsSync(snapsDir)) {
+    mkdirSync(snapsDir, { recursive: true });
+  }
   const avatarsDir = join(process.cwd(), 'uploads', 'avatars');
   if (!existsSync(avatarsDir)) {
     mkdirSync(avatarsDir, { recursive: true });

@@ -1,4 +1,5 @@
-import { apiFormJson, apiJson } from "@/lib/api-auth-request";
+import { uploadFormWithProgress } from "@/lib/api-upload";
+import { apiJson } from "@/lib/api-auth-request";
 
 export type PostKind = "SNAP" | "REEL";
 
@@ -86,11 +87,29 @@ export async function createPost(
   });
 }
 
-export async function uploadReelVideo(accessToken: string, file: File) {
+export async function uploadReelVideo(
+  accessToken: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+) {
   const form = new FormData();
   form.append("file", file);
-  return apiFormJson<{ mediaUrl: string }>("/v1/posts/upload/reel", form, {
+  return uploadFormWithProgress<{ mediaUrl: string }>("/v1/posts/upload/reel", form, {
     accessToken,
+    onProgress,
+  });
+}
+
+export async function uploadSnapImage(
+  accessToken: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+) {
+  const form = new FormData();
+  form.append("file", file);
+  return uploadFormWithProgress<{ mediaUrl: string }>("/v1/posts/upload/snap", form, {
+    accessToken,
+    onProgress,
   });
 }
 

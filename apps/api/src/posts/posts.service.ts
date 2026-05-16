@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -149,11 +150,30 @@ export class PostsService {
     return { status: 'deleted' as const, id: postId, kind: post.kind };
   }
 
+  private assertValidMediaUrl(mediaUrl: string) {
+    const trimmed = mediaUrl.trim();
+    if (!trimmed) {
+      throw new BadRequestException('mediaUrl is required');
+    }
+    if (trimmed.startsWith('data:')) {
+      throw new BadRequestException(
+        'Embedded media is not supported. Upload the file first, then create the post.',
+      );
+    }
+    if (trimmed.length > 12_000) {
+      throw new BadRequestException(
+        'mediaUrl is too long. Upload the image or video file instead of pasting large text.',
+      );
+    }
+    return trimmed;
+  }
+
   async createPost(authorId: string, dto: CreatePostDto) {
+    const mediaUrl = this.assertValidMediaUrl(dto.mediaUrl);
     return this.prisma.post.create({
       data: {
         kind: dto.kind,
-        mediaUrl: dto.mediaUrl.trim(),
+        mediaUrl,
         title: dto.title?.trim() ?? null,
         caption: dto.caption?.trim() ?? null,
         visibility: dto.visibility?.trim() ?? 'Public',
