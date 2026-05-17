@@ -30,6 +30,7 @@ export type ApiGameLobby = {
     user?: { id: string; username: string; displayName: string | null; avatarUrl?: string | null } | null;
   }>;
   sessions: Array<{ id: string; status: ApiSessionStatus; gameType: ApiGameType; createdAt: string }>;
+  settings?: { allowSpectatorChat?: boolean } | null;
 };
 
 export type ApiGameSession = {
@@ -120,6 +121,36 @@ export async function startGameSession(accessToken: string, lobbyId: string, opt
     accessToken,
     body: JSON.stringify({ options: options ?? {} }),
   });
+}
+
+export async function updateGameLobbySettings(
+  accessToken: string,
+  lobbyId: string,
+  settings: { allowSpectatorChat?: boolean },
+) {
+  const path = `/v1/games/lobbies/${encodeURIComponent(lobbyId)}/settings`;
+  const body = JSON.stringify(settings);
+  const headers = { "Content-Type": "application/json" };
+  const methods = ["PATCH", "POST", "PUT"] as const;
+  let lastError = "Request failed";
+
+  for (const method of methods) {
+    try {
+      return await apiJson<ApiGameLobby>(path, {
+        method,
+        accessToken,
+        body,
+        headers,
+      });
+    } catch (e: unknown) {
+      lastError = e instanceof Error ? e.message : lastError;
+      if (!/cannot (post|patch|put)/i.test(lastError)) {
+        throw e;
+      }
+    }
+  }
+
+  throw new Error(lastError);
 }
 
 export async function inviteToGameLobby(accessToken: string, lobbyId: string, targetUserId: string) {

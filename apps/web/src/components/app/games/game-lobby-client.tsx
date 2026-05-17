@@ -39,6 +39,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
   const [error, setError] = useState("");
   const [busyLobbyId, setBusyLobbyId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [allowSpectatorChatOnCreate, setAllowSpectatorChatOnCreate] = useState(true);
   const [inviteQuery, setInviteQuery] = useState("");
   const [inviteSuggestions, setInviteSuggestions] = useState<FriendSummaryUser[]>([]);
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -176,6 +177,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
       const payload = {
         gameType: game.type as ApiGameType,
         title: `${game.name} Public Lobby`,
+        settings: { allowSpectatorChat: allowSpectatorChatOnCreate },
       };
       const socket = openGamesSocket(auth.accessToken);
       const lobby = socket.connected
@@ -315,7 +317,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
   }
 
   function lobbyStatusDisplay(lobby: ApiGameLobby) {
-    if (lobby.sessions[0]?.status === "ACTIVE") {
+    if (lobby.sessions.some((row) => row.status === "ACTIVE")) {
       return { text: "Playing", icon: "🏆", className: "text-emerald-100" };
     }
     switch (lobby.status) {
@@ -362,6 +364,16 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                 {totalActivePlayers} active · {totalOpenTables} open
               </span>
             </div>
+            <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-[var(--fs-2xs)] text-cyan-100/78">
+              <input
+                type="checkbox"
+                className="rounded border-cyan-400/40"
+                checked={allowSpectatorChatOnCreate}
+                disabled={creating || Boolean(myOwnedLobby)}
+                onChange={(e) => setAllowSpectatorChatOnCreate(e.target.checked)}
+              />
+              Watcher chat
+            </label>
             <button
               type="button"
               disabled={creating || Boolean(myOwnedLobby)}
@@ -392,14 +404,16 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
             <div className="grid min-h-0 grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {rows.map((lobby, index) => {
               const seatedMine = lobby.seats.find((seat) => seat.userId === me);
-              const session = lobby.sessions[0];
+              const activeSession = lobby.sessions.find((row) => row.status === "ACTIVE");
               const occupiedSeats = lobby.seats.filter((seat) => seat.userId);
               const firstSeat = lobby.seats.find((seat) => seat.seatIndex === 0) ?? lobby.seats[0];
               const secondSeat = lobby.seats.find((seat) => seat.seatIndex === 1) ?? lobby.seats[1];
               const statusDisplay = lobbyStatusDisplay(lobby);
               const seatOffer = nextSeatOffer(lobby);
               const canStart =
-                lobby.ownerId === me && lobby.status === "OPEN" && session?.status !== "ACTIVE";
+                lobby.ownerId === me &&
+                occupiedSeats.length >= 2 &&
+                !activeSession;
               const canManage = lobby.ownerId === me || Boolean(seatedMine);
               const inviteOpen = openInviteLobbyId === lobby.id;
 
@@ -440,9 +454,9 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                   </div>
 
                   <div data-section="actions" className="relative z-10 mt-2 flex shrink-0 items-center justify-center gap-1.5">
-                    {session?.status === "ACTIVE" ? (
+                    {activeSession ? (
                       <Link
-                        href={`/app/games/${gameTypeToId(lobby.gameType)}/session/${session.id}`}
+                        href={`/app/games/${gameTypeToId(lobby.gameType)}/session/${activeSession.id}`}
                         className="suzi-primary-btn flex-1 px-2 py-1 text-center text-[var(--fs-2xs)]"
                       >
                         Open
@@ -467,7 +481,11 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                       </button>
                     ) : seatedMine ? (
                       <span className="flex-1 rounded-full border border-emerald-300/26 bg-emerald-400/14 px-2 py-1 text-center text-[var(--fs-2xs)] font-semibold text-emerald-100">
-                        {lobby.ownerId === me ? "Waiting for seat 2" : "Seated"}
+                        {lobby.ownerId === me && occupiedSeats.length < 2
+                          ? "Waiting for seat 2"
+                          : lobby.ownerId === me
+                            ? "Ready — press Start"
+                            : "Seated"}
                       </span>
                     ) : (
                       <span className="flex-1 rounded-full border border-cyan-300/22 bg-cyan-400/10 px-2 py-1 text-center text-[var(--fs-2xs)] font-semibold text-cyan-100/85">

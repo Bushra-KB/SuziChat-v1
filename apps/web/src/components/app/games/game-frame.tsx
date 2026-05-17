@@ -10,6 +10,7 @@ export function GameFrame({
   reconnectHint,
   immersive = false,
   lobbyHref,
+  watcherCount,
   children,
 }: {
   title: string;
@@ -19,6 +20,8 @@ export function GameFrame({
   immersive?: boolean;
   /** When set, shows a back link above the board (all game types). */
   lobbyHref?: string;
+  /** Live spectator count (not seated at the table). */
+  watcherCount?: number;
   children: React.ReactNode;
 }) {
   return (
@@ -59,6 +62,15 @@ export function GameFrame({
             ) : null}
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {typeof watcherCount === "number" ? (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-cyan-300/28 bg-cyan-400/10 px-2.5 py-1 text-[0.65rem] font-semibold text-cyan-50/90"
+                title="Spectators watching this game"
+              >
+                <span aria-hidden>👁</span>
+                {watcherCount} watching
+              </span>
+            ) : null}
             {lobbyHref ? (
               <Link
                 href={lobbyHref}

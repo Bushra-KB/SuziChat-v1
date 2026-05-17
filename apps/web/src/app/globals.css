@@ -1624,6 +1624,7 @@ h5 {
   }
 }
 
+@import "./poker-table.css";
 @media (prefers-reduced-motion: reduce) {
   .index-scene-drift,
   .index-aurora,
@@ -1644,6 +1645,13 @@ h5 {
   .suzi-poker-arcade-felt-shine,
   .suzi-poker-arcade-seat.is-active .suzi-poker-arcade-avatar-wrap,
   .suzi-poker-arcade-banner--turn {
+    animation: none !important;
+  }
+  .suzi-poker-dr-card,
+  .suzi-poker-dr-table-neon,
+  .suzi-poker-dr-seat.is-active .suzi-poker-dr-avatar,
+  .suzi-poker-dr-seat.is-active .suzi-poker-dr-avatar--fb,
+  .suzi-poker-dr-info-status.is-turn {
     animation: none !important;
   }
 }

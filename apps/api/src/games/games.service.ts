@@ -39,6 +39,10 @@ import { CreateGameLobbyDto } from './dto/create-game-lobby.dto';
 import { GameActionDto } from './dto/game-action.dto';
 import { JoinGameLobbyDto } from './dto/join-game-lobby.dto';
 import { StartGameSessionDto } from './dto/start-game-session.dto';
+import {
+  mergeGameLobbySettings,
+  parseGameLobbySettings,
+} from './game-lobby-settings';
 
 const GAME_CATALOG = [
   {
@@ -196,7 +200,7 @@ export class GamesService {
   }
 
   async listLobbies(gameType?: GameType) {
-    return this.prisma.gameLobby.findMany({
+    const lobbies = await this.prisma.gameLobby.findMany({
       where: {
         status: {
           in: [
@@ -238,6 +242,13 @@ export class GamesService {
         },
       },
     });
+    await Promise.all(
+      lobbies.map(async (lobby) => {
+        const next = await this.reconcileLobbyPlayState(lobby.id);
+        if (next) lobby.status = next;
+      }),
+    );
+    return lobbies;
   }
 
   async getLobby(lobbyId: string) {
@@ -269,62 +280,53 @@ export class GamesService {
       },
     });
     if (!lobby) throw new NotFoundException('Lobby not found.');
-    if (
-      lobby.status !== GameLobbyStatus.IN_PROGRESS &&
-      lobby.status !== GameLobbyStatus.CLOSED
-    ) {
-      const expected = lobbyStatusForSeats(lobby.gameType, lobby.seats);
-      if (expected !== lobby.status) {
-        await this.prisma.gameLobby.update({
-          where: { id: lobbyId },
-          data: { status: expected },
-        });
-        lobby.status = expected;
-      }
-    }
+    const next = await this.reconcileLobbyPlayState(lobbyId);
+    if (next) lobby.status = next;
     return lobby;
   }
 
-  private async syncLobbyStatusFromSeats(lobbyId: string) {
+  /**
+   * Keeps lobby status aligned with seats and whether a session is ACTIVE.
+   * Fixes stale IN_PROGRESS lobbies after a game ends.
+   */
+  private async reconcileLobbyPlayState(
+    lobbyId: string,
+  ): Promise<GameLobbyStatus | null> {
     const lobby = await this.prisma.gameLobby.findUnique({
       where: { id: lobbyId },
-      include: { seats: { orderBy: { seatIndex: 'asc' } } },
-    });
-    if (!lobby || lobby.status === GameLobbyStatus.IN_PROGRESS) {
-      return lobby;
-    }
-    const nextStatus = lobbyStatusForSeats(lobby.gameType, lobby.seats);
-    if (nextStatus === lobby.status) {
-      return lobby;
-    }
-    return this.prisma.gameLobby.update({
-      where: { id: lobbyId },
-      data: { status: nextStatus },
       include: {
-        owner: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
+        seats: { orderBy: { seatIndex: 'asc' } },
+        sessions: {
+          where: { status: GameSessionStatus.ACTIVE },
+          select: { id: true },
+          take: 1,
         },
-        seats: {
-          orderBy: { seatIndex: 'asc' },
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-        sessions: { orderBy: { createdAt: 'desc' }, take: 20 },
       },
     });
+    if (!lobby) return null;
+
+    const nextStatus = lobby.sessions.length
+      ? GameLobbyStatus.IN_PROGRESS
+      : lobbyStatusForSeats(lobby.gameType, lobby.seats);
+
+    if (nextStatus === lobby.status) return lobby.status;
+
+    await this.prisma.gameLobby.update({
+      where: { id: lobbyId },
+      data: { status: nextStatus },
+    });
+    this.emitLobbyListRefresh(lobby.gameType);
+    this.realtimeEvents.emitToChannel(
+      this.lobbyChannel(lobbyId),
+      'game:lobby:update',
+      await this.getLobby(lobbyId),
+    );
+    return nextStatus;
+  }
+
+  private async syncLobbyStatusFromSeats(lobbyId: string) {
+    await this.reconcileLobbyPlayState(lobbyId);
+    return this.getLobby(lobbyId);
   }
 
   async createLobby(ownerId: string, dto: CreateGameLobbyDto) {
@@ -388,20 +390,119 @@ export class GamesService {
   }
 
   /**
-   * Seat occupants or lobby owner may subscribe to session realtime updates.
+   * Authenticated users may watch public sessions; private lobbies require lobby access.
    */
-  async assertSessionSocketSubscription(sessionId: string, userId: string) {
+  async assertSessionViewAccess(sessionId: string, userId: string) {
     const session = await this.prisma.gameSession.findUnique({
       where: { id: sessionId },
       include: { lobby: { include: { seats: true } } },
     });
     if (!session) throw new NotFoundException('Session not found.');
-    const seated = session.lobby.seats.some((seat) => seat.userId === userId);
-    const owner = session.lobby.ownerId === userId;
-    if (!seated && !owner) {
-      throw new ForbiddenException('Cannot subscribe to this game session.');
+    if (session.lobby.isPrivate) {
+      await this.ensureLobbyAccess(session.lobbyId, userId);
     }
     return session;
+  }
+
+  /** @deprecated Use assertSessionViewAccess — kept for existing call sites. */
+  async assertSessionSocketSubscription(sessionId: string, userId: string) {
+    return this.assertSessionViewAccess(sessionId, userId);
+  }
+
+  async getSessionWatcherMeta(sessionId: string) {
+    const session = await this.prisma.gameSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        lobby: {
+          select: {
+            id: true,
+            ownerId: true,
+            settings: true,
+            seats: { select: { userId: true } },
+          },
+        },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found.');
+    const settings = parseGameLobbySettings(session.lobby.settings);
+    return {
+      sessionId,
+      lobbyId: session.lobbyId,
+      ownerId: session.lobby.ownerId,
+      seatedUserIds: session.lobby.seats
+        .map((seat) => seat.userId)
+        .filter((id): id is string => Boolean(id)),
+      allowSpectatorChat: settings.allowSpectatorChat,
+    };
+  }
+
+  async updateLobbySettings(
+    lobbyId: string,
+    userId: string,
+    patch: { allowSpectatorChat?: boolean },
+  ) {
+    const lobby = await this.prisma.gameLobby.findUnique({
+      where: { id: lobbyId },
+      include: {
+        sessions: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+    });
+    if (!lobby) throw new NotFoundException('Lobby not found.');
+    if (lobby.ownerId !== userId) {
+      throw new ForbiddenException('Only the lobby owner can change settings.');
+    }
+    const settings = mergeGameLobbySettings(lobby.settings, patch);
+    await this.prisma.gameLobby.update({
+      where: { id: lobbyId },
+      data: { settings },
+    });
+    const snapshot = await this.getLobby(lobbyId);
+    this.realtimeEvents.emitToChannel(
+      this.lobbyChannel(lobbyId),
+      'game:lobby:update',
+      snapshot,
+    );
+    const activeSession = lobby.sessions.find(
+      (row) => row.status === GameSessionStatus.ACTIVE,
+    );
+    if (activeSession) {
+      this.realtimeEvents.emitToChannel(
+        this.sessionChannel(activeSession.id),
+        'game:session:presence',
+        {
+          sessionId: activeSession.id,
+          allowSpectatorChat: parseGameLobbySettings(
+            settings as Prisma.JsonValue,
+          ).allowSpectatorChat,
+        },
+      );
+    }
+    return snapshot;
+  }
+
+  private isSeatedInLobby(
+    lobby: { seats: Array<{ userId: string | null }> },
+    userId: string,
+  ) {
+    return lobby.seats.some((seat) => seat.userId === userId);
+  }
+
+  private assertSpectatorMayChat(
+    session: {
+      lobby: {
+        ownerId: string;
+        settings: Prisma.JsonValue | null;
+        seats: Array<{ userId: string | null }>;
+      };
+    },
+    userId: string,
+  ) {
+    if (this.isSeatedInLobby(session.lobby, userId)) return;
+    if (session.lobby.ownerId === userId) return;
+    const { allowSpectatorChat } = parseGameLobbySettings(session.lobby.settings);
+    if (!allowSpectatorChat) {
+      throw new ForbiddenException('Spectators cannot chat in this game.');
+    }
   }
 
   async recordRealtimeLobbyJoinAudit(lobbyId: string, userId: string) {
@@ -581,11 +682,8 @@ export class GamesService {
       include: {
         seats: true,
         sessions: {
-          where: {
-            status: {
-              in: [GameSessionStatus.WAITING, GameSessionStatus.ACTIVE],
-            },
-          },
+          where: { status: GameSessionStatus.ACTIVE },
+          take: 1,
         },
       },
     });
@@ -594,6 +692,12 @@ export class GamesService {
       throw new ForbiddenException('Only lobby owner can start a session.');
     if (lobby.sessions.length > 0)
       throw new BadRequestException('Lobby already has an active session.');
+    const reconciled = await this.reconcileLobbyPlayState(lobbyId);
+    if (reconciled) lobby.status = reconciled;
+    await this.prisma.gameSession.updateMany({
+      where: { lobbyId, status: GameSessionStatus.WAITING },
+      data: { status: GameSessionStatus.CANCELED, endedAt: new Date() },
+    });
     if (lobby.status !== GameLobbyStatus.OPEN) {
       throw new BadRequestException(
         'Lobby is not ready to start. Both seats must be filled first.',
@@ -682,7 +786,7 @@ export class GamesService {
   }
 
   async listSessionChat(sessionId: string, viewerId: string) {
-    await this.assertSessionSocketSubscription(sessionId, viewerId);
+    await this.assertSessionViewAccess(sessionId, viewerId);
     const rows = await this.prisma.gameEvent.findMany({
       where: { sessionId, type: GameEventType.CHAT },
       orderBy: { createdAt: 'asc' },
@@ -707,10 +811,8 @@ export class GamesService {
     if (text.length > 500) {
       throw new BadRequestException('Message must be 500 characters or less.');
     }
-    const session = await this.assertSessionSocketSubscription(
-      sessionId,
-      userId,
-    );
+    const session = await this.assertSessionViewAccess(sessionId, userId);
+    this.assertSpectatorMayChat(session, userId);
     const event = await this.prisma.gameEvent.create({
       data: {
         lobbyId: session.lobbyId,
@@ -870,6 +972,11 @@ export class GamesService {
         const payload = this.redactPokerHoldemForViewer(session, seat.userId);
         this.realtimeEvents.emitToUser(seat.userId, 'game:state', payload);
       }
+      this.realtimeEvents.emitToChannel(
+        this.sessionChannel(session.id),
+        'game:session:sync',
+        { sessionId: session.id },
+      );
       return;
     }
     this.realtimeEvents.emitToChannel(

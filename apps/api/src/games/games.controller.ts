@@ -6,7 +6,9 @@ import {
   Get,
   Headers,
   Param,
+  Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -18,6 +20,7 @@ import { CreateGameLobbyDto } from './dto/create-game-lobby.dto';
 import { GameActionDto } from './dto/game-action.dto';
 import { JoinGameLobbyDto } from './dto/join-game-lobby.dto';
 import { StartGameSessionDto } from './dto/start-game-session.dto';
+import { UpdateGameLobbySettingsDto } from './dto/update-game-lobby-settings.dto';
 import { GamesMetricsService } from './games-metrics.service';
 import { GamesService } from './games.service';
 
@@ -79,6 +82,18 @@ export class GamesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.gamesService.leaveLobby(lobbyId, user.id);
+  }
+
+  @Post('lobbies/:lobbyId/settings')
+  @Patch('lobbies/:lobbyId/settings')
+  @Put('lobbies/:lobbyId/settings')
+  @UseGuards(AccessTokenGuard)
+  updateLobbySettings(
+    @Param('lobbyId') lobbyId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateGameLobbySettingsDto,
+  ) {
+    return this.gamesService.updateLobbySettings(lobbyId, user.id, dto);
   }
 
   @Post('lobbies/:lobbyId/start')
