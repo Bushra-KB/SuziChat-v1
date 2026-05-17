@@ -16,11 +16,19 @@ import {
   listGameSessionChat,
   postGameAction,
   sendGameSessionChat,
+  updateGameLobbySettings,
   type ApiGameChatMessage,
   type ApiGameSession,
 } from "@/lib/games-client";
+import { parseGameLobbySettings } from "@/lib/game-lobby-settings";
 import { getGameSoundEnabled, playMoveSound, playYourTurnSound, setGameSoundEnabled } from "@/lib/game-sounds";
-import { joinSessionChannel, openGamesSocket, postGameSessionAction, postGameSessionChat } from "@/lib/games-realtime";
+import {
+  joinSessionChannel,
+  openGamesSocket,
+  postGameLobbySettings,
+  postGameSessionAction,
+  postGameSessionChat,
+} from "@/lib/games-realtime";
 
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
@@ -44,10 +52,14 @@ export function GameSessionClient({
   const [chatMessages, setChatMessages] = useState<ApiGameChatMessage[]>([]);
   const [chatDraft, setChatDraft] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
+  const [watcherCount, setWatcherCount] = useState(0);
+  const [allowSpectatorChat, setAllowSpectatorChat] = useState(true);
+  const [settingsBusy, setSettingsBusy] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const soundInitialized = useRef(false);
   const prevMovesLen = useRef(0);
   const prevTurnId = useRef<string | null>(null);
+  const seatedRef = useRef(false);
 
   const auth = useMemo(() => getStoredAuthSession(), []);
 
@@ -100,13 +112,36 @@ export function GameSessionClient({
     const s = openGamesSocket(auth.accessToken);
     const onConnect = () => {
       setSocketReady(true);
-      joinSessionChannel(s, sessionId);
+      void joinSessionChannel(s, sessionId).then((presence) => {
+        if (!presence) return;
+        setWatcherCount(presence.watcherCount);
+        setAllowSpectatorChat(presence.allowSpectatorChat);
+      });
       void refresh();
     };
     const onDisconnect = () => setSocketReady(false);
     const onState = (next: ApiGameSession) => {
       if (next.id === sessionId) {
         setSession(next);
+        setError("");
+      }
+    };
+    const onSessionSync = (payload: { sessionId?: string }) => {
+      if (payload?.sessionId !== sessionId) return;
+      if (seatedRef.current) return;
+      void refresh();
+    };
+    const onPresence = (payload: {
+      sessionId?: string;
+      watcherCount?: number;
+      allowSpectatorChat?: boolean;
+    }) => {
+      if (payload?.sessionId !== sessionId) return;
+      if (typeof payload.watcherCount === "number") {
+        setWatcherCount(payload.watcherCount);
+      }
+      if (typeof payload.allowSpectatorChat === "boolean") {
+        setAllowSpectatorChat(payload.allowSpectatorChat);
       }
     };
     const onChat = (message: ApiGameChatMessage) => {
@@ -118,12 +153,16 @@ export function GameSessionClient({
     s.on("connect", onConnect);
     s.on("disconnect", onDisconnect);
     s.on("game:state", onState);
+    s.on("game:session:sync", onSessionSync);
+    s.on("game:session:presence", onPresence);
     s.on("game:chat", onChat);
     if (s.connected) onConnect();
     return () => {
       s.off("connect", onConnect);
       s.off("disconnect", onDisconnect);
       s.off("game:state", onState);
+      s.off("game:session:sync", onSessionSync);
+      s.off("game:session:presence", onPresence);
       s.off("game:chat", onChat);
     };
   }, [auth?.accessToken, sessionId, refresh]);
@@ -244,6 +283,46 @@ export function GameSessionClient({
 
   const isSeated = Boolean(meId && session?.lobby.seats.some((s) => s.userId === meId));
   const spectator = Boolean(session && meId && !isSeated);
+  const isLobbyOwner = Boolean(session && meId && session.lobby.ownerId === meId);
+  const canChat = Boolean(
+    session &&
+      meId &&
+      (isSeated || isLobbyOwner || (spectator && allowSpectatorChat)),
+  );
+
+  useEffect(() => {
+    seatedRef.current = isSeated;
+  }, [isSeated]);
+
+  useEffect(() => {
+    if (!session?.lobby) return;
+    setAllowSpectatorChat(parseGameLobbySettings(session.lobby.settings).allowSpectatorChat);
+  }, [session?.lobby?.id, session?.lobby?.settings]);
+
+  async function toggleSpectatorChat(next: boolean) {
+    if (!auth?.accessToken || !session?.lobbyId || !isLobbyOwner) return;
+    setSettingsBusy(true);
+    setError("");
+    try {
+      const socket = openGamesSocket(auth.accessToken);
+      const updated =
+        socket.connected
+          ? await postGameLobbySettings(socket, session.lobbyId, {
+              allowSpectatorChat: next,
+            })
+          : await updateGameLobbySettings(auth.accessToken, session.lobbyId, {
+              allowSpectatorChat: next,
+            });
+      setAllowSpectatorChat(parseGameLobbySettings(updated.settings).allowSpectatorChat);
+      setSession((prev) =>
+        prev ? { ...prev, lobby: { ...prev.lobby, settings: updated.settings } } : prev,
+      );
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Could not update chat settings.");
+    } finally {
+      setSettingsBusy(false);
+    }
+  }
 
   const seatUserIds =
     session?.lobby.seats
@@ -313,7 +392,24 @@ export function GameSessionClient({
                 <p>Status: <span className="font-semibold text-white/90">{session.status}</span></p>
                 <p>Turn: <span className="font-semibold text-white/90">{session.turnUserId ? `${turnDisplay}` : "—"}</span></p>
                 <p>Winner: <span className="font-semibold text-white/90">{session.winnerUserId ?? "—"}</span></p>
+                <p>
+                  Watching:{" "}
+                  <span className="font-semibold text-white/90">{watcherCount}</span>
+                </p>
               </div>
+
+              {isLobbyOwner ? (
+                <label className="mt-3 flex cursor-pointer items-center gap-2 text-[var(--fs-2xs)] text-cyan-100/80">
+                  <input
+                    type="checkbox"
+                    className="rounded border-cyan-400/40"
+                    checked={allowSpectatorChat}
+                    disabled={settingsBusy}
+                    onChange={(e) => void toggleSpectatorChat(e.target.checked)}
+                  />
+                  Allow watchers to chat
+                </label>
+              ) : null}
 
               <label className="mt-4 flex cursor-pointer items-center gap-2 text-[var(--fs-2xs)] text-cyan-100/80">
                 <input
@@ -392,13 +488,14 @@ export function GameSessionClient({
               reconnectHint={RECONNECT_HINT}
               immersive={session.gameType === "POKER_HOLDEM"}
               lobbyHref={`/app/games/${gameRouteId ?? gameTypeToId(session.gameType)}`}
+              watcherCount={watcherCount}
             >
               <div
                 key={shakeKey}
                 className={cx(
                   session.gameType === "CHESS" ? "suzi-chess-session-wrap" : "h-full min-h-0",
                   shakeKey > 0 ? "suzi-game-shake" : undefined,
-                  session.gameType === "POKER_HOLDEM" ? "suzi-poker-arcade-frame" : undefined,
+                  session.gameType === "POKER_HOLDEM" ? "suzi-poker-dr-frame" : undefined,
                 )}
               >
                 {error ? (
@@ -449,6 +546,7 @@ export function GameSessionClient({
                   <PokerTableView
                     lobbySeats={session.lobby.seats}
                     state={state}
+                    sessionId={session.id}
                     busy={busy}
                     meId={meId}
                     myTurn={session.status === "ACTIVE" && isTurn}
@@ -469,6 +567,11 @@ export function GameSessionClient({
                   {socketReady ? "Live" : "Syncing"}
                 </span>
               </div>
+              {spectator && !allowSpectatorChat ? (
+                <p className="mt-2 text-[var(--fs-2xs)] text-amber-100/85">
+                  Watchers cannot chat in this game.
+                </p>
+              ) : null}
 
               <div
                 ref={chatScrollRef}
@@ -516,13 +619,20 @@ export function GameSessionClient({
                 <input
                   value={chatDraft}
                   onChange={(event) => setChatDraft(event.target.value)}
-                  placeholder="Message players..."
-                  className="suzi-input h-9 min-w-0 flex-1 px-3 text-[var(--fs-xs)]"
+                  placeholder={
+                    canChat
+                      ? spectator
+                        ? "Message as watcher..."
+                        : "Message players..."
+                      : "Chat disabled for watchers"
+                  }
+                  disabled={!canChat}
+                  className="suzi-input h-9 min-w-0 flex-1 px-3 text-[var(--fs-xs)] disabled:opacity-55"
                   maxLength={500}
                 />
                 <button
                   type="submit"
-                  disabled={chatBusy || !chatDraft.trim()}
+                  disabled={chatBusy || !chatDraft.trim() || !canChat}
                   className="suzi-primary-btn h-9 px-3 text-[var(--fs-2xs)] disabled:opacity-60"
                 >
                   Send

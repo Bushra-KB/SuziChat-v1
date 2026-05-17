@@ -66,17 +66,55 @@ describe('GamesService', () => {
     ).resolves.toBeDefined();
   });
 
-  it('assertSessionSocketSubscription rejects unrelated users', async () => {
+  it('assertSessionViewAccess allows strangers on public lobbies', async () => {
     prisma.gameSession.findUnique.mockResolvedValue({
       id: 'sess1',
       lobbyId: 'lobby1',
       lobby: {
         ownerId: 'owner1',
+        isPrivate: false,
         seats: [{ userId: 'p2', seatIndex: 0 }],
       },
     });
     await expect(
-      service.assertSessionSocketSubscription('sess1', 'stranger'),
+      service.assertSessionViewAccess('sess1', 'stranger'),
+    ).resolves.toBeDefined();
+  });
+
+  it('assertSessionViewAccess rejects strangers on private lobbies', async () => {
+    prisma.gameSession.findUnique.mockResolvedValue({
+      id: 'sess1',
+      lobbyId: 'lobby1',
+      lobby: {
+        ownerId: 'owner1',
+        isPrivate: true,
+        seats: [{ userId: 'p2', seatIndex: 0 }],
+      },
+    });
+    prisma.gameLobby.findUnique.mockResolvedValue({
+      id: 'lobby1',
+      ownerId: 'owner1',
+      isPrivate: true,
+      seats: [{ userId: 'p2', seatIndex: 0 }],
+    });
+    await expect(
+      service.assertSessionViewAccess('sess1', 'stranger'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('sendSessionChat blocks spectators when watcher chat is disabled', async () => {
+    prisma.gameSession.findUnique.mockResolvedValue({
+      id: 'sess1',
+      lobbyId: 'lobby1',
+      lobby: {
+        ownerId: 'owner1',
+        isPrivate: false,
+        settings: { allowSpectatorChat: false },
+        seats: [{ userId: 'p2', seatIndex: 0 }],
+      },
+    });
+    await expect(
+      service.sendSessionChat('sess1', 'stranger', 'hello'),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 

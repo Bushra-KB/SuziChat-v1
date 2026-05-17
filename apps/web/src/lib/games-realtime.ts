@@ -12,8 +12,31 @@ export function joinLobbyChannel(socket: Socket, lobbyId: string) {
   socket.emit("game:lobby:join", { lobbyId });
 }
 
+export type GameSessionPresence = {
+  sessionId: string;
+  watcherCount: number;
+  allowSpectatorChat: boolean;
+};
+
 export function joinSessionChannel(socket: Socket, sessionId: string) {
-  socket.emit("game:session:join", { sessionId });
+  return new Promise<GameSessionPresence | null>((resolve) => {
+    socket
+      .timeout(10_000)
+      .emit(
+        "game:session:join",
+        { sessionId },
+        (
+          err: Error | null,
+          response?: { ok?: boolean; presence?: GameSessionPresence },
+        ) => {
+          if (err || !response?.presence) {
+            resolve(null);
+            return;
+          }
+          resolve(response.presence);
+        },
+      );
+  });
 }
 
 /** Join the broadcast room for lobby list updates (`game:lobbies:update`). Call after connect / reconnect. */
@@ -57,6 +80,14 @@ export function postGameLobbySeat(socket: Socket, lobbyId: string, seatIndex: nu
 
 export function postGameLobbyStart(socket: Socket, lobbyId: string, options?: Record<string, unknown>) {
   return emitWithAck<ApiGameSession>(socket, "game:lobby:start", { lobbyId, options: options ?? {} }, "session");
+}
+
+export function postGameLobbySettings(
+  socket: Socket,
+  lobbyId: string,
+  settings: { allowSpectatorChat?: boolean },
+) {
+  return emitWithAck<ApiGameLobby>(socket, "game:lobby:settings", { lobbyId, ...settings }, "lobby");
 }
 
 export function postGameLobbyDelete(socket: Socket, lobbyId: string): Promise<{ ok: true; lobbyId: string }> {

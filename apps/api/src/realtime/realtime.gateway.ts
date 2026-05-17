@@ -25,6 +25,7 @@ import { RealtimeStateService } from './realtime-state.service';
 type AuthSocket = Socket & {
   data: {
     userId?: string;
+    gameSessionIds?: Set<string>;
   };
 };
 
@@ -223,7 +224,45 @@ export class RealtimeGateway
       for (const roomSlug of joinedRoomStats) {
         this.emitRoomStats(roomSlug);
       }
+      const sessionIds = new Set<string>([
+        ...(client.data.gameSessionIds ?? []),
+        ...[...client.rooms]
+          .filter((name) => name.startsWith('game:session:'))
+          .map((name) => name.slice('game:session:'.length)),
+      ]);
+      for (const sessionId of sessionIds) {
+        void this.broadcastGameSessionPresence(sessionId);
+      }
     }, 0);
+  }
+
+  private async broadcastGameSessionPresence(sessionId: string) {
+    if (!this.server) return;
+    try {
+      const meta = await this.gamesService.getSessionWatcherMeta(sessionId);
+      const room = this.gameSessionChannel(sessionId);
+      const sockets = await this.server.in(room).fetchSockets();
+      const seatedIds = new Set(meta.seatedUserIds);
+      const watchingUserIds = new Set<string>();
+      for (const sock of sockets) {
+        const uid = (sock.data as { userId?: string }).userId;
+        if (uid && !seatedIds.has(uid)) {
+          watchingUserIds.add(uid);
+        }
+      }
+      const payload = {
+        sessionId,
+        watcherCount: watchingUserIds.size,
+        allowSpectatorChat: meta.allowSpectatorChat,
+      };
+      this.server.to(room).emit('game:session:presence', payload);
+      return payload;
+    } catch (err) {
+      this.logger.warn(
+        `game:session:presence broadcast failed session=${sessionId}`,
+      );
+      return null;
+    }
   }
 
   @SubscribeMessage('dm:join')
@@ -498,6 +537,24 @@ export class RealtimeGateway
     return { ok: true, lobby };
   }
 
+  @SubscribeMessage('game:lobby:settings')
+  async onGameLobbySettings(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody()
+    payload: { lobbyId?: string; allowSpectatorChat?: boolean },
+  ) {
+    const userId = this.getUserId(client);
+    const lobbyId = payload?.lobbyId?.trim();
+    if (!lobbyId) {
+      throw new WsException('lobbyId is required');
+    }
+    const lobby = await this.gamesService.updateLobbySettings(lobbyId, userId, {
+      allowSpectatorChat: payload.allowSpectatorChat,
+    });
+    this.markUserActive(userId);
+    return { ok: true, lobby };
+  }
+
   @SubscribeMessage('game:lobby:start')
   async onGameLobbyStart(
     @ConnectedSocket() client: AuthSocket,
@@ -561,7 +618,7 @@ export class RealtimeGateway
       throw new WsException('sessionId is required');
     }
     try {
-      const session = await this.gamesService.assertSessionSocketSubscription(
+      const session = await this.gamesService.assertSessionViewAccess(
         sessionId,
         userId,
       );
@@ -572,7 +629,12 @@ export class RealtimeGateway
       );
       this.gamesMetrics.recordSocketSessionJoin();
       await client.join(this.gameSessionChannel(sessionId));
-      return { ok: true };
+      if (!client.data.gameSessionIds) {
+        client.data.gameSessionIds = new Set();
+      }
+      client.data.gameSessionIds.add(sessionId);
+      const presence = await this.broadcastGameSessionPresence(sessionId);
+      return { ok: true, presence };
     } catch (err) {
       this.gamesMetrics.recordSocketSessionJoinDenied();
       this.logger.warn(
