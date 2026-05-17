@@ -355,13 +355,12 @@ export function AccountProfilePage() {
     <ProfilePageShell variant="account">
       <div className="suzi-account-layout">
         {/* Hero */}
-        <Panel className="relative overflow-hidden p-0">
+        <Panel className="suzi-account-hero relative overflow-hidden p-0">
           <div className="suzi-account-hero-inner p-[var(--panel-pad)]">
-            <div className="pointer-events-none absolute inset-0 opacity-35 [background:radial-gradient(ellipse_at_28%_0%,rgba(255,32,121,0.28),transparent_58%)]" />
+            <div className="pointer-events-none absolute inset-0 opacity-40 [background:radial-gradient(ellipse_at_18%_0%,rgba(255,32,121,0.2),transparent_52%),radial-gradient(ellipse_at_88%_100%,rgba(0,229,255,0.1),transparent_42%)]" />
             <div className="suzi-account-identity relative">
               <div
-                className="relative shrink-0 overflow-hidden rounded-full border-2 border-fuchsia-300/40 shadow-[0_18px_40px_rgba(15,23,42,0.45)]"
-                style={{ width: "var(--avatar-xl)", height: "var(--avatar-xl)" }}
+                className="suzi-account-avatar relative shrink-0 overflow-hidden rounded-full border-2 border-fuchsia-300/40 shadow-[0_18px_40px_rgba(15,23,42,0.45)]"
               >
                 {avatarSrc.startsWith("/") ? (
                   <Image src={avatarSrc} alt="" fill sizes="120px" className="object-cover" priority />
@@ -411,48 +410,42 @@ export function AccountProfilePage() {
                     Online
                   </span>
                 </p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+                <p className="mt-2 text-[var(--fs-2xs)] text-cyan-100/55">
+                  Tap your photo to change avatar
+                </p>
+                <div className="mt-2.5">
                   <button
                     type="button"
                     onClick={scrollToAbout}
-                    className="suzi-primary-btn inline-flex items-center gap-2 px-4 py-2 text-[var(--fs-xs)]"
+                    className="suzi-secondary-btn inline-flex items-center gap-2 px-4 py-2 text-[var(--fs-xs)]"
                   >
                     <Icon path="M4 20h4l10-10-4-4L4 16v4Zm12-14 2-2 4 4-2 2-4-4Z" className="h-3.5 w-3.5" />
                     Edit profile
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={avatarBusy}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/14 bg-white/5 px-4 py-2 text-[var(--fs-xs)] font-semibold text-white/90 transition hover:border-white/25 hover:text-white"
-                  >
-                    <Icon path="M12 4v12m0 0-4-4m4 4 4-4M4 20h16" className="h-3.5 w-3.5" />
-                    Change avatar
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="suzi-account-stats relative">
-              <StatCard
+            <div className="suzi-account-stat-strip" aria-label="Your activity">
+              <StatChip
                 label="Friends"
                 value={friendsCount}
                 href="/app#friends"
                 icon="M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-4 8a8 8 0 0 1 16 0H12Z"
               />
-              <StatCard
+              <StatChip
                 label="Rooms"
                 value={roomsCount}
                 href="/app#rooms"
                 icon="M3 4h18v6H3V4Zm0 10h18v6H3v-6Z"
               />
-              <StatCard
+              <StatChip
                 label="Snaps"
                 value={snapsCount}
                 href="/app/snaps"
                 icon="M4 7h3l2-2h6l2 2h3v12H4V7Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
               />
-              <StatCard
+              <StatChip
                 label="Reels"
                 value={reelsCount}
                 href="/app/reels"
@@ -462,10 +455,9 @@ export function AccountProfilePage() {
           </div>
         </Panel>
 
-        {/* Two columns */}
-        <div className="suzi-account-columns">
-          <div className="suzi-account-left-stack">
-          <Panel className="p-[var(--panel-pad)]">
+        <div className="suzi-account-body">
+          <div className="suzi-account-main">
+          <Panel className="suzi-account-panel p-[var(--panel-pad)]">
             <div className="suzi-account-section-head">
               <div className="flex items-start gap-2">
                 <SectionIcon path="M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-4 8a8 8 0 0 1 16 0H12Z" />
@@ -491,10 +483,18 @@ export function AccountProfilePage() {
             </div>
             </Panel>
 
-            {/* About + country + save */}
-            <Panel className="p-[var(--panel-pad)]">
-            <form id="account-about" onSubmit={handleSaveProfile} className="space-y-5">
-              <div className="rounded-[var(--panel-radius)] border border-white/8 bg-white/[0.03] p-3">
+            <Panel className="suzi-account-panel p-[var(--panel-pad)]">
+            <form id="account-about" onSubmit={handleSaveProfile} className="suzi-account-form space-y-4">
+              <div className="suzi-account-form-head">
+                <SectionIcon path="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z" />
+                <div>
+                  <h2 className="text-[var(--fs-lg)] font-semibold text-white">Profile details</h2>
+                  <p className="mt-0.5 text-[var(--fs-xs)] text-[var(--text-muted)]">
+                    Name, bio, and region shown on your public profile.
+                  </p>
+                </div>
+              </div>
+              <div className="suzi-account-field">
                 <label htmlFor="account-display-name" className="text-[var(--fs-xs)] font-medium text-[var(--text-muted)]">
                   Display name
                 </label>
@@ -507,18 +507,13 @@ export function AccountProfilePage() {
                   onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))}
                 />
               </div>
-              <div>
-                <div className="flex items-start gap-2">
-                  <SectionIcon path="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z" />
-                  <div>
-                    <h2 className="text-[var(--fs-lg)] font-semibold text-white">About me</h2>
-                    <p className="mt-0.5 text-[var(--fs-xs)] text-[var(--text-muted)]">
-                      Tell others a bit about yourself.
-                    </p>
-                  </div>
-                </div>
+              <div className="suzi-account-field">
+                <label htmlFor="account-bio" className="text-[var(--fs-xs)] font-medium text-[var(--text-muted)]">
+                  About me
+                </label>
                 <textarea
-                  className="suzi-input mt-3 min-h-[5.5rem] w-full resize-none text-[var(--fs-sm)]"
+                  id="account-bio"
+                  className="suzi-input mt-1.5 min-h-[5.5rem] w-full resize-none text-[var(--fs-sm)]"
                   value={form.bio}
                   placeholder="Short line about you"
                   maxLength={280}
@@ -526,18 +521,13 @@ export function AccountProfilePage() {
                 />
               </div>
 
-              <div>
-                <div className="flex items-start gap-2">
-                  <SectionIcon path="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 3v18M3 12h18" />
-                  <div>
-                    <h2 className="text-[var(--fs-lg)] font-semibold text-white">Country / Region</h2>
-                    <p className="mt-0.5 text-[var(--fs-xs)] text-[var(--text-muted)]">
-                      This helps us personalize your experience.
-                    </p>
-                  </div>
-                </div>
+              <div className="suzi-account-field">
+                <label htmlFor="account-country" className="text-[var(--fs-xs)] font-medium text-[var(--text-muted)]">
+                  Country / region
+                </label>
                 <select
-                  className="suzi-input mt-3 w-full text-[var(--fs-sm)]"
+                  id="account-country"
+                  className="suzi-input mt-1.5 w-full text-[var(--fs-sm)]"
                   value={countrySelectValue}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -602,9 +592,8 @@ export function AccountProfilePage() {
             </Panel>
           </div>
 
-          {/* Right */}
-          <div className="flex flex-col gap-[var(--row-gap)]">
-            <Panel className="p-[var(--panel-pad)]">
+          <aside className="suzi-account-sidebar">
+            <Panel className="suzi-account-panel p-[var(--panel-pad)]">
               <div className="flex items-center gap-2">
                 <SectionIcon path="M12 14a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm6.4-3a6.4 6.4 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a6.4 6.4 0 0 0-1.7-1L14 2h-4l-.2 2a6.4 6.4 0 0 0-1.7 1L5.7 4l-2 3.4L5.7 9c-.1.3-.1.6-.1 1s0 .7.1 1l-2 1.6 2 3.4 2.4-1c.5.4 1 .7 1.7 1L10 20h4l.2-2c.7-.3 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.6c.1-.3.1-.6.1-1Z" />
                 <h2 className="text-[var(--fs-lg)] font-semibold text-white">Quick defaults</h2>
@@ -629,14 +618,14 @@ export function AccountProfilePage() {
                         <p className="text-[var(--fs-sm)] font-medium text-white">{row.label}</p>
                         <p className="text-[var(--fs-2xs)] text-[var(--text-muted)]">{row.copy}</p>
                       </div>
-                      <span className="suzi-switch" data-on={on ? "true" : "false"} aria-hidden />
+                      <span className="suzi-switch suzi-switch--settings" data-on={on ? "true" : "false"} aria-hidden />
                     </button>
                   );
                 })}
               </div>
             </Panel>
 
-            <Panel className="p-[var(--panel-pad)]">
+            <Panel className="suzi-account-panel p-[var(--panel-pad)]">
               <div className="flex items-center gap-2">
                 <SectionIcon path="M12 2 4 5v7a8 8 0 0 0 8 8 8 8 0 0 0 8-8V5l-8-3Z" />
                 <h2 className="text-[var(--fs-lg)] font-semibold text-white">Privacy</h2>
@@ -664,7 +653,7 @@ export function AccountProfilePage() {
               </div>
             </Panel>
 
-            <Panel className="p-[var(--panel-pad)]">
+            <Panel className="suzi-account-panel p-[var(--panel-pad)]">
               <div className="flex items-center gap-2">
                 <SectionIcon path="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z" />
                 <h2 className="text-[var(--fs-lg)] font-semibold text-white">Account</h2>
@@ -708,14 +697,14 @@ export function AccountProfilePage() {
                 </button>
               </div>
             </Panel>
-          </div>
+          </aside>
         </div>
       </div>
     </ProfilePageShell>
   );
 }
 
-function StatCard({
+function StatChip({
   label,
   value,
   icon,
@@ -727,19 +716,15 @@ function StatCard({
   href: string;
 }) {
   return (
-    <Link href={href} className="suzi-stat-card group transition hover:border-cyan-300/30">
-      <div className="flex items-center gap-2">
-        <span className="inline-flex h-7 w-7 items-center justify-center rounded-[0.6rem] border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(88,36,175,0.62),rgba(32,18,88,0.82))] text-cyan-100">
-          <Icon path={icon} className="h-3.5 w-3.5" />
-        </span>
-        <span className="suzi-stat-card-label">{label}</span>
-      </div>
-      <div>
-        <p className="suzi-stat-card-value">{value}</p>
-        <p className="text-[var(--fs-2xs)] text-cyan-100/65 transition group-hover:text-fuchsia-200/90">
-          View all →
-        </p>
-      </div>
+    <Link href={href} className="suzi-account-stat-chip group">
+      <span className="suzi-account-stat-chip-icon" aria-hidden>
+        <Icon path={icon} className="h-3.5 w-3.5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="suzi-account-stat-chip-label">{label}</span>
+        <span className="suzi-account-stat-chip-value">{value}</span>
+      </span>
+      <Icon path="M9 6l6 6-6 6" className="h-3 w-3 shrink-0 text-white/40 transition group-hover:text-fuchsia-200/90" />
     </Link>
   );
 }

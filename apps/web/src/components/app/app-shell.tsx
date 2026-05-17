@@ -318,6 +318,9 @@ export function AppShell({
     setIsMobileDrawerOpen(false);
   }, [pathname]);
 
+  const hideCenterLogo =
+    pathname === "/app/profile" || pathname.startsWith("/app/profile/");
+
   return (
     <main
       data-suzi-app-frame
@@ -340,16 +343,18 @@ export function AppShell({
         <span className="suzi-bottom-star suzi-bottom-star-10" />
       </div>
 
-      <Link href="/app" className="suzi-shell-logo-overlay" aria-label="SuziChat">
-        <img
-          src="/logo/logo.png"
-          alt=""
-          width={1536}
-          height={1024}
-          decoding="async"
-          className="suzi-shell-logo-overlay__img"
-        />
-      </Link>
+      {!hideCenterLogo ? (
+        <Link href="/app" className="suzi-shell-logo-overlay" aria-label="SuziChat">
+          <img
+            src="/logo/logo.png"
+            alt=""
+            width={1536}
+            height={1024}
+            decoding="async"
+            className="suzi-shell-logo-overlay__img"
+          />
+        </Link>
+      ) : null}
 
       <div className="suzi-shell-content relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col">
         {/* MOBILE TOP BAR — < md only. */}

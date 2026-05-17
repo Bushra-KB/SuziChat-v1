@@ -2388,27 +2388,40 @@ h5 {
   margin-inline: auto;
 }
 
+.suzi-account-page-scroll {
+  padding-inline: clamp(0.35rem, 1.2vw, 0.65rem);
+}
+
 .suzi-account-layout {
   display: flex;
   flex-direction: column;
-  gap: var(--row-gap);
+  gap: clamp(0.7rem, 1.4vw, 1rem);
   width: 100%;
   max-width: 68rem;
   margin-inline: auto;
 }
 
+.suzi-account-hero {
+  border-color: rgba(255, 255, 255, 0.09);
+  background: linear-gradient(
+    148deg,
+    rgba(28, 14, 68, 0.88),
+    rgba(14, 8, 38, 0.82)
+  );
+}
+
 .suzi-account-hero-inner {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.25rem;
+  gap: 1rem;
   align-items: center;
   position: relative;
 }
 
 @media (min-width: 960px) {
   .suzi-account-hero-inner {
-    grid-template-columns: minmax(0, 1.08fr) minmax(14.5rem, 22rem);
-    gap: 1.25rem 1.5rem;
+    grid-template-columns: minmax(0, 1.1fr) minmax(12.5rem, 17.5rem);
+    gap: 1rem 1.25rem;
   }
 }
 
@@ -2419,7 +2432,130 @@ h5 {
   min-width: 0;
 }
 
-/* Reference: 2×2 stat grid on the right of the hero */
+.suzi-account-avatar {
+  width: clamp(4.35rem, 5.5vw + 1.75rem, 5.35rem);
+  height: clamp(4.35rem, 5.5vw + 1.75rem, 5.35rem);
+}
+
+.suzi-account-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  width: 100%;
+}
+
+@media (min-width: 960px) {
+  .suzi-account-stat-strip {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+}
+
+.suzi-account-stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.suzi-account-stat-chip:hover {
+  border-color: rgba(0, 229, 255, 0.28);
+  background: rgba(0, 229, 255, 0.07);
+  transform: translateY(-1px);
+}
+
+.suzi-account-stat-chip-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  background: rgba(88, 36, 175, 0.35);
+  color: rgba(207, 250, 254, 0.95);
+}
+
+.suzi-account-stat-chip-label {
+  display: block;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(195, 211, 239, 0.62);
+}
+
+.suzi-account-stat-chip-value {
+  display: block;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.suzi-account-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--col-gap);
+  align-items: start;
+  width: 100%;
+}
+
+@media (min-width: 900px) {
+  .suzi-account-body {
+    grid-template-columns: minmax(0, 1.12fr) minmax(16rem, 0.88fr);
+  }
+}
+
+.suzi-account-main,
+.suzi-account-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.65rem, 1.2vw, 0.9rem);
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .suzi-account-sidebar {
+    position: sticky;
+    top: 0.15rem;
+    align-self: start;
+  }
+}
+
+.suzi-account-panel {
+  border-color: rgba(255, 255, 255, 0.07);
+  background: linear-gradient(
+    165deg,
+    rgba(20, 11, 52, 0.62),
+    rgba(12, 7, 34, 0.52)
+  );
+}
+
+.suzi-account-form-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.15rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.suzi-account-field + .suzi-account-field {
+  margin-top: 0.1rem;
+}
+
+/* Legacy layout hooks (view profile may still use these). */
 .suzi-account-stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2728,6 +2864,13 @@ h5 {
   transform: translateX(1.05rem);
 }
 
+/* Settings toggles — cyan accent (distinct from primary pink actions). */
+.suzi-switch.suzi-switch--settings[data-on="true"] {
+  border-color: rgba(0, 229, 255, 0.42);
+  background: linear-gradient(90deg, rgba(0, 229, 255, 0.88), rgba(88, 36, 175, 0.92));
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.22);
+}
+
 /* ==================================================================
  * MOBILE LAYOUT (< 768px) — fixed top bar + scroll content + bottom nav.
  * The desktop SPA layout is intentionally untouched above 768px.
@@ -2836,6 +2979,7 @@ h5 {
   .suzi-room-grid,
   .suzi-lobby-grid,
   .suzi-profile-body,
+  .suzi-account-body,
   .suzi-account-columns,
   .suzi-stage-grid {
     grid-template-columns: 1fr !important;
@@ -2846,8 +2990,13 @@ h5 {
     row-gap: var(--row-gap);
   }
 
-  .suzi-account-stats {
+  .suzi-account-stats,
+  .suzi-account-stat-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .suzi-account-sidebar {
+    position: static;
   }
 
   /* Inside col-stacks (Home), let children size to content. */
