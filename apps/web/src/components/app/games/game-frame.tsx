@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
 
 export function GameFrame({
@@ -8,6 +9,7 @@ export function GameFrame({
   reconnecting = false,
   reconnectHint,
   immersive = false,
+  lobbyHref,
   children,
 }: {
   title: string;
@@ -15,6 +17,8 @@ export function GameFrame({
   reconnecting?: boolean;
   reconnectHint?: string;
   immersive?: boolean;
+  /** When set, shows a back link above the board (all game types). */
+  lobbyHref?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -54,15 +58,25 @@ export function GameFrame({
               <p className="mt-2 max-w-xl text-xs leading-relaxed text-amber-100/85">{reconnectHint}</p>
             ) : null}
           </div>
-          <div
-            className={cx(
-              "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-semibold",
-              reconnecting
-                ? "border-amber-300/35 bg-amber-400/14 text-amber-100"
-                : "border-emerald-300/30 bg-emerald-400/12 text-emerald-100",
-            )}
-          >
-            {reconnecting ? "Reconnecting..." : "Live"}
+          <div className="flex shrink-0 items-center gap-2">
+            {lobbyHref ? (
+              <Link
+                href={lobbyHref}
+                className="suzi-secondary-btn whitespace-nowrap px-2.5 py-1 text-[var(--fs-2xs)]"
+              >
+                ← Lobby
+              </Link>
+            ) : null}
+            <span
+              className={cx(
+                "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold",
+                reconnecting
+                  ? "border-amber-300/35 bg-amber-400/14 text-amber-100"
+                  : "border-emerald-300/30 bg-emerald-400/12 text-emerald-100",
+              )}
+            >
+              {reconnecting ? "Reconnecting..." : "Live"}
+            </span>
           </div>
         </div>
       </div>

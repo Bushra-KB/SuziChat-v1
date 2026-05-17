@@ -55,6 +55,9 @@ export function applyCheckersAction(
   if ([fr, fc, tr, tc].some((v) => Number.isNaN(v) || v < 0 || v > 7)) {
     throw new BadRequestException('Invalid from/to coordinates.');
   }
+  if ((fr + fc) % 2 === 0 || (tr + tc) % 2 === 0) {
+    throw new BadRequestException('Checkers moves only on dark squares.');
+  }
   const piece = state.board[fr]?.[fc] ?? null;
   if (!piece) {
     throw new BadRequestException('No piece on source square.');
@@ -72,8 +75,13 @@ export function applyCheckersAction(
   const absRow = Math.abs(rowDelta);
   const absCol = Math.abs(colDelta);
   const isKing = piece === 'B' || piece === 'R';
-  const canForward = isKing || rowDelta === dir || rowDelta === dir * 2;
-  if (!canForward || absCol !== absRow || (absRow !== 1 && absRow !== 2)) {
+  const validStep =
+    isKing
+      ? absCol === absRow && (absRow === 1 || absRow === 2)
+      : absCol === absRow &&
+        (absRow === 1 || absRow === 2) &&
+        (rowDelta === dir || rowDelta === dir * 2);
+  if (!validStep) {
     throw new BadRequestException('Illegal checkers move.');
   }
 

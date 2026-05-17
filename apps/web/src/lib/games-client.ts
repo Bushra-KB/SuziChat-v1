@@ -17,7 +17,7 @@ export type ApiGameLobby = {
   gameType: ApiGameType;
   title: string;
   isPrivate: boolean;
-  status: "OPEN" | "IN_PROGRESS" | "CLOSED";
+  status: "EMPTY" | "WAITING" | "OPEN" | "IN_PROGRESS" | "CLOSED";
   maxSeats: number;
   ownerId: string;
   owner: { id: string; username: string; displayName: string | null; avatarUrl?: string | null };

@@ -288,10 +288,48 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
   }
 
   const totalActivePlayers = rows.reduce((acc, lobby) => acc + lobby.seats.filter((s) => s.userId).length, 0);
-  const totalOpenTables = rows.filter((lobby) => lobby.seats.some((s) => !s.userId)).length;
+  const totalOpenTables = rows.filter(
+    (lobby) => lobby.status === "EMPTY" || lobby.status === "WAITING" || lobby.status === "OPEN",
+  ).length;
+  const myOwnedLobby = rows.find((lobby) => lobby.ownerId === me);
 
   function seatName(seat: ApiGameLobby["seats"][number] | undefined) {
     return seat?.user?.displayName?.trim() || seat?.user?.username || "(empty)";
+  }
+
+  function nextSeatOffer(lobby: ApiGameLobby): { seatIndex: number; label: string } | null {
+    if (lobby.seats.some((seat) => seat.userId === me)) return null;
+    if (lobby.status !== "EMPTY" && lobby.status !== "WAITING" && lobby.status !== "OPEN") {
+      return null;
+    }
+    const seat0 = lobby.seats.find((seat) => seat.seatIndex === 0);
+    const seat1 = lobby.seats.find((seat) => seat.seatIndex === 1);
+    if (lobby.maxSeats <= 2) {
+      if (!seat0?.userId) return { seatIndex: 0, label: "Take seat 1" };
+      if (!seat1?.userId) return { seatIndex: 1, label: "Take seat 2" };
+      return null;
+    }
+    const open = [...lobby.seats].sort((a, b) => a.seatIndex - b.seatIndex).find((seat) => !seat.userId);
+    if (!open) return null;
+    return { seatIndex: open.seatIndex, label: `Take seat ${open.seatIndex + 1}` };
+  }
+
+  function lobbyStatusDisplay(lobby: ApiGameLobby) {
+    if (lobby.sessions[0]?.status === "ACTIVE") {
+      return { text: "Playing", icon: "🏆", className: "text-emerald-100" };
+    }
+    switch (lobby.status) {
+      case "EMPTY":
+        return { text: "Empty", icon: "🪑", className: "text-fuchsia-100/76" };
+      case "WAITING":
+        return { text: "Waiting", icon: "👀", className: "text-cyan-100" };
+      case "OPEN":
+        return { text: "Ready", icon: "✓", className: "text-emerald-100" };
+      case "IN_PROGRESS":
+        return { text: "In progress", icon: "🏆", className: "text-emerald-100" };
+      default:
+        return { text: lobby.status, icon: "•", className: "text-cyan-100/70" };
+    }
   }
 
   return (
@@ -326,11 +364,16 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
             </div>
             <button
               type="button"
-              disabled={creating}
+              disabled={creating || Boolean(myOwnedLobby)}
+              title={
+                myOwnedLobby
+                  ? `You already host "${myOwnedLobby.title}". Delete it to create a new lobby.`
+                  : undefined
+              }
               className="suzi-primary-btn suzi-lobby-create shrink-0 px-3 py-1 text-[var(--fs-2xs)] disabled:opacity-60"
               onClick={() => void onCreateLobby()}
             >
-              {creating ? "Creating..." : "+ Create lobby"}
+              {creating ? "Creating..." : myOwnedLobby ? "Lobby active" : "+ Create lobby"}
             </button>
           </div>
           {error ? (
@@ -351,21 +394,12 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
               const seatedMine = lobby.seats.find((seat) => seat.userId === me);
               const session = lobby.sessions[0];
               const occupiedSeats = lobby.seats.filter((seat) => seat.userId);
-              const openSeat = lobby.seats.find((seat) => !seat.userId);
-              const firstSeat = lobby.seats[0];
-              const secondSeat = lobby.seats[1];
-              const status =
-                session?.status === "ACTIVE"
-                  ? "Playing"
-                  : occupiedSeats.length === 0
-                    ? "Empty"
-                    : "Waiting";
-              const statusClass =
-                session?.status === "ACTIVE"
-                  ? "text-emerald-100"
-                  : occupiedSeats.length === 0
-                    ? "text-fuchsia-100/76"
-                    : "text-cyan-100";
+              const firstSeat = lobby.seats.find((seat) => seat.seatIndex === 0) ?? lobby.seats[0];
+              const secondSeat = lobby.seats.find((seat) => seat.seatIndex === 1) ?? lobby.seats[1];
+              const statusDisplay = lobbyStatusDisplay(lobby);
+              const seatOffer = nextSeatOffer(lobby);
+              const canStart =
+                lobby.ownerId === me && lobby.status === "OPEN" && session?.status !== "ACTIVE";
               const canManage = lobby.ownerId === me || Boolean(seatedMine);
               const inviteOpen = openInviteLobbyId === lobby.id;
 
@@ -399,9 +433,9 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                     <p className="truncate text-[var(--fs-xs)] font-bold text-white">
                       {seatName(firstSeat)} <span className="text-cyan-100/58">vs</span> {seatName(secondSeat)}
                     </p>
-                    <p className={`mt-1 inline-flex items-center justify-center gap-1 rounded-full bg-black/24 px-2 py-0.5 text-[var(--fs-2xs)] font-semibold ${statusClass}`}>
-                      <span aria-hidden="true">{session?.status === "ACTIVE" ? "🏆" : occupiedSeats.length === 0 ? "🪑" : "👀"}</span>
-                      {status}
+                    <p className={`mt-1 inline-flex items-center justify-center gap-1 rounded-full bg-black/24 px-2 py-0.5 text-[var(--fs-2xs)] font-semibold ${statusDisplay.className}`}>
+                      <span aria-hidden="true">{statusDisplay.icon}</span>
+                      {statusDisplay.text}
                     </p>
                   </div>
 
@@ -413,16 +447,16 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                       >
                         Open
                       </Link>
-                    ) : !seatedMine && openSeat ? (
+                    ) : seatOffer ? (
                       <button
                         type="button"
                         disabled={busyLobbyId === lobby.id}
                         className="suzi-primary-btn flex-1 px-2 py-1 text-[var(--fs-2xs)] disabled:opacity-60"
-                        onClick={() => void onJoin(lobby.id, openSeat.seatIndex)}
+                        onClick={() => void onJoin(lobby.id, seatOffer.seatIndex)}
                       >
-                        Join
+                        {seatOffer.label}
                       </button>
-                    ) : lobby.ownerId === me ? (
+                    ) : canStart ? (
                       <button
                         type="button"
                         disabled={busyLobbyId === lobby.id}
@@ -431,9 +465,13 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                       >
                         Start
                       </button>
-                    ) : (
+                    ) : seatedMine ? (
                       <span className="flex-1 rounded-full border border-emerald-300/26 bg-emerald-400/14 px-2 py-1 text-center text-[var(--fs-2xs)] font-semibold text-emerald-100">
-                        Seated
+                        {lobby.ownerId === me ? "Waiting for seat 2" : "Seated"}
+                      </span>
+                    ) : (
+                      <span className="flex-1 rounded-full border border-cyan-300/22 bg-cyan-400/10 px-2 py-1 text-center text-[var(--fs-2xs)] font-semibold text-cyan-100/85">
+                        Full
                       </span>
                     )}
 

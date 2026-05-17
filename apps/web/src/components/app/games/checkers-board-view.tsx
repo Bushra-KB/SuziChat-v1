@@ -49,8 +49,9 @@ export function CheckersBoardView({
   spectator = false,
   onMove,
 }: CheckersBoardViewProps) {
+  /** players[0] = black (top rows in engine); flip so seated black sees pieces at bottom. */
   const imBlack = players[0] === meId;
-  const flip = players[1] === meId;
+  const flip = imBlack;
   const canInteract = active && myTurn && !busy && !spectator;
 
   const dragStart = useRef<{ r: number; c: number } | null>(null);
