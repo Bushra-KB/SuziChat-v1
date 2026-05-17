@@ -43,6 +43,8 @@ enum GameType {
 }
 
 enum GameLobbyStatus {
+  EMPTY
+  WAITING
   OPEN
   IN_PROGRESS
   CLOSED
@@ -159,7 +161,7 @@ model GameLobby {
   isPrivate   Boolean         @default(false)
   ownerId     String
   owner       User            @relation("GameLobbyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  status      GameLobbyStatus @default(OPEN)
+  status      GameLobbyStatus @default(EMPTY)
   maxSeats    Int             @default(2)
   settings    Json?
   seats       GameSeat[]

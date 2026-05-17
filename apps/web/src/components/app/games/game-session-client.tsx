@@ -271,7 +271,10 @@ export function GameSessionClient({
     Array.from({ length: 7 }, (_, c) => Number(asArray(rawC4[r])[c] ?? 0)),
   );
 
-  const gamePlayers = asArray(state.players).map(String);
+  const gamePlayers = (() => {
+    const fromState = asArray(state.players).map(String).filter(Boolean);
+    return fromState.length >= 2 ? fromState : seatUserIds;
+  })();
 
   const moveLines = useMemo(
     () => (session ? formatMoveListForSession(session) : []),
@@ -388,6 +391,7 @@ export function GameSessionClient({
               reconnecting={!socketReady}
               reconnectHint={RECONNECT_HINT}
               immersive={session.gameType === "POKER_HOLDEM"}
+              lobbyHref={`/app/games/${gameRouteId ?? gameTypeToId(session.gameType)}`}
             >
               <div
                 key={shakeKey}

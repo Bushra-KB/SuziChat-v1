@@ -96,6 +96,74 @@ function gameTypeToRouteId(gameType: GameType) {
   return gameType.toLowerCase();
 }
 
+type LobbySeatRow = { seatIndex: number; userId: string | null };
+
+function catalogEntry(gameType: GameType) {
+  const entry = GAME_CATALOG.find((item) => item.gameType === gameType);
+  if (!entry) throw new BadRequestException('Unknown game type.');
+  return entry;
+}
+
+function countSeated(seats: LobbySeatRow[]) {
+  return seats.filter((seat) => seat.userId).length;
+}
+
+function lobbyStatusForSeats(
+  gameType: GameType,
+  seats: LobbySeatRow[],
+): GameLobbyStatus {
+  const catalog = catalogEntry(gameType);
+  const seated = countSeated(seats);
+  if (seated === 0) return GameLobbyStatus.EMPTY;
+  if (seated < catalog.minPlayers) return GameLobbyStatus.WAITING;
+  return GameLobbyStatus.OPEN;
+}
+
+const LOBBY_SEATABLE: GameLobbyStatus[] = [
+  GameLobbyStatus.EMPTY,
+  GameLobbyStatus.WAITING,
+  GameLobbyStatus.OPEN,
+];
+
+function assertSeatPick(
+  gameType: GameType,
+  seats: LobbySeatRow[],
+  seatIndex: number,
+) {
+  const catalog = catalogEntry(gameType);
+  const target = seats.find((row) => row.seatIndex === seatIndex);
+  if (!target) throw new BadRequestException('Seat does not exist.');
+  if (target.userId) throw new BadRequestException('Seat already taken.');
+
+  const seated = seats
+    .filter((row) => row.userId)
+    .sort((a, b) => a.seatIndex - b.seatIndex);
+
+  if (seated.length === 0) {
+    if (seatIndex !== 0) {
+      throw new BadRequestException('The first player must take seat 1.');
+    }
+    return;
+  }
+
+  if (catalog.minPlayers === 2 && catalog.maxPlayers === 2) {
+    const seat0Taken = Boolean(
+      seats.find((row) => row.seatIndex === 0)?.userId,
+    );
+    if (seated.length === 1) {
+      if (seat0Taken && seatIndex !== 1) {
+        throw new BadRequestException('The second player must take seat 2.');
+      }
+      if (!seat0Taken) {
+        throw new BadRequestException(
+          'Seat 1 must be taken before seat 2.',
+        );
+      }
+    }
+    return;
+  }
+}
+
 @Injectable()
 export class GamesService {
   constructor(
@@ -130,7 +198,14 @@ export class GamesService {
   async listLobbies(gameType?: GameType) {
     return this.prisma.gameLobby.findMany({
       where: {
-        status: { in: [GameLobbyStatus.OPEN, GameLobbyStatus.IN_PROGRESS] },
+        status: {
+          in: [
+            GameLobbyStatus.EMPTY,
+            GameLobbyStatus.WAITING,
+            GameLobbyStatus.OPEN,
+            GameLobbyStatus.IN_PROGRESS,
+          ],
+        },
         ...(gameType ? { gameType } : {}),
       },
       orderBy: { updatedAt: 'desc' },
@@ -194,14 +269,86 @@ export class GamesService {
       },
     });
     if (!lobby) throw new NotFoundException('Lobby not found.');
+    if (
+      lobby.status !== GameLobbyStatus.IN_PROGRESS &&
+      lobby.status !== GameLobbyStatus.CLOSED
+    ) {
+      const expected = lobbyStatusForSeats(lobby.gameType, lobby.seats);
+      if (expected !== lobby.status) {
+        await this.prisma.gameLobby.update({
+          where: { id: lobbyId },
+          data: { status: expected },
+        });
+        lobby.status = expected;
+      }
+    }
     return lobby;
   }
 
+  private async syncLobbyStatusFromSeats(lobbyId: string) {
+    const lobby = await this.prisma.gameLobby.findUnique({
+      where: { id: lobbyId },
+      include: { seats: { orderBy: { seatIndex: 'asc' } } },
+    });
+    if (!lobby || lobby.status === GameLobbyStatus.IN_PROGRESS) {
+      return lobby;
+    }
+    const nextStatus = lobbyStatusForSeats(lobby.gameType, lobby.seats);
+    if (nextStatus === lobby.status) {
+      return lobby;
+    }
+    return this.prisma.gameLobby.update({
+      where: { id: lobbyId },
+      data: { status: nextStatus },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        seats: {
+          orderBy: { seatIndex: 'asc' },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+        sessions: { orderBy: { createdAt: 'desc' }, take: 20 },
+      },
+    });
+  }
+
   async createLobby(ownerId: string, dto: CreateGameLobbyDto) {
-    const catalog = GAME_CATALOG.find(
-      (entry) => entry.gameType === dto.gameType,
-    );
-    if (!catalog) throw new BadRequestException('Unknown game type.');
+    const catalog = catalogEntry(dto.gameType);
+    const existing = await this.prisma.gameLobby.findFirst({
+      where: {
+        ownerId,
+        gameType: dto.gameType,
+        status: {
+          in: [
+            GameLobbyStatus.EMPTY,
+            GameLobbyStatus.WAITING,
+            GameLobbyStatus.OPEN,
+            GameLobbyStatus.IN_PROGRESS,
+          ],
+        },
+      },
+      select: { id: true, title: true },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        `You already have an active ${catalog.name} lobby ("${existing.title}"). Delete it before creating another.`,
+      );
+    }
     const maxSeats = Math.max(
       catalog.minPlayers,
       Math.min(catalog.maxPlayers, dto.maxSeats ?? catalog.maxPlayers),
@@ -218,6 +365,7 @@ export class GamesService {
         maxSeats,
         isPrivate: Boolean(dto.isPrivate),
         settings: toJson(dto.settings ?? {}),
+        status: GameLobbyStatus.EMPTY,
       },
     });
     await this.prisma.gameSeat.createMany({
@@ -301,14 +449,14 @@ export class GamesService {
 
   async joinLobby(lobbyId: string, userId: string, dto: JoinGameLobbyDto) {
     const lobby = await this.ensureLobbyAccess(lobbyId, userId);
-    if (lobby.status !== GameLobbyStatus.OPEN) {
-      throw new BadRequestException('Lobby is not open for seating.');
+    if (!LOBBY_SEATABLE.includes(lobby.status)) {
+      throw new BadRequestException('Lobby is not accepting players.');
     }
     const existing = lobby.seats.find((seat) => seat.userId === userId);
     if (existing) return this.getLobby(lobbyId);
+    assertSeatPick(lobby.gameType, lobby.seats, dto.seatIndex);
     const seat = lobby.seats.find((row) => row.seatIndex === dto.seatIndex);
     if (!seat) throw new BadRequestException('Seat does not exist.');
-    if (seat.userId) throw new BadRequestException('Seat already taken.');
 
     await this.prisma.gameSeat.update({
       where: { id: seat.id },
@@ -326,6 +474,7 @@ export class GamesService {
         payload: { message: 'joined_lobby', seatIndex: dto.seatIndex },
       },
     });
+    await this.syncLobbyStatusFromSeats(lobbyId);
     const snapshot = await this.getLobby(lobbyId);
     this.realtimeEvents.emitToChannel(
       this.lobbyChannel(lobbyId),
@@ -377,6 +526,7 @@ export class GamesService {
       where: { id: seat.id },
       data: { userId: null, status: GameSeatStatus.OPEN, stackChips: 0 },
     });
+    await this.syncLobbyStatusFromSeats(lobbyId);
     const snapshot = await this.getLobby(lobbyId);
     this.realtimeEvents.emitToChannel(
       this.lobbyChannel(lobbyId),
@@ -444,6 +594,11 @@ export class GamesService {
       throw new ForbiddenException('Only lobby owner can start a session.');
     if (lobby.sessions.length > 0)
       throw new BadRequestException('Lobby already has an active session.');
+    if (lobby.status !== GameLobbyStatus.OPEN) {
+      throw new BadRequestException(
+        'Lobby is not ready to start. Both seats must be filled first.',
+      );
+    }
     const seated: SeatSnapshot[] = lobby.seats
       .filter((seat) => seat.userId)
       .map((seat) => ({
@@ -941,10 +1096,7 @@ export class GamesService {
       await this.syncPokerSeatStacks(session.lobbyId, result.state);
     }
     if (sessionFinished) {
-      await this.prisma.gameLobby.update({
-        where: { id: session.lobbyId },
-        data: { status: GameLobbyStatus.OPEN },
-      });
+      await this.syncLobbyStatusFromSeats(session.lobbyId);
     }
     const snapshot = await this.fetchSessionSnapshot(updated.id);
     this.emitSessionState(snapshot);
