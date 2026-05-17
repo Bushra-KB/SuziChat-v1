@@ -20,8 +20,10 @@ export function ProfilePageShell({
     >
       <div
         className={cx(
-          "suzi-profile-page-inner suzi-app-frame-scroll suzi-thin-scroll pb-4 pr-1",
-          variant === "account" ? "suzi-account-page-scroll space-y-[var(--row-gap)]" : "space-y-[var(--row-gap)]",
+          "suzi-profile-page-inner suzi-app-frame-scroll suzi-thin-scroll pr-1",
+          variant === "account"
+            ? "suzi-account-page-scroll pb-3 pt-1"
+            : "space-y-[var(--row-gap)] pb-4",
         )}
       >
         {children}
