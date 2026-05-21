@@ -80,13 +80,7 @@ export function formatSessionMoveSummary(gameType: ApiGameSession["gameType"], m
     return move.kind;
   }
 
-  if (gameType === "POKER_HOLDEM") {
-    const kind = typeof p.kind === "string" ? p.kind : "";
-    const amount = p.amount;
-    if (kind && typeof amount === "number" && amount > 0) return `${kind} ${amount}`;
-    if (kind) return kind;
-    return move.kind;
-  }
-
+  if (gameType === "NEON_HOCKEY") return "Arena update";
+  if (gameType === "TANK_DUEL") return "Duel update";
   return JSON.stringify(move.payload);
 }

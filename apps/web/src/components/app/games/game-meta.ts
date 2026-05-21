@@ -3,14 +3,9 @@ import type { ApiGameType } from "@/lib/games-client";
 export const gameMeta = [
   { id: "chess", type: "CHESS", name: "Chess", copy: "Classic tactical duel with move validation and checkmate detection." },
   { id: "checkers", type: "CHECKERS", name: "Checkers", copy: "Turn-based board strategy with captures and king promotion." },
-  { id: "poker", type: "POKER_HOLDEM", name: "Poker", copy: "Texas Hold'em table with blinds, raises, side pots, and showdown." },
+  { id: "neonhockey", type: "NEON_HOCKEY", name: "Suzi Neon Hockey", copy: "Fast 2-player realtime air hockey with glowing paddles, puck trails, and arcade audio." },
+  { id: "tankduel", type: "TANK_DUEL", name: "Suzi Cosmic Tank Duel", copy: "Realtime 2-player arena duel with hover tanks, laser shots, obstacles, and explosive SFX." },
   { id: "connect4", type: "CONNECT4", name: "Connect 4", copy: "Fast multiplayer drop-grid game with realtime turns." },
-  {
-    id: "texasholdem",
-    type: "POKER_HOLDEM",
-    name: "Texas Hold'em",
-    copy: "Texas Hold'em tables with blinds, raises, side pots, and showdown.",
-  },
 ] as const satisfies ReadonlyArray<{ id: string; type: ApiGameType; name: string; copy: string }>;
 
 export function gameIdToType(gameId: string): ApiGameType {

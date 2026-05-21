@@ -9,6 +9,7 @@ type CheckersState = {
   players: string[];
   status: 'active' | 'finished';
   winnerUserId: string | null;
+  mustContinueFrom: string | null;
 };
 
 function createBoard(): Piece[][] {
@@ -34,7 +35,63 @@ export function buildInitialCheckersState(context: EngineContext): Record<string
     players: [context.seats[0]?.userId ?? '', context.seats[1]?.userId ?? ''],
     status: 'active',
     winnerUserId: null,
+    mustContinueFrom: null,
   } satisfies CheckersState;
+}
+
+function inBounds(r: number, c: number) {
+  return r >= 0 && r < 8 && c >= 0 && c < 8;
+}
+
+function pieceSets(piece: Piece) {
+  if (!piece) return { mine: [] as Piece[], theirs: [] as Piece[] };
+  const black = piece === 'b' || piece === 'B';
+  return black
+    ? { mine: ['b', 'B'] as Piece[], theirs: ['r', 'R'] as Piece[] }
+    : { mine: ['r', 'R'] as Piece[], theirs: ['b', 'B'] as Piece[] };
+}
+
+function captureDirections(piece: Piece): Array<[number, number]> {
+  if (piece === 'B' || piece === 'R') {
+    return [
+      [1, 1],
+      [1, -1],
+      [-1, 1],
+      [-1, -1],
+    ];
+  }
+  if (piece === 'b') return [[1, 1], [1, -1]];
+  if (piece === 'r') return [[-1, 1], [-1, -1]];
+  return [];
+}
+
+function canCaptureFrom(board: Piece[][], r: number, c: number) {
+  const piece = board[r]?.[c] ?? null;
+  if (!piece) return false;
+  const { theirs } = pieceSets(piece);
+  return captureDirections(piece).some(([dr, dc]) => {
+    const mr = r + dr;
+    const mc = c + dc;
+    const tr = r + dr * 2;
+    const tc = c + dc * 2;
+    return (
+      inBounds(tr, tc) &&
+      theirs.includes(board[mr]?.[mc] ?? null) &&
+      (board[tr]?.[tc] ?? null) === null
+    );
+  });
+}
+
+function playerHasCapture(board: Piece[][], mine: Piece[]) {
+  for (let r = 0; r < 8; r += 1) {
+    for (let c = 0; c < 8; c += 1) {
+      const piece = board[r]?.[c] ?? null;
+      if (piece && mine.includes(piece) && canCaptureFrom(board, r, c)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 export function applyCheckersAction(
@@ -58,6 +115,9 @@ export function applyCheckersAction(
   if ((fr + fc) % 2 === 0 || (tr + tc) % 2 === 0) {
     throw new BadRequestException('Checkers moves only on dark squares.');
   }
+  if (state.mustContinueFrom && from !== state.mustContinueFrom) {
+    throw new BadRequestException('You must continue the capture with the same piece.');
+  }
   const piece = state.board[fr]?.[fc] ?? null;
   if (!piece) {
     throw new BadRequestException('No piece on source square.');
@@ -75,6 +135,7 @@ export function applyCheckersAction(
   const absRow = Math.abs(rowDelta);
   const absCol = Math.abs(colDelta);
   const isKing = piece === 'B' || piece === 'R';
+  const isCapture = absRow === 2;
   const validStep =
     isKing
       ? absCol === absRow && (absRow === 1 || absRow === 2)
@@ -84,10 +145,13 @@ export function applyCheckersAction(
   if (!validStep) {
     throw new BadRequestException('Illegal checkers move.');
   }
+  if (!isCapture && playerHasCapture(state.board, mine as Piece[])) {
+    throw new BadRequestException('A capture is available and must be taken.');
+  }
 
   const board = state.board.map((row) => [...row]);
   board[fr][fc] = null;
-  if (absRow === 2) {
+  if (isCapture) {
     const mr = fr + rowDelta / 2;
     const mc = fc + colDelta / 2;
     const jumped = board[mr]?.[mc] ?? null;
@@ -101,8 +165,17 @@ export function applyCheckersAction(
   if (piece === 'r' && tr === 0) placed = 'R';
   board[tr][tc] = placed;
 
-  const nextTurn = state.players.find((id) => id !== context.userId) ?? context.userId;
-  const next: CheckersState = { ...state, board, turnUserId: nextTurn };
+  const mustContinueFrom =
+    isCapture && canCaptureFrom(board, tr, tc) ? `${tr},${tc}` : null;
+  const nextTurn = mustContinueFrom
+    ? context.userId
+    : (state.players.find((id) => id !== context.userId) ?? context.userId);
+  const next: CheckersState = {
+    ...state,
+    board,
+    turnUserId: nextTurn,
+    mustContinueFrom,
+  };
   const flat = board.flat();
   const blackLeft = flat.some((p) => p === 'b' || p === 'B');
   const redLeft = flat.some((p) => p === 'r' || p === 'R');

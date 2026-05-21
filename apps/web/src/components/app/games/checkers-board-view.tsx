@@ -13,6 +13,7 @@ type CheckersBoardViewProps = {
   active: boolean;
   /** Logged in but not seated — view only */
   spectator?: boolean;
+  forcedFrom?: string | null;
   onMove: (from: string, to: string) => void;
 };
 
@@ -47,6 +48,7 @@ export function CheckersBoardView({
   busy,
   active,
   spectator = false,
+  forcedFrom = null,
   onMove,
 }: CheckersBoardViewProps) {
   /** players[0] = black (top rows in engine); flip so seated black sees pieces at bottom. */
@@ -95,6 +97,7 @@ export function CheckersBoardView({
     (e: React.PointerEvent, displayR: number, displayC: number) => {
       if (!canInteract) return;
       const { r, c } = logicalAtDisplay(displayR, displayC);
+      if (forcedFrom && forcedFrom !== `${r},${c}`) return;
       const piece = board[r]?.[c] ?? null;
       if (!isMyPiece(piece, imBlack)) return;
       e.preventDefault();
@@ -152,7 +155,9 @@ export function CheckersBoardView({
       <p className="mt-3 text-center text-xs text-cyan-100/65">
         {spectator
           ? "You’re watching — moves sync live from seated players."
-          : `Drag your piece to a destination square. You play ${imBlack ? "black" : "red"} — the board is oriented with your side toward you.`}
+          : forcedFrom
+            ? "Continue the capture with the same piece."
+            : `Drag your piece to a destination square. You play ${imBlack ? "black" : "red"} — the board is oriented with your side toward you.`}
       </p>
     </div>
   );

@@ -56,3 +56,24 @@ export function playYourTurnSound() {
   beep(660, 70, 0.07);
   setTimeout(() => beep(880, 90, 0.06), 75);
 }
+
+export function playArcadeHitSound() {
+  beep(260, 38, 0.08);
+  setTimeout(() => beep(520, 34, 0.045), 34);
+}
+
+export function playArcadeGoalSound() {
+  beep(180, 80, 0.09);
+  setTimeout(() => beep(420, 110, 0.075), 70);
+  setTimeout(() => beep(760, 140, 0.06), 145);
+}
+
+export function playArcadeLaserSound() {
+  beep(920, 42, 0.055);
+  setTimeout(() => beep(460, 52, 0.04), 34);
+}
+
+export function playArcadeExplosionSound() {
+  beep(120, 90, 0.095);
+  setTimeout(() => beep(90, 120, 0.07), 70);
+}

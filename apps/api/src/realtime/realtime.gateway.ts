@@ -479,6 +479,7 @@ export class RealtimeGateway
       title?: string;
       isPrivate?: boolean;
       maxSeats?: number;
+      settings?: Record<string, unknown>;
     },
   ) {
     const userId = this.getUserId(client);
@@ -490,6 +491,7 @@ export class RealtimeGateway
       title: payload.title,
       isPrivate: payload.isPrivate,
       maxSeats: payload.maxSeats,
+      settings: payload.settings,
     });
     this.markUserActive(userId);
     return { ok: true, lobby };
@@ -558,7 +560,12 @@ export class RealtimeGateway
   @SubscribeMessage('game:lobby:start')
   async onGameLobbyStart(
     @ConnectedSocket() client: AuthSocket,
-    @MessageBody() payload: { lobbyId?: string; options?: Record<string, unknown> },
+    @MessageBody()
+    payload: {
+      lobbyId?: string;
+      options?: Record<string, unknown>;
+      restart?: boolean;
+    },
   ) {
     const userId = this.getUserId(client);
     const lobbyId = payload?.lobbyId?.trim();
@@ -567,6 +574,7 @@ export class RealtimeGateway
     }
     const session = await this.gamesService.startSession(lobbyId, userId, {
       options: payload.options ?? {},
+      restart: payload.restart,
     });
     this.markUserActive(userId);
     return { ok: true, session };

@@ -29,6 +29,14 @@ import {
   applyConnect4Action,
   buildInitialConnect4State,
 } from './engines/connect4.engine';
+import {
+  applyNeonHockeyAction,
+  buildInitialNeonHockeyState,
+} from './engines/neon-hockey.engine';
+import {
+  applyTankDuelAction,
+  buildInitialTankDuelState,
+} from './engines/tank-duel.engine';
 import type { EngineContext, SeatSnapshot } from './engines/game-engine.types';
 import {
   applyPokerAction,
@@ -60,11 +68,18 @@ const GAME_CATALOG = [
     maxPlayers: 2,
   },
   {
-    id: 'poker',
-    gameType: GameType.POKER_HOLDEM,
-    name: 'Poker',
+    id: 'neonhockey',
+    gameType: GameType.NEON_HOCKEY,
+    name: 'Suzi Neon Hockey',
     minPlayers: 2,
-    maxPlayers: 9,
+    maxPlayers: 2,
+  },
+  {
+    id: 'tankduel',
+    gameType: GameType.TANK_DUEL,
+    name: 'Suzi Cosmic Tank Duel',
+    minPlayers: 2,
+    maxPlayers: 2,
   },
   {
     id: 'connect4',
@@ -96,8 +111,14 @@ function jsonPrimitiveString(value: unknown, fallback = ''): string {
 }
 
 function gameTypeToRouteId(gameType: GameType) {
+  if (gameType === GameType.NEON_HOCKEY) return 'neonhockey';
+  if (gameType === GameType.TANK_DUEL) return 'tankduel';
   if (gameType === GameType.POKER_HOLDEM) return 'poker';
   return gameType.toLowerCase();
+}
+
+function isRealtimeArenaGame(gameType: GameType) {
+  return gameType === GameType.NEON_HOCKEY || gameType === GameType.TANK_DUEL;
 }
 
 type LobbySeatRow = { seatIndex: number; userId: string | null };
@@ -627,6 +648,25 @@ export class GamesService {
       where: { id: seat.id },
       data: { userId: null, status: GameSeatStatus.OPEN, stackChips: 0 },
     });
+    const remainingSeats = await this.prisma.gameSeat.findMany({
+      where: { lobbyId },
+      select: { userId: true },
+    });
+    const occupiedCount = remainingSeats.filter((row) => row.userId).length;
+    if (occupiedCount === 0) {
+      await this.prisma.gameLobby.delete({ where: { id: lobbyId } });
+      this.realtimeEvents.emitToChannel(
+        this.lobbyChannel(lobbyId),
+        'game:lobby:deleted',
+        { lobbyId },
+      );
+      this.emitLobbyListRefresh(lobby.gameType);
+      return { ok: true, lobbyId, deleted: true };
+    }
+    await this.prisma.gameSession.updateMany({
+      where: { lobbyId, status: GameSessionStatus.ACTIVE },
+      data: { status: GameSessionStatus.CANCELED, endedAt: new Date() },
+    });
     await this.syncLobbyStatusFromSeats(lobbyId);
     const snapshot = await this.getLobby(lobbyId);
     this.realtimeEvents.emitToChannel(
@@ -645,6 +685,10 @@ export class GamesService {
       return buildInitialCheckersState(context);
     if (context.gameType === GameType.CONNECT4)
       return buildInitialConnect4State(context);
+    if (context.gameType === GameType.NEON_HOCKEY)
+      return buildInitialNeonHockeyState(context);
+    if (context.gameType === GameType.TANK_DUEL)
+      return buildInitialTankDuelState(context);
     if (context.gameType === GameType.POKER_HOLDEM)
       return buildInitialPokerState(context);
     throw new BadRequestException('Unsupported game type.');
@@ -665,6 +709,12 @@ export class GamesService {
     }
     if (gameType === GameType.CONNECT4) {
       return applyConnect4Action(state, { userId, payload });
+    }
+    if (gameType === GameType.NEON_HOCKEY) {
+      return applyNeonHockeyAction(state, { userId, payload });
+    }
+    if (gameType === GameType.TANK_DUEL) {
+      return applyTankDuelAction(state, { userId, payload });
     }
     if (gameType === GameType.POKER_HOLDEM) {
       return applyPokerAction(state, { userId, payload });
@@ -688,10 +738,24 @@ export class GamesService {
       },
     });
     if (!lobby) throw new NotFoundException('Lobby not found.');
-    if (lobby.ownerId !== userId)
-      throw new ForbiddenException('Only lobby owner can start a session.');
-    if (lobby.sessions.length > 0)
+    const isSeated = lobby.seats.some((seat) => seat.userId === userId);
+    if (lobby.ownerId !== userId && !isSeated) {
+      throw new ForbiddenException('Only seated players can start a session.');
+    }
+    const hasActiveSession = lobby.sessions.length > 0;
+    if (hasActiveSession && !dto.restart) {
       throw new BadRequestException('Lobby already has an active session.');
+    }
+    if (hasActiveSession && lobby.ownerId !== userId) {
+      throw new ForbiddenException('Only lobby owner can restart an active session.');
+    }
+    if (hasActiveSession && dto.restart) {
+      await this.prisma.gameSession.updateMany({
+        where: { lobbyId, status: GameSessionStatus.ACTIVE },
+        data: { status: GameSessionStatus.CANCELED, endedAt: new Date() },
+      });
+      lobby.sessions = [];
+    }
     const reconciled = await this.reconcileLobbyPlayState(lobbyId);
     if (reconciled) lobby.status = reconciled;
     await this.prisma.gameSession.updateMany({
@@ -718,6 +782,7 @@ export class GamesService {
       options: dto.options,
     };
     const state = this.buildInitialState(context);
+    const realtimeArena = isRealtimeArenaGame(lobby.gameType);
     const pokerTurnUserId =
       lobby.gameType === GameType.POKER_HOLDEM
         ? this.pokerActorUserId(state, seated)
@@ -728,7 +793,9 @@ export class GamesService {
         gameType: lobby.gameType,
         status: GameSessionStatus.ACTIVE,
         state: toJson(state),
-        turnUserId: pokerTurnUserId ?? seated[0]?.userId ?? null,
+        turnUserId: realtimeArena
+          ? null
+          : (pokerTurnUserId ?? seated[0]?.userId ?? null),
         startedAt: new Date(),
       },
     });
@@ -1115,6 +1182,7 @@ export class GamesService {
       session.gameType === GameType.POKER_HOLDEM &&
       pokerPhase === PokerRound.COMPLETE;
     const sessionFinished = result.status === 'finished';
+    const realtimeArena = isRealtimeArenaGame(session.gameType);
 
     const updated = await this.prisma.gameSession.update({
       where: { id: sessionId },
@@ -1127,33 +1195,37 @@ export class GamesService {
           sessionFinished || pokerHandComplete
             ? (result.winnerUserId ?? null)
             : null,
-        turnUserId: pokerHandComplete ? null : nextTurnUserId,
+        turnUserId: realtimeArena || pokerHandComplete ? null : nextTurnUserId,
         endedAt: sessionFinished ? new Date() : null,
       },
     });
-    const ply = await this.prisma.gameMove.count({ where: { sessionId } });
-    await this.prisma.gameMove.create({
-      data: {
-        sessionId,
-        userId,
-        kind:
-          dto.kind ??
-          (session.gameType === GameType.POKER_HOLDEM
-            ? MoveKind.POKER_ACTION
-            : MoveKind.MOVE),
-        ply: ply + 1,
-        payload: toJson(dto.payload),
-      },
-    });
-    await this.prisma.gameEvent.create({
-      data: {
-        lobbyId: session.lobbyId,
-        sessionId: session.id,
-        userId,
-        type: GameEventType.ACTION,
-        payload: toJson(dto.payload),
-      },
-    });
+    const shouldPersistAction =
+      !realtimeArena || sessionFinished || dto.payload.type === 'resign';
+    if (shouldPersistAction) {
+      const ply = await this.prisma.gameMove.count({ where: { sessionId } });
+      await this.prisma.gameMove.create({
+        data: {
+          sessionId,
+          userId,
+          kind:
+            dto.kind ??
+            (session.gameType === GameType.POKER_HOLDEM
+              ? MoveKind.POKER_ACTION
+              : MoveKind.MOVE),
+          ply: ply + 1,
+          payload: toJson(dto.payload),
+        },
+      });
+      await this.prisma.gameEvent.create({
+        data: {
+          lobbyId: session.lobbyId,
+          sessionId: session.id,
+          userId,
+          type: GameEventType.ACTION,
+          payload: toJson(dto.payload),
+        },
+      });
+    }
     if (session.gameType === GameType.POKER_HOLDEM) {
       const pokerState = result.state as {
         board?: unknown[];

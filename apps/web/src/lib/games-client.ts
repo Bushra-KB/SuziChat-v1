@@ -1,6 +1,6 @@
 import { apiJson } from "@/lib/api-auth-request";
 
-export type ApiGameType = "CHESS" | "CHECKERS" | "CONNECT4" | "POKER_HOLDEM";
+export type ApiGameType = "CHESS" | "CHECKERS" | "CONNECT4" | "NEON_HOCKEY" | "TANK_DUEL";
 export type ApiSessionStatus = "WAITING" | "ACTIVE" | "FINISHED" | "CANCELED";
 
 export type ApiGameCatalog = {
@@ -32,6 +32,10 @@ export type ApiGameLobby = {
   sessions: Array<{ id: string; status: ApiSessionStatus; gameType: ApiGameType; createdAt: string }>;
   settings?: { allowSpectatorChat?: boolean } | null;
 };
+
+export type ApiGameLobbyLeaveResult =
+  | ApiGameLobby
+  | { ok: true; lobbyId: string; deleted: true };
 
 export type ApiGameSession = {
   id: string;
@@ -109,17 +113,22 @@ export async function deleteGameLobby(accessToken: string, lobbyId: string) {
 }
 
 export async function leaveGameLobby(accessToken: string, lobbyId: string) {
-  return apiJson<ApiGameLobby>(`/v1/games/lobbies/${encodeURIComponent(lobbyId)}/leave`, {
+  return apiJson<ApiGameLobbyLeaveResult>(`/v1/games/lobbies/${encodeURIComponent(lobbyId)}/leave`, {
     method: "POST",
     accessToken,
   });
 }
 
-export async function startGameSession(accessToken: string, lobbyId: string, options?: Record<string, unknown>) {
+export async function startGameSession(
+  accessToken: string,
+  lobbyId: string,
+  options?: Record<string, unknown>,
+  restart = false,
+) {
   return apiJson<ApiGameSession>(`/v1/games/lobbies/${encodeURIComponent(lobbyId)}/start`, {
     method: "POST",
     accessToken,
-    body: JSON.stringify({ options: options ?? {} }),
+    body: JSON.stringify({ options: options ?? {}, restart }),
   });
 }
 
