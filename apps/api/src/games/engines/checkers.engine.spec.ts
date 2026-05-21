@@ -60,4 +60,36 @@ describe('checkers.engine', () => {
       }),
     ).toThrow(BadRequestException);
   });
+
+  it('keeps the turn on the same piece when another capture is available', () => {
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => null as string | null));
+    board[2][1] = 'b';
+    board[3][2] = 'r';
+    board[5][4] = 'r';
+    const state = {
+      gameType: 'CHECKERS',
+      board,
+      turnUserId: 'black-user',
+      players: ['black-user', 'red-user'],
+      status: 'active',
+      winnerUserId: null,
+      mustContinueFrom: null,
+    };
+
+    const first = applyCheckersAction(state as Record<string, unknown>, {
+      userId: 'black-user',
+      payload: { from: '2,1', to: '4,3' },
+    }).state as { turnUserId: string; mustContinueFrom: string | null };
+
+    expect(first.turnUserId).toBe('black-user');
+    expect(first.mustContinueFrom).toBe('4,3');
+
+    const second = applyCheckersAction(first as unknown as Record<string, unknown>, {
+      userId: 'black-user',
+      payload: { from: '4,3', to: '6,5' },
+    }).state as { turnUserId: string; mustContinueFrom: string | null };
+
+    expect(second.turnUserId).toBe('red-user');
+    expect(second.mustContinueFrom).toBeNull();
+  });
 });

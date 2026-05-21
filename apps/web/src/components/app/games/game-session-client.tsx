@@ -5,17 +5,20 @@ import Link from "next/link";
 import { CheckersBoardView } from "@/components/app/games/checkers-board-view";
 import { ChessBoardView } from "@/components/app/games/chess-board-view";
 import { Connect4BoardView } from "@/components/app/games/connect4-board-view";
+import { CosmicTankDuelArena } from "@/components/app/games/cosmic-tank-duel-arena";
 import { GameFrame } from "@/components/app/games/game-frame";
-import { gameTypeToId } from "@/components/app/games/game-meta";
-import { PokerTableView } from "@/components/app/games/poker-table-view";
+import { gameMeta, gameTypeToId } from "@/components/app/games/game-meta";
+import { NeonHockeyArena } from "@/components/app/games/neon-hockey-arena";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { formatMoveListForSession, getLastChessMoveSquares } from "@/lib/format-game-move";
 import {
   getGameSession,
+  leaveGameLobby,
   listGameSessionChat,
   postGameAction,
   sendGameSessionChat,
+  startGameSession,
   updateGameLobbySettings,
   type ApiGameChatMessage,
   type ApiGameSession,
@@ -25,6 +28,7 @@ import { getGameSoundEnabled, playMoveSound, playYourTurnSound, setGameSoundEnab
 import {
   joinSessionChannel,
   openGamesSocket,
+  postGameLobbyStart,
   postGameLobbySettings,
   postGameSessionAction,
   postGameSessionChat,
@@ -60,6 +64,7 @@ export function GameSessionClient({
   const prevMovesLen = useRef(0);
   const prevTurnId = useRef<string | null>(null);
   const seatedRef = useRef(false);
+  const realtimeInFlight = useRef(false);
 
   const auth = useMemo(() => getStoredAuthSession(), []);
 
@@ -183,13 +188,12 @@ export function GameSessionClient({
       return;
     }
 
-    if (session.gameType !== "POKER_HOLDEM" && session.moves.length > prevMovesLen.current) {
+    if (session.moves.length > prevMovesLen.current) {
       playMoveSound();
     }
     prevMovesLen.current = session.moves.length;
 
     if (
-      session.gameType !== "POKER_HOLDEM" &&
       session.status === "ACTIVE" &&
       meId &&
       session.turnUserId === meId &&
@@ -239,6 +243,32 @@ export function GameSessionClient({
     }
   }
 
+  const runRealtimeAction = useCallback(
+    (payload: Record<string, unknown>) => {
+      if (!auth?.accessToken || realtimeInFlight.current) return;
+      const seated =
+        session?.lobby.seats.some((s) => s.userId === auth.user.id) ?? false;
+      if (!seated) return;
+      realtimeInFlight.current = true;
+      const socket = openGamesSocket(auth.accessToken);
+      const action = socket.connected
+        ? postGameSessionAction(socket, sessionId, payload)
+        : postGameAction(auth.accessToken, sessionId, payload);
+      void action
+        .then((next) => {
+          setSession(next);
+          setError("");
+        })
+        .catch(() => {
+          // Realtime games send frequent control packets; avoid noisy transient errors.
+        })
+        .finally(() => {
+          realtimeInFlight.current = false;
+        });
+    },
+    [auth?.accessToken, auth?.user.id, session?.lobby.seats, sessionId],
+  );
+
   async function sendChat() {
     const body = chatDraft.trim();
     if (!body || !auth?.accessToken) return;
@@ -280,6 +310,12 @@ export function GameSessionClient({
     turnSeatUser?.username ||
     session?.turnUserId ||
     "…";
+  const winnerSeatUser =
+    session?.lobby?.seats?.find((seat) => seat.userId === session?.winnerUserId)?.user ?? null;
+  const winnerDisplay =
+    winnerSeatUser?.displayName?.trim() ||
+    winnerSeatUser?.username ||
+    (session?.winnerUserId ? session.winnerUserId.slice(0, 8) : "—");
 
   const isSeated = Boolean(meId && session?.lobby.seats.some((s) => s.userId === meId));
   const spectator = Boolean(session && meId && !isSeated);
@@ -324,6 +360,49 @@ export function GameSessionClient({
     }
   }
 
+  async function startFromCurrentLobby(restart: boolean) {
+    if (!auth?.accessToken || !session?.lobbyId) return;
+    if (restart && session.status === "ACTIVE") {
+      const confirmed =
+        typeof window === "undefined"
+          ? true
+          : window.confirm("Restart this game from the beginning?");
+      if (!confirmed) return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const socket = openGamesSocket(auth.accessToken);
+      const next = socket.connected
+        ? await postGameLobbyStart(socket, session.lobbyId, {}, restart)
+        : await startGameSession(auth.accessToken, session.lobbyId, {}, restart);
+      window.location.href = `/app/games/${gameTypeToId(next.gameType)}/session/${next.id}`;
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : restart ? "Could not restart game." : "Could not replay game.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function leaveCurrentTable() {
+    if (!auth?.accessToken || !session?.lobbyId) return;
+    const confirmed =
+      typeof window === "undefined"
+        ? true
+        : window.confirm("Leave this table? If both players leave, the lobby will be deleted.");
+    if (!confirmed) return;
+    setBusy(true);
+    setError("");
+    try {
+      await leaveGameLobby(auth.accessToken, session.lobbyId);
+      window.location.href = `/app/games/${gameTypeToId(session.gameType)}`;
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Could not leave table.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const seatUserIds =
     session?.lobby.seats
       .filter((s) => s.userId)
@@ -337,6 +416,8 @@ export function GameSessionClient({
     whitePlayerId === meId ? "white" : blackPlayerId === meId ? "black" : "white";
 
   const rawCheckers = asArray(state.board);
+  const checkersForcedFrom =
+    typeof state.mustContinueFrom === "string" ? state.mustContinueFrom : null;
   const checkersBoard = Array.from({ length: 8 }, (_, r) =>
     Array.from({ length: 8 }, (_, c) => {
       const row = asArray(rawCheckers[r]);
@@ -363,13 +444,18 @@ export function GameSessionClient({
   const lastChessMove =
     session?.gameType === "CHESS" ? getLastChessMoveSquares(session.moves) : null;
 
-  const pokerPhase = session?.gameType === "POKER_HOLDEM" ? String(state.phase ?? "") : "";
+  const currentGameName = session
+    ? (gameMeta.find((game) => game.id === gameRouteId || game.type === session.gameType)?.name ??
+      `${session.gameType.replace("_", " ")} Session`)
+    : "Game Session";
+  const realtimeArena =
+    session?.gameType === "NEON_HOCKEY" || session?.gameType === "TANK_DUEL";
   const frameSubtitle = !session
     ? undefined
     : spectator
       ? "You’re watching — open a seat in the lobby to play."
-      : session.gameType === "POKER_HOLDEM" && pokerPhase === "COMPLETE"
-        ? "Hand complete — deal next hand when ready"
+      : realtimeArena && session.status === "ACTIVE"
+        ? "Live arena — control updates sync in realtime"
         : session.status === "ACTIVE"
           ? isTurn
             ? "Your turn"
@@ -391,7 +477,7 @@ export function GameSessionClient({
               <div className="mt-3 grid gap-2 text-[var(--fs-xs)] text-cyan-100/72">
                 <p>Status: <span className="font-semibold text-white/90">{session.status}</span></p>
                 <p>Turn: <span className="font-semibold text-white/90">{session.turnUserId ? `${turnDisplay}` : "—"}</span></p>
-                <p>Winner: <span className="font-semibold text-white/90">{session.winnerUserId ?? "—"}</span></p>
+                <p>Winner: <span className="font-semibold text-white/90">{winnerDisplay}</span></p>
                 <p>
                   Watching:{" "}
                   <span className="font-semibold text-white/90">{watcherCount}</span>
@@ -435,13 +521,43 @@ export function GameSessionClient({
                 >
                   Back to lobby
                 </Link>
-                {!spectator && session.gameType !== "POKER_HOLDEM" ? (
+                {!spectator ? (
                   <button
                     type="button"
                     onClick={() => void runAction({ type: "resign" }, "RESIGN")}
                     className="w-full rounded-lg border border-pink-300/34 bg-pink-500/18 px-3 py-2 text-[var(--fs-xs)] font-semibold text-pink-100"
                   >
                     Resign
+                  </button>
+                ) : null}
+                {isSeated && session.status !== "ACTIVE" ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void startFromCurrentLobby(false)}
+                    className="suzi-primary-btn w-full px-3 py-2 text-[var(--fs-xs)] disabled:opacity-60"
+                  >
+                    Play again
+                  </button>
+                ) : null}
+                {(session.status === "ACTIVE" ? isLobbyOwner : isSeated || isLobbyOwner) ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void startFromCurrentLobby(true)}
+                    className="suzi-secondary-btn w-full px-3 py-2 text-[var(--fs-xs)] disabled:opacity-60"
+                  >
+                    Restart game
+                  </button>
+                ) : null}
+                {isSeated ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void leaveCurrentTable()}
+                    className="w-full rounded-lg border border-amber-300/34 bg-amber-500/12 px-3 py-2 text-[var(--fs-xs)] font-semibold text-amber-100 disabled:opacity-60"
+                  >
+                    Leave table
                   </button>
                 ) : null}
               </div>
@@ -477,16 +593,12 @@ export function GameSessionClient({
 
             <GameFrame
               title={
-                session.gameType === "POKER_HOLDEM"
-                  ? gameRouteId === "texasholdem"
-                    ? "Texas Hold'em"
-                    : "Poker"
-                  : `${session.gameType.replace("_", " ")} Session`
+                currentGameName
               }
               subtitle={frameSubtitle}
               reconnecting={!socketReady}
               reconnectHint={RECONNECT_HINT}
-              immersive={session.gameType === "POKER_HOLDEM"}
+              immersive={realtimeArena}
               lobbyHref={`/app/games/${gameRouteId ?? gameTypeToId(session.gameType)}`}
               watcherCount={watcherCount}
             >
@@ -495,7 +607,6 @@ export function GameSessionClient({
                 className={cx(
                   session.gameType === "CHESS" ? "suzi-chess-session-wrap" : "h-full min-h-0",
                   shakeKey > 0 ? "suzi-game-shake" : undefined,
-                  session.gameType === "POKER_HOLDEM" ? "suzi-poker-dr-frame" : undefined,
                 )}
               >
                 {error ? (
@@ -527,6 +638,7 @@ export function GameSessionClient({
                     busy={busy}
                     active={session.status === "ACTIVE"}
                     spectator={spectator}
+                    forcedFrom={checkersForcedFrom}
                     onMove={(from, to) => void runAction({ from, to })}
                   />
                 ) : null}
@@ -542,19 +654,24 @@ export function GameSessionClient({
                     onDrop={(column) => void runAction({ column })}
                   />
                 ) : null}
-                {session.gameType === "POKER_HOLDEM" ? (
-                  <PokerTableView
-                    lobbySeats={session.lobby.seats}
+                {session.gameType === "NEON_HOCKEY" ? (
+                  <NeonHockeyArena
                     state={state}
-                    sessionId={session.id}
-                    busy={busy}
                     meId={meId}
-                    myTurn={session.status === "ACTIVE" && isTurn}
+                    active={session.status === "ACTIVE"}
+                    spectator={spectator}
                     soundOn={soundOn}
-                    gameRouteId={gameRouteId ?? gameTypeToId(session.gameType)}
-                    readOnly={spectator}
-                    onAction={(kind, amount) => void runAction({ kind, amount }, "POKER_ACTION")}
-                    onNextHand={() => void runAction({ kind: "NEXT_HAND" }, "POKER_ACTION")}
+                    onControl={runRealtimeAction}
+                  />
+                ) : null}
+                {session.gameType === "TANK_DUEL" ? (
+                  <CosmicTankDuelArena
+                    state={state}
+                    meId={meId}
+                    active={session.status === "ACTIVE"}
+                    spectator={spectator}
+                    soundOn={soundOn}
+                    onControl={runRealtimeAction}
                   />
                 ) : null}
               </div>

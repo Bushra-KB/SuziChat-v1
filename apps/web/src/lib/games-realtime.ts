@@ -69,7 +69,7 @@ function emitWithAck<T>(socket: Socket, event: string, payload: Record<string, u
 
 export function postGameLobbyCreate(
   socket: Socket,
-  payload: { gameType: ApiGameType; title: string; isPrivate?: boolean; maxSeats?: number },
+  payload: { gameType: ApiGameType; title: string; isPrivate?: boolean; maxSeats?: number; settings?: Record<string, unknown> },
 ) {
   return emitWithAck<ApiGameLobby>(socket, "game:lobby:create", payload, "lobby");
 }
@@ -78,8 +78,18 @@ export function postGameLobbySeat(socket: Socket, lobbyId: string, seatIndex: nu
   return emitWithAck<ApiGameLobby>(socket, "game:lobby:seat", { lobbyId, seatIndex }, "lobby");
 }
 
-export function postGameLobbyStart(socket: Socket, lobbyId: string, options?: Record<string, unknown>) {
-  return emitWithAck<ApiGameSession>(socket, "game:lobby:start", { lobbyId, options: options ?? {} }, "session");
+export function postGameLobbyStart(
+  socket: Socket,
+  lobbyId: string,
+  options?: Record<string, unknown>,
+  restart = false,
+) {
+  return emitWithAck<ApiGameSession>(
+    socket,
+    "game:lobby:start",
+    { lobbyId, options: options ?? {}, restart },
+    "session",
+  );
 }
 
 export function postGameLobbySettings(

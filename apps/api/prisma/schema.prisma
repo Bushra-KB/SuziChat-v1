@@ -39,6 +39,8 @@ enum GameType {
   CHESS
   CHECKERS
   CONNECT4
+  NEON_HOCKEY
+  TANK_DUEL
   POKER_HOLDEM
 }
 

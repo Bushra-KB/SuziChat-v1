@@ -15,6 +15,7 @@ import {
   deleteGameLobby,
   inviteToGameLobby,
   joinGameLobby,
+  leaveGameLobby,
   listGameLobbies,
   startGameSession,
   type ApiGameLobby,
@@ -255,6 +256,28 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
       setOpenInviteLobbyId((prev) => (prev === lobbyId ? null : prev));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Could not delete lobby.");
+    } finally {
+      setBusyLobbyId(null);
+    }
+  }
+
+  async function onLeave(lobbyId: string) {
+    const auth = getStoredAuthSession();
+    if (!auth?.accessToken) {
+      setError("Login required.");
+      return;
+    }
+    setBusyLobbyId(lobbyId);
+    setError("");
+    try {
+      const result = await leaveGameLobby(auth.accessToken, lobbyId);
+      if ("deleted" in result && result.deleted) {
+        setRows((prev) => prev.filter((row) => row.id !== lobbyId));
+      } else if ("id" in result) {
+        setRows((prev) => prev.map((row) => (row.id === result.id ? result : row)));
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Could not leave lobby.");
     } finally {
       setBusyLobbyId(null);
     }
@@ -510,6 +533,23 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                           <path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5H7a3 3 0 0 0-3 3V20" />
                           <circle cx="9" cy="8" r="3" />
                           <path d="M19 8v6M16 11h6" />
+                        </svg>
+                      </button>
+                    ) : null}
+
+                    {seatedMine ? (
+                      <button
+                        type="button"
+                        aria-label="Leave table"
+                        title="Leave table"
+                        disabled={busyLobbyId === lobby.id}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-amber-300/35 bg-[rgba(62,39,13,0.52)] text-amber-100 transition hover:border-amber-300/65 hover:text-white disabled:opacity-60"
+                        onClick={() => void onLeave(lobby.id)}
+                      >
+                        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                          <path d="M16 17l5-5-5-5" />
+                          <path d="M21 12H9" />
                         </svg>
                       </button>
                     ) : null}
