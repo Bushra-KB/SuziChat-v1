@@ -3,7 +3,7 @@
 import { useCallback, useRef } from "react";
 import { cx } from "@/components/ui/suzi-primitives";
 import type { DatingDiscoverItem } from "@/lib/dating-client";
-import { cardImageUrl, getCircularOffset, getLayerForOffset } from "@/components/app/dating/dating-utils";
+import { cardImageUrl, cardImageUrls, datingDisplayName, getCircularOffset, getLayerForOffset } from "@/components/app/dating/dating-utils";
 
 type DragState = {
   pointerId: number | null;
@@ -12,6 +12,25 @@ type DragState = {
   dragging: boolean;
   didMove: boolean;
 };
+
+function compactText(value: string | null | undefined, maxChars: number) {
+  const text = value?.trim();
+  if (!text) {
+    return "";
+  }
+  if (text.length <= maxChars) {
+    return text;
+  }
+  return `${text.slice(0, maxChars).trimEnd()}...`;
+}
+
+function formatGender(value: string | null | undefined) {
+  const text = value?.trim();
+  if (!text) {
+    return "";
+  }
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
 
 export function DatingDiscoverDeck({
   deck,
@@ -22,8 +41,8 @@ export function DatingDiscoverDeck({
   onRotate,
   onActiveIndexChange,
   onInterested,
-  onPass,
   onRemoveInterest,
+  onBlock,
   onRefresh,
   onOpenProfile,
 }: {
@@ -35,8 +54,8 @@ export function DatingDiscoverDeck({
   onRotate: (step: number) => void;
   onActiveIndexChange: (index: number) => void;
   onInterested: (userId: string) => void;
-  onPass: (userId: string) => void;
   onRemoveInterest: (userId: string) => void;
+  onBlock: (userId: string) => void;
   onRefresh: () => void;
   onOpenProfile: () => void;
 }) {
@@ -115,47 +134,63 @@ export function DatingDiscoverDeck({
   };
 
   return (
-    <div className="min-w-0 flex-1 space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-100/70">Discover feed</p>
-          <p className="text-sm text-slate-300/80">
-            Scroll or drag like Suzi Snaps/Reels. Liked and passed profiles stay visible.
-          </p>
-        </div>
-        {deck.length > 1 ? (
-          <div className="flex shrink-0 gap-2">
-            <button
-              type="button"
-              onClick={() => onRotate(-1)}
-              className="rounded-full border border-fuchsia-300/24 bg-white/5 px-3 py-2 text-sm text-fuchsia-50 transition hover:border-fuchsia-200/55 hover:bg-fuchsia-300/12"
-            >
-              Prev
-            </button>
-            <button
-              type="button"
-              onClick={() => onRotate(1)}
-              className="rounded-full border border-fuchsia-300/24 bg-white/5 px-3 py-2 text-sm text-fuchsia-50 transition hover:border-fuchsia-200/55 hover:bg-fuchsia-300/12"
-            >
-              Next
-            </button>
-          </div>
-        ) : null}
-      </div>
-
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col space-y-3">
       <div
         ref={stageRef}
-        className="relative isolate overflow-hidden rounded-[1.25rem] border border-fuchsia-300/16 bg-[radial-gradient(circle_at_top,rgba(232,77,255,0.16),rgba(9,10,26,0.08)_52%,transparent)] [perspective:1200px]"
+        className="suzi-dating-stage relative isolate min-h-0 flex-1 overflow-hidden rounded-[1.25rem] border border-fuchsia-300/16 bg-[radial-gradient(circle_at_top,rgba(232,77,255,0.16),rgba(9,10,26,0.08)_52%,transparent)] [perspective:1200px]"
         style={{ touchAction: "none", transformStyle: "preserve-3d" }}
+        tabIndex={0}
         onWheel={handleWheel}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+            event.preventDefault();
+            onRotate(-1);
+          }
+          if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+            event.preventDefault();
+            onRotate(1);
+          }
+        }}
       >
-        <div className="relative h-[min(74dvh,46rem)] min-h-[33rem] sm:min-h-[39rem]" style={{ transformStyle: "preserve-3d" }}>
+        {deck.length > 1 ? (
+          <div className="pointer-events-none absolute inset-x-3 top-1/2 z-20 flex -translate-y-1/2 items-center justify-between">
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRotate(-1);
+              }}
+              className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-fuchsia-200/35 bg-black/35 text-fuchsia-50 shadow-lg backdrop-blur transition hover:border-fuchsia-100/70 hover:bg-fuchsia-500/34"
+              aria-label="Previous dating profile"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRotate(1);
+              }}
+              className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-fuchsia-200/35 bg-black/35 text-fuchsia-50 shadow-lg backdrop-blur transition hover:border-fuchsia-100/70 hover:bg-fuchsia-500/34"
+              aria-label="Next dating profile"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </button>
+          </div>
+        ) : null}
+        <div className="suzi-dating-carousel-root relative h-[min(74dvh,46rem)] min-h-[33rem] sm:min-h-[39rem]" style={{ transformStyle: "preserve-3d" }}>
           {deck.length === 0 ? (
-          <div className="flex h-[28rem] flex-col items-center justify-center gap-3 px-6 text-center sm:h-[36rem]">
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
             <p className="text-sm text-slate-300/88">
               {hasProfile ? "No profiles match these filters right now." : "Set up your profile to start discovering."}
             </p>
@@ -183,9 +218,13 @@ export function DatingDiscoverDeck({
                 return null;
               }
               const img = cardImageUrl(item);
-              const name = item.user.displayName ?? item.user.username;
+              const photos = cardImageUrls(item);
+              const name = datingDisplayName(item);
               const isLiked = item.viewerSwipeAction === "LIKE";
               const isPassed = item.viewerSwipeAction === "PASS";
+              const genderLabel = formatGender(item.gender);
+              const headline = compactText(item.headline, 58);
+              const bio = compactText(item.datingBio, 96);
               return (
                 <div
                   key={item.userId}
@@ -220,6 +259,29 @@ export function DatingDiscoverDeck({
                     )}
                     </div>
                     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,24,0.02),rgba(10,12,24,0.18)_42%,rgba(10,12,24,0.88))]" />
+                    {photos.length > 1 ? (
+                      <div className="absolute left-3 top-3 z-10 flex max-w-[58%] gap-1.5">
+                        {photos.slice(0, 4).map((photo, photoIndex) => (
+                          <span
+                            key={photo}
+                            className="relative h-10 w-8 overflow-hidden rounded-[0.55rem] border border-white/35 bg-black/30 shadow-[0_4px_12px_rgba(0,0,0,0.25)]"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={photo} alt="" className="h-full w-full object-cover" />
+                            {photoIndex === 0 ? (
+                              <span className="absolute inset-x-0 bottom-0 bg-black/55 py-px text-center text-[0.48rem] font-semibold uppercase tracking-wide text-white">
+                                Main
+                              </span>
+                            ) : null}
+                          </span>
+                        ))}
+                        {photos.length > 4 ? (
+                          <span className="inline-flex h-10 w-8 items-center justify-center rounded-[0.55rem] border border-white/25 bg-black/45 text-[0.62rem] font-semibold text-white">
+                            +{photos.length - 4}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <div className="absolute right-3 top-3 flex flex-col gap-2">
                     {item.isMatched ? (
                       <span className="rounded-full border border-emerald-300/45 bg-emerald-400/18 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-emerald-100">
@@ -232,7 +294,24 @@ export function DatingDiscoverDeck({
                       </span>
                     ) : null}
                     </div>
-                    <div className="absolute bottom-5 right-4 z-10 flex flex-col gap-2">
+                    <div className="absolute bottom-5 left-4 z-10">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onRotate(1);
+                      }}
+                      className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/35 text-white shadow-lg transition hover:border-slate-100/60 hover:bg-white/12"
+                      aria-label="Next dating profile"
+                    >
+                      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M18 6 6 18" />
+                        <path d="m6 6 12 12" />
+                      </svg>
+                    </button>
+                    </div>
+                    <div className="absolute bottom-5 right-4 z-10">
                     <button
                       type="button"
                       disabled={busy}
@@ -256,79 +335,37 @@ export function DatingDiscoverDeck({
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z" />
                       </svg>
                     </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onPass(item.userId);
-                      }}
-                      className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/35 text-white shadow-lg transition hover:border-slate-100/60 hover:bg-white/12"
-                      aria-label="Not interested"
-                    >
-                      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M18 6 6 18" />
-                        <path d="m6 6 12 12" />
-                      </svg>
-                    </button>
                     </div>
-                    <div className="absolute inset-x-0 bottom-0 space-y-3 p-4 pr-20 sm:p-5 sm:pr-20">
+                    <div className="absolute inset-x-14 bottom-4 z-10 flex flex-col items-center gap-2 text-center sm:inset-x-16">
                     <div>
                       <p className="text-2xl font-bold tracking-tight text-white">
                         {name}
                         {item.age != null ? `, ${item.age}` : ""}
+                        {genderLabel ? `, ${genderLabel}` : ""}
                       </p>
-                      {item.user.country ? <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-fuchsia-100/76">{item.user.country}</p> : null}
                     </div>
-                    {item.headline ? <p className="text-sm font-medium text-white/92">{item.headline}</p> : null}
-                    {item.datingBio ? <p className="line-clamp-3 text-sm leading-relaxed text-slate-200/82">{item.datingBio}</p> : null}
+                    {headline ? <p className="text-[0.78rem] font-medium leading-snug text-white/90">{headline}</p> : null}
+                    {bio ? <p className="text-[0.72rem] leading-relaxed text-slate-200/78">{bio}</p> : null}
                     {item.interests.length ? (
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap justify-center gap-x-1.5 gap-y-0.5">
                         {item.interests.slice(0, 4).map((tag) => (
-                          <span key={tag} className="rounded-full border border-fuchsia-200/35 bg-fuchsia-300/12 px-2 py-0.5 text-[0.68rem] font-medium text-fuchsia-50/90">
-                            {tag}
+                          <span key={tag} className="text-[0.55rem] font-semibold italic tracking-wide text-fuchsia-200/82">
+                            #{tag.replace(/^#/, "")}
                           </span>
                         ))}
                       </div>
                     ) : null}
-                    <div className="flex flex-wrap gap-2 pt-1">
                       <button
                         type="button"
                         disabled={busy}
                         onClick={(event) => {
                           event.stopPropagation();
-                          onPass(item.userId);
+                          onBlock(item.userId);
                         }}
-                        className={cx(
-                          "rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] transition",
-                          isPassed
-                            ? "border-white/30 bg-white/12 text-white"
-                            : "border-white/18 bg-black/26 text-slate-100/88 hover:border-white/40 hover:bg-white/12",
-                        )}
+                        className="rounded-full border border-rose-300/30 bg-black/28 px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-rose-100/86 transition hover:border-rose-200/70 hover:bg-rose-500/28 hover:text-white"
                       >
-                        {isPassed ? "Passed" : "Pass"}
+                        Block
                       </button>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (isLiked) {
-                            onRemoveInterest(item.userId);
-                          } else {
-                            onInterested(item.userId);
-                          }
-                        }}
-                        className={cx(
-                          "rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] transition",
-                          isLiked
-                            ? "border-rose-200/70 bg-rose-500 text-white"
-                            : "border-fuchsia-200/45 bg-fuchsia-400/16 text-fuchsia-50 hover:bg-fuchsia-400/24",
-                        )}
-                      >
-                        {isLiked ? "Liked" : "Like"}
-                      </button>
-                    </div>
                     </div>
                   </article>
                 </div>
@@ -340,7 +377,7 @@ export function DatingDiscoverDeck({
       </div>
 
       {activeCard && hasProfile ? (
-        <p className="text-xs text-slate-400/85">
+        <p className="sr-only">
           @{activeCard.user.username} - scroll the cards, tap the heart to toggle your interest, or pass without removing the profile.
         </p>
       ) : null}

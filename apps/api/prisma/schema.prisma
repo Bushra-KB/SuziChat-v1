@@ -290,12 +290,14 @@ model DatingProfile {
   id             String   @id @default(cuid())
   userId         String   @unique
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  datingName     String?
   age            Int?
   gender         String?
   headline       String?
   datingBio      String?
   interests      Json?
   photoUrl       String?
+  photoUrls      String[] @default([])
   minAgePref     Int      @default(18)
   maxAgePref     Int      @default(99)
   seekGender     String   @default("any")

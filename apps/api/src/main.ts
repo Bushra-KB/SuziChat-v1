@@ -26,6 +26,10 @@ async function bootstrap() {
   if (!existsSync(avatarsDir)) {
     mkdirSync(avatarsDir, { recursive: true });
   }
+  const datingDir = join(process.cwd(), 'uploads', 'dating');
+  if (!existsSync(datingDir)) {
+    mkdirSync(datingDir, { recursive: true });
+  }
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
   app.use(json({ limit: '15mb' }));
   app.use(urlencoded({ limit: '15mb', extended: true }));
@@ -33,9 +37,15 @@ async function bootstrap() {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader(
+      'Permissions-Policy',
+      'camera=(), microphone=(), geolocation=()',
+    );
     if (process.env.NODE_ENV === 'production') {
-      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+      res.setHeader(
+        'Strict-Transport-Security',
+        'max-age=31536000; includeSubDomains',
+      );
     }
     next();
   });
@@ -52,27 +62,27 @@ async function bootstrap() {
     origin: string | undefined,
     callback: (err: Error | null, allow?: boolean) => void,
   ) => {
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-      if (allowlist.length === 0 && process.env.NODE_ENV === 'production') {
-        callback(
-          new Error(
-            'CORS blocked: CORS_ORIGINS is empty. Set allowed origins explicitly.',
-          ),
-        );
-        return;
-      }
-      if (allowlist.length === 0) {
-        callback(null, true);
-        return;
-      }
-      if (allowlist.includes(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error(`CORS blocked for origin: ${origin}`));
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (allowlist.length === 0 && process.env.NODE_ENV === 'production') {
+      callback(
+        new Error(
+          'CORS blocked: CORS_ORIGINS is empty. Set allowed origins explicitly.',
+        ),
+      );
+      return;
+    }
+    if (allowlist.length === 0) {
+      callback(null, true);
+      return;
+    }
+    if (allowlist.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error(`CORS blocked for origin: ${origin}`));
   };
   app.enableCors({
     origin: corsOrigin,

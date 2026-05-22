@@ -1062,7 +1062,7 @@ export function AppShell({
             pathname === "/app" && "suzi-home-shell-frame",
             pathname.startsWith("/app/messages") && "suzi-messages-shell-frame",
             pathname.startsWith("/app/friends") && "suzi-friends-shell-frame",
-            (pathname.startsWith("/app/reels") || pathname.startsWith("/app/snaps")) &&
+            (pathname.startsWith("/app/reels") || pathname.startsWith("/app/snaps") || pathname.startsWith("/app/dating")) &&
               "suzi-feed-shell-frame",
           )}
         >

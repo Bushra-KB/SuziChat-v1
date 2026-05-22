@@ -13,6 +13,11 @@ import {
 
 export class UpsertDatingProfileDto {
   @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  datingName?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(18)
@@ -45,6 +50,13 @@ export class UpsertDatingProfileDto {
   @IsString()
   @MaxLength(4_000_000)
   photoUrl?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(8)
+  @IsString({ each: true })
+  @MaxLength(4_000_000, { each: true })
+  photoUrls?: string[];
 
   @IsOptional()
   @Type(() => Number)

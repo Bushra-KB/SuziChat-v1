@@ -1,4 +1,5 @@
 import { apiJson } from "@/lib/api-auth-request";
+import { getApiBaseUrl } from "@/lib/api-base-url";
 
 export type DatingSwipeAction = "LIKE" | "PASS";
 
@@ -14,12 +15,14 @@ export type DatingUserCard = {
 export type DatingProfilePayload = {
   id: string;
   userId: string;
+  datingName: string | null;
   age: number | null;
   gender: string | null;
   headline: string | null;
   datingBio: string | null;
   interests: string[];
   photoUrl: string | null;
+  photoUrls: string[];
   minAgePref: number;
   maxAgePref: number;
   seekGender: string;
@@ -42,11 +45,13 @@ export type DatingMatchRow = {
     user: DatingUserCard;
     dating: {
       age: number | null;
+      datingName: string | null;
       gender: string | null;
       headline: string | null;
       datingBio: string | null;
       interests: string[];
       photoUrl: string | null;
+      photoUrls: string[];
     } | null;
   };
   lastMessage: {
@@ -80,12 +85,14 @@ export async function getMyDatingProfile(accessToken: string) {
 export async function upsertMyDatingProfile(
   accessToken: string,
   payload: {
+    datingName?: string;
     age?: number;
     gender?: string;
     headline?: string;
     datingBio?: string;
     interests?: string[];
     photoUrl?: string;
+    photoUrls?: string[];
     minAgePref?: number;
     maxAgePref?: number;
     seekGender?: string;
@@ -109,7 +116,9 @@ export type DatingSummary = {
   likesReceivedCount: number;
   preview: Array<{
     userId: string;
+    datingName: string | null;
     photoUrl: string | null;
+    photoUrls: string[];
     avatarUrl: string | null;
     displayName: string | null;
     username: string;
@@ -247,4 +256,47 @@ export async function getDatingUserProfile(accessToken: string, userId: string) 
       accessToken,
     },
   );
+}
+
+export function uploadDatingPhoto(
+  accessToken: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+) {
+  const form = new FormData();
+  form.append("file", file);
+
+  return new Promise<{ url: string }>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${getApiBaseUrl()}/v1/dating/me/profile/photos`);
+    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress?.(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100);
+        try {
+          resolve(JSON.parse(xhr.responseText) as { url: string });
+        } catch {
+          reject(new Error("Upload failed."));
+        }
+        return;
+      }
+      try {
+        const payload = JSON.parse(xhr.responseText) as { message?: string | string[] };
+        const message = Array.isArray(payload.message) ? payload.message[0] : payload.message;
+        reject(new Error(message || "Upload failed."));
+      } catch {
+        reject(new Error("Upload failed."));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Upload failed."));
+    xhr.send(form);
+  });
 }

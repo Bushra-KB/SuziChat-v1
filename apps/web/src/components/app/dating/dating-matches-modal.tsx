@@ -1,7 +1,7 @@
 "use client";
 
 import type { DatingMatchRow } from "@/lib/dating-client";
-import { peerPhoto } from "@/components/app/dating/dating-utils";
+import { peerDatingName, peerPhoto } from "@/components/app/dating/dating-utils";
 
 export function DatingMatchesModal({
   matches,
@@ -28,7 +28,7 @@ export function DatingMatchesModal({
             <p className="text-sm text-slate-400/88">No matches yet. Keep browsing and show interest!</p>
           ) : null}
           {matches.map((m) => {
-            const label = m.peer.user.displayName ?? m.peer.user.username;
+            const label = peerDatingName(m);
             const photo = peerPhoto(m);
             return (
               <div key={m.id} className="flex items-center gap-3 rounded-[1rem] border border-white/10 bg-white/5 p-3">

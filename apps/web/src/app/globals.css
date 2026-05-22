@@ -510,11 +510,77 @@ h5 {
   background: linear-gradient(180deg, rgba(28, 18, 88, 0.55), rgba(20, 14, 76, 0.92));
 }
 
-/* Home — Suzi Dating decorative hearts */
-.suzi-dating-page .suzi-app-frame-scroll {
-  width: 100%;
-  max-width: min(100%, 80rem);
-  margin-inline: auto;
+/* Suzi Dating feed layout */
+.suzi-dating-page {
+  --dating-rail-w: clamp(15rem, 22vw, 18rem);
+}
+
+.suzi-dating-with-rail {
+  gap: 0.65rem;
+  padding: var(--panel-pad);
+}
+
+.suzi-dating-page .suzi-dating-with-rail > aside {
+  width: var(--dating-rail-w);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.suzi-dating-main-panel {
+  min-height: 0;
+}
+
+.suzi-dating-filter-trigger {
+  display: none;
+}
+
+.suzi-dating-select {
+  appearance: none;
+  background-color: rgba(16, 18, 38, 0.94) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f5d0fe' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-position: right 0.75rem center !important;
+  background-repeat: no-repeat !important;
+  background-size: 1rem 1rem !important;
+  color-scheme: dark;
+  color: rgb(250, 232, 255) !important;
+  padding-right: 2.25rem !important;
+}
+
+.suzi-dating-select option,
+.suzi-dating-select optgroup {
+  background-color: rgb(25, 13, 66) !important;
+  color: rgb(250, 232, 255) !important;
+}
+
+.suzi-dating-select option:checked,
+.suzi-dating-select option:hover,
+.suzi-dating-select option:focus {
+  background-color: rgb(126, 34, 206) !important;
+  color: white !important;
+}
+
+.suzi-dating-dropdown-menu {
+  color-scheme: dark;
+}
+
+.suzi-dating-dropdown-option:focus-visible {
+  outline: 2px solid rgba(244, 114, 182, 0.7);
+  outline-offset: 1px;
+}
+
+.suzi-dating-stage {
+  margin-top: 0.25rem;
+}
+
+.suzi-dating-stage > .suzi-dating-carousel-root {
+  height: 100%;
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .suzi-dating-page {
+    overflow: hidden;
+  }
 }
 
 .suzi-dating-hearts__cluster {
@@ -4208,7 +4274,8 @@ h5 {
   }
 
   .suzi-app-frame-fill.suzi-reels-page,
-  .suzi-app-frame-fill.suzi-snaps-page {
+  .suzi-app-frame-fill.suzi-snaps-page,
+  .suzi-app-frame-fill.suzi-dating-page {
     --feed-rail-bottom: 0.35rem;
     --feed-stage-inset-top: 0.55rem;
     --feed-stage-inset-x: 0.25rem;
@@ -4239,6 +4306,113 @@ h5 {
     margin-top: 0 !important;
     border-radius: 1.05rem !important;
     touch-action: none;
+  }
+
+  .suzi-dating-with-rail {
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    padding: 0 !important;
+  }
+
+  .suzi-dating-page .suzi-dating-with-rail > aside {
+    display: none !important;
+    width: 100%;
+    flex: none;
+  }
+
+  .suzi-dating-main-panel {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    height: 100% !important;
+  }
+
+  .suzi-dating-header {
+    align-items: center !important;
+    gap: 0.45rem !important;
+    padding: 0 0.1rem;
+  }
+
+  .suzi-dating-header h2 {
+    font-size: 0.98rem !important;
+  }
+
+  .suzi-dating-header p {
+    display: none !important;
+  }
+
+  .suzi-dating-header .suzi-feed-header-actions {
+    flex: 1 1 auto;
+    gap: 0.4rem !important;
+    justify-content: flex-end !important;
+  }
+
+  .suzi-dating-filter-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-inline: 0.7rem !important;
+    padding-block: 0.55rem !important;
+  }
+
+  .suzi-dating-header .suzi-dating-select {
+    min-width: 7.5rem !important;
+    padding: 0.55rem 1.85rem 0.55rem 0.75rem !important;
+    font-size: 0.68rem !important;
+  }
+
+  .suzi-dating-header .suzi-primary-btn {
+    padding: 0.58rem 0.72rem !important;
+    font-size: 0.66rem !important;
+    white-space: nowrap;
+  }
+
+  .suzi-dating-page .suzi-dating-dropdown-menu {
+    right: 0;
+    width: min(12rem, 76vw);
+  }
+
+  .suzi-dating-page .suzi-dating-main-panel > .mt-3 {
+    margin-top: 0.45rem !important;
+  }
+
+  .suzi-dating-filter-modal > div {
+    max-height: min(82dvh, 34rem);
+    overflow: hidden;
+  }
+
+  .suzi-dating-filter-modal aside {
+    display: flex !important;
+    max-height: calc(min(82dvh, 34rem) - 3.5rem);
+    overflow-y: auto;
+    border-radius: 0.95rem !important;
+    padding: 0.85rem !important;
+  }
+
+  .suzi-dating-stage {
+    margin-top: 0 !important;
+    border-radius: 1.05rem !important;
+    touch-action: none;
+  }
+
+  .suzi-dating-stage > .suzi-dating-carousel-root {
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
+  .suzi-dating-page [data-dating-card][data-active="true"] {
+    height: 96% !important;
+    max-height: none !important;
+    max-width: calc(100vw - 1.3rem) !important;
+  }
+
+  .suzi-dating-page [data-dating-card][data-active="false"] {
+    height: 88% !important;
+    max-height: none !important;
+    max-width: calc(100vw - 1.8rem) !important;
   }
 
   .suzi-reels-page [data-reel-card][data-active="true"],
