@@ -56,7 +56,13 @@ export function DatingProfileModal({
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/55 p-4 sm:items-center">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[1.2rem] border border-white/12 bg-[rgba(14,16,34,0.98)] p-5 shadow-2xl">
+      <form
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[1.2rem] border border-white/12 bg-[rgba(14,16,34,0.98)] p-5 shadow-2xl"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave();
+        }}
+      >
         <div className="flex items-center justify-between gap-3">
           <p className="text-lg font-semibold text-white">Dating profile</p>
           <button type="button" className="text-slate-400 hover:text-white" onClick={onClose}>
@@ -103,7 +109,15 @@ export function DatingProfileModal({
         <div className="mt-4 grid gap-3 text-sm">
           <label className="text-slate-300/85">
             Age
-            <input className="suzi-input mt-1 w-full" value={draft.age} onChange={(e) => onChange({ ...draft, age: e.target.value })} />
+            <input
+              className="suzi-input mt-1 w-full"
+              type="number"
+              inputMode="numeric"
+              min={18}
+              max={120}
+              value={draft.age}
+              onChange={(e) => onChange({ ...draft, age: e.target.value })}
+            />
           </label>
           <label className="text-slate-300/85">
             Gender
@@ -134,11 +148,27 @@ export function DatingProfileModal({
           <div className="grid grid-cols-2 gap-2">
             <label className="text-slate-300/85">
               Min age pref
-              <input className="suzi-input mt-1 w-full" value={draft.minAgePref} onChange={(e) => onChange({ ...draft, minAgePref: e.target.value })} />
+              <input
+                className="suzi-input mt-1 w-full"
+                type="number"
+                inputMode="numeric"
+                min={18}
+                max={120}
+                value={draft.minAgePref}
+                onChange={(e) => onChange({ ...draft, minAgePref: e.target.value })}
+              />
             </label>
             <label className="text-slate-300/85">
               Max age pref
-              <input className="suzi-input mt-1 w-full" value={draft.maxAgePref} onChange={(e) => onChange({ ...draft, maxAgePref: e.target.value })} />
+              <input
+                className="suzi-input mt-1 w-full"
+                type="number"
+                inputMode="numeric"
+                min={18}
+                max={120}
+                value={draft.maxAgePref}
+                onChange={(e) => onChange({ ...draft, maxAgePref: e.target.value })}
+              />
             </label>
           </div>
           <label className="text-slate-300/85">
@@ -158,11 +188,11 @@ export function DatingProfileModal({
             />
             Show my profile in discover
           </label>
-          <button type="button" disabled={busy} onClick={onSave} className="suzi-primary-btn mt-2 px-4 py-3 text-sm">
-            Save profile
+          <button type="submit" disabled={busy || uploadBusy} className="suzi-primary-btn mt-2 px-4 py-3 text-sm">
+            {busy ? "Saving..." : "Save profile"}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

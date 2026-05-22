@@ -31,6 +31,8 @@ export type DatingProfilePayload = {
 
 export type DatingDiscoverItem = DatingProfilePayload & {
   user: DatingUserCard;
+  viewerSwipeAction?: DatingSwipeAction | null;
+  isMatched?: boolean;
 };
 
 export type DatingMatchRow = {
@@ -128,6 +130,13 @@ export async function listDatingLikesReceived(accessToken: string) {
   });
 }
 
+export async function listDatingLikesSent(accessToken: string) {
+  return apiJson<{ items: DatingDiscoverItem[] }>("/v1/dating/likes-sent", {
+    method: "GET",
+    accessToken,
+  });
+}
+
 export async function discoverDating(
   accessToken: string,
   params: {
@@ -184,6 +193,13 @@ export async function datingSwipe(
     method: "POST",
     accessToken,
     body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteDatingSwipe(accessToken: string, toUserId: string) {
+  return apiJson<{ ok: boolean }>(`/v1/dating/swipes/${encodeURIComponent(toUserId)}`, {
+    method: "DELETE",
+    accessToken,
   });
 }
 
