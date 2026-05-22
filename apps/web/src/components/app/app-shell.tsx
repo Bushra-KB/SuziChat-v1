@@ -107,7 +107,9 @@ export function AppShell({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isMobileNotificationsOpen, setIsMobileNotificationsOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
+  const [isMobileLanguageOpen, setIsMobileLanguageOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const createRef = useRef<HTMLDivElement | null>(null);
@@ -115,6 +117,9 @@ export function AppShell({
   const languageRef = useRef<HTMLDivElement | null>(null);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
   const accountRef = useRef<HTMLDivElement | null>(null);
+  const mobileCreateRef = useRef<HTMLDivElement | null>(null);
+  const mobileNotificationsRef = useRef<HTMLDivElement | null>(null);
+  const mobileLanguageRef = useRef<HTMLDivElement | null>(null);
   const [shellThreads, setShellThreads] = useState<ConversationThread[]>([]);
   const [shellNotifications, setShellNotifications] = useState<ApiNotification[]>([]);
   const [seenInboxMessageIds, setSeenInboxMessageIds] = useState<Set<string>>(new Set());
@@ -193,7 +198,16 @@ export function AppShell({
 
   useEffect(() => {
     /** Capture phase so we run before controls that stop propagation; pointer covers mouse + touch. */
-    const shellTriggerRefs = [createRef, messagesRef, languageRef, notificationsRef, accountRef];
+    const shellTriggerRefs = [
+      createRef,
+      messagesRef,
+      languageRef,
+      notificationsRef,
+      accountRef,
+      mobileCreateRef,
+      mobileNotificationsRef,
+      mobileLanguageRef,
+    ];
 
     function handlePointerDownCapture(event: PointerEvent) {
       if (event.button !== undefined && event.button !== 0) {
@@ -211,7 +225,9 @@ export function AppShell({
       setIsCreateOpen(false);
       setIsMessagesOpen(false);
       setIsNotificationsOpen(false);
+      setIsMobileNotificationsOpen(false);
       setIsLanguageOpen(false);
+      setIsMobileLanguageOpen(false);
       setIsAccountOpen(false);
     }
 
@@ -307,6 +323,8 @@ export function AppShell({
   useEffect(() => {
     /* eslint-disable-next-line react-hooks/set-state-in-effect -- close drawer on route change */
     setIsMobileDrawerOpen(false);
+    setIsMobileNotificationsOpen(false);
+    setIsMobileLanguageOpen(false);
   }, [pathname]);
 
   const hideCenterLogo =
@@ -356,40 +374,168 @@ export function AppShell({
             type="button"
             aria-label="Open menu"
             onClick={() => setIsMobileDrawerOpen(true)}
-            className="suzi-m-icon-btn"
+            className="suzi-m-icon-btn suzi-m-menu-btn"
           >
             <Icon path="M4 6h16M4 12h16M4 18h16" className="h-5 w-5" />
           </button>
 
           <Link href="/app" className="suzi-m-logo-pill" aria-label="Suzi Chat home">
-            <span className="relative block w-full h-full overflow-hidden">
+            <span className="relative block h-full w-full overflow-visible">
               <Image
                 src="/logo/logo.png"
                 alt="SuziChat"
                 width={1536}
                 height={1024}
                 priority
-                className="absolute left-1/2 top-1/2 h-[185%] w-auto max-w-none -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_0_18px_rgba(232,77,255,0.32)]"
+                className="absolute left-1/2 top-1/2 h-[225%] w-auto max-w-none -translate-x-1/2 -translate-y-[53%] drop-shadow-[0_0_18px_rgba(232,77,255,0.38)]"
               />
             </span>
           </Link>
 
-          <div className="flex items-center gap-2">
-            <Link
-              href="/app/notifications"
-              aria-label={t("shell.notifications")}
-              className="suzi-m-icon-btn"
-            >
-              <Icon path="M15 17H5l2-2.5V10a5 5 0 1 1 10 0v4.5L19 17h-4ZM10 20a2 2 0 0 0 4 0" className="h-4.5 w-4.5" />
-              {unreadNotifications > 0 ? (
-                <span className="suzi-shell-toolbar-badge absolute -right-1 -top-1 inline-flex items-center justify-center rounded-full bg-fuchsia-500 font-semibold text-white">
-                  {unreadNotifications > 9 ? "9+" : unreadNotifications}
-                </span>
+          <div className="suzi-m-top-actions flex items-center gap-2">
+            <div ref={mobileNotificationsRef} className="relative">
+              <button
+                type="button"
+                aria-label={t("shell.notifications")}
+                aria-expanded={isMobileNotificationsOpen}
+                onClick={() => {
+                  setIsMobileNotificationsOpen((v) => !v);
+                  setIsMobileLanguageOpen(false);
+                  setIsCreateOpen(false);
+                  setIsMessagesOpen(false);
+                  setIsNotificationsOpen(false);
+                  setIsLanguageOpen(false);
+                  setIsAccountOpen(false);
+                }}
+                className={cx(
+                  "suzi-m-icon-btn suzi-m-top-action-btn",
+                  (isMobileNotificationsOpen || pathname.startsWith("/app/notifications")) && "is-active",
+                )}
+              >
+                <Icon path="M15 17H5l2-2.5V10a5 5 0 1 1 10 0v4.5L19 17h-4ZM10 20a2 2 0 0 0 4 0" className="h-4 w-4" />
+                {unreadNotifications > 0 ? (
+                  <span className="suzi-shell-toolbar-badge absolute -right-1 -top-1 inline-flex items-center justify-center rounded-full bg-fuchsia-500 font-semibold text-white">
+                    {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                  </span>
+                ) : null}
+              </button>
+              {isMobileNotificationsOpen ? (
+                <div className="suzi-m-notification-menu">
+                  <p className="px-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-cyan-100/66">
+                    {t("shell.notifications")}
+                  </p>
+                  <div className="grid max-h-[16rem] gap-1 overflow-y-auto pr-0.5">
+                    {shellNotifications.length === 0 ? (
+                      <p className="rounded-[0.78rem] border border-white/10 bg-white/5 px-2.5 py-2 text-[0.72rem] text-slate-300/78">
+                        {t("shell.noNotifications")}
+                      </p>
+                    ) : (
+                      shellNotifications.slice(0, 4).map((item) => (
+                        <Link
+                          key={item.id}
+                          href="/app/notifications"
+                          onClick={() => {
+                            void handleMarkNotificationRead(item.id);
+                            setIsMobileNotificationsOpen(false);
+                          }}
+                          className="suzi-m-notification-menu__item"
+                        >
+                          <span
+                            className={cx(
+                              "mt-1 h-1.5 w-1.5 shrink-0 rounded-full shadow-[0_0_6px_rgba(82,213,255,0.55)]",
+                              item.read ? "bg-slate-500" : "bg-cyan-300",
+                            )}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-semibold text-white">{item.title}</span>
+                            <span className="mt-0.5 block truncate text-cyan-100/58">
+                              {formatShortNotifTime(item.createdAt)}
+                            </span>
+                          </span>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-white/10 pt-1.5">
+                    <Link
+                      href="/app/notifications"
+                      onClick={() => setIsMobileNotificationsOpen(false)}
+                      className="text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-cyan-100/80"
+                    >
+                      {t("shell.openNotifications")}
+                    </Link>
+                    {unreadNotifications > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleMarkAllNotificationsRead()}
+                        className="text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-fuchsia-100"
+                      >
+                        {t("shell.markAllRead")}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
               ) : null}
-            </Link>
+            </div>
+            <div ref={mobileLanguageRef} className="relative">
+              <button
+                type="button"
+                aria-label={t("shell.language")}
+                aria-expanded={isMobileLanguageOpen}
+                aria-haspopup="listbox"
+                onClick={() => {
+                  setIsMobileLanguageOpen((v) => !v);
+                  setIsMobileNotificationsOpen(false);
+                  setIsCreateOpen(false);
+                  setIsMessagesOpen(false);
+                  setIsNotificationsOpen(false);
+                  setIsLanguageOpen(false);
+                  setIsAccountOpen(false);
+                }}
+                className={cx("suzi-m-icon-btn suzi-m-top-action-btn", isMobileLanguageOpen && "is-active")}
+              >
+                <Icon path={globeIconPath} className="h-4 w-4" />
+              </button>
+              {isMobileLanguageOpen ? (
+                <div className="suzi-m-language-menu" role="listbox" aria-label={t("shell.language")}>
+                  <p className="px-1 text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-cyan-100/66">
+                    {t("shell.language")}
+                  </p>
+                  <div className="grid gap-1">
+                    {languages.map((lang) => (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        role="option"
+                        aria-selected={language === lang.code}
+                        onClick={() => {
+                          setLanguage(lang.code);
+                          setIsMobileLanguageOpen(false);
+                        }}
+                        className={cx(
+                          "suzi-m-language-menu__item",
+                          language === lang.code && "is-active",
+                        )}
+                      >
+                        <span>{lang.label}</span>
+                        {language === lang.code ? (
+                          <Icon path="M5 13l4 4L19 7" className="h-3.5 w-3.5 text-cyan-200" />
+                        ) : (
+                          <span className="h-3.5 w-3.5" aria-hidden />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <Link
               href="/app/profile"
               aria-label={t("shell.account")}
+              onClick={() => {
+                setIsMobileNotificationsOpen(false);
+                setIsMobileLanguageOpen(false);
+              }}
               className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-fuchsia-300/40 ring-2 ring-fuchsia-400/20"
             >
               <Image
@@ -443,15 +589,14 @@ export function AppShell({
               <div className="suzi-divider mx-5 my-2" />
               <nav className="px-3 py-2">
                 {[
-                  { href: "/app", label: t("nav.home"), icon: "M3 11.5 12 4l9 7.5M6.5 10.5V20h11v-9.5" },
-                  { href: "/app/messages", label: t("nav.chat"), icon: "M4 6h16v10H8l-4 4V6Z" },
-                  { href: "/app/friends", label: t("nav.friends"), icon: "M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4ZM6 21a6 6 0 0 1 12 0M8 13a3 3 0 1 0-3-3 3 3 0 0 0 3 3ZM2 19a4 4 0 0 1 6-3.5" },
-                  { href: "/app/reels", label: t("nav.reels"), icon: "M8 5h8l4 4v10a2 2 0 0 1-2 2H8a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4Z M11 11.5v4l3-2-3-2Z" },
-                  { href: "/app/snaps", label: t("nav.snaps"), icon: "M7 7h10v10H7zM5 5h14v14H5zM9 2v3M15 2v3" },
-                  { href: "/app/dating", label: t("nav.dating"), icon: "M12 20s-6.5-4.3-8.6-7.4C.8 9.4 2 4.9 6.3 4.3 8.7 4 10.5 5.2 12 7c1.5-1.8 3.3-3 5.7-2.7 4.3.6 5.5 5.1 2.9 8.3C18.5 15.7 12 20 12 20Z" },
-                  { href: "/app/notifications", label: t("shell.notifications"), icon: "M15 17H5l2-2.5V10a5 5 0 1 1 10 0v4.5L19 17h-4ZM10 20a2 2 0 0 0 4 0" },
-                  { href: "/app/profile", label: t("nav.myAccount"), icon: "M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8" },
-                  { href: "/app/settings", label: t("nav.settings"), icon: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM19.4 12a7.4 7.4 0 0 0-.1-1.4l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-2.4-1.4l-.4-2.6h-4l-.4 2.6a7.5 7.5 0 0 0-2.4 1.4l-2.4-1-2 3.4 2 1.6c-.1.5-.1 1-.1 1.4s0 .9.1 1.4l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 2.4 1.4l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2.4-1.4l2.4 1 2-3.4-2-1.6c.1-.5.1-1 .1-1.4Z" },
+                  { href: "/app", label: "Home", icon: "M3 11.5 12 4l9 7.5M6.5 10.5V20h11v-9.5" },
+                  { href: "/app/messages", label: "Inbox", icon: "M4 6h16v10H8l-4 4V6Z" },
+                  { href: "/app/friends", label: "Friends", icon: "M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4ZM6 21a6 6 0 0 1 12 0M8 13a3 3 0 1 0-3-3 3 3 0 0 0 3 3ZM2 19a4 4 0 0 1 6-3.5" },
+                  { href: "/app#chatrooms", label: "Suzi ChatRooms", icon: "M4 6h16v10H8l-4 4V6Z M8 10h8M8 13h5" },
+                  { href: "/app/reels", label: "Suzi Reels", icon: "M8 5h8l4 4v10a2 2 0 0 1-2 2H8a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4Z M11 11.5v4l3-2-3-2Z" },
+                  { href: "/app/snaps", label: "Suzi Snaps", icon: "M7 7h10v10H7zM5 5h14v14H5zM9 2v3M15 2v3" },
+                  { href: "/app#games", label: "Suzi Games", icon: "M6 12h12M9 9v6M15 9h.01M18 15h.01M8 6h8a6 6 0 0 1 0 12H8A6 6 0 0 1 8 6Z" },
+                  { href: "/app/dating", label: "Suzi Dating", icon: "M12 20s-6.5-4.3-8.6-7.4C.8 9.4 2 4.9 6.3 4.3 8.7 4 10.5 5.2 12 7c1.5-1.8 3.3-3 5.7-2.7 4.3.6 5.5 5.1 2.9 8.3C18.5 15.7 12 20 12 20Z" },
                 ].map((item) => {
                   const active =
                     item.href === "/app"
@@ -461,6 +606,7 @@ export function AppShell({
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={() => setIsMobileDrawerOpen(false)}
                       className={cx(
                         "flex items-center gap-3 rounded-[0.95rem] px-3 text-sm transition suzi-tap-row",
                         active
@@ -477,6 +623,32 @@ export function AppShell({
                 })}
               </nav>
               <div className="suzi-divider mx-5 my-2" />
+              <nav className="px-3 py-2">
+                {[
+                  { href: "/app/profile", label: "My Account", icon: "M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8" },
+                  { href: "/app/settings", label: "Settings", icon: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM19.4 12a7.4 7.4 0 0 0-.1-1.4l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-2.4-1.4l-.4-2.6h-4l-.4 2.6a7.5 7.5 0 0 0-2.4 1.4l-2.4-1-2 3.4 2 1.6c-.1.5-.1 1-.1 1.4s0 .9.1 1.4l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 2.4 1.4l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2.4-1.4l2.4 1 2-3.4-2-1.6c.1-.5.1-1 .1-1.4Z" },
+                ].map((item) => {
+                  const active = pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsMobileDrawerOpen(false)}
+                      className={cx(
+                        "flex items-center gap-3 rounded-[0.95rem] px-3 text-sm transition suzi-tap-row",
+                        active
+                          ? "bg-fuchsia-400/16 text-white shadow-[inset_0_0_0_1px_rgba(255,32,121,0.32)]"
+                          : "text-[var(--text-muted)] hover:bg-white/8 hover:text-white",
+                      )}
+                    >
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/6">
+                        <Icon path={item.icon} className="h-4.5 w-4.5 text-cyan-100" />
+                      </span>
+                      <span className="font-medium">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
               <button
                 type="button"
                 onClick={onLogout}
@@ -506,7 +678,9 @@ export function AppShell({
                 setIsCreateOpen((v) => !v);
                 setIsMessagesOpen(false);
                 setIsNotificationsOpen(false);
+                  setIsMobileNotificationsOpen(false);
                 setIsLanguageOpen(false);
+                  setIsMobileLanguageOpen(false);
                 setIsAccountOpen(false);
               }}
               className={cx(
@@ -873,7 +1047,7 @@ export function AppShell({
           </div>
         ) : null}
 
-        <div className="suzi-app-frame-fill">
+        <div className={cx("suzi-app-frame-fill", pathname === "/app" && "suzi-home-shell-frame")}>
           {children}
         </div>
 
@@ -901,22 +1075,63 @@ export function AppShell({
         className="suzi-m-bottom fixed inset-x-0 bottom-0 z-40 hidden h-[calc(var(--m-bottom-h,4rem)+env(safe-area-inset-bottom,0px))] grid-cols-5 items-center md:hidden"
         aria-label="Primary"
       >
-        {mobileNavItems.map((item) => {
+        {mobileNavItems.map((item, index) => {
           const active =
             item.exact
               ? pathname === item.href
               : pathname.startsWith(item.href);
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="suzi-m-bottom__item flex h-full flex-col items-center justify-center gap-[0.18rem] text-[0.66rem] font-semibold tracking-[0.04em]"
-              data-active={active ? "true" : "false"}
-              aria-current={active ? "page" : undefined}
-            >
-              <Icon path={item.icon} className="suzi-m-bottom__icon h-[1.45rem] w-[1.45rem] shrink-0" />
-              <span>{item.label}</span>
-            </Link>
+            <div key={item.href} className="contents">
+              <Link
+                href={item.href}
+                className="suzi-m-bottom__item flex h-full flex-col items-center justify-center gap-[0.18rem] text-[0.66rem] font-semibold tracking-[0.04em]"
+                data-active={active ? "true" : "false"}
+                aria-current={active ? "page" : undefined}
+              >
+                <Icon path={item.icon} className="suzi-m-bottom__icon h-[1.45rem] w-[1.45rem] shrink-0" />
+                <span>{item.label}</span>
+              </Link>
+              {index === 1 ? (
+                <div ref={mobileCreateRef} className="suzi-m-create-wrap">
+                  <button
+                    type="button"
+                    aria-label={t("shell.create")}
+                    aria-expanded={isCreateOpen}
+                    onClick={() => {
+                      setIsCreateOpen((v) => !v);
+                      setIsMessagesOpen(false);
+                      setIsNotificationsOpen(false);
+                      setIsLanguageOpen(false);
+                      setIsAccountOpen(false);
+                    }}
+                    className="suzi-m-create-btn"
+                  >
+                    <span className="suzi-m-create-btn__halo" aria-hidden="true" />
+                    <Icon path="M12 5v14M5 12h14" className="relative h-6 w-6" />
+                  </button>
+                  {isCreateOpen ? (
+                    <div className="suzi-m-create-menu" data-open="true">
+                      <p className="px-1 text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-fuchsia-100/66">
+                        Create
+                      </p>
+                      {createMenuItems.map((createItem) => (
+                        <Link
+                          key={createItem.href}
+                          href={createItem.href}
+                          onClick={() => setIsCreateOpen(false)}
+                          className="suzi-m-create-menu__item"
+                        >
+                          <span className="suzi-m-create-menu__icon">
+                            <Icon path={createItem.icon} className="h-4.5 w-4.5" />
+                          </span>
+                          <span>{createItem.label}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           );
         })}
       </nav>

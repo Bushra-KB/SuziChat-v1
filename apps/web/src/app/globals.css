@@ -346,10 +346,13 @@ h5 {
 
 .light .suzi-hybrid-bg {
   background:
-    radial-gradient(110% 74% at 50% -20%, rgba(157, 212, 255, 0.58), rgba(157, 212, 255, 0.1) 52%, transparent 74%),
-    radial-gradient(66% 56% at 10% 24%, rgba(123, 183, 255, 0.3), transparent 64%),
-    radial-gradient(66% 56% at 88% 20%, rgba(128, 157, 255, 0.24), transparent 62%),
-    linear-gradient(180deg, #edf5ff 0%, #dce7ff 52%, #d0ddff 100%);
+    radial-gradient(126% 72% at 50% -28%, rgba(173, 227, 255, 0.46), rgba(138, 208, 255, 0.14) 44%, transparent 72%),
+    radial-gradient(70% 60% at 12% 24%, rgba(78, 180, 255, 0.46), transparent 66%),
+    radial-gradient(70% 58% at 88% 22%, rgba(108, 150, 255, 0.36), transparent 66%),
+    radial-gradient(124% 86% at 50% 92%, rgba(87, 44, 200, 0.36), transparent 72%),
+    linear-gradient(180deg, #78bdfa 0%, #4f93ec 16%, #3f74df 34%, #375ed0 52%, #3553ca 66%, #3a49c2 80%, #3d40b3 92%, #3f369e 100%);
+  background-attachment: fixed;
+  background-blend-mode: screen, screen, screen, screen, normal;
 }
 
 .suzi-panel {
@@ -1699,8 +1702,94 @@ h5 {
 }
 
 /* Home dashboard — compact gutters and panel header chrome */
+.suzi-home-mobile-page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+}
+
 .suzi-home-mobile-stack {
+  width: 100%;
   gap: 5px;
+  --home-panel-pad: 0.38rem;
+}
+
+.suzi-home-mobile-section {
+  flex: none;
+  min-height: 14rem;
+  scroll-margin-top: calc(var(--m-top-h, var(--shell-header-h, 3.5rem)) + 0.5rem);
+}
+
+.suzi-home-mobile-section > :is(.suzi-panel, .suzi-home-mobile-games-card, a) {
+  height: 100%;
+  width: 100%;
+}
+
+.suzi-home-mobile-section > .suzi-home-row1-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.suzi-home-mobile-section .suzi-home-row1-scroll,
+.suzi-home-mobile-section .suzi-home-chat-rooms-list {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+.suzi-home-mobile-section--full {
+  height: calc(100dvh - var(--shell-header-h, 3rem) - 1.5rem);
+  min-height: 36rem;
+}
+
+.suzi-home-mobile-section--reels {
+  height: clamp(18rem, 44dvh, 24rem);
+}
+
+.suzi-home-mobile-section--snaps {
+  height: clamp(24rem, 62dvh, 34rem);
+}
+
+.suzi-home-mobile-section--games {
+  height: clamp(17rem, 38dvh, 21rem);
+}
+
+.suzi-home-mobile-section--dating {
+  height: 7.25rem;
+}
+
+.suzi-home-mobile-footer {
+  display: grid;
+  gap: 0.32rem;
+  justify-items: center;
+  padding: 0.7rem 0 0.2rem;
+  color: rgba(214, 232, 255, 0.68);
+  font-size: 0.58rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.suzi-home-mobile-footer__links {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.suzi-home-mobile-footer__links a {
+  color: rgba(224, 240, 255, 0.82);
+  transition: color 0.15s ease;
+}
+
+.suzi-home-mobile-footer__links a:hover {
+  color: #fff;
 }
 
 .suzi-home-grid .suzi-panel,
@@ -2909,8 +2998,8 @@ h5 {
 
     /* Mobile spacing/sizing. */
     --panel-radius: 1.05rem;
-    --panel-pad: 0.85rem;
-    --panel-pad-tight: 0.65rem;
+    --panel-pad: 0.36rem;
+    --panel-pad-tight: 0.36rem;
     --col-gap: 0.7rem;
     --row-gap: 0.7rem;
     --btn-h: 2.5rem;
@@ -2926,6 +3015,7 @@ h5 {
     --m-top-h: 3.5rem;
     --m-bottom-h: 4rem;
     --m-content-pad-x: 0.85rem;
+    --m-page-pad-x: 0.48rem;
     --m-content-pad-y: 0.85rem;
   }
 
@@ -2942,8 +3032,8 @@ h5 {
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
-    padding-left: var(--m-content-pad-x);
-    padding-right: var(--m-content-pad-x);
+    padding-left: var(--m-page-pad-x, var(--m-content-pad-x));
+    padding-right: var(--m-page-pad-x, var(--m-content-pad-x));
     padding-top: var(--m-content-pad-y);
     /* Bottom-nav clearance + iOS safe-area. */
     padding-bottom: calc(var(--m-bottom-h) + env(safe-area-inset-bottom, 0px) + 0.75rem);
@@ -2951,6 +3041,41 @@ h5 {
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
+
+  .suzi-home-shell-frame {
+    --m-page-pad-x: 0.48rem;
+    --m-content-pad-y: 0.56rem;
+  }
+
+  .suzi-home-shell-frame .suzi-home-mobile-stack {
+    gap: 0.58rem;
+    --home-panel-pad: 0.36rem;
+  }
+
+  .suzi-home-shell-frame .suzi-home-mobile-section--full {
+    height: calc(
+      100dvh - var(--m-top-h, 3.5rem) - var(--m-bottom-h, 4rem) -
+        env(safe-area-inset-bottom, 0px) - var(--m-content-pad-y, 0.56rem) - 0.35rem
+    );
+    min-height: 28rem;
+  }
+
+  .suzi-home-shell-frame .suzi-home-mobile-section--reels {
+    height: clamp(18rem, 48dvh, 23rem);
+  }
+
+  .suzi-home-shell-frame .suzi-home-mobile-section--snaps {
+    height: clamp(24rem, 64dvh, 32rem);
+  }
+
+  .suzi-home-shell-frame .suzi-home-mobile-section--games {
+    height: clamp(17rem, 42dvh, 20rem);
+  }
+
+  .suzi-home-shell-frame .suzi-home-mobile-section--dating {
+    height: 7rem;
+  }
+
   .suzi-app-frame-fill::-webkit-scrollbar {
     width: 0;
     height: 0;
@@ -3054,15 +3179,55 @@ h5 {
   top: 0;
   z-index: 30;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  justify-content: center;
+  gap: 0.4rem;
   height: var(--m-top-h, 3.5rem);
   padding: 0 var(--m-content-pad-x, 0.85rem);
   padding-top: env(safe-area-inset-top, 0px);
   background:
-    linear-gradient(180deg, rgba(11, 8, 32, 0.62), rgba(11, 8, 32, 0.32) 70%, transparent);
-  backdrop-filter: blur(10px) saturate(140%);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
+    radial-gradient(circle at 50% 0%, rgba(255, 32, 121, 0.22), transparent 38%),
+    radial-gradient(circle at 82% 22%, rgba(0, 229, 255, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(18, 12, 58, 0.9), rgba(18, 12, 58, 0.68) 66%, rgba(18, 12, 58, 0.36));
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 10px 30px rgba(6, 4, 24, 0.24),
+    inset 0 -1px 0 rgba(0, 229, 255, 0.08);
+}
+
+.suzi-m-top::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  opacity: 0.55;
+}
+
+.suzi-m-top::after {
+  content: "";
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 32, 121, 0.56), rgba(0, 229, 255, 0.42), transparent);
+  opacity: 0.8;
+}
+
+.suzi-m-menu-btn {
+  position: absolute;
+  left: var(--m-content-pad-x, 0.85rem);
+  top: calc(env(safe-area-inset-top, 0px) + 0.7rem);
+}
+
+.suzi-m-top-actions {
+  position: absolute;
+  right: var(--m-content-pad-x, 0.85rem);
+  top: calc(env(safe-area-inset-top, 0px) + 0.58rem);
+  gap: 0.38rem;
 }
 
 .suzi-m-bottom {
@@ -3076,12 +3241,15 @@ h5 {
   align-items: center;
   height: calc(var(--m-bottom-h, 4rem) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: 0.45rem;
+  padding-right: 0.45rem;
   background:
-    linear-gradient(180deg, rgba(15, 10, 40, 0.78), rgba(11, 7, 30, 0.94));
-  backdrop-filter: blur(14px) saturate(150%);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-  border-top: 1px solid rgba(86, 196, 255, 0.18);
-  box-shadow: 0 -8px 28px rgba(6, 4, 24, 0.42);
+    radial-gradient(circle at 50% 0%, rgba(255, 32, 121, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(24, 13, 62, 0.76), rgba(11, 7, 30, 0.96));
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 -12px 34px rgba(6, 4, 24, 0.56), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .suzi-m-bottom__item {
@@ -3093,11 +3261,12 @@ h5 {
   font-size: 0.66rem;
   font-weight: 600;
   letter-spacing: 0.04em;
+  border-radius: 1.1rem;
   color: rgba(195, 211, 239, 0.74);
   text-decoration: none;
   position: relative;
   -webkit-tap-highlight-color: transparent;
-  transition: color 160ms ease;
+  transition: color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
 @media (max-width: 767px) {
@@ -3108,12 +3277,13 @@ h5 {
 
 .suzi-m-bottom__item[data-active="true"] {
   color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .suzi-m-bottom__item[data-active="true"]::before {
   content: "";
   position: absolute;
-  top: 0;
+  top: 0.35rem;
   left: 50%;
   transform: translateX(-50%);
   width: 38%;
@@ -3133,15 +3303,133 @@ h5 {
   color: #ff5fb0;
 }
 
+.suzi-m-create-wrap {
+  position: relative;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.suzi-m-create-btn {
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  height: 3.7rem;
+  width: 3.7rem;
+  transform: translateY(-0.9rem);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.44), transparent 24%),
+    linear-gradient(135deg, #ff2079, #d92fff 48%, #00e5ff);
+  color: #ffffff;
+  box-shadow:
+    0 0 0 0.42rem rgba(255, 32, 121, 0.12),
+    0 0 28px rgba(255, 32, 121, 0.52),
+    0 12px 28px rgba(6, 4, 24, 0.54);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+.suzi-m-create-btn:active {
+  transform: translateY(-0.82rem) scale(0.96);
+  filter: brightness(1.06);
+}
+
+.suzi-m-create-btn__halo {
+  position: absolute;
+  inset: -0.42rem;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  animation: suzi-mobile-create-pulse 1.8s ease-in-out infinite;
+}
+
+.suzi-m-create-menu {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.65rem);
+  z-index: 55;
+  width: min(16rem, calc(100vw - 1.5rem));
+  transform: translateX(-50%);
+  gap: 0.45rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 32, 121, 0.2), transparent 42%),
+    linear-gradient(180deg, rgba(34, 18, 84, 0.98), rgba(14, 9, 42, 0.96));
+  padding: 0.75rem;
+  box-shadow: 0 18px 48px rgba(3, 4, 20, 0.64);
+  animation: suzi-mobile-create-menu-in 160ms ease-out both;
+}
+
+.suzi-m-create-menu__item {
+  min-height: 3rem;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.65rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.suzi-m-create-menu__icon {
+  align-items: center;
+  justify-content: center;
+  height: 2.15rem;
+  width: 2.15rem;
+  border-radius: 0.8rem;
+  background: linear-gradient(135deg, rgba(255, 32, 121, 0.34), rgba(0, 229, 255, 0.18));
+  color: #f8d8ff;
+}
+
+@media (max-width: 767px) {
+  .suzi-m-create-wrap,
+  .suzi-m-create-btn,
+  .suzi-m-create-menu__item,
+  .suzi-m-create-menu__icon {
+    display: flex;
+  }
+  .suzi-m-create-menu {
+    display: grid;
+  }
+}
+
+@keyframes suzi-mobile-create-pulse {
+  0%, 100% {
+    opacity: 0.48;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.12;
+    transform: scale(1.16);
+  }
+}
+
+@keyframes suzi-mobile-create-menu-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(0.5rem) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
 .suzi-m-icon-btn {
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 0.82rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.045));
   color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 22px rgba(5, 6, 28, 0.18);
   -webkit-tap-highlight-color: transparent;
   position: relative;
   transition: background 160ms ease, border-color 160ms ease;
@@ -3149,18 +3437,153 @@ h5 {
 .suzi-m-icon-btn:active {
   background: rgba(255, 255, 255, 0.12);
 }
+.suzi-m-icon-btn.is-active {
+  border-color: rgba(255, 32, 121, 0.42);
+  background: rgba(255, 32, 121, 0.16);
+}
+
+.suzi-m-top-action-btn {
+  width: 1.95rem;
+  height: 1.95rem;
+  border-radius: 0.76rem;
+}
+
+.suzi-m-top .suzi-m-menu-btn {
+  position: absolute;
+  left: var(--m-content-pad-x, 0.85rem);
+  top: calc(env(safe-area-inset-top, 0px) + 0.7rem);
+  flex: none;
+}
+
+.suzi-m-top .suzi-m-top-actions {
+  position: absolute;
+  right: var(--m-content-pad-x, 0.85rem);
+  top: calc(env(safe-area-inset-top, 0px) + 0.58rem);
+  flex: none;
+}
 
 .suzi-m-logo-pill {
   position: relative;
   align-items: center;
-  height: 2.2rem;
-  width: 6.4rem;
+  height: 2.4rem;
+  width: 7.8rem;
   pointer-events: auto;
+  transform: translateY(0.06rem);
+}
+
+.suzi-m-language-menu {
+  position: absolute;
+  right: -2.7rem;
+  top: calc(100% + 0.55rem);
+  z-index: 75;
+  width: min(13rem, calc(100vw - 1.25rem));
+  display: grid;
+  gap: 0.45rem;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background:
+    radial-gradient(circle at 80% 0%, rgba(0, 229, 255, 0.18), transparent 36%),
+    linear-gradient(180deg, rgba(30, 18, 82, 0.98), rgba(13, 9, 42, 0.96));
+  padding: 0.62rem;
+  box-shadow: 0 18px 48px rgba(3, 4, 20, 0.58);
+  animation: suzi-mobile-language-menu-in 150ms ease-out both;
+}
+
+.suzi-m-language-menu__item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  border-radius: 0.78rem;
+  padding: 0.48rem 0.56rem;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 640;
+  color: rgba(230, 238, 255, 0.88);
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.suzi-m-notification-menu {
+  position: absolute;
+  right: -5.2rem;
+  top: calc(100% + 0.55rem);
+  z-index: 76;
+  width: min(16.25rem, calc(100vw - 1.25rem));
+  display: grid;
+  gap: 0.45rem;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background:
+    radial-gradient(circle at 78% 0%, rgba(255, 32, 121, 0.18), transparent 38%),
+    linear-gradient(180deg, rgba(30, 18, 82, 0.98), rgba(13, 9, 42, 0.96));
+  padding: 0.62rem;
+  box-shadow: 0 18px 48px rgba(3, 4, 20, 0.58);
+  animation: suzi-mobile-language-menu-in 150ms ease-out both;
+}
+
+.suzi-m-notification-menu__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.055);
+  padding: 0.55rem 0.58rem;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.suzi-m-language-menu__item.is-active {
+  background: rgba(255, 32, 121, 0.16);
+  color: #ffffff;
+}
+
+@keyframes suzi-mobile-language-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.35rem) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @media (max-width: 767px) {
   .suzi-m-icon-btn { display: inline-flex; }
   .suzi-m-logo-pill { display: inline-flex; }
+}
+
+@media (max-width: 390px) {
+  .suzi-m-logo-pill {
+    width: 7.05rem;
+  }
+  .suzi-m-top .suzi-m-menu-btn {
+    left: 0.95rem;
+  }
+  .suzi-m-top .suzi-m-top-actions {
+    right: 0.72rem;
+  }
+  .suzi-m-top-actions {
+    gap: 0.25rem;
+  }
+  .suzi-m-icon-btn {
+    width: 2rem;
+    height: 2rem;
+  }
+  .suzi-m-top-action-btn {
+    width: 1.86rem;
+    height: 1.86rem;
+  }
+  .suzi-m-language-menu {
+    right: -2.35rem;
+  }
+  .suzi-m-notification-menu {
+    right: -4.8rem;
+    width: min(15.5rem, calc(100vw - 1rem));
+  }
 }
 
 /* Mobile slide-in drawer (hamburger menu). */
@@ -3301,8 +3724,8 @@ h5 {
    * pattern so the header stays sticky and only tables scroll. */
   .suzi-app-frame-fill.suzi-lobby-page {
     overflow: hidden !important;
-    padding-left: var(--m-content-pad-x) !important;
-    padding-right: var(--m-content-pad-x) !important;
+    padding-left: var(--m-page-pad-x, var(--m-content-pad-x)) !important;
+    padding-right: var(--m-page-pad-x, var(--m-content-pad-x)) !important;
     padding-top: var(--m-content-pad-y) !important;
     padding-bottom: calc(var(--m-bottom-h) + env(safe-area-inset-bottom, 0px) + 0.5rem) !important;
   }

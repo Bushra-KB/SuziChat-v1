@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { usePokerArcadeSfx, playPokerActionSound } from "@/components/app/games/use-poker-arcade-sfx";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { gameLobbyArtForId } from "@/lib/game-icons";
 import type { ApiGameLobby } from "@/lib/games-client";
 
@@ -235,6 +236,7 @@ export function PokerArcadeTable({
                 seatRow?.user?.username ||
                 `Seat ${seatIndex}`;
               const avatarUrl = seatRow?.user?.avatarUrl;
+              const avatarSrc = resolveUserAvatarUrl(avatarUrl);
               const rawCards = asArray(player.cards).map(String);
               const reveal =
                 isMe || phase === "SHOWDOWN" || phase === "COMPLETE";
@@ -256,19 +258,14 @@ export function PokerArcadeTable({
                 >
                   <div className="suzi-poker-arcade-seat-inner" style={{ transform: pos.transform }}>
                     <div className="suzi-poker-arcade-avatar-wrap">
-                      {avatarUrl ? (
-                        <Image
-                          src={avatarUrl}
-                          alt=""
-                          width={48}
-                          height={48}
-                          className="suzi-poker-arcade-avatar"
-                        />
-                      ) : (
-                        <span className="suzi-poker-arcade-avatar suzi-poker-arcade-avatar--fallback">
-                          {displayName.slice(0, 1).toUpperCase()}
-                        </span>
-                      )}
+                      <Image
+                        src={avatarSrc}
+                        alt=""
+                        width={48}
+                        height={48}
+                        unoptimized={Boolean(avatarUrl?.startsWith("http"))}
+                        className="suzi-poker-arcade-avatar"
+                      />
                       {role ? <span className="suzi-poker-arcade-role">{role}</span> : null}
                     </div>
                     <p className="suzi-poker-arcade-seat-name">{isMe ? "You" : displayName}</p>

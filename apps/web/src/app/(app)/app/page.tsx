@@ -176,24 +176,31 @@ export default function AppHomePage() {
 
     return (
       <>
-        <section className="suzi-app-frame-fill">
+        <section className="suzi-home-mobile-page">
           <div className="suzi-home-mobile-stack flex flex-col">
-            <div className="h-[44rem]">
+            <div id="chatrooms" className="suzi-home-mobile-section suzi-home-mobile-section--full">
               <HomeChatRoomsPanel variant="dashboard" />
             </div>
-            <div className="h-[18rem]">{mobileGamesCard}</div>
-            <div id="friends" className="h-[44rem] scroll-mt-20">
-              <HomeFriendsPanel />
-            </div>
-            <div className="h-[44rem]">
-              <HomeSnapsPanel layout="dashboard" />
-            </div>
-            <div className="h-[20rem]">
+            <div className="suzi-home-mobile-section suzi-home-mobile-section--reels">
               <HomeReelsPanel />
             </div>
-            <div className="h-[7rem]">
+            <div className="suzi-home-mobile-section suzi-home-mobile-section--snaps">
+              <HomeSnapsPanel layout="dashboard" />
+            </div>
+            <div id="games" className="suzi-home-mobile-section suzi-home-mobile-section--games">{mobileGamesCard}</div>
+            <div className="suzi-home-mobile-section suzi-home-mobile-section--dating">
               <HomeDatingPanel />
             </div>
+            <footer className="suzi-home-mobile-footer">
+              <nav aria-label="Footer links" className="suzi-home-mobile-footer__links">
+                <Link href="#">Privacy</Link>
+                <span aria-hidden="true">·</span>
+                <Link href="#">Terms</Link>
+                <span aria-hidden="true">·</span>
+                <Link href="#">Help</Link>
+              </nav>
+              <p>© Suzi Chat. All rights reserved.</p>
+            </footer>
           </div>
         </section>
 

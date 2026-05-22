@@ -78,17 +78,11 @@ export default function ProtectedAppLayout({
   if (!isReady || !session) {
     return (
       <main className="suzi-hybrid-bg relative flex h-[100dvh] min-h-0 items-center justify-center overflow-hidden px-6 text-white">
-        <div className="suzi-panel max-w-xl px-8 py-9 text-center">
-          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.34em] text-cyan-100/64">
-            Protected Area
-          </p>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white">
-            Loading your SuziChat workspace
-          </h1>
-          <p className="mt-4 text-sm leading-7 text-slate-300/76">
-            We are validating your session and preparing the dashboard,
-            messages, rooms, and social surfaces.
-          </p>
+        <div className="inline-flex items-center gap-3 rounded-full border border-cyan-300/18 bg-[rgba(12,16,38,0.58)] px-4 py-2.5 shadow-[0_0_24px_rgba(0,229,255,0.12)] backdrop-blur-md">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-100/25 border-t-cyan-100" />
+          <span className="text-sm font-medium text-cyan-50/88">
+            Loading SuziChat...
+          </span>
         </div>
       </main>
     );

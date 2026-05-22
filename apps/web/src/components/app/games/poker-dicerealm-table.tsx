@@ -17,6 +17,7 @@ import {
 } from "@/components/app/games/poker-table-shared";
 import { usePokerArcadeSfx, playPokerActionSound } from "@/components/app/games/use-poker-arcade-sfx";
 import { usePokerTableAnimations } from "@/components/app/games/use-poker-table-animations";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 
 function DrCard({
   code,
@@ -241,6 +242,7 @@ export function PokerDicerealmTable({
                     : seatDisplayName(lobbySeats, player!.userId, seatIndex)
                   : "Empty Seat";
                 const avatarUrl = lobbySeat.user?.avatarUrl;
+                const avatarSrc = resolveUserAvatarUrl(avatarUrl);
                 const role =
                   seatIndex === buttonSeat
                     ? "D"
@@ -318,19 +320,14 @@ export function PokerDicerealmTable({
                             )}
                       </div>
                       <div className="suzi-poker-dr-avatar-wrap">
-                        {avatarUrl ? (
-                          <Image
-                            src={avatarUrl}
-                            alt=""
-                            width={56}
-                            height={56}
-                            className="suzi-poker-dr-avatar"
-                          />
-                        ) : (
-                          <span className="suzi-poker-dr-avatar suzi-poker-dr-avatar--fb">
-                            {displayName.slice(0, 1).toUpperCase()}
-                          </span>
-                        )}
+                        <Image
+                          src={avatarSrc}
+                          alt=""
+                          width={56}
+                          height={56}
+                          unoptimized={Boolean(avatarUrl?.startsWith("http"))}
+                          className="suzi-poker-dr-avatar"
+                        />
                         {role ? <span className="suzi-poker-dr-role">{role}</span> : null}
                       </div>
                     </div>
