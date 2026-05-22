@@ -9,6 +9,7 @@ import { PersonRow } from "@/components/app/v1-blocks";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import {
+  assignRoomModerator,
   approveRoomJoinRequest,
   banRoomMember,
   deleteRoom,
@@ -22,6 +23,7 @@ import {
   postRoomMessage,
   rejectRoomJoinRequest,
   removeRoomMember,
+  removeRoomModerator,
   requestRoomAccess,
   unbanRoomMember,
   updateRoom,
@@ -60,7 +62,6 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
   const [showDeleteRoomModal, setShowDeleteRoomModal] = useState(false);
-  const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -210,12 +211,12 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   }, [refresh]);
 
   useEffect(() => {
-    if (!room || room.owner.id !== meId) {
+    if (!room || (!access?.isOwner && !access?.isModerator)) {
       setManagement(null);
       return;
     }
     void refreshManagement();
-  }, [meId, room?.owner.id]);
+  }, [access?.isModerator, access?.isOwner, meId, room?.owner.id]);
 
   const participantRows = useMemo(() => {
     const map = new Map<string, ApiRoomMessage["sender"]>();
@@ -227,6 +228,8 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const onlineCount = participantRows.length;
   const authSnap = getStoredAuthSession();
   const myAvatarUrl = authSnap?.user.avatarUrl?.trim() || null;
+  const canManageRoom = Boolean(access?.isOwner || access?.isModerator);
+  const canAssignModerators = Boolean(access?.isOwner);
 
   async function handleSend(body: string) {
     const s = getStoredAuthSession();
@@ -307,7 +310,17 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     setManagement(data);
   }
 
-  async function handleOwnerAction(action: "approve" | "reject" | "ban" | "remove" | "unban", userId: string) {
+  async function handleOwnerAction(
+    action:
+      | "approve"
+      | "reject"
+      | "ban"
+      | "remove"
+      | "unban"
+      | "assignModerator"
+      | "removeModerator",
+    userId: string,
+  ) {
     const s = getStoredAuthSession();
     if (!s?.accessToken || !room) {
       return;
@@ -319,6 +332,8 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
       if (action === "ban") await banRoomMember(s.accessToken, room.slug, userId);
       if (action === "remove") await removeRoomMember(s.accessToken, room.slug, userId);
       if (action === "unban") await unbanRoomMember(s.accessToken, room.slug, userId);
+      if (action === "assignModerator") await assignRoomModerator(s.accessToken, room.slug, userId);
+      if (action === "removeModerator") await removeRoomModerator(s.accessToken, room.slug, userId);
       await refresh();
       await refreshManagement();
     } finally {
@@ -367,15 +382,11 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     if (!s?.accessToken || !room) {
       return;
     }
-    if (deleteConfirmName.trim() !== room.name.trim()) {
-      return;
-    }
     setActionBusyId("delete-room");
     setError("");
     try {
       await deleteRoom(s.accessToken, room.slug);
       setShowDeleteRoomModal(false);
-      setDeleteConfirmName("");
       router.replace("/app");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Could not delete room.");
@@ -466,7 +477,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
               >
                 {room?.privacy ?? "—"}
               </span>
-              {meId && room?.owner.id === meId ? (
+              {canManageRoom ? (
                 <>
                   <button
                     type="button"
@@ -645,54 +656,82 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 Room Members
               </p>
               <div className="space-y-3">
-                {(room?.owner.id === meId ? management?.members.map((row) => row.user) ?? [] : participantRows).map((person) => (
-                  <PersonRow
-                    key={person.id}
-                    person={{
-                      id: person.id,
-                      name: person.displayName?.trim() || person.username,
-                      handle: `@${person.username}`,
-                      avatar: resolveUserAvatarUrl(person.avatarUrl),
-                    }}
-                    compact
-                    action={
-                      person.id !== meId ? (
-                        <div className="flex gap-1">
-                          <Link
-                            href={`/app/messages?with=${encodeURIComponent(person.id)}`}
-                            className="suzi-secondary-btn px-3 py-2 text-xs"
-                          >
-                            DM
-                          </Link>
-                          {room?.owner.id === meId ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => void handleOwnerAction("remove", person.id)}
-                                disabled={actionBusyId === `remove-${person.id}`}
-                                className="suzi-secondary-btn px-2 py-2 text-[11px]"
-                              >
-                                Remove
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleOwnerAction("ban", person.id)}
-                                disabled={actionBusyId === `ban-${person.id}`}
-                                className="suzi-secondary-btn px-2 py-2 text-[11px]"
-                              >
-                                Ban
-                              </button>
-                            </>
-                          ) : null}
-                        </div>
-                      ) : undefined
-                    }
-                  />
-                ))}
+                {(canManageRoom
+                  ? management?.members ?? []
+                  : participantRows.map((user) => ({ userId: user.id, role: "member", user }))
+                ).map((row) => {
+                  const person = row.user;
+                  const isModerator = row.role === "moderator";
+                  const canManageThisMember =
+                    canManageRoom && person.id !== meId && (!isModerator || canAssignModerators);
+                  return (
+                    <PersonRow
+                      key={person.id}
+                      person={{
+                        id: person.id,
+                        name: person.displayName?.trim() || person.username,
+                        handle: `@${person.username}`,
+                        avatar: resolveUserAvatarUrl(person.avatarUrl),
+                      }}
+                      subtitle={isModerator ? "Moderator" : `@${person.username}`}
+                      compact
+                      action={
+                        person.id !== meId ? (
+                          <div className="flex flex-wrap gap-1">
+                            <Link
+                              href={`/app/messages?with=${encodeURIComponent(person.id)}`}
+                              className="suzi-secondary-btn px-3 py-2 text-xs"
+                            >
+                              DM
+                            </Link>
+                            {canManageThisMember ? (
+                              <>
+                                {canAssignModerators ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      void handleOwnerAction(
+                                        isModerator ? "removeModerator" : "assignModerator",
+                                        person.id,
+                                      )
+                                    }
+                                    disabled={
+                                      actionBusyId ===
+                                      `${isModerator ? "removeModerator" : "assignModerator"}-${person.id}`
+                                    }
+                                    className="suzi-secondary-btn px-2 py-2 text-[11px]"
+                                  >
+                                    {isModerator ? "Take mod" : "Make mod"}
+                                  </button>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  onClick={() => void handleOwnerAction("remove", person.id)}
+                                  disabled={actionBusyId === `remove-${person.id}`}
+                                  className="suzi-secondary-btn px-2 py-2 text-[11px]"
+                                >
+                                  Remove
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleOwnerAction("ban", person.id)}
+                                  disabled={actionBusyId === `ban-${person.id}`}
+                                  className="suzi-secondary-btn px-2 py-2 text-[11px]"
+                                >
+                                  Ban
+                                </button>
+                              </>
+                            ) : null}
+                          </div>
+                        ) : undefined
+                      }
+                    />
+                  );
+                })}
               </div>
             </div>
 
-            {room?.owner.id === meId ? (
+            {canManageRoom ? (
               <>
                 <div>
                   <p className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
@@ -791,7 +830,6 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
               <button
                 type="button"
                 onClick={() => {
-                  setDeleteConfirmName("");
                   setShowDeleteRoomModal(true);
                 }}
                 className="rounded-[0.75rem] border border-red-400/40 bg-red-500/10 px-3 py-2 text-[var(--fs-sm)] font-semibold text-red-100/95 transition hover:border-red-300/55 hover:bg-red-500/18"
@@ -870,36 +908,23 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
             <p className="mt-2 text-sm text-cyan-100/80">
               This permanently removes the room, all messages, members, and join requests. This cannot be undone.
             </p>
-            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-100/64">
-              Type the room name to confirm
-            </p>
-            <input
-              value={deleteConfirmName}
-              onChange={(e) => setDeleteConfirmName(e.target.value)}
-              placeholder={room.name}
-              className="suzi-input mt-1.5 w-full"
-              autoComplete="off"
-            />
             <div className="mt-4 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setShowDeleteRoomModal(false);
-                  setDeleteConfirmName("");
                 }}
                 className="suzi-secondary-btn px-3 py-1.5 text-xs"
               >
-                Cancel
+                No, keep room
               </button>
               <button
                 type="button"
-                disabled={
-                  actionBusyId === "delete-room" || deleteConfirmName.trim() !== room.name.trim()
-                }
+                disabled={actionBusyId === "delete-room"}
                 onClick={() => void handleDeleteRoomConfirm()}
                 className="rounded-full border border-red-400/50 bg-red-600/85 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {actionBusyId === "delete-room" ? "Deleting…" : "Delete room permanently"}
+                {actionBusyId === "delete-room" ? "Deleting…" : "Yes, delete room"}
               </button>
             </div>
           </div>
@@ -937,19 +962,47 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/76">Members</p>
                 <div className="space-y-2">
-                  {management?.members.map((row) => (
-                    <div key={row.userId} className="rounded border border-cyan-300/20 p-2 text-xs text-cyan-50">
-                      <p>{row.user.displayName?.trim() || row.user.username}</p>
-                      <div className="mt-1 flex gap-1">
-                        <button type="button" onClick={() => void handleOwnerAction("remove", row.userId)} className="suzi-secondary-btn px-2 py-1 text-[11px]">
-                          Remove
-                        </button>
-                        <button type="button" onClick={() => void handleOwnerAction("ban", row.userId)} className="suzi-secondary-btn px-2 py-1 text-[11px]">
-                          Ban
-                        </button>
+                  {management?.members.map((row) => {
+                    const isModerator = row.role === "moderator";
+                    const canManageThisMember =
+                      row.userId !== meId && (!isModerator || canAssignModerators);
+                    return (
+                      <div key={row.userId} className="rounded border border-cyan-300/20 p-2 text-xs text-cyan-50">
+                        <div className="flex items-center justify-between gap-2">
+                          <p>{row.user.displayName?.trim() || row.user.username}</p>
+                          {isModerator ? (
+                            <span className="rounded-full border border-cyan-300/25 bg-cyan-400/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-100">
+                              Mod
+                            </span>
+                          ) : null}
+                        </div>
+                        {canManageThisMember ? (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {canAssignModerators ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleOwnerAction(
+                                    isModerator ? "removeModerator" : "assignModerator",
+                                    row.userId,
+                                  )
+                                }
+                                className="suzi-secondary-btn px-2 py-1 text-[11px]"
+                              >
+                                {isModerator ? "Take mod" : "Make mod"}
+                              </button>
+                            ) : null}
+                            <button type="button" onClick={() => void handleOwnerAction("remove", row.userId)} className="suzi-secondary-btn px-2 py-1 text-[11px]">
+                              Remove
+                            </button>
+                            <button type="button" onClick={() => void handleOwnerAction("ban", row.userId)} className="suzi-secondary-btn px-2 py-1 text-[11px]">
+                              Ban
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
               <div>

@@ -92,6 +92,8 @@ export function HomeFriendsPanel() {
   const panelRef = useRef<HTMLElement | null>(null);
   const requestsBtnRef = useRef<HTMLButtonElement | null>(null);
   const blockedBtnRef = useRef<HTMLButtonElement | null>(null);
+  const normalizedQuery = query.trim();
+  const hasSearchQuery = normalizedQuery.length > 0;
 
   const refresh = useCallback(async () => {
     const s = getStoredAuthSession();
@@ -104,12 +106,14 @@ export function HomeFriendsPanel() {
     const [nextSummary, nextBlocked, nextOthers] = await Promise.all([
       getFriendsSummary(s.accessToken),
       listBlockedPeople(s.accessToken),
-      explorePeople(s.accessToken, query.trim(), 60),
+      hasSearchQuery
+        ? explorePeople(s.accessToken, normalizedQuery, 60)
+        : Promise.resolve([]),
     ]);
     setSummary(nextSummary);
     setBlockedRows(nextBlocked);
     setOtherRows(nextOthers);
-  }, []);
+  }, [hasSearchQuery, normalizedQuery]);
 
   useEffect(() => {
     void refresh().catch(() => {
@@ -248,28 +252,28 @@ export function HomeFriendsPanel() {
 
   const friendRows = useMemo(() => summary?.friends ?? [], [summary]);
   const filteredFriends = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) {
+    const normalizedSearch = normalizedQuery.toLowerCase();
+    if (!normalizedSearch) {
       return friendRows;
     }
     return friendRows.filter((person) =>
       `${displayName(person)} ${person.username} ${person.country ?? ""}`
         .toLowerCase()
-        .includes(normalizedQuery),
+        .includes(normalizedSearch),
     );
-  }, [friendRows, query]);
+  }, [friendRows, normalizedQuery]);
 
   const filteredOthers = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) {
-      return allOthers;
+    const normalizedSearch = normalizedQuery.toLowerCase();
+    if (!normalizedSearch) {
+      return [];
     }
     return allOthers.filter((person) =>
       `${displayName(person)} ${person.username} ${person.country ?? ""}`
         .toLowerCase()
-        .includes(normalizedQuery),
+        .includes(normalizedSearch),
     );
-  }, [allOthers, query]);
+  }, [allOthers, normalizedQuery]);
 
   const friendsOnline = filteredFriends.filter(
     (f) => (presenceById[f.id] ?? "offline") === "online",
@@ -280,6 +284,7 @@ export function HomeFriendsPanel() {
   const friendsOffline = filteredFriends.filter(
     (f) => (presenceById[f.id] ?? "offline") === "offline",
   );
+  const visibleFriendRows = [...friendsOnline, ...friendsAway, ...friendsOffline];
 
   async function runAction(task: () => Promise<unknown>) {
     setBusy(true);
@@ -522,12 +527,12 @@ export function HomeFriendsPanel() {
           </div>
         ) : null}
 
-        {[...friendsOnline, ...friendsAway, ...friendsOffline].length === 0 ? (
+        {visibleFriendRows.length === 0 && (!hasSearchQuery || filteredOthers.length === 0) ? (
           <div className={cx(listEmpty, "suzi-home-empty-note rounded-[0.8rem] border px-3 py-2")}>
-            {t("friends.noFriends")}
+            {hasSearchQuery ? t("friends.noSearchResults") : t("friends.noFriends")}
           </div>
         ) : (
-          [...friendsOnline, ...friendsAway, ...friendsOffline].map((friend) => {
+          visibleFriendRows.map((friend) => {
             const status = presenceById[friend.id] ?? "offline";
             return (
               <div
@@ -616,7 +621,7 @@ export function HomeFriendsPanel() {
           })
         )}
 
-        {filteredOthers.length > 0 ? (
+        {hasSearchQuery && filteredOthers.length > 0 ? (
             filteredOthers.map((person) => {
               const status = presenceById[person.id] ?? "offline";
               return (
@@ -759,11 +764,7 @@ export function HomeFriendsPanel() {
                 </div>
               );
             })
-          ) : (
-            <div className={cx(listEmpty, "flex h-full items-center rounded-[0.9rem] border border-cyan-300/16 bg-[rgba(17,12,58,0.54)] px-3 py-3 text-cyan-100/70")}>
-              No users match this search.
-            </div>
-          )}
+          ) : null}
 
       </div>
 
