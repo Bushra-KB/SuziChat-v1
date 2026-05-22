@@ -19,6 +19,7 @@ import { getStoredAuthSession } from "@/lib/auth-client";
 import { listMyPosts, listPosts } from "@/lib/posts-client";
 import { subscribePostsFeedChannel, watchPostsEngagement } from "@/lib/realtime-feed";
 import { apiPostToReel } from "@/lib/post-ui-mappers";
+import { useI18n } from "@/lib/i18n";
 import type { Reel } from "@/lib/v1-mock-data";
 
 function formatCompact(value: number) {
@@ -75,6 +76,7 @@ function getViews(reel: Reel) {
 const MAX_REELS = 6;
 
 export function HomeReelsPanel() {
+  const { t } = useI18n();
   const [catalog, setCatalog] = useState<Reel[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -167,11 +169,11 @@ export function HomeReelsPanel() {
               <path d="m10 9 5 3-5 3V9Z" />
             </svg>
           </span>
-          <h2 className={panelTitle}>Suzi Reels</h2>
+          <h2 className={panelTitle}>{t("home.reels")}</h2>
         </div>
 
         <Link href="/app/reels" className={panelLink}>
-          Open feed
+          {t("home.openFeed")}
         </Link>
       </div>
 
@@ -194,7 +196,7 @@ export function HomeReelsPanel() {
           if (row.kind === "empty") {
             return (
               <p key={row.key} className={cx(listEmpty, "px-2 py-6 text-center text-cyan-100/60")}>
-                No reels yet.
+                {t("home.noReels")}
               </p>
             );
           }

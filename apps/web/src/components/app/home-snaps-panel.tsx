@@ -18,6 +18,7 @@ import { getStoredAuthSession } from "@/lib/auth-client";
 import { listMyPosts, listPosts } from "@/lib/posts-client";
 import { subscribePostsFeedChannel, watchPostsEngagement } from "@/lib/realtime-feed";
 import { apiPostToSnap } from "@/lib/post-ui-mappers";
+import { useI18n } from "@/lib/i18n";
 import type { Snap } from "@/lib/v1-mock-data";
 
 function SnapTileMedia({ src, alt }: { src: string; alt: string }) {
@@ -67,6 +68,7 @@ export function HomeSnapsPanel({
 }: {
   layout?: HomeSnapsPanelLayout;
 }) {
+  const { t } = useI18n();
   const [catalog, setCatalog] = useState<Snap[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -167,11 +169,11 @@ export function HomeSnapsPanel({
               <circle cx="12" cy="13" r="3.2" />
             </svg>
           </span>
-          <h2 className={panelTitle}>Suzi Snaps</h2>
+          <h2 className={panelTitle}>{t("home.snaps")}</h2>
         </div>
 
         <Link href="/app/snaps" className={panelLink}>
-          Open feed
+          {t("home.openFeed")}
         </Link>
       </div>
 
@@ -213,7 +215,7 @@ export function HomeSnapsPanel({
                 )}
               >
                 <div className="flex h-full w-full items-center justify-center">
-                  <span className={cx(listEmpty, "text-cyan-100/55")}>No snap</span>
+                  <span className={cx(listEmpty, "text-cyan-100/55")}>{t("home.noSnap")}</span>
                 </div>
                 <div className={cx(listL3, "absolute inset-x-1.5 bottom-1.5 flex items-center justify-between font-medium text-cyan-100/40")}>
                   <span>—</span>

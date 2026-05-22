@@ -9,8 +9,10 @@ import { createGameLobby, listGameLobbies, type ApiGameLobby } from "@/lib/games
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { gameIconForId } from "@/lib/game-icons";
 import { openGamesSocket, subscribeGameLobbyListChannel } from "@/lib/games-realtime";
+import { useI18n } from "@/lib/i18n";
 
 export function GamesHubClient() {
+  const { t } = useI18n();
   const [lobbies, setLobbies] = useState<ApiGameLobby[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -19,9 +21,9 @@ export function GamesHubClient() {
   useEffect(() => {
     void listGameLobbies()
       .then(setLobbies)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load lobbies."))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : t("games.loadError")))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const auth = getStoredAuthSession();
@@ -33,7 +35,7 @@ export function GamesHubClient() {
     const onLobbiesUpdate = () => {
       void listGameLobbies()
         .then(setLobbies)
-        .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load lobbies."));
+        .catch((e: unknown) => setError(e instanceof Error ? e.message : t("games.loadError")));
     };
     socket.on("connect", onConnect);
     socket.on("game:lobbies:update", onLobbiesUpdate);
@@ -42,7 +44,7 @@ export function GamesHubClient() {
       socket.off("connect", onConnect);
       socket.off("game:lobbies:update", onLobbiesUpdate);
     };
-  }, []);
+  }, [t]);
 
   const openCountByType = useMemo(() => {
     const map = new Map<string, number>();
@@ -55,7 +57,7 @@ export function GamesHubClient() {
   async function createQuickLobby(gameType: "CHESS" | "CHECKERS" | "CONNECT4" | "NEON_HOCKEY" | "TANK_DUEL", gameName: string) {
     const session = getStoredAuthSession();
     if (!session?.accessToken) {
-      setError("Login required to create a lobby.");
+      setError(t("games.loginRequired"));
       return;
     }
     setCreatingFor(gameType);
@@ -63,11 +65,11 @@ export function GamesHubClient() {
     try {
       const lobby = await createGameLobby(session.accessToken, {
         gameType,
-        title: `${gameName} Quick Table`,
+        title: `${gameName} ${t("games.quickTable")}`,
       });
       window.location.href = `/app/games/${gameTypeToId(lobby.gameType)}`;
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Could not create lobby.");
+      setError(e instanceof Error ? e.message : t("games.createError"));
     } finally {
       setCreatingFor(null);
     }
@@ -78,9 +80,9 @@ export function GamesHubClient() {
       <div className="suzi-app-frame-scroll suzi-scrollbar space-y-6 pr-1">
         <Panel className="p-6 sm:p-7">
           <SectionHeader
-            eyebrow="Suzi Games"
-            title="Realtime multiplayer game hub"
-            copy="Create or join game lobbies, invite friends, and play in synced sessions with authoritative server state."
+            eyebrow={t("games.eyebrow")}
+            title={t("games.title")}
+            copy={t("games.copy")}
           />
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -99,11 +101,11 @@ export function GamesHubClient() {
                 <p className="text-2xl font-semibold text-white">{game.name}</p>
                 <p className="mt-2 text-sm leading-6 text-slate-300/78">{game.copy}</p>
                 <p className="mt-3 text-xs uppercase tracking-[0.18em] text-cyan-100/66">
-                  {openCountByType.get(game.type) ?? 0} open lobbies
+                  {openCountByType.get(game.type) ?? 0} {t("games.openLobbies")}
                 </p>
                 <div className="mt-4 grid gap-2">
                   <Link href={`/app/games/${game.id}`} className="suzi-primary-btn block px-4 py-2.5 text-center text-sm">
-                    Open lobby
+                    {t("games.openLobby")}
                   </Link>
                   <button
                     type="button"
@@ -111,14 +113,14 @@ export function GamesHubClient() {
                     onClick={() => void createQuickLobby(game.type, game.name)}
                     className="suzi-secondary-btn px-4 py-2.5 text-sm disabled:opacity-60"
                   >
-                    {creatingFor === game.type ? "Creating..." : "Quick create"}
+                    {creatingFor === game.type ? t("games.creating") : t("games.quickCreate")}
                   </button>
                 </div>
               </article>
             ))}
           </div>
         </Panel>
-        {loading ? <p className="px-1 text-sm text-cyan-100/70">Loading active lobbies...</p> : null}
+        {loading ? <p className="px-1 text-sm text-cyan-100/70">{t("games.loadingLobbies")}</p> : null}
         {error ? <p className="rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-3 text-sm text-pink-100">{error}</p> : null}
       </div>
     </section>

@@ -16,6 +16,7 @@ import {
 } from "@/lib/notifications-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
+import { languages, useI18n } from "@/lib/i18n";
 import { createMenuItems, mobileNavItems } from "@/lib/v1-mock-data";
 import {
   AnchoredDropdown,
@@ -55,16 +56,6 @@ function formatShortNotifTime(iso: string) {
   }
 }
 
-const languages = [
-  { code: "en", label: "English" },
-  { code: "de", label: "Deutsch" },
-  { code: "fr", label: "Français" },
-  { code: "es", label: "Español" },
-  { code: "it", label: "Italiano" },
-  { code: "nl", label: "Nederlands" },
-  { code: "pl", label: "Polski" },
-] as const;
-
 function readSeenInboxMessageIds(userId: string) {
   if (typeof window === "undefined") {
     return new Set<string>();
@@ -102,6 +93,7 @@ export function AppShell({
   session: AuthSession;
   onLogout: () => void;
 }) {
+  const { language, setLanguage, t } = useI18n();
   const [gameInvites, setGameInvites] = useState<
     Array<{
       lobbyId: string;
@@ -116,7 +108,6 @@ export function AppShell({
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<string>("en");
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const createRef = useRef<HTMLDivElement | null>(null);
@@ -386,7 +377,7 @@ export function AppShell({
           <div className="flex items-center gap-2">
             <Link
               href="/app/notifications"
-              aria-label="Notifications"
+              aria-label={t("shell.notifications")}
               className="suzi-m-icon-btn"
             >
               <Icon path="M15 17H5l2-2.5V10a5 5 0 1 1 10 0v4.5L19 17h-4ZM10 20a2 2 0 0 0 4 0" className="h-4.5 w-4.5" />
@@ -398,7 +389,7 @@ export function AppShell({
             </Link>
             <Link
               href="/app/profile"
-              aria-label="Account"
+              aria-label={t("shell.account")}
               className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-fuchsia-300/40 ring-2 ring-fuchsia-400/20"
             >
               <Image
@@ -442,7 +433,7 @@ export function AppShell({
                 </div>
                 <button
                   type="button"
-                  aria-label="Close menu"
+                  aria-label={t("common.close")}
                   onClick={() => setIsMobileDrawerOpen(false)}
                   className="suzi-m-icon-btn"
                 >
@@ -452,15 +443,15 @@ export function AppShell({
               <div className="suzi-divider mx-5 my-2" />
               <nav className="px-3 py-2">
                 {[
-                  { href: "/app", label: "Home", icon: "M3 11.5 12 4l9 7.5M6.5 10.5V20h11v-9.5" },
-                  { href: "/app/messages", label: "Chat", icon: "M4 6h16v10H8l-4 4V6Z" },
-                  { href: "/app/friends", label: "Friends", icon: "M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4ZM6 21a6 6 0 0 1 12 0M8 13a3 3 0 1 0-3-3 3 3 0 0 0 3 3ZM2 19a4 4 0 0 1 6-3.5" },
-                  { href: "/app/reels", label: "Reels", icon: "M8 5h8l4 4v10a2 2 0 0 1-2 2H8a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4Z M11 11.5v4l3-2-3-2Z" },
-                  { href: "/app/snaps", label: "Snaps", icon: "M7 7h10v10H7zM5 5h14v14H5zM9 2v3M15 2v3" },
-                  { href: "/app/dating", label: "Dating", icon: "M12 20s-6.5-4.3-8.6-7.4C.8 9.4 2 4.9 6.3 4.3 8.7 4 10.5 5.2 12 7c1.5-1.8 3.3-3 5.7-2.7 4.3.6 5.5 5.1 2.9 8.3C18.5 15.7 12 20 12 20Z" },
-                  { href: "/app/notifications", label: "Notifications", icon: "M15 17H5l2-2.5V10a5 5 0 1 1 10 0v4.5L19 17h-4ZM10 20a2 2 0 0 0 4 0" },
-                  { href: "/app/profile", label: "My account", icon: "M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8" },
-                  { href: "/app/settings", label: "Settings", icon: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM19.4 12a7.4 7.4 0 0 0-.1-1.4l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-2.4-1.4l-.4-2.6h-4l-.4 2.6a7.5 7.5 0 0 0-2.4 1.4l-2.4-1-2 3.4 2 1.6c-.1.5-.1 1-.1 1.4s0 .9.1 1.4l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 2.4 1.4l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2.4-1.4l2.4 1 2-3.4-2-1.6c.1-.5.1-1 .1-1.4Z" },
+                  { href: "/app", label: t("nav.home"), icon: "M3 11.5 12 4l9 7.5M6.5 10.5V20h11v-9.5" },
+                  { href: "/app/messages", label: t("nav.chat"), icon: "M4 6h16v10H8l-4 4V6Z" },
+                  { href: "/app/friends", label: t("nav.friends"), icon: "M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4ZM6 21a6 6 0 0 1 12 0M8 13a3 3 0 1 0-3-3 3 3 0 0 0 3 3ZM2 19a4 4 0 0 1 6-3.5" },
+                  { href: "/app/reels", label: t("nav.reels"), icon: "M8 5h8l4 4v10a2 2 0 0 1-2 2H8a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4Z M11 11.5v4l3-2-3-2Z" },
+                  { href: "/app/snaps", label: t("nav.snaps"), icon: "M7 7h10v10H7zM5 5h14v14H5zM9 2v3M15 2v3" },
+                  { href: "/app/dating", label: t("nav.dating"), icon: "M12 20s-6.5-4.3-8.6-7.4C.8 9.4 2 4.9 6.3 4.3 8.7 4 10.5 5.2 12 7c1.5-1.8 3.3-3 5.7-2.7 4.3.6 5.5 5.1 2.9 8.3C18.5 15.7 12 20 12 20Z" },
+                  { href: "/app/notifications", label: t("shell.notifications"), icon: "M15 17H5l2-2.5V10a5 5 0 1 1 10 0v4.5L19 17h-4ZM10 20a2 2 0 0 0 4 0" },
+                  { href: "/app/profile", label: t("nav.myAccount"), icon: "M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8" },
+                  { href: "/app/settings", label: t("nav.settings"), icon: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM19.4 12a7.4 7.4 0 0 0-.1-1.4l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-2.4-1.4l-.4-2.6h-4l-.4 2.6a7.5 7.5 0 0 0-2.4 1.4l-2.4-1-2 3.4 2 1.6c-.1.5-.1 1-.1 1.4s0 .9.1 1.4l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 2.4 1.4l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2.4-1.4l2.4 1 2-3.4-2-1.6c.1-.5.1-1 .1-1.4Z" },
                 ].map((item) => {
                   const active =
                     item.href === "/app"
@@ -494,7 +485,7 @@ export function AppShell({
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-pink-400/14">
                   <Icon path="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" className="h-4.5 w-4.5" />
                 </span>
-                <span className="font-medium">Log out</span>
+                <span className="font-medium">{t("shell.logout")}</span>
               </button>
             </aside>
           </>
@@ -510,7 +501,7 @@ export function AppShell({
           <div ref={createRef} className="relative">
             <button
               type="button"
-              aria-label="Create"
+              aria-label={t("shell.create")}
               onClick={() => {
                 setIsCreateOpen((v) => !v);
                 setIsMessagesOpen(false);
@@ -550,7 +541,7 @@ export function AppShell({
           <div ref={messagesRef} className="relative">
             <button
               type="button"
-              aria-label="Inbox"
+              aria-label={t("shell.inbox")}
               onClick={() => {
                 setIsMessagesOpen((v) => !v);
                 setIsCreateOpen(false);
@@ -624,7 +615,7 @@ export function AppShell({
                     onClick={() => setIsMessagesOpen(false)}
                     className={shellDropdownFooterLink}
                   >
-                    Open inbox
+                    {t("shell.openInbox")}
                   </Link>
                 </div>
             </AnchoredDropdown>
@@ -633,7 +624,7 @@ export function AppShell({
           <div ref={languageRef} className="relative">
             <button
               type="button"
-              aria-label="Language"
+              aria-label={t("shell.language")}
               aria-expanded={isLanguageOpen}
               aria-haspopup="listbox"
               onClick={() => {
@@ -658,26 +649,26 @@ export function AppShell({
               align="start"
               className={cx(shellDropdownPanel, "w-52")}
             >
-              <div role="listbox" aria-label="Language">
-                <p className={shellDropdownHeading}>Language</p>
+              <div role="listbox" aria-label={t("shell.language")}>
+                <p className={shellDropdownHeading}>{t("shell.language")}</p>
                 <div className="max-h-[min(22rem,calc(100dvh-8rem))] space-y-0.5 overflow-y-auto suzi-scrollbar pr-0.5">
                   {languages.map((lang) => (
                     <button
                       key={lang.code}
                       type="button"
                       role="option"
-                      aria-selected={selectedLanguage === lang.code}
+                      aria-selected={language === lang.code}
                       onClick={() => {
-                        setSelectedLanguage(lang.code);
+                        setLanguage(lang.code);
                         setIsLanguageOpen(false);
                       }}
                       className={cx(
                         "flex w-full items-center justify-between gap-2 rounded-[0.7rem] px-2 py-1.5 text-left transition",
-                        selectedLanguage === lang.code ? shellDropdownItemActive : shellDropdownItem,
+                        language === lang.code ? shellDropdownItemActive : shellDropdownItem,
                       )}
                     >
                       <span>{lang.label}</span>
-                      {selectedLanguage === lang.code ? (
+                      {language === lang.code ? (
                         <Icon path="M5 13l4 4L19 7" className={cx(shellDropdownIcon, "text-cyan-200")} />
                       ) : (
                         <span className="w-3 shrink-0" aria-hidden />
@@ -692,7 +683,7 @@ export function AppShell({
           <div ref={notificationsRef} className="relative">
             <button
               type="button"
-              aria-label="Notifications"
+              aria-label={t("shell.notifications")}
               onClick={() => {
                 setIsNotificationsOpen((v) => !v);
                 setIsCreateOpen(false);
@@ -721,10 +712,10 @@ export function AppShell({
               align="start"
               className={cx(shellDropdownPanel, "w-[17.5rem]")}
             >
-                <p className={shellDropdownHeading}>Notifications</p>
+                <p className={shellDropdownHeading}>{t("shell.notifications")}</p>
                 <div className="space-y-0.5">
                   {shellNotifications.length === 0 ? (
-                    <p className={shellDropdownEmpty}>No notifications.</p>
+                    <p className={shellDropdownEmpty}>{t("shell.noNotifications")}</p>
                   ) : (
                     shellNotifications.slice(0, 4).map((item) => (
                       <Link
@@ -759,7 +750,7 @@ export function AppShell({
                       onClick={() => setIsNotificationsOpen(false)}
                       className={shellDropdownFooterLink}
                     >
-                      Open notifications
+                      {t("shell.openNotifications")}
                     </Link>
                     {unreadNotifications > 0 ? (
                       <button
@@ -767,7 +758,7 @@ export function AppShell({
                         onClick={() => void handleMarkAllNotificationsRead()}
                         className={shellDropdownFooterAction}
                       >
-                        Mark all read
+                        {t("shell.markAllRead")}
                       </button>
                     ) : null}
                   </div>
@@ -778,7 +769,7 @@ export function AppShell({
           <div ref={accountRef} className="relative">
             <button
               type="button"
-              aria-label="Account"
+              aria-label={t("shell.account")}
               onClick={() => {
                 setIsAccountOpen((v) => !v);
                 setIsCreateOpen(false);
@@ -825,7 +816,7 @@ export function AppShell({
                   className={shellDropdownItem}
                 >
                   <Icon path="M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8" className={shellDropdownIcon} />
-                  <span>Account</span>
+                  <span>{t("shell.account")}</span>
                 </Link>
                 <Link
                   href="/app/notifications"
@@ -833,7 +824,7 @@ export function AppShell({
                   className={shellDropdownItem}
                 >
                   <Icon path="M15 17H5l2-2.5V10a5 5 0 1 1 10 0v4.5L19 17h-4ZM10 20a2 2 0 0 0 4 0" className={shellDropdownIcon} />
-                  <span>Notifications</span>
+                  <span>{t("shell.notifications")}</span>
                 </Link>
                 <Link
                   href="/app/messages"
@@ -841,7 +832,7 @@ export function AppShell({
                   className={shellDropdownItem}
                 >
                   <Icon path="M4 6h16v10H7l-3 3V6Z" className={shellDropdownIcon} />
-                  <span>Inbox</span>
+                  <span>{t("shell.inbox")}</span>
                 </Link>
                 <div className="my-1 h-px bg-[var(--border-soft)]" />
                 <button
@@ -850,7 +841,7 @@ export function AppShell({
                   className={shellDropdownLogout}
                 >
                   <Icon path="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" className={shellDropdownIcon} />
-                  <span>Log out</span>
+                  <span>{t("shell.logout")}</span>
                 </button>
             </AnchoredDropdown>
           </div>
