@@ -85,7 +85,7 @@ export class RoomsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateRoomDto,
   ) {
-    const room = await this.roomsService.createRoom(user.id, dto);
+    const room = await this.roomsService.createRoom(user.id, dto, user.role);
     this.emitRoomsCatalogUpdate('created', room.slug);
     return room;
   }
@@ -209,6 +209,32 @@ export class RoomsController {
     return this.roomsService.banMember(slug, user.id, userId).then(async (result) => {
       await this.emitRoomStats(slug);
       this.emitRoomsCatalogUpdate('member_banned', slug);
+      return result;
+    });
+  }
+
+  @Post(':slug/manage/members/:userId/moderator')
+  @UseGuards(AccessTokenGuard)
+  assignModerator(
+    @Param('slug') slug: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.roomsService.assignModerator(slug, user.id, userId).then((result) => {
+      this.emitRoomsCatalogUpdate('moderator_assigned', slug);
+      return result;
+    });
+  }
+
+  @Delete(':slug/manage/members/:userId/moderator')
+  @UseGuards(AccessTokenGuard)
+  removeModerator(
+    @Param('slug') slug: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.roomsService.removeModerator(slug, user.id, userId).then((result) => {
+      this.emitRoomsCatalogUpdate('moderator_removed', slug);
       return result;
     });
   }

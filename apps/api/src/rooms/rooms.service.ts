@@ -7,7 +7,7 @@ import {
   OnModuleInit,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Prisma, RoomJoinRequestStatus } from '@prisma/client';
+import { Prisma, RoomJoinRequestStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
@@ -60,6 +60,9 @@ const DEFAULT_ROOMS: Array<{
   },
 ];
 const DEFAULT_ROOM_CATEGORIES = ['Social', 'Music', 'Sports', 'Chill', 'Dating', 'Media', 'Travel'];
+const MAX_OWNED_ROOMS_PER_USER = 5;
+const ROOM_ROLE_MEMBER = 'member';
+const ROOM_ROLE_MODERATOR = 'moderator';
 
 type RoomListActorState = {
   isMember: boolean;
@@ -73,6 +76,8 @@ type RoomAccessState = {
   privacy: string;
   isOwner: boolean;
   isMember: boolean;
+  membershipRole: string | null;
+  isModerator: boolean;
   isBlocked: boolean;
   hasPendingRequest: boolean;
 };
@@ -211,7 +216,7 @@ export class RoomsService implements OnModuleInit {
         },
         memberships: {
           where: { userId },
-          select: { id: true },
+          select: { id: true, role: true },
           take: 1,
         },
         joinRequests: {
@@ -292,7 +297,7 @@ export class RoomsService implements OnModuleInit {
         privacy: true,
         memberships: {
           where: { userId },
-          select: { id: true },
+          select: { id: true, role: true },
           take: 1,
         },
         joinRequests: {
@@ -310,12 +315,15 @@ export class RoomsService implements OnModuleInit {
     if (!room) {
       throw new NotFoundException('Room not found');
     }
+    const membershipRole = room.memberships[0]?.role ?? null;
     return {
       roomId: room.id,
       ownerId: room.ownerId,
       privacy: room.privacy,
       isOwner: room.ownerId === userId,
       isMember: room.ownerId === userId || room.memberships.length > 0,
+      membershipRole,
+      isModerator: membershipRole === ROOM_ROLE_MODERATOR,
       isBlocked: room.bans.length > 0,
       hasPendingRequest: room.joinRequests.length > 0,
     };
@@ -328,6 +336,8 @@ export class RoomsService implements OnModuleInit {
     return {
       roomSlug: slug,
       isOwner: access.isOwner,
+      isModerator: access.isModerator,
+      role: access.isOwner ? 'host' : access.membershipRole ?? null,
       isMember: access.isMember,
       isBlocked: access.isBlocked,
       hasPendingRequest: access.hasPendingRequest,
@@ -413,7 +423,7 @@ export class RoomsService implements OnModuleInit {
       .slice(0, 64);
   }
 
-  async createRoom(ownerId: string, dto: CreateRoomDto) {
+  async createRoom(ownerId: string, dto: CreateRoomDto, actorRole: UserRole = UserRole.USER) {
     const name = dto.name.trim();
     const slug = (dto.slug?.trim() || this.slugifyRoomName(name)).toLowerCase();
 
@@ -428,6 +438,15 @@ export class RoomsService implements OnModuleInit {
 
     if (!owner) {
       throw new UnauthorizedException();
+    }
+
+    if (actorRole !== UserRole.ADMIN) {
+      const ownedRooms = await this.prisma.room.count({ where: { ownerId } });
+      if (ownedRooms >= MAX_OWNED_ROOMS_PER_USER) {
+        throw new BadRequestException(
+          `You can create up to ${MAX_OWNED_ROOMS_PER_USER} rooms at a time. Delete one of your rooms before creating a new one.`,
+        );
+      }
     }
 
     const exists = await this.prisma.room.findUnique({
@@ -467,18 +486,7 @@ export class RoomsService implements OnModuleInit {
   }
 
   async updateRoom(slug: string, userId: string, dto: UpdateRoomDto) {
-    const room = await this.prisma.room.findUnique({
-      where: { slug },
-      select: { id: true, ownerId: true },
-    });
-
-    if (!room) {
-      throw new NotFoundException('Room not found');
-    }
-
-    if (room.ownerId !== userId) {
-      throw new ForbiddenException('Only room owner can edit this room');
-    }
+    await this.ensureManager(slug, userId, 'Only room owner or moderator can edit this room');
 
     return this.prisma.room.update({
       where: { slug },
@@ -629,8 +637,55 @@ export class RoomsService implements OnModuleInit {
     return room;
   }
 
-  async getRoomManagement(slug: string, ownerId: string) {
-    const room = await this.ensureOwner(slug, ownerId);
+  private async ensureManager(
+    slug: string,
+    actorId: string,
+    forbiddenMessage = 'Only room owner or moderator can manage members',
+  ) {
+    const room = await this.prisma.room.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        ownerId: true,
+        memberships: {
+          where: { userId: actorId },
+          select: { role: true },
+          take: 1,
+        },
+      },
+    });
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+    const actorRole = room.memberships[0]?.role ?? null;
+    const isOwner = room.ownerId === actorId;
+    const isModerator = actorRole === ROOM_ROLE_MODERATOR;
+    if (!isOwner && !isModerator) {
+      throw new ForbiddenException(forbiddenMessage);
+    }
+    return { id: room.id, ownerId: room.ownerId, actorId, isOwner, isModerator };
+  }
+
+  private async ensureModeratorCanTarget(
+    room: { id: string; ownerId: string; isOwner: boolean },
+    targetUserId: string,
+  ) {
+    if (targetUserId === room.ownerId) {
+      throw new BadRequestException('Owner cannot be managed');
+    }
+    if (!room.isOwner) {
+      const targetMembership = await this.prisma.roomMembership.findUnique({
+        where: { roomId_userId: { roomId: room.id, userId: targetUserId } },
+        select: { role: true },
+      });
+      if (targetMembership?.role === ROOM_ROLE_MODERATOR) {
+        throw new ForbiddenException('Moderators cannot manage other moderators');
+      }
+    }
+  }
+
+  async getRoomManagement(slug: string, actorId: string) {
+    const room = await this.ensureManager(slug, actorId);
     const [members, pendingRequests, bannedUsers] = await Promise.all([
       this.prisma.roomMembership.findMany({
         where: { roomId: room.id },
@@ -662,19 +717,27 @@ export class RoomsService implements OnModuleInit {
         },
       }),
     ]);
-    return { members, pendingRequests, bannedUsers };
+    return {
+      actor: {
+        isOwner: room.isOwner,
+        isModerator: room.isModerator,
+      },
+      members,
+      pendingRequests,
+      bannedUsers,
+    };
   }
 
-  async approveJoinRequest(slug: string, ownerId: string, userId: string) {
-    const room = await this.ensureOwner(slug, ownerId);
-    if (userId === ownerId) {
+  async approveJoinRequest(slug: string, actorId: string, userId: string) {
+    const room = await this.ensureManager(slug, actorId);
+    if (userId === room.ownerId) {
       return { status: 'member' as const };
     }
     await this.prisma.roomBan.deleteMany({ where: { roomId: room.id, userId } });
     await this.prisma.roomMembership.upsert({
       where: { roomId_userId: { roomId: room.id, userId } },
       update: {},
-      create: { roomId: room.id, userId },
+      create: { roomId: room.id, userId, role: ROOM_ROLE_MEMBER },
     });
     await this.prisma.roomJoinRequest.upsert({
       where: { roomId_userId: { roomId: room.id, userId } },
@@ -684,8 +747,8 @@ export class RoomsService implements OnModuleInit {
     return { status: 'member' as const };
   }
 
-  async rejectJoinRequest(slug: string, ownerId: string, userId: string) {
-    const room = await this.ensureOwner(slug, ownerId);
+  async rejectJoinRequest(slug: string, actorId: string, userId: string) {
+    const room = await this.ensureManager(slug, actorId);
     await this.prisma.roomJoinRequest.upsert({
       where: { roomId_userId: { roomId: room.id, userId } },
       update: { status: RoomJoinRequestStatus.REJECTED },
@@ -694,20 +757,16 @@ export class RoomsService implements OnModuleInit {
     return { status: 'rejected' as const };
   }
 
-  async removeMember(slug: string, ownerId: string, userId: string) {
-    const room = await this.ensureOwner(slug, ownerId);
-    if (userId === ownerId) {
-      throw new BadRequestException('Owner cannot be removed');
-    }
+  async removeMember(slug: string, actorId: string, userId: string) {
+    const room = await this.ensureManager(slug, actorId);
+    await this.ensureModeratorCanTarget(room, userId);
     await this.prisma.roomMembership.deleteMany({ where: { roomId: room.id, userId } });
     return { status: 'removed' as const };
   }
 
-  async banMember(slug: string, ownerId: string, userId: string) {
-    const room = await this.ensureOwner(slug, ownerId);
-    if (userId === ownerId) {
-      throw new BadRequestException('Owner cannot be banned');
-    }
+  async banMember(slug: string, actorId: string, userId: string) {
+    const room = await this.ensureManager(slug, actorId);
+    await this.ensureModeratorCanTarget(room, userId);
     await this.prisma.roomMembership.deleteMany({ where: { roomId: room.id, userId } });
     await this.prisma.roomJoinRequest.deleteMany({ where: { roomId: room.id, userId } });
     await this.prisma.roomBan.upsert({
@@ -718,10 +777,44 @@ export class RoomsService implements OnModuleInit {
     return { status: 'banned' as const };
   }
 
-  async unbanMember(slug: string, ownerId: string, userId: string) {
-    const room = await this.ensureOwner(slug, ownerId);
+  async unbanMember(slug: string, actorId: string, userId: string) {
+    const room = await this.ensureManager(slug, actorId);
     await this.prisma.roomBan.deleteMany({ where: { roomId: room.id, userId } });
     return { status: 'unbanned' as const };
+  }
+
+  async assignModerator(slug: string, ownerId: string, userId: string) {
+    const room = await this.ensureOwner(slug, ownerId);
+    if (userId === ownerId) {
+      throw new BadRequestException('Owner is already the room host');
+    }
+    const membership = await this.prisma.roomMembership.findUnique({
+      where: { roomId_userId: { roomId: room.id, userId } },
+      select: { id: true },
+    });
+    if (!membership) {
+      throw new BadRequestException('Moderator must be a room member');
+    }
+    await this.prisma.$transaction([
+      this.prisma.roomMembership.updateMany({
+        where: { roomId: room.id, role: ROOM_ROLE_MODERATOR },
+        data: { role: ROOM_ROLE_MEMBER },
+      }),
+      this.prisma.roomMembership.update({
+        where: { roomId_userId: { roomId: room.id, userId } },
+        data: { role: ROOM_ROLE_MODERATOR },
+      }),
+    ]);
+    return { status: 'moderator_assigned' as const };
+  }
+
+  async removeModerator(slug: string, ownerId: string, userId: string) {
+    const room = await this.ensureOwner(slug, ownerId);
+    await this.prisma.roomMembership.updateMany({
+      where: { roomId: room.id, userId, role: ROOM_ROLE_MODERATOR },
+      data: { role: ROOM_ROLE_MEMBER },
+    });
+    return { status: 'moderator_removed' as const };
   }
 
   async deleteRoom(slug: string, ownerId: string) {

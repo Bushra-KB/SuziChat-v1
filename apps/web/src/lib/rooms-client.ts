@@ -34,6 +34,8 @@ export type ApiRoomMessage = {
 export type ApiRoomAccess = {
   roomSlug: string;
   isOwner: boolean;
+  isModerator?: boolean;
+  role?: "host" | "moderator" | "member" | string | null;
   isMember: boolean;
   isBlocked: boolean;
   hasPendingRequest: boolean;
@@ -43,9 +45,13 @@ export type ApiRoomAccess = {
 };
 
 export type ApiRoomManagement = {
+  actor?: {
+    isOwner: boolean;
+    isModerator: boolean;
+  };
   members: Array<{
     userId: string;
-    role: string;
+    role: "member" | "moderator" | string;
     joinedAt: string;
     user: { id: string; username: string; displayName: string | null; avatarUrl?: string | null };
   }>;
@@ -202,6 +208,20 @@ export async function banRoomMember(accessToken: string, slug: string, userId: s
   return apiJson<{ status: "banned" }>(
     `/v1/rooms/${encodeURIComponent(slug)}/manage/members/${encodeURIComponent(userId)}/ban`,
     { method: "POST", accessToken },
+  );
+}
+
+export async function assignRoomModerator(accessToken: string, slug: string, userId: string) {
+  return apiJson<{ status: "moderator_assigned" }>(
+    `/v1/rooms/${encodeURIComponent(slug)}/manage/members/${encodeURIComponent(userId)}/moderator`,
+    { method: "POST", accessToken },
+  );
+}
+
+export async function removeRoomModerator(accessToken: string, slug: string, userId: string) {
+  return apiJson<{ status: "moderator_removed" }>(
+    `/v1/rooms/${encodeURIComponent(slug)}/manage/members/${encodeURIComponent(userId)}/moderator`,
+    { method: "DELETE", accessToken },
   );
 }
 
