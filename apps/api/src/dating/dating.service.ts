@@ -73,27 +73,43 @@ export class DatingService {
 
   private async datingExclusionIds(viewerId: string) {
     const blocked = await this.blockedUserIds(viewerId);
-    const [swiped, matchedA, matchedB] = await Promise.all([
-      this.prisma.datingSwipe.findMany({
-        where: { fromUserId: viewerId },
-        select: { toUserId: true },
-      }),
-      this.prisma.datingMatch.findMany({
-        where: { userAId: viewerId },
-        select: { userBId: true },
-      }),
-      this.prisma.datingMatch.findMany({
-        where: { userBId: viewerId },
-        select: { userAId: true },
-      }),
-    ]);
     return new Set<string>([
       viewerId,
       ...blocked,
-      ...swiped.map((r) => r.toUserId),
-      ...matchedA.map((r) => r.userBId),
-      ...matchedB.map((r) => r.userAId),
     ]);
+  }
+
+  private async viewerDatingState(viewerId: string, targetUserIds: string[]) {
+    const ids = [...new Set(targetUserIds)].filter((id) => id !== viewerId);
+    if (ids.length === 0) {
+      return {
+        swipes: new Map<string, DatingSwipeAction>(),
+        matches: new Set<string>(),
+      };
+    }
+
+    const [swipes, matchesA, matchesB] = await Promise.all([
+      this.prisma.datingSwipe.findMany({
+        where: { fromUserId: viewerId, toUserId: { in: ids } },
+        select: { toUserId: true, action: true },
+      }),
+      this.prisma.datingMatch.findMany({
+        where: { userAId: viewerId, userBId: { in: ids } },
+        select: { userBId: true },
+      }),
+      this.prisma.datingMatch.findMany({
+        where: { userBId: viewerId, userAId: { in: ids } },
+        select: { userAId: true },
+      }),
+    ]);
+
+    return {
+      swipes: new Map(swipes.map((row) => [row.toUserId, row.action])),
+      matches: new Set([
+        ...matchesA.map((row) => row.userBId),
+        ...matchesB.map((row) => row.userAId),
+      ]),
+    };
   }
 
   async getMyProfile(userId: string) {
@@ -306,10 +322,17 @@ export class DatingService {
       skip,
     });
 
+    const viewerState = await this.viewerDatingState(
+      viewerId,
+      rows.map((row) => row.userId),
+    );
+
     return {
       items: rows.map((row) => ({
         ...row,
         interests: interestsFromJson(row.interests),
+        viewerSwipeAction: viewerState.swipes.get(row.userId) ?? null,
+        isMatched: viewerState.matches.has(row.userId),
       })),
       hasMore: rows.length === take,
     };
@@ -391,6 +414,58 @@ export class DatingService {
     return { items };
   }
 
+  async listLikesSent(userId: string) {
+    const mine = await this.prisma.datingProfile.findUnique({
+      where: { userId },
+    });
+    if (!mine) {
+      throw new ForbiddenException('Create your dating profile first.');
+    }
+
+    const liked = await this.prisma.datingSwipe.findMany({
+      where: { fromUserId: userId, action: DatingSwipeAction.LIKE },
+      select: { toUserId: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const blocked = await this.blockedUserIds(userId);
+    const candidateIds = [
+      ...new Set(
+        liked
+          .map((row) => row.toUserId)
+          .filter((id) => !blocked.has(id) && id !== userId),
+      ),
+    ];
+
+    if (candidateIds.length === 0) {
+      return { items: [] };
+    }
+
+    const profiles = await this.prisma.datingProfile.findMany({
+      where: {
+        userId: { in: candidateIds },
+        isDiscoverable: true,
+      },
+      select: {
+        ...datingProfileSelect,
+        user: { select: userCardSelect },
+      },
+    });
+    const viewerState = await this.viewerDatingState(userId, candidateIds);
+    const byUserId = new Map(profiles.map((profile) => [profile.userId, profile]));
+
+    return {
+      items: candidateIds
+        .map((id) => byUserId.get(id))
+        .filter((profile): profile is NonNullable<typeof profile> => Boolean(profile))
+        .map((row) => ({
+          ...row,
+          interests: interestsFromJson(row.interests),
+          viewerSwipeAction: viewerState.swipes.get(row.userId) ?? null,
+          isMatched: viewerState.matches.has(row.userId),
+        })),
+    };
+  }
+
   async getSummary(userId: string) {
     const [profile, matchCount] = await Promise.all([
       this.prisma.datingProfile.findUnique({
@@ -469,6 +544,17 @@ export class DatingService {
     });
 
     if (dto.action !== DatingSwipeAction.LIKE) {
+      const [userAId, userBId] = orderedPair(viewerId, dto.toUserId);
+      const match = await this.prisma.datingMatch.findUnique({
+        where: { userAId_userBId: { userAId, userBId } },
+        select: { id: true },
+      });
+      if (match) {
+        await this.prisma.datingMatch.delete({ where: { id: match.id } });
+        const payload = { matchId: match.id };
+        this.realtimeEvents.emitToUser(viewerId, 'dating:unmatch', payload);
+        this.realtimeEvents.emitToUser(dto.toUserId, 'dating:unmatch', payload);
+      }
       return { matched: false, match: null };
     }
 
@@ -525,6 +611,35 @@ export class DatingService {
             : this.serializePeer(match.userA),
       },
     };
+  }
+
+  async deleteSwipe(viewerId: string, targetUserId: string) {
+    if (viewerId === targetUserId) {
+      throw new ForbiddenException('You cannot update dating interest for yourself.');
+    }
+
+    const [userAId, userBId] = orderedPair(viewerId, targetUserId);
+    const match = await this.prisma.datingMatch.findUnique({
+      where: { userAId_userBId: { userAId, userBId } },
+      select: { id: true },
+    });
+
+    await this.prisma.$transaction([
+      this.prisma.datingSwipe.deleteMany({
+        where: { fromUserId: viewerId, toUserId: targetUserId },
+      }),
+      this.prisma.datingMatch.deleteMany({
+        where: { userAId, userBId },
+      }),
+    ]);
+
+    if (match) {
+      const payload = { matchId: match.id };
+      this.realtimeEvents.emitToUser(viewerId, 'dating:unmatch', payload);
+      this.realtimeEvents.emitToUser(targetUserId, 'dating:unmatch', payload);
+    }
+
+    return { ok: true };
   }
 
   private serializePeer(

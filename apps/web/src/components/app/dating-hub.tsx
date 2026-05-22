@@ -19,11 +19,13 @@ import {
   type DatingMessageRow,
   type DatingProfilePayload,
   deleteDatingMatch,
+  deleteDatingSwipe,
   discoverDating,
   datingSwipe,
   getDatingUserProfile,
   getMyDatingProfile,
   listDatingLikesReceived,
+  listDatingLikesSent,
   listDatingMatches,
   listDatingMessages,
   sendDatingMessage,
@@ -31,6 +33,28 @@ import {
 } from "@/lib/dating-client";
 import { blockPerson } from "@/lib/friends-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
+
+function discoverParamsFromFilters(filters: DatingFilters) {
+  return {
+    minAge: filters.minAge,
+    maxAge: filters.maxAge,
+    gender: filters.gender === "any" ? undefined : filters.gender,
+    country: filters.country.trim() || undefined,
+    search: filters.search.trim() || undefined,
+  };
+}
+
+function parseOptionalAge(value: string, label: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const parsed = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(parsed) || parsed < 18 || parsed > 120) {
+    throw new Error(`${label} must be between 18 and 120.`);
+  }
+  return parsed;
+}
 
 export function DatingHub() {
   const router = useRouter();
@@ -42,6 +66,7 @@ export function DatingHub() {
   const [myProfile, setMyProfile] = useState<(DatingProfilePayload & { interests: string[] }) | null>(null);
   const [matches, setMatches] = useState<DatingMatchRow[]>([]);
   const [likesReceived, setLikesReceived] = useState<DatingDiscoverItem[]>([]);
+  const [likesSent, setLikesSent] = useState<DatingDiscoverItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState<DatingFilters>(filtersFromProfile(null));
@@ -54,6 +79,7 @@ export function DatingHub() {
   >(null);
   const [showMatchesModal, setShowMatchesModal] = useState(false);
   const [showLikesModal, setShowLikesModal] = useState(false);
+  const [showLikesSentModal, setShowLikesSentModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
   const [chatMatchId, setChatMatchId] = useState<string | null>(null);
   const [chatPeer, setChatPeer] = useState<DatingMatchRow["peer"] | null>(null);
@@ -75,16 +101,7 @@ export function DatingHub() {
     isDiscoverable: true,
   });
 
-  const discoverParams = useMemo(
-    () => ({
-      minAge: filters.minAge,
-      maxAge: filters.maxAge,
-      gender: filters.gender === "any" ? undefined : filters.gender,
-      country: filters.country.trim() || undefined,
-      search: filters.search.trim() || undefined,
-    }),
-    [filters],
-  );
+  const discoverParams = useMemo(() => discoverParamsFromFilters(filters), [filters]);
 
   const refreshMatches = useCallback(async (token: string) => {
     try {
@@ -97,20 +114,25 @@ export function DatingHub() {
 
   const refreshLikes = useCallback(async (token: string) => {
     try {
-      const { items } = await listDatingLikesReceived(token);
-      setLikesReceived(items);
+      const [received, sent] = await Promise.all([
+        listDatingLikesReceived(token),
+        listDatingLikesSent(token),
+      ]);
+      setLikesReceived(received.items);
+      setLikesSent(sent.items);
     } catch {
       setLikesReceived([]);
+      setLikesSent([]);
     }
   }, []);
 
   const loadDiscover = useCallback(
-    async (token: string, opts?: { append?: boolean; skip?: number }) => {
+    async (token: string, opts?: { append?: boolean; skip?: number; filters?: DatingFilters }) => {
       setError("");
       const skip = opts?.skip ?? 0;
       try {
         const { items } = await discoverDating(token, {
-          ...discoverParams,
+          ...(opts?.filters ? discoverParamsFromFilters(opts.filters) : discoverParams),
           take: 36,
           skip,
         });
@@ -147,15 +169,22 @@ export function DatingHub() {
         const typed = profile as typeof myProfile;
         setMyProfile(typed);
         if (typed) {
-          setFilters(filtersFromProfile(typed));
-          await loadDiscover(token);
+          const initialFilters = filtersFromProfile(typed);
+          setFilters(initialFilters);
+          const { items } = await discoverDating(token, {
+            ...discoverParamsFromFilters(initialFilters),
+            take: 36,
+            skip: 0,
+          });
+          setDeck(items);
+          setActiveIndex(0);
         }
         await Promise.all([refreshMatches(token), refreshLikes(token)]);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not load dating.");
       }
     })();
-  }, [loadDiscover, refreshMatches, refreshLikes]);
+  }, [refreshMatches, refreshLikes]);
 
   useEffect(() => {
     const panel = searchParams.get("panel");
@@ -165,6 +194,9 @@ export function DatingHub() {
     }
     if (panel === "likes") {
       setShowLikesModal(true);
+    }
+    if (panel === "my-likes") {
+      setShowLikesSentModal(true);
     }
     if (view) {
       void (async () => {
@@ -195,12 +227,18 @@ export function DatingHub() {
       return;
     }
     const socket = getRealtimeSocket(accessToken);
-    const onMatch = (payload: { peer?: { user?: { displayName?: string | null; username?: string } } }) => {
+    const onMatch = (payload: { peer?: { user?: { id?: string; displayName?: string | null; username?: string } } }) => {
       const name =
         payload?.peer?.user?.displayName?.trim() ||
         payload?.peer?.user?.username ||
         "someone";
       setMatchToast(name);
+      const peerId = payload?.peer?.user?.id;
+      if (peerId) {
+        setDeck((prev) =>
+          prev.map((item) => (item.userId === peerId ? { ...item, isMatched: true } : item)),
+        );
+      }
       void refreshMatches(accessToken);
       void refreshLikes(accessToken);
     };
@@ -230,6 +268,7 @@ export function DatingHub() {
         setChatPeer(null);
       }
       void refreshMatches(accessToken);
+      void refreshLikes(accessToken);
     };
     socket.on("dating:match", onMatch);
     socket.on("dating:message", onMessage);
@@ -260,6 +299,17 @@ export function DatingHub() {
     setShowProfileModal(true);
   };
 
+  const applyFilters = () => {
+    if (!accessToken) {
+      return;
+    }
+    if (filters.minAge > filters.maxAge) {
+      setError("Minimum age cannot be higher than maximum age.");
+      return;
+    }
+    void loadDiscover(accessToken);
+  };
+
   const saveProfile = async () => {
     if (!accessToken) {
       return;
@@ -272,23 +322,30 @@ export function DatingHub() {
         .map((s) => s.trim())
         .filter(Boolean)
         .slice(0, 24);
+      const age = parseOptionalAge(profileDraft.age, "Age");
+      const minAgePref = parseOptionalAge(profileDraft.minAgePref, "Minimum age preference") ?? 18;
+      const maxAgePref = parseOptionalAge(profileDraft.maxAgePref, "Maximum age preference") ?? 99;
+      if (minAgePref > maxAgePref) {
+        throw new Error("Minimum age preference cannot be higher than maximum age preference.");
+      }
       const { profile } = await upsertMyDatingProfile(accessToken, {
-        age: profileDraft.age ? Number.parseInt(profileDraft.age, 10) : undefined,
+        age,
         gender: profileDraft.gender || undefined,
         headline: profileDraft.headline || undefined,
         datingBio: profileDraft.datingBio || undefined,
         interests,
         photoUrl: profileDraft.photoUrl || undefined,
-        minAgePref: Number.parseInt(profileDraft.minAgePref, 10) || 18,
-        maxAgePref: Number.parseInt(profileDraft.maxAgePref, 10) || 99,
+        minAgePref,
+        maxAgePref,
         seekGender: profileDraft.seekGender,
         isDiscoverable: profileDraft.isDiscoverable,
       });
       const next = { ...profile, interests: profile.interests ?? [] };
+      const nextFilters = filtersFromProfile(next);
       setMyProfile(next);
-      setFilters(filtersFromProfile(next));
+      setFilters(nextFilters);
       setShowProfileModal(false);
-      await loadDiscover(accessToken);
+      await loadDiscover(accessToken, { filters: nextFilters });
       await Promise.all([refreshMatches(accessToken), refreshLikes(accessToken)]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed.");
@@ -307,56 +364,51 @@ export function DatingHub() {
     [deck.length],
   );
 
-  const refillDeck = useCallback(
-    (token: string, currentLen: number) => {
-      void discoverDating(token, { ...discoverParams, take: 28, skip: currentLen })
-        .then(({ items }) => {
-          setDeck((d) => {
-            const seen = new Set(d.map((x) => x.userId));
-            const merged = [...d, ...items.filter((x) => !seen.has(x.userId))];
-            return merged;
-          });
-        })
-        .catch(() => {});
-    },
-    [discoverParams],
-  );
-
   const runSwipe = async (targetUserId: string, action: "LIKE" | "PASS") => {
     if (!accessToken) {
       return;
     }
+    const target =
+      deck.find((item) => item.userId === targetUserId) ??
+      likesReceived.find((item) => item.userId === targetUserId) ??
+      likesSent.find((item) => item.userId === targetUserId) ??
+      null;
     setBusy(true);
     setError("");
     try {
       const res = await datingSwipe(accessToken, { toUserId: targetUserId, action });
+      const nextIsMatched = action === "LIKE" ? Boolean(res.matched) || Boolean(target?.isMatched) : false;
       if (res.matched && res.match) {
         const peerName =
           res.match.peer.user.displayName?.trim() || res.match.peer.user.username;
         setMatchToast(peerName);
         await refreshMatches(accessToken);
       }
+      if (action === "PASS") {
+        await refreshMatches(accessToken);
+      }
       setLikesReceived((prev) => prev.filter((x) => x.userId !== targetUserId));
-      setDeck((prev) => {
-        const removeAt = prev.findIndex((x) => x.userId === targetUserId);
-        if (removeAt === -1) {
+      setDeck((prev) =>
+        prev.map((item) =>
+          item.userId === targetUserId
+            ? { ...item, viewerSwipeAction: action, isMatched: nextIsMatched }
+            : item,
+        ),
+      );
+      setLikesSent((prev) => {
+        if (action === "PASS") {
+          return prev.filter((item) => item.userId !== targetUserId);
+        }
+        const nextItem = target
+          ? { ...target, viewerSwipeAction: "LIKE" as const, isMatched: nextIsMatched }
+          : null;
+        if (!nextItem) {
           return prev;
         }
-        const next = prev.filter((_, i) => i !== removeAt);
-        setActiveIndex((cur) => {
-          if (removeAt < cur) {
-            return Math.max(0, cur - 1);
-          }
-          if (removeAt === cur) {
-            return Math.min(cur, Math.max(0, next.length - 1));
-          }
-          return cur;
-        });
-        if (next.length <= 5) {
-          refillDeck(accessToken, next.length);
-        }
-        return next;
+        const rest = prev.filter((item) => item.userId !== targetUserId);
+        return [nextItem, ...rest];
       });
+      await refreshLikes(accessToken);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Action failed.");
     } finally {
@@ -364,17 +416,27 @@ export function DatingHub() {
     }
   };
 
-  const onInterested = () => {
-    const card = deck[activeIndex];
-    if (card) {
-      void runSwipe(card.userId, "LIKE");
+  const removeInterest = async (targetUserId: string) => {
+    if (!accessToken) {
+      return;
     }
-  };
-
-  const onPass = () => {
-    const card = deck[activeIndex];
-    if (card) {
-      void runSwipe(card.userId, "PASS");
+    setBusy(true);
+    setError("");
+    try {
+      await deleteDatingSwipe(accessToken, targetUserId);
+      setDeck((prev) =>
+        prev.map((item) =>
+          item.userId === targetUserId
+            ? { ...item, viewerSwipeAction: null, isMatched: false }
+            : item,
+        ),
+      );
+      setLikesSent((prev) => prev.filter((item) => item.userId !== targetUserId));
+      await Promise.all([refreshMatches(accessToken), refreshLikes(accessToken)]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not remove interest.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -466,7 +528,20 @@ export function DatingHub() {
 
   const matchCount = matches.length;
   const likesCount = likesReceived.length;
+  const likesSentCount = likesSent.length;
   const activeCard = deck[activeIndex] ?? null;
+
+  const openCollection = (value: string) => {
+    if (value === "matches") {
+      setShowMatchesModal(true);
+    }
+    if (value === "likes-me") {
+      setShowLikesModal(true);
+    }
+    if (value === "my-likes") {
+      setShowLikesSentModal(true);
+    }
+  };
 
   if (!accessToken) {
     return (
@@ -499,18 +574,21 @@ export function DatingHub() {
             copy="Browse profiles, show interest, match, and chat — filters use your saved preferences by default."
             action={
               <div className="flex flex-wrap gap-2">
-                {likesCount > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowLikesModal(true)}
-                    className="suzi-secondary-btn px-4 py-2.5 text-sm"
-                  >
-                    Likes you ({likesCount})
-                  </button>
-                ) : null}
-                <button type="button" onClick={() => setShowMatchesModal(true)} className="suzi-secondary-btn px-4 py-2.5 text-sm">
-                  Matches{matchCount ? ` (${matchCount})` : ""}
-                </button>
+                <select
+                  value=""
+                  onChange={(event) => {
+                    openCollection(event.target.value);
+                  }}
+                  className="rounded-full border border-fuchsia-300/24 bg-[rgba(16,18,38,0.92)] px-4 py-2.5 text-sm font-semibold text-fuchsia-50 outline-none transition hover:border-fuchsia-200/50"
+                  aria-label="Open dating lists"
+                >
+                  <option value="" disabled>
+                    Open list...
+                  </option>
+                  <option value="matches">Matches ({matchCount})</option>
+                  <option value="likes-me">Likes Me ({likesCount})</option>
+                  <option value="my-likes">My Likes/Favs ({likesSentCount})</option>
+                </select>
                 <button type="button" onClick={openProfileEditor} className="suzi-primary-btn px-4 py-2.5 text-sm">
                   {myProfile ? "Edit profile" : "Set up profile"}
                 </button>
@@ -526,7 +604,7 @@ export function DatingHub() {
               hasProfile={Boolean(myProfile)}
               busy={busy}
               onChange={setFilters}
-              onApply={() => accessToken && void loadDiscover(accessToken)}
+              onApply={applyFilters}
             />
 
             <div className="min-w-0 flex-1">
@@ -537,8 +615,10 @@ export function DatingHub() {
                 busy={busy}
                 accessToken={accessToken}
                 onRotate={rotateBy}
-                onInterested={onInterested}
-                onPass={onPass}
+                onActiveIndexChange={setActiveIndex}
+                onInterested={(userId) => void runSwipe(userId, "LIKE")}
+                onPass={(userId) => void runSwipe(userId, "PASS")}
+                onRemoveInterest={(userId) => void removeInterest(userId)}
                 onRefresh={() => accessToken && void loadDiscover(accessToken)}
                 onOpenProfile={openProfileEditor}
               />
@@ -620,6 +700,9 @@ export function DatingHub() {
 
       {showLikesModal ? (
         <DatingLikesModal
+          title="Likes Me"
+          copy="People who liked you - respond with Interested or Not interested."
+          emptyLabel="No new likes right now."
           items={likesReceived}
           busy={busy}
           onClose={() => {
@@ -628,6 +711,21 @@ export function DatingHub() {
           }}
           onInterested={(userId) => void runSwipe(userId, "LIKE")}
           onPass={(userId) => void runSwipe(userId, "PASS")}
+        />
+      ) : null}
+
+      {showLikesSentModal ? (
+        <DatingLikesModal
+          title="My Likes/Favs"
+          copy="Profiles you liked. Remove interest anytime to turn the heart back off."
+          emptyLabel="You have not liked any profiles yet."
+          items={likesSent}
+          busy={busy}
+          onClose={() => {
+            setShowLikesSentModal(false);
+            router.replace("/app/dating");
+          }}
+          onRemoveInterest={(userId) => void removeInterest(userId)}
         />
       ) : null}
 

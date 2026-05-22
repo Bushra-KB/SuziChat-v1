@@ -48,6 +48,12 @@ export class DatingController {
     return this.datingService.listLikesReceived(user.id);
   }
 
+  @Get('likes-sent')
+  @UseGuards(AccessTokenGuard)
+  listLikesSent(@CurrentUser() user: AuthenticatedUser) {
+    return this.datingService.listLikesSent(user.id);
+  }
+
   @Get('discover')
   @UseGuards(AccessTokenGuard)
   discover(
@@ -83,6 +89,15 @@ export class DatingController {
   @UseGuards(AccessTokenGuard)
   swipe(@CurrentUser() user: AuthenticatedUser, @Body() dto: DatingSwipeDto) {
     return this.datingService.swipe(user.id, dto);
+  }
+
+  @Delete('swipes/:toUserId')
+  @UseGuards(AccessTokenGuard)
+  deleteSwipe(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('toUserId') toUserId: string,
+  ) {
+    return this.datingService.deleteSwipe(user.id, toUserId);
   }
 
   @Get('matches')
