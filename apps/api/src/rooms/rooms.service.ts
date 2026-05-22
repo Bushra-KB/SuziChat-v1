@@ -106,6 +106,16 @@ export class RoomsService implements OnModuleInit {
   }
 
   async ensureSeedRooms() {
+    await Promise.all(
+      DEFAULT_ROOM_CATEGORIES.map((name, index) =>
+        this.prisma.roomCategory.upsert({
+          where: { name },
+          create: { name, sortOrder: index, isActive: true },
+          update: {},
+        }),
+      ),
+    );
+
     const owner = await this.prisma.user.findFirst({
       orderBy: { createdAt: 'asc' },
     });
@@ -138,13 +148,24 @@ export class RoomsService implements OnModuleInit {
   }
 
   async listCategories() {
+    const managedCategories = await this.prisma.roomCategory.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      select: { name: true },
+    });
     const grouped = await this.prisma.room.groupBy({
       by: ['category'],
     });
     const dbCategories = grouped
       .map((row) => row.category?.trim())
       .filter((row): row is string => Boolean(row));
-    return [...new Set([...DEFAULT_ROOM_CATEGORIES, ...dbCategories])];
+    return [
+      ...new Set([
+        ...managedCategories.map((row) => row.name),
+        ...DEFAULT_ROOM_CATEGORIES,
+        ...dbCategories,
+      ]),
+    ];
   }
 
   async listRooms() {

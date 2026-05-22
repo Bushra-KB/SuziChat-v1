@@ -41,6 +41,7 @@ import {
   modalTitle,
   panelTitle,
 } from "@/components/app/home-typography";
+import { useI18n } from "@/lib/i18n";
 
 const defaultAvatar = "/ppic/ppic1.jpeg";
 type Presence = "online" | "away" | "offline";
@@ -77,6 +78,7 @@ function presenceDotClass(status: Presence) {
 }
 
 export function HomeFriendsPanel() {
+  const { t } = useI18n();
   const [summary, setSummary] = useState<FriendsSummary | null>(null);
   const [blockedRows, setBlockedRows] = useState<BlockedUserRow[]>([]);
   const [otherRows, setOtherRows] = useState<FriendSummaryUser[]>([]);
@@ -111,9 +113,9 @@ export function HomeFriendsPanel() {
 
   useEffect(() => {
     void refresh().catch(() => {
-      setError("Could not load friends data.");
+      setError(t("friends.loadError"));
     });
-  }, [refresh]);
+  }, [refresh, t]);
 
   useEffect(() => {
     const s = getStoredAuthSession();
@@ -324,7 +326,7 @@ export function HomeFriendsPanel() {
               <path d="M16.5 5.5a2.5 2.5 0 0 1 0 5" />
             </svg>
           </span>
-          <h2 className={panelTitle}>Friends</h2>
+          <h2 className={panelTitle}>{t("friends.title")}</h2>
         </div>
         </div>
 
@@ -351,14 +353,14 @@ export function HomeFriendsPanel() {
               homeSearchInput,
               "h-[var(--btn-h-sm)] w-full rounded-[0.8rem] border py-1.5 pl-9 pr-10 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24",
             )}
-            placeholder="Search friends..."
+            placeholder={t("friends.searchPlaceholder")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
 
           <button
             type="button"
-            aria-label="Search friends"
+            aria-label={t("friends.searchAria")}
             className="absolute inset-y-0 right-0 inline-flex w-9 items-center justify-center rounded-r-[0.8rem] border-l border-cyan-300/24 text-fuchsia-200/84 transition hover:text-fuchsia-100"
           >
             <svg
@@ -379,7 +381,7 @@ export function HomeFriendsPanel() {
 
         <div className="relative z-20 flex min-w-0 flex-nowrap items-center gap-1 pb-1">
           <button type="button" className={homeTabClasses(true)}>
-            All
+            {t("friends.all")}
           </button>
           <div className="relative shrink-0">
             <button
@@ -392,7 +394,7 @@ export function HomeFriendsPanel() {
                 setIsBlockedOpen(false);
               }}
             >
-              Requests
+              {t("friends.requests")}
               <span className="inline-flex h-3 min-w-3 items-center justify-center rounded-full bg-pink-500 px-0.5 text-[0.55rem] font-semibold leading-none text-white">
                 {incomingCount}
               </span>
@@ -405,7 +407,7 @@ export function HomeFriendsPanel() {
               className="w-[16.5rem] min-w-[10.5rem] rounded-[0.9rem] p-2"
             >
                 <p className={cx(listSection, "px-2 py-1 tracking-[0.14em] text-cyan-100/76")}>
-                  Incoming Requests
+                  {t("friends.incomingRequests")}
                 </p>
                 <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
                   {(summary?.incomingRequests ?? []).map((row) => (
@@ -429,7 +431,7 @@ export function HomeFriendsPanel() {
                           })}
                           className={cx(listActionBtn, "border-emerald-300/35 bg-emerald-400/20 text-emerald-50")}
                         >
-                          Accept
+                          {t("friends.accept")}
                         </button>
                         <button
                           type="button"
@@ -441,13 +443,13 @@ export function HomeFriendsPanel() {
                           })}
                           className={cx(listActionBtn, "border-fuchsia-300/30 bg-fuchsia-500/20 text-pink-100")}
                         >
-                          Reject
+                          {t("friends.reject")}
                         </button>
                       </div>
                     </div>
                   ))}
                   {(summary?.incomingRequests.length ?? 0) === 0 ? (
-                    <p className={cx(listEmpty, "px-2 py-2")}>No incoming requests.</p>
+                    <p className={cx(listEmpty, "px-2 py-2")}>{t("friends.noIncoming")}</p>
                   ) : null}
                 </div>
             </AnchoredDropdown>
@@ -463,7 +465,7 @@ export function HomeFriendsPanel() {
                 setIsRequestsOpen(false);
               }}
             >
-              Blocked
+              {t("friends.blocked")}
               <span className="inline-flex h-3 min-w-3 items-center justify-center rounded-full bg-slate-600 px-0.5 text-[0.55rem] font-semibold leading-none text-white">
                 {blockedCount}
               </span>
@@ -476,7 +478,7 @@ export function HomeFriendsPanel() {
               className="w-[16.5rem] min-w-[10.5rem] rounded-[0.9rem] p-2"
             >
                 <p className={cx(listSection, "px-2 py-1 tracking-[0.14em] text-cyan-100/76")}>
-                  Blocked People
+                  {t("friends.blockedPeople")}
                 </p>
                 <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
                   {blockedRows.map((row) => (
@@ -499,12 +501,12 @@ export function HomeFriendsPanel() {
                         })}
                         className={cx(listActionBtn, "mt-2 border-cyan-300/30 bg-cyan-400/16 text-cyan-50")}
                       >
-                        Cancel block
+                        {t("friends.cancelBlock")}
                       </button>
                     </div>
                   ))}
                   {blockedRows.length === 0 ? (
-                    <p className={cx(listEmpty, "px-2 py-2")}>No blocked users.</p>
+                    <p className={cx(listEmpty, "px-2 py-2")}>{t("friends.noBlocked")}</p>
                   ) : null}
                 </div>
             </AnchoredDropdown>
@@ -522,7 +524,7 @@ export function HomeFriendsPanel() {
 
         {[...friendsOnline, ...friendsAway, ...friendsOffline].length === 0 ? (
           <div className={cx(listEmpty, "suzi-home-empty-note rounded-[0.8rem] border px-3 py-2")}>
-            You have no friends yet. Send friend requests to people in this list.
+            {t("friends.noFriends")}
           </div>
         ) : (
           [...friendsOnline, ...friendsAway, ...friendsOffline].map((friend) => {
@@ -562,8 +564,8 @@ export function HomeFriendsPanel() {
                       "border-fuchsia-300/22 bg-[linear-gradient(150deg,rgba(86,30,173,0.54),rgba(46,17,111,0.74))] text-cyan-100/88 hover:border-fuchsia-300/42 hover:text-white",
                     )}
                     style={{ width: "var(--btn-h-sm)", height: "var(--btn-h-sm)" }}
-                    aria-label={`Message ${displayName(friend)}`}
-                    title="Message"
+                    aria-label={`${t("friends.message")} ${displayName(friend)}`}
+                    title={t("friends.message")}
                   >
                     <svg
                       aria-hidden="true"
@@ -590,8 +592,8 @@ export function HomeFriendsPanel() {
                     }
                     className={cx(friendIconBtn, "border-fuchsia-300/30 bg-fuchsia-500/16 text-pink-100")}
                     style={{ width: "var(--btn-h-sm)", height: "var(--btn-h-sm)" }}
-                    title="Unfriend"
-                    aria-label={`Unfriend ${displayName(friend)}`}
+                    title={t("friends.unfriend")}
+                    aria-label={`${t("friends.unfriend")} ${displayName(friend)}`}
                   >
                     <svg
                       aria-hidden="true"
@@ -658,7 +660,7 @@ export function HomeFriendsPanel() {
                         }
                         className={cx(listActionBtn, "border-emerald-300/35 bg-emerald-400/20 text-emerald-50")}
                       >
-                        Accept
+                        {t("friends.accept")}
                       </button>
                       <button
                         type="button"
@@ -672,7 +674,7 @@ export function HomeFriendsPanel() {
                         }
                         className={cx(listActionBtn, "border-fuchsia-300/30 bg-fuchsia-500/16 text-pink-100")}
                       >
-                        Reject
+                        {t("friends.reject")}
                       </button>
                     </div>
                   ) : person.relationship === "outgoing" ? (
@@ -687,9 +689,9 @@ export function HomeFriendsPanel() {
                         })
                       }
                       className={cx(listActionBtn, "shrink-0 border-cyan-300/30 bg-cyan-400/16 text-cyan-50")}
-                      title="Cancel request"
+                      title={t("friends.cancelRequest")}
                     >
-                      Cancel
+                      {t("common.cancel")}
                     </button>
                   ) : (
                     <div className="flex shrink-0 items-center gap-1">
@@ -705,8 +707,8 @@ export function HomeFriendsPanel() {
                         }
                         className={cx(friendIconBtn, "border-emerald-300/35 bg-emerald-400/20 text-emerald-50")}
                         style={{ width: "var(--btn-h-sm)", height: "var(--btn-h-sm)" }}
-                        title="Add friend"
-                        aria-label={`Add ${displayName(person)} as friend`}
+                        title={t("friends.addFriend")}
+                        aria-label={`${t("friends.addFriend")} ${displayName(person)}`}
                       >
                         <svg
                           aria-hidden="true"
@@ -735,8 +737,8 @@ export function HomeFriendsPanel() {
                         }
                         className={cx(friendIconBtn, "border-fuchsia-300/30 bg-fuchsia-500/16 text-pink-100")}
                         style={{ width: "var(--btn-h-sm)", height: "var(--btn-h-sm)" }}
-                        title="Block"
-                        aria-label={`Block ${displayName(person)}`}
+                        title={t("friends.block")}
+                        aria-label={`${t("friends.block")} ${displayName(person)}`}
                       >
                         <svg
                           aria-hidden="true"

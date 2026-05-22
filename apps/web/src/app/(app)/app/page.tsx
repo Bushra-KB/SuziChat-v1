@@ -30,6 +30,7 @@ import { listGameLobbies, type ApiGameLobby } from "@/lib/games-client";
 import { openGamesSocket, subscribeGameLobbyListChannel } from "@/lib/games-realtime";
 import { MQ_HOME_COMPACT } from "@/lib/breakpoints";
 import { useIsMobile } from "@/lib/use-is-mobile";
+import { useI18n } from "@/lib/i18n";
 import { games } from "@/lib/v1-mock-data";
 
 /*
@@ -43,6 +44,7 @@ import { games } from "@/lib/v1-mock-data";
  *   └──────────────┴──────────────────────────┴────────────────┘
  */
 export default function AppHomePage() {
+  const { t } = useI18n();
   const [lobbies, setLobbies] = useState<ApiGameLobby[]>([]);
   const [mobileGamesOpen, setMobileGamesOpen] = useState(false);
   const { isMobile: isCompactHome } = useIsMobile(MQ_HOME_COMPACT);
@@ -110,7 +112,7 @@ export default function AppHomePage() {
       <button
         type="button"
         onClick={() => setMobileGamesOpen(true)}
-        aria-label="Browse Suzi Games lobbies"
+        aria-label={t("home.browseGameLobbies")}
         className="suzi-home-mobile-games-card group relative flex h-full w-full flex-col overflow-hidden rounded-[var(--panel-radius)] border p-[var(--panel-pad)] text-left transition active:scale-[0.985]"
       >
         <div className="flex shrink-0 items-center justify-between gap-3">
@@ -123,10 +125,10 @@ export default function AppHomePage() {
                 <circle cx="17.5" cy="13.5" r=".8" fill="currentColor" stroke="none" />
               </svg>
             </span>
-            <h2 className={panelTitle}>Suzi Games</h2>
+            <h2 className={panelTitle}>{t("home.games")}</h2>
           </div>
           <span className={cx(homeStatPillLive, listL3, "px-2 py-0.5 font-semibold text-fuchsia-100/92")}>
-            {totalPlaying} live
+            {totalPlaying} {t("common.live")}
           </span>
         </div>
 
@@ -148,7 +150,7 @@ export default function AppHomePage() {
                 />
                 <div className="suzi-home-game-scrim absolute inset-0" />
                 <span className={cx(homeStatPill, listL3, "absolute left-1.5 top-1.5 px-1.5 py-0.5 font-medium text-white/90")}>
-                  {playing} playing
+                  {playing} {t("common.playing")}
                 </span>
                 <p className={cx(listL1, "absolute inset-x-1.5 bottom-1.5 truncate text-center font-bold leading-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]")}>
                   {game.name}
@@ -160,10 +162,10 @@ export default function AppHomePage() {
 
         <div className="mt-2.5 flex shrink-0 items-center justify-between gap-2">
           <span className={cx(listMeta, "text-cyan-100/72")}>
-            Tap to browse all tables
+            {t("home.tapBrowseTables")}
           </span>
           <span className={cx(homeBtnPrimary, listActionPrimary, "gap-1 px-2.5 py-1")}>
-            Open
+            {t("common.open")}
             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 6l6 6-6 6" />
             </svg>
@@ -200,7 +202,7 @@ export default function AppHomePage() {
           <>
             <button
               type="button"
-              aria-label="Close games"
+              aria-label={t("home.closeGames")}
               className="suzi-m-drawer-backdrop"
               onClick={() => setMobileGamesOpen(false)}
             />
@@ -209,7 +211,7 @@ export default function AppHomePage() {
               data-open="true"
               role="dialog"
               aria-modal="true"
-              aria-label="Suzi Games"
+              aria-label={t("home.games")}
             >
               <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-3">
                 <div className="flex items-center gap-2">
@@ -221,12 +223,12 @@ export default function AppHomePage() {
                       <circle cx="17.5" cy="13.5" r=".8" fill="currentColor" stroke="none" />
                     </svg>
                   </span>
-                  <h3 className={panelTitle}>Suzi Games</h3>
+                  <h3 className={panelTitle}>{t("home.games")}</h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setMobileGamesOpen(false)}
-                  aria-label="Close"
+                  aria-label={t("common.close")}
                   className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-cyan-300/24 bg-[rgba(20,12,72,0.6)] text-cyan-50/90"
                 >
                   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
@@ -255,11 +257,11 @@ export default function AppHomePage() {
                             </p>
                             <p className={cx(listMeta, "mt-0.5 inline-flex items-center gap-1.5 text-cyan-100/76")}>
                               <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(92,255,190,0.85)]" />
-                              {playing} playing now
+                              {playing} {t("common.playingNow")}
                             </p>
                           </div>
                           <span className={cx(listActionPrimary, "gap-1 rounded-full border border-fuchsia-300/55 bg-[linear-gradient(90deg,rgba(157,78,221,0.92),rgba(255,32,121,0.88))] px-3 py-1.5 text-white shadow-[0_0_10px_rgba(255,45,167,0.45)]")}>
-                            Open
+                            {t("common.open")}
                             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M9 6l6 6-6 6" />
                             </svg>
@@ -317,11 +319,11 @@ export default function AppHomePage() {
                       <circle cx="17.5" cy="13.5" r=".8" fill="currentColor" stroke="none" />
                     </svg>
                   </span>
-                  <h2 className={panelTitle}>Suzi Games</h2>
+                  <h2 className={panelTitle}>{t("home.games")}</h2>
                 </div>
 
                 <span className={cx(panelMeta, "shrink-0 whitespace-nowrap font-medium")}>
-                  Live lobbies
+                  {t("home.gamesLiveLobbies")}
                 </span>
               </div>
 
@@ -346,7 +348,7 @@ export default function AppHomePage() {
                       <div className="suzi-home-game-scrim absolute inset-0" />
 
                       <span className={cx(homeStatPill, listL3, "absolute left-1.5 top-1.5 px-1.5 py-0.5 font-medium text-white/92")}>
-                        {playing} playing
+                        {playing} {t("common.playing")}
                       </span>
 
                       <div className="absolute inset-x-1 bottom-1 flex min-w-0 flex-col items-stretch gap-0.5">
@@ -358,7 +360,7 @@ export default function AppHomePage() {
                           className={cx(homeBtnPrimary, listActionPrimary, "w-full min-w-0 justify-center rounded-full px-1.5")}
                           style={{ height: "var(--btn-h-sm)" }}
                         >
-                          <span className="truncate">Open lobby</span>
+                          <span className="truncate">{t("games.openLobby")}</span>
                         </Link>
                       </div>
                     </article>

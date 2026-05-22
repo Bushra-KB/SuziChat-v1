@@ -8,6 +8,7 @@ import { listL2, listActionPrimary, panelTitle } from "@/components/app/home-typ
 import { cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { getDatingSummary, type DatingSummary } from "@/lib/dating-client";
+import { useI18n } from "@/lib/i18n";
 
 const HEART_PATH =
   "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z";
@@ -86,6 +87,7 @@ function previewSrc(person: DatingSummary["preview"][0]) {
 }
 
 export function HomeDatingPanel() {
+  const { t } = useI18n();
   const [summary, setSummary] = useState<DatingSummary | null>(null);
 
   useEffect(() => {
@@ -109,11 +111,11 @@ export function HomeDatingPanel() {
   const subline =
     summary && summary.hasProfile
       ? summary.matchCount > 0
-        ? `${summary.matchCount} match${summary.matchCount === 1 ? "" : "es"}`
+        ? `${summary.matchCount} ${summary.matchCount === 1 ? t("dating.match") : t("dating.matches")}`
         : summary.likesReceivedCount > 0
-          ? `${summary.likesReceivedCount} like${summary.likesReceivedCount === 1 ? "" : "s"} you`
-          : "Find your match nearby"
-      : "Set up your dating profile";
+          ? `${summary.likesReceivedCount} ${summary.likesReceivedCount === 1 ? t("dating.likeYou") : t("dating.likesYou")}`
+          : t("dating.findMatch")
+      : t("dating.setupProfile");
 
   const href =
     summary && summary.likesReceivedCount > 0
@@ -125,7 +127,7 @@ export function HomeDatingPanel() {
   return (
     <Link
       href={href}
-      aria-label="Open Suzi Dating"
+      aria-label={t("home.dating")}
       className="suzi-panel group relative flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad-tight)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/60"
     >
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(80,52,152,0.62),rgba(96,48,168,0.5),rgba(44,68,136,0.55))]" />
@@ -138,7 +140,7 @@ export function HomeDatingPanel() {
           </svg>
         </span>
         <div className="min-w-0 flex-1">
-          <p className={cx(panelTitle, "truncate")}>Suzi Dating</p>
+          <p className={cx(panelTitle, "truncate")}>{t("home.dating")}</p>
           <p className={cx(listL2, "truncate leading-tight text-pink-100/82")}>{subline}</p>
         </div>
       </div>
@@ -153,7 +155,7 @@ export function HomeDatingPanel() {
           )}
           style={{ height: "var(--btn-h-sm)" }}
         >
-          Explore
+          {t("home.explore")}
         </span>
         <div className="flex shrink-0 items-center -space-x-1.5">
           {avatars.map((person) => (

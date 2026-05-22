@@ -12,6 +12,7 @@ import {
   type AuthSession,
 } from "@/lib/auth-client";
 import { AppShell } from "@/components/app/app-shell";
+import { LocalizationProvider } from "@/lib/i18n";
 
 export default function ProtectedAppLayout({
   children,
@@ -94,15 +95,17 @@ export default function ProtectedAppLayout({
   }
 
   return (
-    <AppShell
-      pathname={pathname}
-      session={session}
-      onLogout={() => {
-        clearAuthSession();
-        router.push("/login");
-      }}
-    >
-      {children}
-    </AppShell>
+    <LocalizationProvider>
+      <AppShell
+        pathname={pathname}
+        session={session}
+        onLogout={() => {
+          clearAuthSession();
+          router.push("/login");
+        }}
+      >
+        {children}
+      </AppShell>
+    </LocalizationProvider>
   );
 }

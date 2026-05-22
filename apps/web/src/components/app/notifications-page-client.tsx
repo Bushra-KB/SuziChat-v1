@@ -10,8 +10,10 @@ import {
   type ApiNotification,
 } from "@/lib/notifications-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
+import { useI18n } from "@/lib/i18n";
 
 export function NotificationsPageClient() {
+  const { t } = useI18n();
   const [items, setItems] = useState<ApiNotification[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -44,13 +46,13 @@ export function NotificationsPageClient() {
   const refresh = useCallback(async () => {
     const s = getStoredAuthSession();
     if (!s) {
-      setError("Not signed in.");
+      setError(t("rooms.notSignedIn"));
       return;
     }
     setError("");
     const list = await listNotifications(s.accessToken);
     setItems(list);
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,7 +60,7 @@ export function NotificationsPageClient() {
     void refresh()
       .catch((e: unknown) => {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Could not load notifications.");
+          setError(e instanceof Error ? e.message : t("notifications.loadError"));
         }
       })
       .finally(() => {
@@ -69,7 +71,7 @@ export function NotificationsPageClient() {
     return () => {
       cancelled = true;
     };
-  }, [refresh]);
+  }, [refresh, t]);
 
   useEffect(() => {
     const s = getStoredAuthSession();
@@ -123,7 +125,7 @@ export function NotificationsPageClient() {
       <Panel className="p-6 sm:p-7">
         <SectionHeader
           eyebrow="Notifications"
-          title="Requests, mentions, and activity"
+          title={t("notifications.title")}
           action={
             <button
               type="button"
@@ -131,7 +133,7 @@ export function NotificationsPageClient() {
               onClick={() => void handleMarkAll()}
               disabled={busy || unreadCount === 0}
             >
-              {busy ? "Updating…" : "Mark all read"}
+              {busy ? t("common.updating") : t("shell.markAllRead")}
             </button>
           }
         />
@@ -139,23 +141,23 @@ export function NotificationsPageClient() {
         <div className="mt-6 flex flex-wrap gap-2">
           <button type="button" onClick={() => setActiveFilter("all")}>
             <Chip active={activeFilter === "all"} tone="pink">
-              All ({items.length})
+              {t("notifications.all")} ({items.length})
             </Chip>
           </button>
           <button type="button" onClick={() => setActiveFilter("unread")}>
             <Chip active={activeFilter === "unread"} tone="cyan">
-              Unread ({unreadCount})
+              {t("notifications.unread")} ({unreadCount})
             </Chip>
           </button>
           <button type="button" onClick={() => setActiveFilter("mentions")}>
-            <Chip active={activeFilter === "mentions"}>Mentions</Chip>
+            <Chip active={activeFilter === "mentions"}>{t("notifications.mentions")}</Chip>
           </button>
           <button type="button" onClick={() => setActiveFilter("requests")}>
-            <Chip active={activeFilter === "requests"}>Requests</Chip>
+            <Chip active={activeFilter === "requests"}>{t("notifications.requests")}</Chip>
           </button>
           <button type="button" onClick={() => setActiveFilter("social")}>
             <Chip active={activeFilter === "social"} tone="cyan">
-              Social
+              {t("notifications.social")}
             </Chip>
           </button>
         </div>
@@ -164,9 +166,9 @@ export function NotificationsPageClient() {
 
         <div className="mt-6 space-y-4">
           {loading ? (
-            <p className="text-sm text-[var(--text-muted)]">Loading…</p>
+            <p className="text-sm text-[var(--text-muted)]">{t("common.loading")}</p>
           ) : filteredItems.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)]">You&apos;re all caught up.</p>
+            <p className="text-sm text-[var(--text-muted)]">{t("notifications.caughtUp")}</p>
           ) : (
             filteredItems.map((item) => (
               <button
@@ -178,7 +180,7 @@ export function NotificationsPageClient() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium uppercase tracking-[0.24em] text-cyan-100/62">Activity</p>
+                      <p className="text-sm font-medium uppercase tracking-[0.24em] text-cyan-100/62">{t("notifications.activity")}</p>
                       {!item.read ? (
                         <span className="h-2.5 w-2.5 rounded-full bg-fuchsia-400 shadow-[0_0_8px_rgba(232,77,255,0.72)]" />
                       ) : null}

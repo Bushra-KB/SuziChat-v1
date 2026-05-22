@@ -34,6 +34,7 @@ import {
   listTitleLinkCyan,
   panelTitle,
 } from "@/components/app/home-typography";
+import { useI18n } from "@/lib/i18n";
 
 type HomeRoom = {
   id: string;
@@ -139,7 +140,7 @@ function mapApiCategoryToHome(cat: string): string {
   return "Chill";
 }
 
-function apiRoomToHomeRoom(room: ApiRoom, myUserId?: string): HomeRoom {
+function apiRoomToHomeRoom(room: ApiRoom, myUserId?: string, fallbackSummary = "Open conversation"): HomeRoom {
   const privacy = room.privacy.toLowerCase();
   const actor = room.actor;
   const isOwner = Boolean(myUserId && room.owner.id === myUserId);
@@ -156,7 +157,7 @@ function apiRoomToHomeRoom(room: ApiRoom, myUserId?: string): HomeRoom {
   return {
     id: room.slug,
     name: room.name,
-    summary: room.description?.trim() || "Open conversation",
+    summary: room.description?.trim() || fallbackSummary,
     detail: undefined,
     onlineUsers: 0,
     totalMembers: room._count?.memberships ?? 0,
@@ -186,6 +187,7 @@ export function HomeChatRoomsPanel({
 }: {
   variant?: "default" | "dashboard";
 }) {
+  const { t } = useI18n();
   const [activeCategory, setActiveCategory] = useState("All");
   const [query, setQuery] = useState("");
   const [showMoreCategories, setShowMoreCategories] = useState(false);
@@ -239,8 +241,8 @@ export function HomeChatRoomsPanel({
     const loader = session?.accessToken ? listRoomsForMe(session.accessToken) : listRooms();
     const rows = await loader;
     const myId = session?.user.id;
-    setSourceRooms(rows.map((row) => apiRoomToHomeRoom(row, myId)));
-  }, []);
+    setSourceRooms(rows.map((row) => apiRoomToHomeRoom(row, myId, t("rooms.openConversation"))));
+  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -248,7 +250,7 @@ export function HomeChatRoomsPanel({
     void reloadRooms()
       .catch((e: unknown) => {
         if (!cancelled) {
-          setRoomsError(e instanceof Error ? e.message : "Could not load rooms.");
+          setRoomsError(e instanceof Error ? e.message : t("admin.error"));
           setSourceRooms([]);
         }
       })
@@ -260,7 +262,7 @@ export function HomeChatRoomsPanel({
     return () => {
       cancelled = true;
     };
-  }, [reloadRooms]);
+  }, [reloadRooms, t]);
 
   useEffect(() => {
     const session = getStoredAuthSession();
@@ -406,7 +408,7 @@ export function HomeChatRoomsPanel({
       return;
     }
     if (!file.type.startsWith("image/")) {
-      setCreateError("Please choose an image file.");
+      setCreateError(t("rooms.chooseImage"));
       return;
     }
     setCreateError("");
@@ -420,7 +422,7 @@ export function HomeChatRoomsPanel({
       const compressed = await compressImageDataUrl(dataUrl);
       setCreateImageUrl(compressed);
     } else {
-      setCreateError("Could not load selected image.");
+      setCreateError(t("rooms.couldNotLoadImage"));
     }
     input.value = "";
   }
@@ -429,7 +431,7 @@ export function HomeChatRoomsPanel({
     event.preventDefault();
     const s = getStoredAuthSession();
     if (!s) {
-      setCreateError("Not signed in.");
+      setCreateError(t("rooms.notSignedIn"));
       return;
     }
     setCreateError("");
@@ -445,7 +447,7 @@ export function HomeChatRoomsPanel({
         imageUrl,
         privacy: createPrivacy,
       });
-      const mapped = apiRoomToHomeRoom(room, s.user.id);
+      const mapped = apiRoomToHomeRoom(room, s.user.id, t("rooms.openConversation"));
       setSourceRooms((prev) => {
         const next = [mapped, ...prev.filter((row) => row.id !== mapped.id)];
         return next;
@@ -459,7 +461,7 @@ export function HomeChatRoomsPanel({
       setCreatePrivacy("Public");
       setCreateImageUrl("");
     } catch (e: unknown) {
-      setCreateError(e instanceof Error ? e.message : "Could not create room.");
+      setCreateError(e instanceof Error ? e.message : t("rooms.couldNotCreate"));
     } finally {
       setCreating(false);
     }
@@ -468,7 +470,7 @@ export function HomeChatRoomsPanel({
   async function handleRoomAction(room: HomeRoom) {
     const session = getStoredAuthSession();
     if (!session?.accessToken) {
-      window.alert("Sign in to use room actions.");
+      window.alert(t("rooms.signInActions"));
       return;
     }
     if (room.action === "open") {
@@ -600,18 +602,30 @@ export function HomeChatRoomsPanel({
 
   function primaryActionLabel(room: HomeRoom) {
     if (room.action === "open") {
-      return "Open";
+      return t("common.open");
     }
     if (room.action === "join") {
-      return "Join";
+      return t("rooms.join");
     }
     if (room.action === "request") {
-      return "Request";
+      return t("rooms.request");
     }
     if (room.action === "requested") {
-      return "Pending";
+      return t("rooms.pending");
     }
-    return "Blocked";
+    return t("rooms.blocked");
+  }
+
+  function categoryLabel(category: string) {
+    return category === "All" ? t("friends.all") : category;
+  }
+
+  function privacyLabel(privacy: string) {
+    const normalized = privacy.toLowerCase();
+    if (normalized === "public") return t("common.public");
+    if (normalized === "friends") return t("common.friends");
+    if (normalized === "private") return t("common.private");
+    return privacy;
   }
 
   function renderRoomRow(room: HomeRoom, index: number) {
@@ -661,16 +675,16 @@ export function HomeChatRoomsPanel({
             <span className="rounded-full border border-white/15 bg-white/10 px-1.5 py-0.5">{room.category}</span>
             <span className="inline-flex items-center gap-1">
               <span aria-hidden="true">{room.privacy.toLowerCase() === "public" ? "🌐" : "🔒"}</span>
-              {room.privacy}
+              {privacyLabel(room.privacy)}
             </span>
-            <span>{room.totalMembers} members</span>
+            <span>{room.totalMembers} {t("common.members")}</span>
           </div>
         </div>
 
         <div className="ml-auto flex shrink-0 items-center justify-end gap-2">
           <p className={cx(listMeta, "hidden items-center gap-1.5 md:inline-flex")}>
             <span className="inline-flex h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(92,255,190,0.78)]" />
-            {room.onlineUsers} online
+            {room.onlineUsers} {t("common.online")}
           </p>
 
           {showCancelRequest ? (
@@ -681,7 +695,7 @@ export function HomeChatRoomsPanel({
               className={cx(homeBtnSecondary, "px-2.5")}
               style={{ height: "var(--btn-h-sm)" }}
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           ) : null}
 
@@ -693,7 +707,7 @@ export function HomeChatRoomsPanel({
               className={cx(homeBtnSecondary, "px-2.5")}
               style={{ height: "var(--btn-h-sm)" }}
             >
-              Leave
+              {t("rooms.leave")}
             </button>
           ) : null}
 
@@ -741,7 +755,7 @@ export function HomeChatRoomsPanel({
               <path d="M10 12h.01M13 12h.01M16 12h.01" />
             </svg>
           </span>
-          <h2 className={panelTitle}>Suzi Chat Rooms</h2>
+          <h2 className={panelTitle}>{t("rooms.title")}</h2>
         </div>
 
         <div className="flex items-center gap-3">
@@ -751,7 +765,7 @@ export function HomeChatRoomsPanel({
             className={cx(homeBtnPrimary, "px-3")}
             style={{ height: "var(--btn-h-sm)" }}
           >
-            + Create Room
+            + {t("rooms.createRoom")}
           </button>
         </div>
       </div>
@@ -772,7 +786,7 @@ export function HomeChatRoomsPanel({
               homeSearchInput,
               "w-full rounded-[0.7rem] border py-1.5 pl-8 pr-3 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24",
             )}
-            placeholder="Search rooms..."
+            placeholder={t("rooms.searchPlaceholder")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             style={{ height: "var(--btn-h-sm)" }}
@@ -783,7 +797,7 @@ export function HomeChatRoomsPanel({
             type="button"
             aria-haspopup="menu"
             aria-expanded={showMobileFilter}
-            aria-label="Filter rooms by category"
+            aria-label={t("rooms.filterByCategory")}
             onClick={() => setShowMobileFilter((value) => !value)}
             className={cx(
               homeTabClasses(activeCategory !== "All" || showMobileFilter),
@@ -796,7 +810,7 @@ export function HomeChatRoomsPanel({
             </svg>
             {activeCategory !== "All" ? (
               <span className={cx(listL1, "max-w-[6rem] truncate font-medium")}>
-                {activeCategory}
+                {categoryLabel(activeCategory)}
               </span>
             ) : null}
           </button>
@@ -818,7 +832,7 @@ export function HomeChatRoomsPanel({
                     setShowMobileFilter(false);
                   }}
                 >
-                  {category}
+                  {categoryLabel(category)}
                 </button>
               ))}
             </div>
@@ -837,7 +851,7 @@ export function HomeChatRoomsPanel({
                 className={homeTabClasses(activeCategory === category)}
                 onClick={() => setActiveCategory(category)}
               >
-                {category}
+                {categoryLabel(category)}
               </button>
             ))}
           </div>
@@ -899,7 +913,7 @@ export function HomeChatRoomsPanel({
               homeSearchInput,
               "w-full rounded-[0.7rem] border py-1.5 pl-8 pr-3 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24",
             )}
-            placeholder="Search rooms..."
+            placeholder={t("rooms.searchPlaceholder")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             style={{ height: "var(--btn-h-sm)" }}
@@ -916,14 +930,14 @@ export function HomeChatRoomsPanel({
         )}
       >
         {roomsLoading ? (
-          <div className={cx(listEmpty, "flex h-full items-center justify-center px-4")}>Loading rooms…</div>
+          <div className={cx(listEmpty, "flex h-full items-center justify-center px-4")}>{t("rooms.loading")}</div>
         ) : roomsError ? (
           <div className={cx(listEmpty, "flex h-full items-center justify-center px-4 text-center text-pink-100")}>
             {roomsError}
           </div>
         ) : filteredRooms.length === 0 ? (
           <div className={cx(listEmpty, "flex h-full items-center justify-center px-4")}>
-            No rooms match this filter.
+            {t("rooms.noMatches")}
           </div>
         ) : (
           <div className="p-1">
@@ -955,21 +969,21 @@ export function HomeChatRoomsPanel({
                 >
                   <div className="suzi-create-room-modal__header flex shrink-0 items-center justify-between gap-3 border-b border-cyan-300/16 px-4 py-3 sm:px-5 sm:py-4">
                     <h3 id="create-room-title" className="text-base font-bold tracking-tight text-white">
-                      Create Room
+                      {t("rooms.createRoom")}
                     </h3>
                     <button
                       type="button"
                       onClick={() => setIsCreateOpen(false)}
                       className="suzi-secondary-btn shrink-0 px-3 py-1.5 text-sm"
-                      aria-label="Close create room dialog"
+                      aria-label={t("rooms.closeCreateDialog")}
                     >
-                      Close
+                      {t("common.close")}
                     </button>
                   </div>
                   <form onSubmit={handleCreateRoom} className="flex min-h-0 flex-col">
                     <div className="suzi-create-room-modal__body suzi-scrollbar space-y-4 px-4 py-4 sm:px-5">
               <div>
-                <label className="suzi-create-room-modal__label">Room name</label>
+                <label className="suzi-create-room-modal__label">{t("rooms.roomName")}</label>
                 <input
                   required
                   value={createName}
@@ -980,7 +994,7 @@ export function HomeChatRoomsPanel({
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="suzi-create-room-modal__label">Category</label>
+                  <label className="suzi-create-room-modal__label">{t("rooms.category")}</label>
                   <select
                     value={createCategory}
                     onChange={(event) => setCreateCategory(event.target.value)}
@@ -994,7 +1008,7 @@ export function HomeChatRoomsPanel({
                   </select>
                 </div>
                 <div>
-                  <label className="suzi-create-room-modal__label">Privacy</label>
+                  <label className="suzi-create-room-modal__label">{t("rooms.privacy")}</label>
                   <select
                     value={createPrivacy}
                     onChange={(event) =>
@@ -1004,14 +1018,14 @@ export function HomeChatRoomsPanel({
                   >
                     {PRIVACY_OPTIONS.map((option) => (
                       <option key={option} value={option}>
-                        {option}
+                        {privacyLabel(option)}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="suzi-create-room-modal__label">Room image / icon / logo</label>
+                <label className="suzi-create-room-modal__label">{t("rooms.roomImage")}</label>
                 <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                   <input
                     value={createImageUrl}
@@ -1020,22 +1034,22 @@ export function HomeChatRoomsPanel({
                     className="suzi-input"
                   />
                   <label className="suzi-secondary-btn inline-flex cursor-pointer items-center justify-center px-4 py-2.5 text-sm">
-                    Upload
+                    {t("rooms.upload")}
                     <input type="file" accept="image/*" onChange={handleChooseRoomImage} className="hidden" />
                   </label>
                 </div>
                 {createImageUrl ? (
                   <div className="mt-2 inline-flex h-14 w-14 overflow-hidden rounded-[0.65rem] border border-cyan-300/24">
-                    <img src={createImageUrl} alt="Room preview" className="h-full w-full object-cover" />
+                    <img src={createImageUrl} alt={t("rooms.roomPreview")} className="h-full w-full object-cover" />
                   </div>
                 ) : null}
               </div>
               <div>
-                <label className="suzi-create-room-modal__label">Description</label>
+                <label className="suzi-create-room-modal__label">{t("rooms.description")}</label>
                 <textarea
                   value={createDescription}
                   onChange={(event) => setCreateDescription(event.target.value)}
-                  placeholder="Describe room purpose and vibe"
+                  placeholder={t("rooms.descriptionPlaceholder")}
                   className="suzi-input min-h-24 resize-none"
                 />
               </div>
@@ -1047,14 +1061,14 @@ export function HomeChatRoomsPanel({
                         onClick={() => setIsCreateOpen(false)}
                         className="suzi-secondary-btn px-4 py-2.5 text-sm"
                       >
-                        Cancel
+                        {t("common.cancel")}
                       </button>
                       <button
                         type="submit"
                         disabled={creating}
                         className="suzi-primary-btn px-4 py-2.5 text-sm disabled:opacity-60"
                       >
-                        {creating ? "Creating..." : "Create room"}
+                        {creating ? t("rooms.creating") : t("rooms.createRoom")}
                       </button>
                     </div>
                   </form>
