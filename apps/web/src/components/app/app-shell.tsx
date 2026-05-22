@@ -105,6 +105,7 @@ export function AppShell({
     }>
   >([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isMobileCreateOpen, setIsMobileCreateOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isMobileNotificationsOpen, setIsMobileNotificationsOpen] = useState(false);
@@ -223,6 +224,7 @@ export function AppShell({
       }
 
       setIsCreateOpen(false);
+      setIsMobileCreateOpen(false);
       setIsMessagesOpen(false);
       setIsNotificationsOpen(false);
       setIsMobileNotificationsOpen(false);
@@ -402,6 +404,7 @@ export function AppShell({
                   setIsMobileNotificationsOpen((v) => !v);
                   setIsMobileLanguageOpen(false);
                   setIsCreateOpen(false);
+                  setIsMobileCreateOpen(false);
                   setIsMessagesOpen(false);
                   setIsNotificationsOpen(false);
                   setIsLanguageOpen(false);
@@ -487,6 +490,7 @@ export function AppShell({
                   setIsMobileLanguageOpen((v) => !v);
                   setIsMobileNotificationsOpen(false);
                   setIsCreateOpen(false);
+                  setIsMobileCreateOpen(false);
                   setIsMessagesOpen(false);
                   setIsNotificationsOpen(false);
                   setIsLanguageOpen(false);
@@ -676,6 +680,7 @@ export function AppShell({
               aria-label={t("shell.create")}
               onClick={() => {
                 setIsCreateOpen((v) => !v);
+                setIsMobileCreateOpen(false);
                 setIsMessagesOpen(false);
                 setIsNotificationsOpen(false);
                   setIsMobileNotificationsOpen(false);
@@ -719,6 +724,7 @@ export function AppShell({
               onClick={() => {
                 setIsMessagesOpen((v) => !v);
                 setIsCreateOpen(false);
+                setIsMobileCreateOpen(false);
                 setIsNotificationsOpen(false);
                 setIsLanguageOpen(false);
                 setIsAccountOpen(false);
@@ -804,6 +810,7 @@ export function AppShell({
               onClick={() => {
                 setIsLanguageOpen((v) => !v);
                 setIsCreateOpen(false);
+                setIsMobileCreateOpen(false);
                 setIsMessagesOpen(false);
                 setIsNotificationsOpen(false);
                 setIsAccountOpen(false);
@@ -861,6 +868,7 @@ export function AppShell({
               onClick={() => {
                 setIsNotificationsOpen((v) => !v);
                 setIsCreateOpen(false);
+                setIsMobileCreateOpen(false);
                 setIsMessagesOpen(false);
                 setIsLanguageOpen(false);
                 setIsAccountOpen(false);
@@ -947,6 +955,7 @@ export function AppShell({
               onClick={() => {
                 setIsAccountOpen((v) => !v);
                 setIsCreateOpen(false);
+                setIsMobileCreateOpen(false);
                 setIsMessagesOpen(false);
                 setIsNotificationsOpen(false);
                 setIsLanguageOpen(false);
@@ -1047,7 +1056,16 @@ export function AppShell({
           </div>
         ) : null}
 
-        <div className={cx("suzi-app-frame-fill", pathname === "/app" && "suzi-home-shell-frame")}>
+        <div
+          className={cx(
+            "suzi-app-frame-fill",
+            pathname === "/app" && "suzi-home-shell-frame",
+            pathname.startsWith("/app/messages") && "suzi-messages-shell-frame",
+            pathname.startsWith("/app/friends") && "suzi-friends-shell-frame",
+            (pathname.startsWith("/app/reels") || pathname.startsWith("/app/snaps")) &&
+              "suzi-feed-shell-frame",
+          )}
+        >
           {children}
         </div>
 
@@ -1096,9 +1114,10 @@ export function AppShell({
                   <button
                     type="button"
                     aria-label={t("shell.create")}
-                    aria-expanded={isCreateOpen}
+                    aria-expanded={isMobileCreateOpen}
                     onClick={() => {
-                      setIsCreateOpen((v) => !v);
+                      setIsMobileCreateOpen((v) => !v);
+                      setIsCreateOpen(false);
                       setIsMessagesOpen(false);
                       setIsNotificationsOpen(false);
                       setIsLanguageOpen(false);
@@ -1109,16 +1128,13 @@ export function AppShell({
                     <span className="suzi-m-create-btn__halo" aria-hidden="true" />
                     <Icon path="M12 5v14M5 12h14" className="relative h-6 w-6" />
                   </button>
-                  {isCreateOpen ? (
+                  {isMobileCreateOpen ? (
                     <div className="suzi-m-create-menu" data-open="true">
-                      <p className="px-1 text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-fuchsia-100/66">
-                        Create
-                      </p>
                       {createMenuItems.map((createItem) => (
                         <Link
                           key={createItem.href}
                           href={createItem.href}
-                          onClick={() => setIsCreateOpen(false)}
+                          onClick={() => setIsMobileCreateOpen(false)}
                           className="suzi-m-create-menu__item"
                         >
                           <span className="suzi-m-create-menu__icon">

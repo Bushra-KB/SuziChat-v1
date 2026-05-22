@@ -34,7 +34,7 @@ export function advanceCarouselIndex(current: number, step: number, total: numbe
   return (current + direction + total) % total;
 }
 
-export const FEED_CAROUSEL_SWIPE_THRESHOLD_PX = 56;
+export const FEED_CAROUSEL_SWIPE_THRESHOLD_PX = 40;
 export const FEED_CAROUSEL_WHEEL_COOLDOWN_MS = 420;
 export const FEED_CAROUSEL_WHEEL_DELTA_MIN = 10;
 export const FEED_CAROUSEL_NAV_LOCK_MS = 340;
@@ -48,15 +48,16 @@ export function resolveFeedWheelStep(deltaX: number, deltaY: number): -1 | 0 | 1
   return dominant > 0 ? 1 : -1;
 }
 
-/** Swipe left → next; swipe right → previous. Ignores mostly-vertical drags. */
+/** Swipe left/up → next; swipe right/down → previous. */
 export function resolveFeedSwipeStep(deltaX: number, deltaY: number): -1 | 0 | 1 {
-  if (Math.abs(deltaX) < FEED_CAROUSEL_SWIPE_THRESHOLD_PX) {
+  const dominant = Math.abs(deltaY) > Math.abs(deltaX) ? deltaY : deltaX;
+  if (Math.abs(dominant) < FEED_CAROUSEL_SWIPE_THRESHOLD_PX) {
     return 0;
   }
   if (Math.abs(deltaY) > Math.abs(deltaX)) {
-    return 0;
+    return dominant < 0 ? 1 : -1;
   }
-  return deltaX < 0 ? 1 : -1;
+  return dominant < 0 ? 1 : -1;
 }
 
 export type FeedCarouselDragState = {

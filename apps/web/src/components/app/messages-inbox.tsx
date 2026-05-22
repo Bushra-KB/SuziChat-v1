@@ -78,6 +78,7 @@ export function MessagesInbox() {
   const { isMobile } = useIsMobile();
 
   const [threads, setThreads] = useState<ConversationThread[]>([]);
+  const [threadQuery, setThreadQuery] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<DirectMessageRow[]>([]);
@@ -404,22 +405,32 @@ export function MessagesInbox() {
   }, [threads, selectedPeerId, draftPeer]);
 
   const visibleThreads = useMemo(() => {
-    if (!draftPeer || !selectedPeerId || threads.some((t) => t.peer.id === selectedPeerId)) {
-      return threads;
+    const rows =
+      !draftPeer || !selectedPeerId || threads.some((t) => t.peer.id === selectedPeerId)
+        ? threads
+        : [
+            ...threads,
+            {
+              peer: draftPeer,
+              lastMessage: {
+                id: "draft",
+                body: "New conversation",
+                createdAt: new Date().toISOString(),
+                senderId: draftPeer.id,
+              },
+            },
+          ];
+    const normalizedSearch = threadQuery.trim().toLowerCase();
+    if (!normalizedSearch) {
+      return rows;
     }
-    return [
-      ...threads,
-      {
-        peer: draftPeer,
-        lastMessage: {
-          id: "draft",
-          body: "New conversation",
-          createdAt: new Date().toISOString(),
-          senderId: draftPeer.id,
-        },
-      },
-    ];
-  }, [draftPeer, selectedPeerId, threads]);
+    return rows.filter((thread) => {
+      const peerName = thread.peer.displayName?.trim() || thread.peer.username;
+      return `${peerName} ${thread.peer.username} ${thread.lastMessage.body}`
+        .toLowerCase()
+        .includes(normalizedSearch);
+    });
+  }, [draftPeer, selectedPeerId, threads, threadQuery]);
 
   async function handleSend(text: string) {
     const s = getStoredAuthSession();
@@ -496,8 +507,8 @@ export function MessagesInbox() {
             <input
               className="suzi-input text-[var(--fs-sm)]"
               placeholder="Search conversations"
-              readOnly
-              disabled
+              value={threadQuery}
+              onChange={(event) => setThreadQuery(event.target.value)}
             />
           </div>
           <p className="mt-2 shrink-0 text-[var(--fs-2xs)] text-cyan-100/60">
@@ -511,7 +522,7 @@ export function MessagesInbox() {
               <p className="text-[var(--fs-sm)] text-[var(--text-muted)]">Loading conversations…</p>
             ) : visibleThreads.length === 0 ? (
               <p className="text-[var(--fs-sm)] text-[var(--text-muted)]">
-                No conversations yet — message someone from Friends.
+                {threadQuery.trim() ? "No conversations found." : "No conversations yet — message someone from Friends."}
               </p>
             ) : (
               visibleThreads.map((thread) => (
