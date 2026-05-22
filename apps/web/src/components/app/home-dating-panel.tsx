@@ -84,7 +84,7 @@ function DatingHeartsBackdrop() {
 }
 
 function previewSrc(person: DatingSummary["preview"][0]) {
-  return person.photoUrl?.trim() || resolveUserAvatarUrl(person.avatarUrl);
+  return person.photoUrls?.[0]?.trim() || person.photoUrl?.trim() || resolveUserAvatarUrl(person.avatarUrl);
 }
 
 export function HomeDatingPanel() {
@@ -105,7 +105,7 @@ export function HomeDatingPanel() {
     summary?.preview && summary.preview.length > 0
       ? summary.preview.slice(0, 3).map((p, i) => ({
           src: previewSrc(p) || FALLBACK_AVATARS[i]?.src || FALLBACK_AVATARS[0].src,
-          alt: p.displayName ?? p.username,
+          alt: p.datingName ?? p.displayName ?? p.username,
         }))
       : FALLBACK_AVATARS;
 
@@ -118,16 +118,9 @@ export function HomeDatingPanel() {
           : t("dating.findMatch")
       : t("dating.setupProfile");
 
-  const href =
-    summary && summary.likesReceivedCount > 0
-      ? "/app/dating?panel=likes"
-      : summary && summary.matchCount > 0
-        ? "/app/dating?panel=matches"
-        : "/app/dating";
-
   return (
     <Link
-      href={href}
+      href="/app/dating"
       aria-label={t("home.dating")}
       className="suzi-panel group relative flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad-tight)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/60"
     >

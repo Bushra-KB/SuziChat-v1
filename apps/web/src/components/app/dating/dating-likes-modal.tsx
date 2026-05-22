@@ -1,7 +1,7 @@
 "use client";
 
 import type { DatingDiscoverItem } from "@/lib/dating-client";
-import { cardImageUrl } from "@/components/app/dating/dating-utils";
+import { cardImageUrl, datingDisplayName } from "@/components/app/dating/dating-utils";
 
 export function DatingLikesModal({
   title = "Interested in you",
@@ -40,7 +40,7 @@ export function DatingLikesModal({
           ) : null}
           {items.map((item) => {
             const img = cardImageUrl(item);
-            const name = item.user.displayName ?? item.user.username;
+            const name = datingDisplayName(item);
             return (
               <div key={item.userId} className="flex items-center gap-3 rounded-[1rem] border border-fuchsia-300/20 bg-white/5 p-3">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-fuchsia-300/30 bg-slate-800">

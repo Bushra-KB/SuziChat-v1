@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { cx } from "@/components/ui/suzi-primitives";
 import type { DatingMatchRow, DatingMessageRow } from "@/lib/dating-client";
+import { peerDatingName } from "@/components/app/dating/dating-utils";
 
 export function DatingChatModal({
   matchId,
@@ -28,6 +29,7 @@ export function DatingChatModal({
   onSend: () => void;
 }) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const peerName = peerDatingName({ id: matchId, createdAt: "", peer, lastMessage: null });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -38,7 +40,7 @@ export function DatingChatModal({
       <div className="flex max-h-[88vh] w-full max-w-lg flex-col rounded-[1.2rem] border border-white/12 bg-[rgba(14,16,34,0.98)] shadow-2xl">
         <div className="flex items-center justify-between gap-3 border-b border-white/10 p-4">
           <div>
-            <p className="font-semibold text-white">{peer.user.displayName ?? peer.user.username}</p>
+            <p className="font-semibold text-white">{peerName}</p>
             <p className="text-[0.65rem] text-slate-400/88">Match chat · live</p>
           </div>
           <div className="flex gap-2">

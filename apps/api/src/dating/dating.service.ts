@@ -22,12 +22,14 @@ const userCardSelect = {
 const datingProfileSelect = {
   id: true,
   userId: true,
+  datingName: true,
   age: true,
   gender: true,
   headline: true,
   datingBio: true,
   interests: true,
   photoUrl: true,
+  photoUrls: true,
   minAgePref: true,
   maxAgePref: true,
   seekGender: true,
@@ -44,7 +46,31 @@ function interestsFromJson(value: Prisma.JsonValue | null): string[] {
   if (!value || !Array.isArray(value)) {
     return [];
   }
-  return value.filter((item): item is string => typeof item === 'string').slice(0, 24);
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .slice(0, 24);
+}
+
+function normalizePhotoUrls(value: string[] | undefined): string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  return value
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function profilePhotoUrls(profile: {
+  photoUrl: string | null;
+  photoUrls?: string[] | null;
+}): string[] {
+  const urls =
+    profile.photoUrls?.map((item) => item.trim()).filter(Boolean) ?? [];
+  if (urls.length > 0) {
+    return urls;
+  }
+  return profile.photoUrl?.trim() ? [profile.photoUrl.trim()] : [];
 }
 
 @Injectable()
@@ -73,10 +99,7 @@ export class DatingService {
 
   private async datingExclusionIds(viewerId: string) {
     const blocked = await this.blockedUserIds(viewerId);
-    return new Set<string>([
-      viewerId,
-      ...blocked,
-    ]);
+    return new Set<string>([viewerId, ...blocked]);
   }
 
   private async viewerDatingState(viewerId: string, targetUserIds: string[]) {
@@ -127,6 +150,7 @@ export class DatingService {
       profile: {
         ...row,
         interests: interestsFromJson(row.interests),
+        photoUrls: profilePhotoUrls(row),
       },
     };
   }
@@ -136,8 +160,12 @@ export class DatingService {
       dto.interests === undefined
         ? undefined
         : (dto.interests as unknown as Prisma.InputJsonValue);
+    const photoUrls = normalizePhotoUrls(dto.photoUrls);
 
     const data: Prisma.DatingProfileUncheckedUpdateInput = {};
+    if (dto.datingName !== undefined) {
+      data.datingName = dto.datingName.trim() || null;
+    }
     if (dto.age !== undefined) {
       data.age = dto.age;
     }
@@ -156,6 +184,10 @@ export class DatingService {
     if (dto.photoUrl !== undefined) {
       data.photoUrl = dto.photoUrl.trim() || null;
     }
+    if (photoUrls !== undefined) {
+      data.photoUrls = photoUrls;
+      data.photoUrl = photoUrls[0] ?? null;
+    }
     if (dto.minAgePref !== undefined) {
       data.minAgePref = dto.minAgePref;
     }
@@ -173,12 +205,15 @@ export class DatingService {
       where: { userId },
       create: {
         userId,
+        datingName: dto.datingName?.trim() || null,
         age: dto.age ?? null,
         gender: dto.gender?.trim() || null,
         headline: dto.headline?.trim() || null,
         datingBio: dto.datingBio?.trim() || null,
         interests: interests ?? Prisma.JsonNull,
-        photoUrl: dto.photoUrl?.trim() || null,
+        photoUrl: photoUrls?.[0] ?? (dto.photoUrl?.trim() || null),
+        photoUrls:
+          photoUrls ?? (dto.photoUrl?.trim() ? [dto.photoUrl.trim()] : []),
         minAgePref: dto.minAgePref ?? 18,
         maxAgePref: dto.maxAgePref ?? 99,
         seekGender: dto.seekGender?.trim() || 'any',
@@ -195,13 +230,15 @@ export class DatingService {
       profile: {
         ...row,
         interests: interestsFromJson(row.interests),
+        photoUrls: profilePhotoUrls(row),
       },
     };
   }
 
-  private reciprocalPrefFilter(
-    mine: { age: number | null; gender: string | null },
-  ): Prisma.DatingProfileWhereInput {
+  private reciprocalPrefFilter(mine: {
+    age: number | null;
+    gender: string | null;
+  }): Prisma.DatingProfileWhereInput {
     const parts: Prisma.DatingProfileWhereInput[] = [];
     if (mine.gender?.trim()) {
       const g = mine.gender.trim();
@@ -265,7 +302,9 @@ export class DatingService {
       where: { userId: viewerId },
     });
     if (!mine) {
-      throw new ForbiddenException('Create your dating profile before browsing discover.');
+      throw new ForbiddenException(
+        'Create your dating profile before browsing discover.',
+      );
     }
 
     const take = Math.min(50, Math.max(1, query.take ?? 24));
@@ -300,17 +339,24 @@ export class DatingService {
         isDiscoverable: true,
         age: ageFilter,
         ...(genderFilter ? { gender: genderFilter } : {}),
+        ...(search
+          ? {
+              OR: [
+                { datingName: { contains: search, mode: 'insensitive' } },
+                {
+                  user: { username: { contains: search, mode: 'insensitive' } },
+                },
+                {
+                  user: {
+                    displayName: { contains: search, mode: 'insensitive' },
+                  },
+                },
+              ],
+            }
+          : {}),
         ...this.reciprocalPrefFilter(mine),
         user: {
           ...(countryFilter ? { country: countryFilter } : {}),
-          ...(search
-            ? {
-                OR: [
-                  { username: { contains: search, mode: 'insensitive' } },
-                  { displayName: { contains: search, mode: 'insensitive' } },
-                ],
-              }
-            : {}),
         },
       },
       select: {
@@ -331,6 +377,7 @@ export class DatingService {
       items: rows.map((row) => ({
         ...row,
         interests: interestsFromJson(row.interests),
+        photoUrls: profilePhotoUrls(row),
         viewerSwipeAction: viewerState.swipes.get(row.userId) ?? null,
         isMatched: viewerState.matches.has(row.userId),
       })),
@@ -409,6 +456,7 @@ export class DatingService {
       .map((row) => ({
         ...row,
         interests: interestsFromJson(row.interests),
+        photoUrls: profilePhotoUrls(row),
       }));
 
     return { items };
@@ -451,15 +499,20 @@ export class DatingService {
       },
     });
     const viewerState = await this.viewerDatingState(userId, candidateIds);
-    const byUserId = new Map(profiles.map((profile) => [profile.userId, profile]));
+    const byUserId = new Map(
+      profiles.map((profile) => [profile.userId, profile]),
+    );
 
     return {
       items: candidateIds
         .map((id) => byUserId.get(id))
-        .filter((profile): profile is NonNullable<typeof profile> => Boolean(profile))
+        .filter((profile): profile is NonNullable<typeof profile> =>
+          Boolean(profile),
+        )
         .map((row) => ({
           ...row,
           interests: interestsFromJson(row.interests),
+          photoUrls: profilePhotoUrls(row),
           viewerSwipeAction: viewerState.swipes.get(row.userId) ?? null,
           isMatched: viewerState.matches.has(row.userId),
         })),
@@ -480,21 +533,27 @@ export class DatingService {
     let likesReceivedCount = 0;
     let preview: Array<{
       userId: string;
+      datingName: string | null;
       photoUrl: string | null;
+      photoUrls: string[];
       avatarUrl: string | null;
       displayName: string | null;
       username: string;
     }> = [];
 
     if (profile) {
-      const likes = await this.listLikesReceived(userId).catch(() => ({ items: [] }));
+      const likes = await this.listLikesReceived(userId).catch(() => ({
+        items: [],
+      }));
       likesReceivedCount = likes.items.length;
       if (profile.isDiscoverable) {
         try {
           const { items } = await this.discover(userId, { take: 4, skip: 0 });
           preview = items.map((item) => ({
             userId: item.userId,
+            datingName: item.datingName,
             photoUrl: item.photoUrl,
+            photoUrls: profilePhotoUrls(item),
             avatarUrl: item.user.avatarUrl,
             displayName: item.user.displayName,
             username: item.user.username,
@@ -615,7 +674,9 @@ export class DatingService {
 
   async deleteSwipe(viewerId: string, targetUserId: string) {
     if (viewerId === targetUserId) {
-      throw new ForbiddenException('You cannot update dating interest for yourself.');
+      throw new ForbiddenException(
+        'You cannot update dating interest for yourself.',
+      );
     }
 
     const [userAId, userBId] = orderedPair(viewerId, targetUserId);
@@ -642,24 +703,24 @@ export class DatingService {
     return { ok: true };
   }
 
-  private serializePeer(
-    user: {
-      id: string;
-      username: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-      country: string | null;
-      bio: string | null;
-      datingProfile: {
-        age: number | null;
-        gender: string | null;
-        headline: string | null;
-        datingBio: string | null;
-        interests: Prisma.JsonValue | null;
-        photoUrl: string | null;
-      } | null;
-    },
-  ) {
+  private serializePeer(user: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    country: string | null;
+    bio: string | null;
+    datingProfile: {
+      age: number | null;
+      datingName: string | null;
+      gender: string | null;
+      headline: string | null;
+      datingBio: string | null;
+      interests: Prisma.JsonValue | null;
+      photoUrl: string | null;
+      photoUrls: string[];
+    } | null;
+  }) {
     return {
       user: {
         id: user.id,
@@ -672,11 +733,13 @@ export class DatingService {
       dating: user.datingProfile
         ? {
             age: user.datingProfile.age,
+            datingName: user.datingProfile.datingName,
             gender: user.datingProfile.gender,
             headline: user.datingProfile.headline,
             datingBio: user.datingProfile.datingBio,
             interests: interestsFromJson(user.datingProfile.interests),
             photoUrl: user.datingProfile.photoUrl,
+            photoUrls: profilePhotoUrls(user.datingProfile),
           }
         : null,
     };
@@ -697,11 +760,13 @@ export class DatingService {
         bio: string | null;
         datingProfile: {
           age: number | null;
+          datingName: string | null;
           gender: string | null;
           headline: string | null;
           datingBio: string | null;
           interests: Prisma.JsonValue | null;
           photoUrl: string | null;
+          photoUrls: string[];
         } | null;
       };
       userB: {
@@ -713,11 +778,13 @@ export class DatingService {
         bio: string | null;
         datingProfile: {
           age: number | null;
+          datingName: string | null;
           gender: string | null;
           headline: string | null;
           datingBio: string | null;
           interests: Prisma.JsonValue | null;
           photoUrl: string | null;
+          photoUrls: string[];
         } | null;
       };
     },
@@ -841,7 +908,11 @@ export class DatingService {
     };
   }
 
-  async sendMessage(userId: string, matchId: string, dto: CreateDatingMessageDto) {
+  async sendMessage(
+    userId: string,
+    matchId: string,
+    dto: CreateDatingMessageDto,
+  ) {
     const { peerId } = await this.assertMatchParticipant(userId, matchId);
     const message = await this.prisma.datingMessage.create({
       data: {
@@ -911,11 +982,17 @@ export class DatingService {
       profile: {
         ...profile,
         interests: interestsFromJson(profile.interests),
+        photoUrls: profilePhotoUrls(profile),
       },
     };
   }
 
-  emitTyping(viewerId: string, matchId: string, peerId: string, typing: boolean) {
+  emitTyping(
+    viewerId: string,
+    matchId: string,
+    peerId: string,
+    typing: boolean,
+  ) {
     this.realtimeEvents.emitToUser(peerId, 'dating:typing', {
       matchId,
       userId: viewerId,

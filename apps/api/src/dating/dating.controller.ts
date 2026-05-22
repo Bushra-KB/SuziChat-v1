@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,11 +8,28 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Express } from 'express';
+import type { Request } from 'express';
+import { diskStorage } from 'multer';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
+import {
+  AVATAR_UPLOAD_FIELD,
+  AVATAR_UPLOAD_MAX_BYTES,
+} from '../users/avatar-upload.constants';
+import {
+  isAllowedAvatarImageFile,
+  pickStoredAvatarExtension,
+} from '../users/avatar-upload.util';
 import { CreateDatingMessageDto } from './dto/create-dating-message.dto';
 import { DatingSwipeDto } from './dto/dating-swipe.dto';
 import { UpsertDatingProfileDto } from './dto/upsert-dating-profile.dto';
@@ -34,6 +52,52 @@ export class DatingController {
     @Body() dto: UpsertDatingProfileDto,
   ) {
     return this.datingService.upsertMyProfile(user.id, dto);
+  }
+
+  @Post('me/profile/photos')
+  @UseGuards(AccessTokenGuard)
+  @UseInterceptors(
+    FileInterceptor(AVATAR_UPLOAD_FIELD, {
+      limits: { fileSize: AVATAR_UPLOAD_MAX_BYTES },
+      storage: diskStorage({
+        destination: (_req: Request, _file: Express.Multer.File, cb) => {
+          const dir = join(process.cwd(), 'uploads', 'dating');
+          if (!existsSync(dir)) {
+            mkdirSync(dir, { recursive: true });
+          }
+          cb(null, dir);
+        },
+        filename: (_req: Request, file: Express.Multer.File, cb) => {
+          const ext = pickStoredAvatarExtension(
+            file.mimetype,
+            file.originalname,
+          );
+          if (!ext) {
+            cb(new Error('Unsupported image type'), '');
+            return;
+          }
+          cb(null, `${randomUUID()}${ext}`);
+        },
+      }),
+      fileFilter: (_req, file, cb) => {
+        if (isAllowedAvatarImageFile(file.mimetype, file.originalname)) {
+          cb(null, true);
+          return;
+        }
+        cb(
+          new BadRequestException(
+            'Unsupported image. Use JPEG, PNG, WebP, or GIF.',
+          ),
+          false,
+        );
+      },
+    }),
+  )
+  uploadDatingPhoto(@UploadedFile() file: Express.Multer.File) {
+    if (!file?.filename) {
+      throw new BadRequestException('Image file is required.');
+    }
+    return { url: `/api/uploads/dating/${file.filename}` };
   }
 
   @Get('summary')

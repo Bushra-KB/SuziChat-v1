@@ -9,11 +9,27 @@ export type DeckLayer = {
 };
 
 export function cardImageUrl(item: DatingDiscoverItem) {
-  return item.photoUrl?.trim() || resolveUserAvatarUrl(item.user.avatarUrl);
+  return cardImageUrls(item)[0] ?? resolveUserAvatarUrl(item.user.avatarUrl);
+}
+
+export function cardImageUrls(item: DatingDiscoverItem) {
+  const urls = item.photoUrls?.map((url) => url.trim()).filter(Boolean) ?? [];
+  if (urls.length > 0) {
+    return urls;
+  }
+  return item.photoUrl?.trim() ? [item.photoUrl.trim()] : [];
+}
+
+export function datingDisplayName(item: Pick<DatingDiscoverItem, "datingName" | "user">) {
+  return item.datingName?.trim() || item.user.displayName?.trim() || item.user.username;
 }
 
 export function peerPhoto(m: DatingMatchRow) {
-  return m.peer.dating?.photoUrl?.trim() || resolveUserAvatarUrl(m.peer.user.avatarUrl);
+  return m.peer.dating?.photoUrls?.[0]?.trim() || m.peer.dating?.photoUrl?.trim() || resolveUserAvatarUrl(m.peer.user.avatarUrl);
+}
+
+export function peerDatingName(m: DatingMatchRow) {
+  return m.peer.dating?.datingName?.trim() || m.peer.user.displayName?.trim() || m.peer.user.username;
 }
 
 export function getCircularOffset(index: number, activeIndex: number, total: number) {
