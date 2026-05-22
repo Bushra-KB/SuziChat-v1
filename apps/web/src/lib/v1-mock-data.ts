@@ -139,11 +139,6 @@ export const mobileNavItems: NavItem[] = [
     exact: true,
   },
   {
-    href: "/app/messages",
-    label: "Chat",
-    icon: "M4 6h16v10H8l-4 4V6Z",
-  },
-  {
     href: "/app/reels",
     label: "Reels",
     icon: "M8 5h8l4 4v10a2 2 0 0 1-2 2H8a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4Z M11 11.5v4l3-2-3-2Z",

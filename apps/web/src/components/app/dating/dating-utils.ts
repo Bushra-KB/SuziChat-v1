@@ -1,4 +1,5 @@
 import type { DatingDiscoverItem, DatingMatchRow } from "@/lib/dating-client";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 
 export type DeckLayer = {
   transform: string;
@@ -8,11 +9,11 @@ export type DeckLayer = {
 };
 
 export function cardImageUrl(item: DatingDiscoverItem) {
-  return item.photoUrl?.trim() || item.user.avatarUrl || "";
+  return item.photoUrl?.trim() || resolveUserAvatarUrl(item.user.avatarUrl);
 }
 
 export function peerPhoto(m: DatingMatchRow) {
-  return m.peer.dating?.photoUrl?.trim() || m.peer.user.avatarUrl || "";
+  return m.peer.dating?.photoUrl?.trim() || resolveUserAvatarUrl(m.peer.user.avatarUrl);
 }
 
 export function getCircularOffset(index: number, activeIndex: number, total: number) {

@@ -8,6 +8,7 @@ import { listL2, listActionPrimary, panelTitle } from "@/components/app/home-typ
 import { cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { getDatingSummary, type DatingSummary } from "@/lib/dating-client";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { useI18n } from "@/lib/i18n";
 
 const HEART_PATH =
@@ -83,7 +84,7 @@ function DatingHeartsBackdrop() {
 }
 
 function previewSrc(person: DatingSummary["preview"][0]) {
-  return person.photoUrl?.trim() || person.avatarUrl || "";
+  return person.photoUrl?.trim() || resolveUserAvatarUrl(person.avatarUrl);
 }
 
 export function HomeDatingPanel() {

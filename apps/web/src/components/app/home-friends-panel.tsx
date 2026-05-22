@@ -41,15 +41,16 @@ import {
   modalTitle,
   panelTitle,
 } from "@/components/app/home-typography";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { useI18n } from "@/lib/i18n";
 
-const defaultAvatar = "/ppic/ppic1.jpeg";
 type Presence = "online" | "away" | "offline";
 type RelationshipState = "friend" | "incoming" | "outgoing" | "none";
 type PersonRow = {
   id: string;
   username: string;
   displayName: string | null;
+  avatarUrl?: string | null;
   country: string | null;
   relationship: RelationshipState;
   requestId?: string;
@@ -58,6 +59,7 @@ type ProfileUser = {
   id: string;
   username: string;
   displayName: string | null;
+  avatarUrl?: string | null;
   country: string | null;
 };
 
@@ -541,10 +543,11 @@ export function HomeFriendsPanel() {
               >
                 <div className="relative shrink-0" style={{ width: "var(--avatar-md)", height: "var(--avatar-md)" }}>
                   <Image
-                    src={defaultAvatar}
+                    src={resolveUserAvatarUrl(friend.avatarUrl)}
                     alt={displayName(friend)}
                     width={44}
                     height={44}
+                    unoptimized={Boolean(friend.avatarUrl?.startsWith("http"))}
                     className="h-full w-full rounded-full border border-white/14 object-cover"
                   />
                   <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[rgba(24,16,82,0.95)] bg-[rgba(24,16,82,0.95)]">
@@ -631,10 +634,11 @@ export function HomeFriendsPanel() {
                 >
                   <div className="relative shrink-0" style={{ width: "var(--avatar-md)", height: "var(--avatar-md)" }}>
                     <Image
-                      src={defaultAvatar}
+                      src={resolveUserAvatarUrl(person.avatarUrl)}
                       alt={displayName(person)}
                       width={44}
                       height={44}
+                      unoptimized={Boolean(person.avatarUrl?.startsWith("http"))}
                       className="h-full w-full rounded-full border border-white/14 object-cover"
                     />
                     <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[rgba(24,16,82,0.95)] bg-[rgba(24,16,82,0.95)]">
@@ -783,10 +787,11 @@ export function HomeFriendsPanel() {
             </div>
             <div className="mt-3 flex items-center gap-3 rounded-[0.9rem] border border-cyan-300/16 bg-[rgba(20,13,62,0.55)] p-3">
               <Image
-                src={defaultAvatar}
+                src={resolveUserAvatarUrl(profileUser.avatarUrl)}
                 alt={displayName(profileUser)}
                 width={56}
                 height={56}
+                unoptimized={Boolean(profileUser.avatarUrl?.startsWith("http"))}
                 className="h-14 w-14 rounded-full border border-white/14 object-cover"
               />
               <div className="min-w-0 flex-1">
