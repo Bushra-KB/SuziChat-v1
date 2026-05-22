@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { gameMeta } from "@/components/app/games/game-meta";
 import { HomeChatRoomsPanel } from "@/components/app/home-chat-rooms-panel";
 import { HomeDatingPanel } from "@/components/app/home-dating-panel";
@@ -33,6 +33,33 @@ import { useIsMobile } from "@/lib/use-is-mobile";
 import { useI18n } from "@/lib/i18n";
 import { games } from "@/lib/v1-mock-data";
 
+type MobileHomeFocus = "chatrooms" | "games" | null;
+
+function getMobileHomeFocusFromHash(): MobileHomeFocus {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  if (window.location.hash === "#chatrooms") {
+    return "chatrooms";
+  }
+
+  if (window.location.hash === "#games") {
+    return "games";
+  }
+
+  return null;
+}
+
+function subscribeMobileHomeHash(callback: () => void) {
+  window.addEventListener("hashchange", callback);
+  window.addEventListener("popstate", callback);
+  return () => {
+    window.removeEventListener("hashchange", callback);
+    window.removeEventListener("popstate", callback);
+  };
+}
+
 /*
  * Home dashboard — at >=1280px (xl): 6-panel SPA grid in 100dvh, no page scroll.
  * Below 1280px: stacked sections in `.suzi-home-mobile-stack` (see MQ_HOME_COMPACT).
@@ -48,6 +75,11 @@ export default function AppHomePage() {
   const [lobbies, setLobbies] = useState<ApiGameLobby[]>([]);
   const [mobileGamesOpen, setMobileGamesOpen] = useState(false);
   const { isMobile: isCompactHome } = useIsMobile(MQ_HOME_COMPACT);
+  const mobileHomeFocus = useSyncExternalStore(
+    subscribeMobileHomeHash,
+    getMobileHomeFocusFromHash,
+    () => null,
+  );
 
   // Lock body scroll while the games bottom-sheet is open on mobile.
   useEffect(() => {
@@ -174,8 +206,24 @@ export default function AppHomePage() {
       </button>
     );
 
-    return (
-      <>
+    const mobileHomeContent =
+      mobileHomeFocus === "chatrooms" ? (
+        <section className="suzi-home-mobile-page suzi-home-mobile-page--focused">
+          <div className="suzi-home-mobile-stack suzi-home-mobile-stack--focused flex flex-col">
+            <div id="chatrooms" className="suzi-home-mobile-section suzi-home-mobile-section--full suzi-home-mobile-section--focused">
+              <HomeChatRoomsPanel variant="dashboard" />
+            </div>
+          </div>
+        </section>
+      ) : mobileHomeFocus === "games" ? (
+        <section className="suzi-home-mobile-page suzi-home-mobile-page--focused">
+          <div className="suzi-home-mobile-stack suzi-home-mobile-stack--focused flex flex-col">
+            <div id="games" className="suzi-home-mobile-section suzi-home-mobile-section--full suzi-home-mobile-section--focused">
+              {mobileGamesCard}
+            </div>
+          </div>
+        </section>
+      ) : (
         <section className="suzi-home-mobile-page">
           <div className="suzi-home-mobile-stack flex flex-col">
             <div id="chatrooms" className="suzi-home-mobile-section suzi-home-mobile-section--full">
@@ -203,6 +251,11 @@ export default function AppHomePage() {
             </footer>
           </div>
         </section>
+      );
+
+    return (
+      <>
+        {mobileHomeContent}
 
         {/* Bottom sheet — full game list on mobile only. */}
         {mobileGamesOpen ? (

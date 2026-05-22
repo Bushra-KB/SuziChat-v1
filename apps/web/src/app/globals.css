@@ -3052,6 +3052,26 @@ h5 {
     --home-panel-pad: 0.36rem;
   }
 
+  .suzi-home-shell-frame .suzi-home-mobile-page--focused {
+    height: calc(
+      100dvh - var(--m-top-h, 3.5rem) - var(--m-bottom-h, 4rem) -
+        env(safe-area-inset-bottom, 0px) - var(--m-content-pad-y, 0.56rem) - 0.35rem
+    );
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .suzi-home-shell-frame .suzi-home-mobile-stack--focused {
+    height: 100%;
+    min-height: 0;
+    gap: 0;
+  }
+
+  .suzi-home-shell-frame .suzi-home-mobile-section--focused {
+    height: 100% !important;
+    min-height: 0;
+  }
+
   .suzi-home-shell-frame .suzi-home-mobile-section--full {
     height: calc(
       100dvh - var(--m-top-h, 3.5rem) - var(--m-bottom-h, 4rem) -
@@ -3074,6 +3094,48 @@ h5 {
 
   .suzi-home-shell-frame .suzi-home-mobile-section--dating {
     height: 7rem;
+  }
+
+  .suzi-messages-shell-frame {
+    --m-message-pad-x: 0.42rem;
+    --m-message-pad-y: 0.48rem;
+    overflow: hidden !important;
+    padding: var(--m-message-pad-y) var(--m-message-pad-x) 0 !important;
+  }
+
+  .suzi-messages-shell-frame > .suzi-app-frame-fill.suzi-msg-with-active,
+  .suzi-messages-shell-frame > .suzi-app-frame-fill.suzi-msg-without-active {
+    flex: none !important;
+    height: calc(
+      100dvh - var(--m-top-h, 3.5rem) - var(--m-bottom-h, 4rem) -
+        env(safe-area-inset-bottom, 0px) - var(--m-message-pad-y, 0.48rem)
+    ) !important;
+    min-height: 0 !important;
+    width: 100%;
+  }
+
+  .suzi-friends-shell-frame {
+    --m-friends-pad-x: 0.42rem;
+    --m-friends-pad-y: 0.48rem;
+    overflow: hidden !important;
+    padding: var(--m-friends-pad-y) var(--m-friends-pad-x) 0 !important;
+  }
+
+  .suzi-friends-shell-frame > .suzi-app-frame-fill {
+    flex: none !important;
+    height: calc(
+      100dvh - var(--m-top-h, 3.5rem) - var(--m-bottom-h, 4rem) -
+        env(safe-area-inset-bottom, 0px) - var(--m-friends-pad-y, 0.48rem)
+    ) !important;
+    min-height: 0 !important;
+    width: 100%;
+    overflow: hidden !important;
+    padding: 0 !important;
+  }
+
+  .suzi-friends-shell-frame > .suzi-app-frame-fill > div {
+    height: 100% !important;
+    min-height: 0 !important;
   }
 
   .suzi-app-frame-fill::-webkit-scrollbar {
@@ -3703,7 +3765,14 @@ h5 {
    * just above the bottom nav. Body scroll is disabled — only the message
    * list scrolls inside. */
   .suzi-app-frame-fill.suzi-msg-with-active,
-  .suzi-app-frame-fill.suzi-msg-without-active,
+  .suzi-app-frame-fill.suzi-msg-without-active {
+    overflow: hidden !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
   .suzi-app-frame-fill.suzi-room-active {
     overflow: hidden !important;
     padding-left: 0 !important;
@@ -3711,12 +3780,273 @@ h5 {
     padding-top: 0 !important;
     padding-bottom: calc(var(--m-bottom-h) + env(safe-area-inset-bottom, 0px)) !important;
   }
+
   .suzi-app-frame-fill.suzi-msg-with-active .suzi-messages-grid,
   .suzi-app-frame-fill.suzi-msg-without-active .suzi-messages-grid,
   .suzi-app-frame-fill.suzi-room-active .suzi-room-grid {
     height: 100% !important;
     min-height: 0 !important;
     grid-template-rows: minmax(0, 1fr) !important;
+  }
+
+  .suzi-app-frame-fill.suzi-msg-with-active .suzi-messages-grid,
+  .suzi-app-frame-fill.suzi-msg-without-active .suzi-messages-grid {
+    gap: 0 !important;
+  }
+
+  .suzi-msg-inbox,
+  .suzi-msg-thread {
+    height: 100% !important;
+    min-height: 0 !important;
+    border-radius: 1rem !important;
+  }
+
+  .suzi-msg-inbox {
+    padding: var(--panel-pad) !important;
+  }
+
+  .suzi-msg-inbox > .shrink-0:first-child {
+    padding-top: 0.05rem;
+  }
+
+  .suzi-msg-inbox > .shrink-0:first-child p {
+    font-size: 0.72rem !important;
+    line-height: 1 !important;
+    letter-spacing: 0.28em !important;
+  }
+
+  .suzi-msg-inbox > .shrink-0:first-child h2 {
+    margin-top: 0.35rem !important;
+    font-size: 0.88rem !important;
+    line-height: 1.12 !important;
+  }
+
+  .suzi-msg-inbox > .mt-3 {
+    margin-top: 0.5rem !important;
+  }
+
+  .suzi-msg-inbox .suzi-input {
+    height: 2.05rem !important;
+    border-radius: 0.82rem !important;
+    padding: 0.45rem 0.72rem !important;
+    font-size: 0.72rem !important;
+  }
+
+  .suzi-msg-inbox > .mt-2 {
+    margin-top: 0.38rem !important;
+    font-size: 0.76rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .suzi-msg-inbox .suzi-thin-scroll {
+    margin-top: 0.55rem !important;
+    padding-right: 0 !important;
+  }
+
+  .suzi-msg-inbox .suzi-thin-scroll > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.55rem !important;
+  }
+
+  .suzi-msg-inbox .suzi-thin-scroll a {
+    border-radius: 0.95rem !important;
+    padding: 0.68rem 0.72rem !important;
+  }
+
+  .suzi-msg-inbox .suzi-thin-scroll a img {
+    height: 2.55rem !important;
+    width: 2.55rem !important;
+  }
+
+  .suzi-msg-inbox .suzi-thin-scroll a p {
+    font-size: 0.72rem !important;
+    line-height: 1.12 !important;
+  }
+
+  .suzi-msg-inbox .suzi-thin-scroll a .flex p {
+    font-size: 0.88rem !important;
+    line-height: 1.1 !important;
+    font-weight: 700 !important;
+  }
+
+  .suzi-msg-inbox .suzi-thin-scroll a span {
+    font-size: 0.58rem !important;
+    line-height: 1 !important;
+  }
+
+  .suzi-msg-thread > div:first-child {
+    padding: 0.46rem var(--panel-pad) !important;
+    gap: 0.5rem !important;
+  }
+
+  .suzi-msg-thread > div:first-child .suzi-m-icon-btn,
+  .suzi-msg-thread > div:first-child .suzi-icon-btn {
+    height: 2.15rem !important;
+    width: 2.15rem !important;
+    border-radius: 0.78rem !important;
+  }
+
+  .suzi-msg-thread > div:first-child img {
+    height: 2.35rem !important;
+    width: 2.35rem !important;
+  }
+
+  .suzi-msg-thread > div:first-child p:first-child {
+    font-size: 0.92rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .suzi-msg-thread > div:first-child p:last-child {
+    font-size: 0.72rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .suzi-msg-thread .suzi-chat-log {
+    margin: 0.38rem !important;
+    border-radius: 1rem !important;
+    padding: 0.5rem !important;
+  }
+
+  .suzi-msg-thread .suzi-chat-bubble {
+    max-width: min(18rem, 88%) !important;
+    border-radius: 0.72rem !important;
+    padding: 0.42rem 0.56rem 0.48rem !important;
+  }
+
+  .suzi-msg-thread .suzi-chat-bubble__name {
+    font-size: 0.68rem !important;
+    line-height: 1 !important;
+  }
+
+  .suzi-msg-thread .suzi-chat-bubble__time {
+    font-size: 0.58rem !important;
+    line-height: 1 !important;
+  }
+
+  .suzi-msg-thread .suzi-chat-bubble__body {
+    margin-top: 0.34rem !important;
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+  }
+
+  .suzi-msg-thread > div:last-child {
+    padding: 0.38rem !important;
+  }
+
+  .suzi-msg-thread form {
+    border-radius: 0.95rem !important;
+    padding: 0.45rem !important;
+  }
+
+  .suzi-msg-thread form > div {
+    gap: 0.45rem !important;
+  }
+
+  .suzi-msg-thread form label,
+  .suzi-msg-thread form button[type="submit"] {
+    height: 2.65rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  .suzi-msg-thread form label {
+    width: 2.65rem !important;
+  }
+
+  .suzi-msg-thread form button[type="submit"] {
+    min-width: 4.6rem !important;
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+    font-size: 0.72rem !important;
+  }
+
+  .suzi-msg-thread .suzi-composer-textarea {
+    min-height: 2.65rem !important;
+    padding-top: 0.72rem !important;
+    padding-bottom: 0.62rem !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-row1-panel {
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    border-radius: 1rem !important;
+    padding: var(--panel-pad) !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-panel-header {
+    margin-bottom: 0 !important;
+    padding-bottom: 0.32rem !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-panel-icon {
+    height: 1.7rem !important;
+    width: 1.7rem !important;
+    border-radius: 0.68rem !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-panel-title {
+    font-size: 0.88rem !important;
+    line-height: 1.12 !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-panel-header .mt-3 {
+    margin-top: 0.55rem !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-panel-header .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.46rem !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-search-field {
+    height: 2.15rem !important;
+    border-radius: 0.82rem !important;
+    padding-top: 0.45rem !important;
+    padding-bottom: 0.45rem !important;
+    font-size: 0.72rem !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-tab-active,
+  .suzi-friends-shell-frame .suzi-home-tab-inactive {
+    min-height: 1.45rem !important;
+    border-radius: 0.58rem !important;
+    padding: 0.24rem 0.44rem !important;
+    font-size: 0.62rem !important;
+    line-height: 1 !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-row1-scroll {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    margin-top: 0.52rem !important;
+    padding: 0.32rem !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-row1-scroll .suzi-home-row {
+    gap: 0.55rem !important;
+    border-radius: 0.92rem !important;
+    padding: 0.58rem 0.62rem !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-row1-scroll .suzi-home-row > .relative {
+    height: 2.55rem !important;
+    width: 2.55rem !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-list-l1 {
+    font-size: 0.78rem !important;
+    line-height: 1.12 !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-list-subtitle {
+    font-size: 0.66rem !important;
+    line-height: 1.08 !important;
+  }
+
+  .suzi-friends-shell-frame .suzi-home-row1-scroll a[aria-label],
+  .suzi-friends-shell-frame .suzi-home-row1-scroll button[aria-label] {
+    height: 2.15rem !important;
+    width: 2.15rem !important;
   }
 
   /* Game lobby on mobile: lock to viewport, full-height panel with the
@@ -3859,9 +4189,30 @@ h5 {
     max-height: 24rem;
   }
 
-  /* Reels & Snaps: full-bleed mobile experience (no header, no padding). */
+  /* Reels & Snaps: full-height mobile feed with tighter native-app gutters. */
+  .suzi-feed-shell-frame {
+    --m-feed-page-pad-x: 0.35rem;
+    --m-feed-page-pad-y: 0.4rem;
+    overflow: hidden !important;
+    padding: var(--m-feed-page-pad-y) var(--m-feed-page-pad-x) !important;
+  }
+
+  .suzi-feed-shell-frame > .suzi-app-frame-fill {
+    flex: 0 0 auto;
+    width: 100%;
+    height: calc(
+      100dvh - var(--m-top-h, 3.5rem) - var(--m-bottom-h, 4rem) -
+        env(safe-area-inset-bottom, 0px) - (var(--m-feed-page-pad-y) * 2)
+    );
+    min-height: 0;
+  }
+
   .suzi-app-frame-fill.suzi-reels-page,
   .suzi-app-frame-fill.suzi-snaps-page {
+    --feed-rail-bottom: 0.35rem;
+    --feed-stage-inset-top: 0.55rem;
+    --feed-stage-inset-x: 0.25rem;
+    --feed-stage-inset-bottom: 0.45rem;
     overflow: hidden !important;
     padding: 0 !important;
   }
@@ -3873,8 +4224,8 @@ h5 {
   .suzi-feed-discovery-rail {
     display: none !important;
   }
-  .suzi-reels-page > .suzi-panel,
-  .suzi-snaps-page > .suzi-panel {
+  .suzi-reels-page .suzi-feed-with-rail > .suzi-panel,
+  .suzi-snaps-page .suzi-feed-with-rail > .suzi-panel {
     border: 0 !important;
     box-shadow: none !important;
     background: transparent !important;
@@ -3882,6 +4233,27 @@ h5 {
     padding: 0 !important;
     height: 100% !important;
   }
+
+  .suzi-reels-page .suzi-feed-stage,
+  .suzi-snaps-page .suzi-feed-stage {
+    margin-top: 0 !important;
+    border-radius: 1.05rem !important;
+    touch-action: none;
+  }
+
+  .suzi-reels-page [data-reel-card][data-active="true"],
+  .suzi-snaps-page [data-snap-card][data-active="true"] {
+    height: 96% !important;
+    max-height: none !important;
+    max-width: calc(100vw - 1.2rem) !important;
+  }
+
+  .suzi-reels-page [data-reel-card][data-active="false"],
+  .suzi-snaps-page [data-snap-card][data-active="false"] {
+    height: 88% !important;
+    max-height: none !important;
+  }
+
   .suzi-reels-page .suzi-reels-header,
   .suzi-snaps-page .suzi-snaps-header {
     display: none !important;
