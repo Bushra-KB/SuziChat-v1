@@ -21,8 +21,14 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { AVATAR_UPLOAD_FIELD, AVATAR_UPLOAD_MAX_BYTES } from './avatar-upload.constants';
-import { isAllowedAvatarImageFile, pickStoredAvatarExtension } from './avatar-upload.util';
+import {
+  AVATAR_UPLOAD_FIELD,
+  AVATAR_UPLOAD_MAX_BYTES,
+} from './avatar-upload.constants';
+import {
+  isAllowedAvatarImageFile,
+  pickStoredAvatarExtension,
+} from './avatar-upload.util';
 import { UsersService } from './users.service';
 
 @Controller('v1/users')
@@ -73,7 +79,10 @@ export class UsersController {
           cb(null, dir);
         },
         filename: (_req: Request, file: Express.Multer.File, cb) => {
-          const ext = pickStoredAvatarExtension(file.mimetype, file.originalname);
+          const ext = pickStoredAvatarExtension(
+            file.mimetype,
+            file.originalname,
+          );
           if (!ext) {
             cb(new Error('Unsupported image type'), '');
             return;

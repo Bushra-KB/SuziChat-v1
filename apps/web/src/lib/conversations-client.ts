@@ -21,6 +21,11 @@ export type DirectMessageRow = {
   recipient: { id: string };
 };
 
+export type RemovedConversation = {
+  peerId: string;
+  clearedAt: string;
+};
+
 export async function listConversationThreads(accessToken: string) {
   return apiJson<ConversationThread[]>("/v1/conversations", {
     method: "GET",
@@ -44,6 +49,13 @@ export async function sendDirectMessage(accessToken: string, peerId: string, bod
       body: JSON.stringify({ body }),
     },
   );
+}
+
+export async function removeConversation(accessToken: string, peerId: string) {
+  return apiJson<RemovedConversation>(`/v1/conversations/${encodeURIComponent(peerId)}`, {
+    method: "DELETE",
+    accessToken,
+  });
 }
 
 export async function getConversationPeer(accessToken: string, peerId: string) {

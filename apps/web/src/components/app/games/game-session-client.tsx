@@ -333,7 +333,7 @@ export function GameSessionClient({
   useEffect(() => {
     if (!session?.lobby) return;
     setAllowSpectatorChat(parseGameLobbySettings(session.lobby.settings).allowSpectatorChat);
-  }, [session?.lobby?.id, session?.lobby?.settings]);
+  }, [session?.lobby]);
 
   async function toggleSpectatorChat(next: boolean) {
     if (!auth?.accessToken || !session?.lobbyId || !isLobbyOwner) return;
@@ -464,15 +464,15 @@ export function GameSessionClient({
 
   return (
     <section className="suzi-app-frame-fill suzi-game-session-page">
-      <div className="h-full min-h-0">
+      <div className="suzi-game-session-shell h-full min-h-0">
         {!session ? (
           <Panel className="p-6">
             <p className="text-sm text-cyan-100/75">Loading session...</p>
             {error ? <p className="mt-2 text-sm text-pink-100">{error}</p> : null}
           </Panel>
         ) : (
-          <div className="grid h-full min-h-0 gap-[var(--col-gap)] xl:grid-cols-[clamp(14rem,17vw,18rem)_minmax(0,1fr)_clamp(15rem,19vw,20rem)]">
-            <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-4">
+          <div className="suzi-game-session-layout grid h-full min-h-0 gap-[var(--col-gap)] xl:grid-cols-[clamp(14rem,17vw,18rem)_minmax(0,1fr)_clamp(15rem,19vw,20rem)]">
+            <Panel className="suzi-game-info-panel flex h-full min-h-0 flex-col overflow-hidden p-4">
               <h3 className="text-[var(--fs-lg)] font-semibold text-white">Session Info</h3>
               <div className="mt-3 grid gap-2 text-[var(--fs-xs)] text-cyan-100/72">
                 <p>Status: <span className="font-semibold text-white/90">{session.status}</span></p>
@@ -592,6 +592,7 @@ export function GameSessionClient({
             </Panel>
 
             <GameFrame
+              className="suzi-game-board-panel"
               title={
                 currentGameName
               }
@@ -605,6 +606,7 @@ export function GameSessionClient({
               <div
                 key={shakeKey}
                 className={cx(
+                  "suzi-game-board-stage",
                   session.gameType === "CHESS" ? "suzi-chess-session-wrap" : "h-full min-h-0",
                   shakeKey > 0 ? "suzi-game-shake" : undefined,
                 )}
@@ -677,7 +679,7 @@ export function GameSessionClient({
               </div>
             </GameFrame>
 
-            <Panel className="flex h-full min-h-0 flex-col overflow-hidden p-4">
+            <Panel className="suzi-game-chat-panel flex h-full min-h-0 flex-col overflow-hidden p-4">
               <div className="flex shrink-0 items-center justify-between gap-2">
                 <h3 className="text-[var(--fs-lg)] font-semibold text-white">Game Chat</h3>
                 <span className={socketReady ? "text-[var(--fs-2xs)] text-emerald-100/80" : "text-[var(--fs-2xs)] text-amber-100/80"}>

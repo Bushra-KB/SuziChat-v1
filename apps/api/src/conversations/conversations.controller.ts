@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -44,24 +45,64 @@ export class ConversationsController {
     return this.conversationsService.getPeer(user.id, peerId);
   }
 
+  @Delete(':peerId')
+  removeConversation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('peerId') peerId: string,
+  ) {
+    return this.conversationsService
+      .removeConversation(user.id, peerId)
+      .then((state) => {
+        this.realtimeEvents.emitToUser(
+          user.id,
+          'dm:conversation:removed',
+          state,
+        );
+        void this.realtimeState.buildUserState(user.id).then((nextState) => {
+          this.realtimeEvents.emitToUser(user.id, 'realtime:state', nextState);
+        });
+        return state;
+      });
+  }
+
   @Post(':peerId/messages')
   sendMessage(
     @CurrentUser() user: AuthenticatedUser,
     @Param('peerId') peerId: string,
     @Body() dto: SendDirectMessageDto,
   ) {
-    return this.conversationsService.sendMessage(user.id, peerId, dto.body).then((message) => {
-      this.realtimeEvents.emitToUser(message.sender.id, 'dm:message', message);
-      this.realtimeEvents.emitToUser(message.recipient.id, 'dm:message', message);
-      void Promise.all([
-        this.realtimeState.buildUserState(message.sender.id).then((state) => {
-          this.realtimeEvents.emitToUser(message.sender.id, 'realtime:state', state);
-        }),
-        this.realtimeState.buildUserState(message.recipient.id).then((state) => {
-          this.realtimeEvents.emitToUser(message.recipient.id, 'realtime:state', state);
-        }),
-      ]);
-      return message;
-    });
+    return this.conversationsService
+      .sendMessage(user.id, peerId, dto.body)
+      .then((message) => {
+        this.realtimeEvents.emitToUser(
+          message.sender.id,
+          'dm:message',
+          message,
+        );
+        this.realtimeEvents.emitToUser(
+          message.recipient.id,
+          'dm:message',
+          message,
+        );
+        void Promise.all([
+          this.realtimeState.buildUserState(message.sender.id).then((state) => {
+            this.realtimeEvents.emitToUser(
+              message.sender.id,
+              'realtime:state',
+              state,
+            );
+          }),
+          this.realtimeState
+            .buildUserState(message.recipient.id)
+            .then((state) => {
+              this.realtimeEvents.emitToUser(
+                message.recipient.id,
+                'realtime:state',
+                state,
+              );
+            }),
+        ]);
+        return message;
+      });
   }
 }

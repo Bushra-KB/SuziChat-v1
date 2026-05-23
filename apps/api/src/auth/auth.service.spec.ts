@@ -264,4 +264,46 @@ describe('AuthService', () => {
     expect(resetPasswordUpdateArgs.data.passwordResetTokenHash).toBeNull();
     expect(resetPasswordUpdateArgs.data.passwordResetTokenExpiresAt).toBeNull();
   });
+
+  it('changes the password when the current password is valid', async () => {
+    const passwordHash = await authService.hashPassword('current-password-123');
+
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: 'user_1',
+      passwordHash,
+    });
+    prismaMock.user.update.mockResolvedValueOnce({});
+
+    await expect(
+      authService.changePassword(
+        'user_1',
+        'current-password-123',
+        'new-password-123',
+      ),
+    ).resolves.toEqual({ message: 'Password changed successfully.' });
+
+    const changePasswordUpdateCalls = prismaMock.user.update.mock
+      .calls as Array<
+      [
+        {
+          where: { id: string };
+          data: {
+            passwordHash: string;
+            passwordResetTokenHash: null;
+            passwordResetTokenExpiresAt: null;
+          };
+        },
+      ]
+    >;
+    const changePasswordUpdateArgs = changePasswordUpdateCalls[0][0];
+
+    expect(changePasswordUpdateArgs.where.id).toBe('user_1');
+    expect(changePasswordUpdateArgs.data.passwordHash).toEqual(
+      expect.any(String),
+    );
+    expect(changePasswordUpdateArgs.data.passwordResetTokenHash).toBeNull();
+    expect(
+      changePasswordUpdateArgs.data.passwordResetTokenExpiresAt,
+    ).toBeNull();
+  });
 });

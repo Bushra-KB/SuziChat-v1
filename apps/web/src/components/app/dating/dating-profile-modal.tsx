@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { uploadDatingPhoto } from "@/lib/dating-client";
 
 export type DatingProfileDraft = {
@@ -36,35 +36,43 @@ export function DatingProfileModal({
   onClose: () => void;
   onSave: () => void;
 }) {
-  const fileRef = useRef<HTMLInputElement | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState("");
+  const [uploadStatus, setUploadStatus] = useState("");
 
-  async function onPhotoFiles(files: FileList | null) {
-    const selected = Array.from(files ?? []).slice(0, Math.max(0, 8 - draft.photoUrls.length));
+  async function onPhotoFiles(files: File[]) {
+    const selected = files.slice(0, Math.max(0, 8 - draft.photoUrls.length));
     if (selected.length === 0) {
+      setUploadError("No image was selected.");
       return;
     }
     setUploadBusy(true);
     setUploadError("");
+    setUploadStatus(`Preparing ${selected.length} photo${selected.length === 1 ? "" : "s"}...`);
+    setUploadProgress(1);
     try {
       const uploaded: string[] = [];
       for (let i = 0; i < selected.length; i += 1) {
         const file = selected[i];
-        setUploadProgress(Math.round((i / selected.length) * 100));
+        setUploadStatus(`Uploading ${file.name || `photo ${i + 1}`} (${i + 1}/${selected.length})`);
+        setUploadProgress(Math.max(1, Math.round((i / selected.length) * 100)));
         const { url } = await uploadDatingPhoto(accessToken, file, (percent) => {
-          setUploadProgress(Math.round(((i + percent / 100) / selected.length) * 100));
+          const next = Math.round(((i + percent / 100) / selected.length) * 100);
+          setUploadProgress(Math.min(100, Math.max(1, next)));
         });
         uploaded.push(url);
       }
       const nextPhotoUrls = [...draft.photoUrls, ...uploaded].slice(0, 8);
       onChange({ ...draft, photoUrls: nextPhotoUrls, photoUrl: nextPhotoUrls[0] ?? "" });
+      setUploadProgress(100);
+      setUploadStatus(`Uploaded ${uploaded.length} photo${uploaded.length === 1 ? "" : "s"}. Remember to save your profile.`);
     } catch (error) {
+      setUploadProgress(null);
+      setUploadStatus("");
       setUploadError(error instanceof Error ? error.message : "Upload failed.");
     } finally {
       setUploadBusy(false);
-      setUploadProgress(null);
     }
   }
 
@@ -74,9 +82,9 @@ export function DatingProfileModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center overflow-hidden bg-black/55 p-3 sm:items-center sm:p-5">
+    <div className="suzi-mobile-modal-root fixed inset-0 z-[80] flex items-end justify-center overflow-hidden bg-black/55 p-3 sm:items-center sm:p-5">
       <form
-        className="suzi-thin-scroll max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-[1.2rem] border border-white/12 bg-[rgba(14,16,34,0.98)] p-5 pb-6 shadow-2xl sm:max-h-[min(90vh,48rem)]"
+        className="suzi-mobile-modal-panel suzi-thin-scroll max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-[1.2rem] border border-white/12 bg-[rgba(14,16,34,0.98)] p-5 pb-6 shadow-2xl sm:max-h-[min(90vh,48rem)]"
         onSubmit={(event) => {
           event.preventDefault();
           onSave();
@@ -177,37 +185,29 @@ export function DatingProfileModal({
                 <p className="font-medium text-slate-200">Dating photos</p>
                 <p className="mt-1 text-[0.68rem] text-slate-500/90">Upload 1 or more photos. The first photo is shown first on your card.</p>
               </div>
-              <button
-                type="button"
-                disabled={uploadBusy || draft.photoUrls.length >= 8}
-                onClick={() => fileRef.current?.click()}
-                className="suzi-secondary-btn px-3 py-2 text-xs disabled:opacity-50"
-              >
-                {uploadBusy ? "Uploading..." : "Browse photos"}
-              </button>
               <input
-                ref={fileRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
+                accept="image/*,.heic,.heif"
                 multiple
-                className="hidden"
+                disabled={uploadBusy || draft.photoUrls.length >= 8}
+                className="suzi-input w-full max-w-[13rem] cursor-pointer px-2 py-2 text-xs file:mr-2 file:cursor-pointer file:rounded-full file:border-0 file:bg-fuchsia-500/80 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white disabled:cursor-not-allowed disabled:opacity-50"
                 onChange={(e) => {
-                  const files = e.target.files;
-                  e.target.value = "";
+                  const files = Array.from(e.currentTarget.files ?? []);
+                  e.currentTarget.value = "";
                   void onPhotoFiles(files);
                 }}
               />
             </div>
-            {uploadProgress !== null ? (
-              <div className="mt-3">
+            {uploadProgress !== null || uploadStatus ? (
+              <div className="mt-3 rounded-[0.85rem] border border-fuchsia-300/18 bg-fuchsia-400/8 p-3">
                 <div className="flex items-center justify-between text-[0.68rem] text-fuchsia-100/80">
-                  <span>Uploading photos</span>
-                  <span>{uploadProgress}%</span>
+                  <span>{uploadStatus || "Uploading photos"}</span>
+                  {uploadProgress !== null ? <span>{uploadProgress}%</span> : null}
                 </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
                   <div
                     className="h-full rounded-full bg-[linear-gradient(90deg,#ff2da7,#ce2fff)] transition-[width]"
-                    style={{ width: `${uploadProgress}%` }}
+                    style={{ width: `${uploadProgress ?? 0}%` }}
                   />
                 </div>
               </div>

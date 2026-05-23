@@ -133,6 +133,8 @@ model User {
   roomMessages              RoomMessage[] @relation("RoomMessagesSent")
   dmsSent                   DirectMessage[] @relation("DmSent")
   dmsReceived               DirectMessage[] @relation("DmRecv")
+  dmConversationStates      DirectConversationState[] @relation("DmConversationStateUser")
+  dmConversationPeerStates  DirectConversationState[] @relation("DmConversationStatePeer")
   posts                     Post[]    @relation("PostsAuthored")
   postLikes                 PostLike[]
   postComments              PostComment[]
@@ -475,6 +477,20 @@ model DirectMessage {
   createdAt   DateTime @default(now())
 
   @@index([senderId, recipientId])
+}
+
+model DirectConversationState {
+  id        String   @id @default(cuid())
+  userId    String
+  peerId    String
+  user      User     @relation("DmConversationStateUser", fields: [userId], references: [id], onDelete: Cascade)
+  peer      User     @relation("DmConversationStatePeer", fields: [peerId], references: [id], onDelete: Cascade)
+  clearedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, peerId])
+  @@index([peerId])
 }
 
 model Post {

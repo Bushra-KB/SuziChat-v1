@@ -31,7 +31,12 @@ type TankDuelState = {
   status: 'active' | 'finished';
   winnerUserId: string | null;
   targetScore: number;
-  lastEvent: { type: string; at: number; byUserId?: string | null; targetUserId?: string | null } | null;
+  lastEvent: {
+    type: string;
+    at: number;
+    byUserId?: string | null;
+    targetUserId?: string | null;
+  } | null;
 };
 
 const WIDTH = 100;
@@ -73,7 +78,9 @@ export function buildInitialTankDuelState(
   context: EngineContext,
 ): Record<string, unknown> {
   if (context.seats.length !== 2) {
-    throw new BadRequestException('Cosmic Tank Duel requires exactly two players.');
+    throw new BadRequestException(
+      'Cosmic Tank Duel requires exactly two players.',
+    );
   }
   return {
     gameType: 'TANK_DUEL',
@@ -145,7 +152,11 @@ function advance(state: TankDuelState, now: number) {
       }
 
       const target = state.players.find((p) => p.userId !== shot.ownerId);
-      if (target && Math.hypot(target.pos.x - shot.x, target.pos.y - shot.y) <= TANK_R + SHOT_R) {
+      if (
+        target &&
+        Math.hypot(target.pos.x - shot.x, target.pos.y - shot.y) <=
+          TANK_R + SHOT_R
+      ) {
         target.hp = Math.max(0, target.hp - DAMAGE);
         state.lastEvent = {
           type: target.hp <= 0 ? 'ko' : 'hit',
@@ -183,13 +194,19 @@ export function applyTankDuelAction(
 ): EngineResult {
   const state = structuredClone(stateRaw) as TankDuelState;
   if (state.status !== 'active') {
-    throw new BadRequestException('Cosmic Tank Duel session is already finished.');
+    throw new BadRequestException(
+      'Cosmic Tank Duel session is already finished.',
+    );
   }
   if (context.payload.type === 'resign') {
     const winner = state.players.find((p) => p.userId !== context.userId);
     state.status = 'finished';
     state.winnerUserId = winner?.userId ?? null;
-    state.lastEvent = { type: 'resign', at: Date.now(), byUserId: context.userId };
+    state.lastEvent = {
+      type: 'resign',
+      at: Date.now(),
+      byUserId: context.userId,
+    };
     return { state, status: 'finished', winnerUserId: state.winnerUserId };
   }
 

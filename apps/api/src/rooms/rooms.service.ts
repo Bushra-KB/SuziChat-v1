@@ -59,7 +59,15 @@ const DEFAULT_ROOMS: Array<{
     privacy: 'Friends',
   },
 ];
-const DEFAULT_ROOM_CATEGORIES = ['Social', 'Music', 'Sports', 'Chill', 'Dating', 'Media', 'Travel'];
+const DEFAULT_ROOM_CATEGORIES = [
+  'Social',
+  'Music',
+  'Sports',
+  'Chill',
+  'Dating',
+  'Media',
+  'Travel',
+];
 const MAX_OWNED_ROOMS_PER_USER = 5;
 const ROOM_ROLE_MEMBER = 'member';
 const ROOM_ROLE_MODERATOR = 'moderator';
@@ -106,7 +114,10 @@ export class RoomsService implements OnModuleInit {
           return;
         }
       }
-      this.log.error('Default room seed failed', err instanceof Error ? err.stack : err);
+      this.log.error(
+        'Default room seed failed',
+        err instanceof Error ? err.stack : err,
+      );
     }
   }
 
@@ -246,12 +257,12 @@ export class RoomsService implements OnModuleInit {
       const action: RoomListActorState['action'] = isBlocked
         ? 'blocked'
         : isMember
-        ? 'open'
-        : privacy === 'public'
-          ? 'join'
-          : hasPendingRequest
-            ? 'requested'
-            : 'request';
+          ? 'open'
+          : privacy === 'public'
+            ? 'join'
+            : hasPendingRequest
+              ? 'requested'
+              : 'request';
       return {
         id: row.id,
         slug: row.slug,
@@ -285,10 +296,15 @@ export class RoomsService implements OnModuleInit {
         status: RoomJoinRequestStatus.PENDING,
       },
     });
-    return { status: deleted.count > 0 ? ('cancelled' as const) : ('none' as const) };
+    return {
+      status: deleted.count > 0 ? ('cancelled' as const) : ('none' as const),
+    };
   }
 
-  private async resolveAccessState(slug: string, userId: string): Promise<RoomAccessState> {
+  private async resolveAccessState(
+    slug: string,
+    userId: string,
+  ): Promise<RoomAccessState> {
     const room = await this.prisma.room.findUnique({
       where: { slug },
       select: {
@@ -332,12 +348,13 @@ export class RoomsService implements OnModuleInit {
   async getRoomAccess(slug: string, userId: string) {
     const access = await this.resolveAccessState(slug, userId);
     const privacy = access.privacy.toLowerCase();
-    const canOpen = !access.isBlocked && (privacy === 'public' || access.isMember);
+    const canOpen =
+      !access.isBlocked && (privacy === 'public' || access.isMember);
     return {
       roomSlug: slug,
       isOwner: access.isOwner,
       isModerator: access.isModerator,
-      role: access.isOwner ? 'host' : access.membershipRole ?? null,
+      role: access.isOwner ? 'host' : (access.membershipRole ?? null),
       isMember: access.isMember,
       isBlocked: access.isBlocked,
       hasPendingRequest: access.hasPendingRequest,
@@ -423,7 +440,11 @@ export class RoomsService implements OnModuleInit {
       .slice(0, 64);
   }
 
-  async createRoom(ownerId: string, dto: CreateRoomDto, actorRole: UserRole = UserRole.USER) {
+  async createRoom(
+    ownerId: string,
+    dto: CreateRoomDto,
+    actorRole: UserRole = UserRole.USER,
+  ) {
     const name = dto.name.trim();
     const slug = (dto.slug?.trim() || this.slugifyRoomName(name)).toLowerCase();
 
@@ -486,7 +507,11 @@ export class RoomsService implements OnModuleInit {
   }
 
   async updateRoom(slug: string, userId: string, dto: UpdateRoomDto) {
-    await this.ensureManager(slug, userId, 'Only room owner or moderator can edit this room');
+    await this.ensureManager(
+      slug,
+      userId,
+      'Only room owner or moderator can edit this room',
+    );
 
     return this.prisma.room.update({
       where: { slug },
@@ -663,7 +688,13 @@ export class RoomsService implements OnModuleInit {
     if (!isOwner && !isModerator) {
       throw new ForbiddenException(forbiddenMessage);
     }
-    return { id: room.id, ownerId: room.ownerId, actorId, isOwner, isModerator };
+    return {
+      id: room.id,
+      ownerId: room.ownerId,
+      actorId,
+      isOwner,
+      isModerator,
+    };
   }
 
   private async ensureModeratorCanTarget(
@@ -679,7 +710,9 @@ export class RoomsService implements OnModuleInit {
         select: { role: true },
       });
       if (targetMembership?.role === ROOM_ROLE_MODERATOR) {
-        throw new ForbiddenException('Moderators cannot manage other moderators');
+        throw new ForbiddenException(
+          'Moderators cannot manage other moderators',
+        );
       }
     }
   }
@@ -733,7 +766,9 @@ export class RoomsService implements OnModuleInit {
     if (userId === room.ownerId) {
       return { status: 'member' as const };
     }
-    await this.prisma.roomBan.deleteMany({ where: { roomId: room.id, userId } });
+    await this.prisma.roomBan.deleteMany({
+      where: { roomId: room.id, userId },
+    });
     await this.prisma.roomMembership.upsert({
       where: { roomId_userId: { roomId: room.id, userId } },
       update: {},
@@ -742,7 +777,11 @@ export class RoomsService implements OnModuleInit {
     await this.prisma.roomJoinRequest.upsert({
       where: { roomId_userId: { roomId: room.id, userId } },
       update: { status: RoomJoinRequestStatus.APPROVED },
-      create: { roomId: room.id, userId, status: RoomJoinRequestStatus.APPROVED },
+      create: {
+        roomId: room.id,
+        userId,
+        status: RoomJoinRequestStatus.APPROVED,
+      },
     });
     return { status: 'member' as const };
   }
@@ -752,7 +791,11 @@ export class RoomsService implements OnModuleInit {
     await this.prisma.roomJoinRequest.upsert({
       where: { roomId_userId: { roomId: room.id, userId } },
       update: { status: RoomJoinRequestStatus.REJECTED },
-      create: { roomId: room.id, userId, status: RoomJoinRequestStatus.REJECTED },
+      create: {
+        roomId: room.id,
+        userId,
+        status: RoomJoinRequestStatus.REJECTED,
+      },
     });
     return { status: 'rejected' as const };
   }
@@ -760,15 +803,21 @@ export class RoomsService implements OnModuleInit {
   async removeMember(slug: string, actorId: string, userId: string) {
     const room = await this.ensureManager(slug, actorId);
     await this.ensureModeratorCanTarget(room, userId);
-    await this.prisma.roomMembership.deleteMany({ where: { roomId: room.id, userId } });
+    await this.prisma.roomMembership.deleteMany({
+      where: { roomId: room.id, userId },
+    });
     return { status: 'removed' as const };
   }
 
   async banMember(slug: string, actorId: string, userId: string) {
     const room = await this.ensureManager(slug, actorId);
     await this.ensureModeratorCanTarget(room, userId);
-    await this.prisma.roomMembership.deleteMany({ where: { roomId: room.id, userId } });
-    await this.prisma.roomJoinRequest.deleteMany({ where: { roomId: room.id, userId } });
+    await this.prisma.roomMembership.deleteMany({
+      where: { roomId: room.id, userId },
+    });
+    await this.prisma.roomJoinRequest.deleteMany({
+      where: { roomId: room.id, userId },
+    });
     await this.prisma.roomBan.upsert({
       where: { roomId_userId: { roomId: room.id, userId } },
       update: {},
@@ -779,7 +828,9 @@ export class RoomsService implements OnModuleInit {
 
   async unbanMember(slug: string, actorId: string, userId: string) {
     const room = await this.ensureManager(slug, actorId);
-    await this.prisma.roomBan.deleteMany({ where: { roomId: room.id, userId } });
+    await this.prisma.roomBan.deleteMany({
+      where: { roomId: room.id, userId },
+    });
     return { status: 'unbanned' as const };
   }
 

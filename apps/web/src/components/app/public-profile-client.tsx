@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  listAction,
   listL1,
   listL2,
   listL3,
@@ -18,6 +19,7 @@ import { ProfilePageShell } from "@/components/app/profile-page-shell";
 import { Icon, Panel, cx } from "@/components/ui/suzi-primitives";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { getStoredAuthSession } from "@/lib/auth-client";
+import { useI18n } from "@/lib/i18n";
 import { listUserProfilePosts, type ApiPost } from "@/lib/posts-client";
 import { usePublicProfileRealtime, useUserPresence } from "@/lib/use-profile-realtime";
 import {
@@ -37,19 +39,9 @@ import {
   type UserProfileView,
 } from "@/lib/users-client";
 
-function presenceLabel(status: "online" | "away" | "offline") {
-  if (status === "online") {
-    return "Online";
-  }
-  if (status === "away") {
-    return "Away";
-  }
-  return "Offline";
-}
-
-function formatJoined(iso: string) {
+function formatJoined(iso: string, locale?: string) {
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
+    return new Date(iso).toLocaleDateString(locale, {
       month: "short",
       year: "numeric",
     });
@@ -124,6 +116,7 @@ function resolveMaybeMediaUrl(url: string | null | undefined) {
 }
 
 export function PublicProfileClient(props: { username?: string; userId?: string }) {
+  const { language, t } = useI18n();
   const { username, userId } = props;
   const router = useRouter();
   const [profileView, setProfileView] = useState<UserProfileView | null>(null);
@@ -148,14 +141,14 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
   const loadData = useCallback(async () => {
     const s = getStoredAuthSession();
     if (!s) {
-      setError("Not signed in.");
+      setError(t("rooms.notSignedIn"));
       setProfileView(null);
       return;
     }
     const id = userId?.trim();
     const slug = username?.trim();
     if (!id && !slug) {
-      setError("Missing profile.");
+      setError(t("profile.public.notFound"));
       setProfileView(null);
       return;
     }
@@ -184,7 +177,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
           members: room._count?.memberships ?? 0,
         })),
     );
-  }, [username, userId]);
+  }, [t, username, userId]);
 
   usePublicProfileRealtime(accessToken, profileView?.profile.id ?? null, () => {
     void loadData().catch(() => {});
@@ -232,19 +225,19 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
     }
     switch (relationship.kind) {
       case "friends":
-        return { label: "Friends", tone: "ok" as const };
+        return { label: t("common.friends"), tone: "ok" as const };
       case "outgoing_request":
-        return { label: "Request pending", tone: "pending" as const };
+        return { label: t("profile.public.requestPending"), tone: "pending" as const };
       case "incoming_request":
-        return { label: "Requested you", tone: "accent" as const };
+        return { label: t("profile.public.requestedYou"), tone: "accent" as const };
       case "blocked_by_me":
-        return { label: "Blocked", tone: "warn" as const };
+        return { label: t("friends.blocked"), tone: "warn" as const };
       case "blocked_you":
-        return { label: "Unavailable", tone: "warn" as const };
+        return { label: t("profile.public.unavailable"), tone: "warn" as const };
       default:
-        return { label: "Not connected", tone: "muted" as const };
+        return { label: t("profile.public.notConnected"), tone: "muted" as const };
     }
-  }, [profileView]);
+  }, [profileView, t]);
 
   async function runReloadAfter(fn: () => Promise<void>) {
     const s = getStoredAuthSession();
@@ -343,7 +336,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
         <div className="flex flex-1 items-center justify-center px-6">
           <div className="text-center">
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-200" />
-            <p className="mt-4 text-sm text-[var(--text-muted)]">Loading profile…</p>
+            <p className="mt-4 text-sm text-[var(--text-muted)]">{t("profile.public.loading")}</p>
           </div>
         </div>
       </ProfilePageShell>
@@ -355,10 +348,10 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
       <ProfilePageShell>
         <div className="flex flex-1 items-center justify-center px-4 py-6">
           <Panel className="border border-amber-300/22 bg-amber-500/10 p-8 text-center">
-            <p className="text-lg font-semibold text-amber-100">{error || "Profile not found."}</p>
-            <p className="mt-2 text-sm text-[var(--text-muted)]">Check the username or try again later.</p>
+            <p className="text-lg font-semibold text-amber-100">{error || t("profile.public.notFound")}</p>
+            <p className="mt-2 text-sm text-[var(--text-muted)]">{t("profile.public.checkUsername")}</p>
             <Link href="/app" className="suzi-secondary-btn mt-6 inline-flex px-5 py-3 text-sm">
-              Back to home
+              {t("profile.public.backHome")}
             </Link>
           </Panel>
         </div>
@@ -370,7 +363,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
     return (
       <ProfilePageShell>
         <div className="flex flex-1 items-center justify-center px-6">
-          <p className="text-sm text-[var(--text-muted)]">Opening your profile…</p>
+          <p className="text-sm text-[var(--text-muted)]">{t("profile.public.openingOwn")}</p>
         </div>
       </ProfilePageShell>
     );
@@ -384,18 +377,18 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
 
   const primaryFriendLabel =
     relation.kind === "none"
-      ? "Add friend"
+      ? t("friends.addFriend")
       : relation.kind === "incoming_request"
-        ? "Accept request"
+        ? t("profile.public.acceptRequest")
         : relation.kind === "friends"
-          ? "Unfriend"
+          ? t("friends.unfriend")
           : relation.kind === "blocked_by_me"
-            ? "Unblock"
+            ? t("profile.public.unblock")
             : relation.kind === "outgoing_request"
-              ? "Request sent"
+              ? t("profile.public.requestSent")
               : relation.kind === "blocked_you"
-                ? "Unavailable"
-                : "You";
+                ? t("profile.public.unavailable")
+                : t("profile.public.you");
 
   const primaryDisabled =
     busy || relation.kind === "blocked_you" || relation.kind === "outgoing_request";
@@ -462,7 +455,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
                   </span>
                   {relation.kind === "friends" ? (
                     <span className={cx(listL3, "rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[var(--text-soft)]")}>
-                      Friends since {formatJoined(relation.friendsSince)}
+                      {t("profile.public.friendsSince")} {formatJoined(relation.friendsSince, language)}
                     </span>
                   ) : null}
                   {relation.kind !== "blocked_you" ? (
@@ -487,7 +480,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
                               : "bg-slate-500",
                         )}
                       />
-                      {presenceLabel(presence)}
+                      {presence === "online" ? t("common.online") : presence === "away" ? t("common.away") : t("common.offline")}
                     </span>
                   ) : null}
                 </div>
@@ -507,11 +500,11 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
                   className="suzi-primary-btn inline-flex items-center justify-center gap-2 px-4 py-2"
                 >
                   <Icon path="M4 6h16v10H8l-4 4V6Z" className="h-3.5 w-3.5" />
-                  Message
+                  {t("friends.message")}
                 </Link>
               ) : (
                 <span className={cx(listL2, "inline-flex items-center justify-center rounded-[0.8rem] border border-white/10 bg-white/5 px-4 py-2 font-semibold text-[var(--text-muted)]")}>
-                  Messaging unavailable
+                  {t("profile.public.messagingUnavailable")}
                 </span>
               )}
 
@@ -521,7 +514,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
                 onClick={() => void handlePrimaryFriendAction()}
                 className="suzi-secondary-btn inline-flex items-center justify-center px-4 py-2 disabled:cursor-not-allowed disabled:opacity-45"
               >
-                {busy ? "Please wait..." : primaryFriendLabel}
+                {busy ? t("profile.public.pleaseWait") : primaryFriendLabel}
               </button>
 
               {showDecline ? (
@@ -531,7 +524,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
                   onClick={() => void handleDeclineIncoming()}
                   className="suzi-secondary-btn inline-flex items-center justify-center px-4 py-2"
                 >
-                  Decline
+                  {t("profile.public.decline")}
                 </button>
               ) : null}
 
@@ -542,7 +535,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
                   onClick={() => void handleCancelOutgoing()}
                   className="suzi-secondary-btn inline-flex items-center justify-center px-4 py-2"
                 >
-                  Cancel request
+                  {t("friends.cancelRequest")}
                 </button>
               ) : null}
 
@@ -553,7 +546,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
                   onClick={() => void handleToggleBlock()}
                   className={cx(listL2, "inline-flex items-center justify-center rounded-[0.8rem] border border-pink-300/30 bg-pink-500/12 px-4 py-2 font-semibold text-pink-100 transition hover:border-pink-300/45 hover:bg-pink-500/18")}
                 >
-                  {relation.kind === "blocked_by_me" ? "Unblock" : "Block"}
+                  {relation.kind === "blocked_by_me" ? t("profile.public.unblock") : t("friends.block")}
                 </button>
               ) : null}
             </div>
@@ -561,7 +554,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
 
           {relation.kind === "blocked_you" ? (
             <p className={cx(listL2, "relative mx-[var(--panel-pad)] mb-[var(--panel-pad)] rounded-[1rem] border border-pink-300/22 bg-pink-500/10 px-4 py-3 text-pink-100")}>
-              You cannot interact with this account.
+              {t("profile.public.noInteraction")}
             </p>
           ) : null}
         </Panel>
@@ -574,56 +567,56 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
 
         <div className="suzi-public-stats-grid">
           <StatCard
-            label="Friends"
+            label={t("profile.stats.friends")}
             value={counts.friends}
-            sublabel="People"
+            sublabel={t("profile.public.people")}
             icon="M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4ZM6 21a6 6 0 0 1 12 0M8 13a3 3 0 1 0-3-3 3 3 0 0 0 3 3ZM2 19a4 4 0 0 1 6-3.5"
           />
           <StatCard
-            label="Rooms"
+            label={t("profile.stats.rooms")}
             value={counts.rooms}
-            sublabel="Hosted"
+            sublabel={t("profile.public.hosted")}
             icon="M4 5h16v14H4V5Zm4 4h8M8 13h5"
           />
           <StatCard
-            label="Snaps"
+            label={t("profile.stats.snaps")}
             value={counts.snaps}
-            sublabel="Shared"
+            sublabel={t("profile.public.shared")}
             icon="M4 7h3l2-2h6l2 2h3v12H4V7Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
           />
           <StatCard
-            label="Reels"
+            label={t("profile.stats.reels")}
             value={counts.reels}
-            sublabel="Posted"
+            sublabel={t("profile.public.posted")}
             icon="M6 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm4 4 5 3-5 3V9Z"
           />
         </div>
 
-        <Panel className="suzi-public-panel p-[var(--panel-pad)]">
+        <Panel className="suzi-public-panel suzi-public-panel--light p-[var(--panel-pad)]">
           <SectionTitle
             icon="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z"
-            eyebrow="About"
-            title={userBio ? "Bio" : "No bio yet."}
-            copy={userBio ?? `@${user.username} hasn't written a bio yet.`}
+            eyebrow={t("profile.public.about")}
+            title={userBio ? t("profile.public.bio") : t("profile.public.noBio")}
+            copy={userBio ?? `@${user.username} ${t("profile.public.noBioCopy")}`}
           />
         </Panel>
 
-        <Panel className="suzi-public-panel p-[var(--panel-pad)]">
+        <Panel className="suzi-public-panel suzi-public-panel--light p-[var(--panel-pad)]">
           <SectionTitle
             icon="M4 5h16v14H4V5Zm4 4h8M8 13h5"
-            eyebrow="Hosted spaces"
-            title="Rooms"
-            copy={`Rooms owned by @${user.username}`}
+            eyebrow={t("profile.public.hostedSpaces")}
+            title={t("profile.stats.rooms")}
+            copy={`${t("profile.public.roomsOwnedBy")} @${user.username}`}
             action={
               <Link href="/app#rooms" className={panelLink}>
-                View all rooms
+                {t("profile.public.viewAllRooms")}
               </Link>
             }
           />
           <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {hostedRooms.length === 0 ? (
               <p className={cx(listEmpty, "rounded-[0.85rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-3 text-cyan-100/58")}>
-                No rooms hosted yet.
+                {t("profile.public.noRoomsHosted")}
               </p>
             ) : (
               hostedRooms.slice(0, 3).map((room) => {
@@ -649,13 +642,13 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
                         {room.name}
                       </span>
                       <span className={cx(listL3, "mt-1 flex flex-wrap items-center gap-2 text-[var(--text-soft)]")}>
-                        <span>{room.members} members</span>
+                        <span>{room.members} {t("common.members")}</span>
                         <span className="opacity-40">·</span>
                         <span>{room.privacy}</span>
                       </span>
                     </span>
                     <span className={cx(listAction, "rounded-[0.55rem] border border-fuchsia-300/26 px-2 py-1 text-fuchsia-100/88")}>
-                      Open room
+                      {t("profile.public.openRoom")}
                     </span>
                   </Link>
                 );

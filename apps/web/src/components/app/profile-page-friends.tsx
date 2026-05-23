@@ -13,6 +13,7 @@ import {
 import { cx } from "@/components/ui/suzi-primitives";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { getStoredAuthSession } from "@/lib/auth-client";
+import { useI18n } from "@/lib/i18n";
 import {
   getFriendsSummary,
   unfriend,
@@ -66,6 +67,7 @@ export function ProfilePageFriendsSection({
   initialFriends: FriendsSummary | null;
   accessToken: string | null;
 }) {
+  const { t } = useI18n();
   const [friends, setFriends] = useState<FriendsSummary | null>(initialFriends);
   const [presenceById, setPresenceById] = useState<Record<string, Presence>>({});
   const [busy, setBusy] = useState(false);
@@ -154,14 +156,14 @@ export function ProfilePageFriendsSection({
   return (
     <div className="space-y-3">
       {!friends ? (
-        <p className={cx(listEmpty, "text-[var(--text-muted)]")}>Loading friends…</p>
+        <p className={cx(listEmpty, "text-[var(--text-muted)]")}>{t("profile.friends.loading")}</p>
       ) : sortedFriends.length === 0 ? (
         <div className={cx(listEmpty, "rounded-[0.85rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-3 text-cyan-100/56")}>
-          You have no friends yet. Open{" "}
+          {t("profile.friends.emptyBeforeHome")}{" "}
           <Link href="/app" className="font-semibold text-cyan-200 underline-offset-2 hover:underline">
-            Home
+            {t("nav.home")}
           </Link>{" "}
-          to discover people and send requests — your list appears here.
+          {t("profile.friends.emptyAfterHome")}
         </div>
       ) : (
         <>
@@ -197,15 +199,15 @@ export function ProfilePageFriendsSection({
                     </Link>
                     <p className={cx(listL2, "mt-0.5 truncate text-cyan-100/66")}>@{friend.username}</p>
                     {status === "online" ? (
-                      <p className={cx(listL3, "mt-0.5 font-medium text-emerald-300/90")}>Online</p>
+                      <p className={cx(listL3, "mt-0.5 font-medium text-emerald-300/90")}>{t("common.online")}</p>
                     ) : status === "away" ? (
-                      <p className={cx(listL3, "mt-0.5 font-medium text-amber-200/85")}>Away</p>
+                      <p className={cx(listL3, "mt-0.5 font-medium text-amber-200/85")}>{t("common.away")}</p>
                     ) : null}
                   </div>
                   <Link
                     href={`/app/messages?with=${encodeURIComponent(friend.id)}`}
                     className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.8rem] border border-fuchsia-300/22 bg-[linear-gradient(150deg,rgba(86,30,173,0.54),rgba(46,17,111,0.74))] text-cyan-100/88 transition hover:border-fuchsia-300/42 hover:text-white"
-                    aria-label={`Message ${displayName(friend)}`}
+                    aria-label={`${t("friends.message")} ${displayName(friend)}`}
                   >
                     <svg
                       aria-hidden="true"
@@ -234,7 +236,7 @@ export function ProfilePageFriendsSection({
                     }
                     className={cx(listAction, "shrink-0 rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-2.5 py-1 font-semibold text-pink-100 transition hover:border-fuchsia-300/45")}
                   >
-                    Unfriend
+                    {t("friends.unfriend")}
                   </button>
                 </div>
               );

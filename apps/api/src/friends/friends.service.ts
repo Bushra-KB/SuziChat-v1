@@ -40,28 +40,29 @@ export class FriendsService {
   }
 
   private async getRelationshipExclusionIds(userId: string) {
-    const [friends, outgoing, incoming, blockedByMe, blockedMe] = await Promise.all([
-      this.prisma.friendship.findMany({
-        where: { userId },
-        select: { friendId: true },
-      }),
-      this.prisma.friendRequest.findMany({
-        where: { senderId: userId, status: FriendRequestStatus.PENDING },
-        select: { receiverId: true },
-      }),
-      this.prisma.friendRequest.findMany({
-        where: { receiverId: userId, status: FriendRequestStatus.PENDING },
-        select: { senderId: true },
-      }),
-      this.prisma.userBlock.findMany({
-        where: { blockerId: userId },
-        select: { blockedId: true },
-      }),
-      this.prisma.userBlock.findMany({
-        where: { blockedId: userId },
-        select: { blockerId: true },
-      }),
-    ]);
+    const [friends, outgoing, incoming, blockedByMe, blockedMe] =
+      await Promise.all([
+        this.prisma.friendship.findMany({
+          where: { userId },
+          select: { friendId: true },
+        }),
+        this.prisma.friendRequest.findMany({
+          where: { senderId: userId, status: FriendRequestStatus.PENDING },
+          select: { receiverId: true },
+        }),
+        this.prisma.friendRequest.findMany({
+          where: { receiverId: userId, status: FriendRequestStatus.PENDING },
+          select: { senderId: true },
+        }),
+        this.prisma.userBlock.findMany({
+          where: { blockerId: userId },
+          select: { blockedId: true },
+        }),
+        this.prisma.userBlock.findMany({
+          where: { blockedId: userId },
+          select: { blockerId: true },
+        }),
+      ]);
 
     return new Set<string>([
       userId,
@@ -214,47 +215,52 @@ export class FriendsService {
       );
     }
 
-    const [existingFriendship, outgoingRequest, incomingRequest, userBlockedTarget, targetBlockedUser] =
-      await Promise.all([
-        this.prisma.friendship.findFirst({
-          where: {
-            userId,
-            friendId: targetUser.id,
+    const [
+      existingFriendship,
+      outgoingRequest,
+      incomingRequest,
+      userBlockedTarget,
+      targetBlockedUser,
+    ] = await Promise.all([
+      this.prisma.friendship.findFirst({
+        where: {
+          userId,
+          friendId: targetUser.id,
+        },
+      }),
+      this.prisma.friendRequest.findUnique({
+        where: {
+          senderId_receiverId: {
+            senderId: userId,
+            receiverId: targetUser.id,
           },
-        }),
-        this.prisma.friendRequest.findUnique({
-          where: {
-            senderId_receiverId: {
-              senderId: userId,
-              receiverId: targetUser.id,
-            },
+        },
+      }),
+      this.prisma.friendRequest.findUnique({
+        where: {
+          senderId_receiverId: {
+            senderId: targetUser.id,
+            receiverId: userId,
           },
-        }),
-        this.prisma.friendRequest.findUnique({
-          where: {
-            senderId_receiverId: {
-              senderId: targetUser.id,
-              receiverId: userId,
-            },
+        },
+      }),
+      this.prisma.userBlock.findUnique({
+        where: {
+          blockerId_blockedId: {
+            blockerId: userId,
+            blockedId: targetUser.id,
           },
-        }),
-        this.prisma.userBlock.findUnique({
-          where: {
-            blockerId_blockedId: {
-              blockerId: userId,
-              blockedId: targetUser.id,
-            },
+        },
+      }),
+      this.prisma.userBlock.findUnique({
+        where: {
+          blockerId_blockedId: {
+            blockerId: targetUser.id,
+            blockedId: userId,
           },
-        }),
-        this.prisma.userBlock.findUnique({
-          where: {
-            blockerId_blockedId: {
-              blockerId: targetUser.id,
-              blockedId: userId,
-            },
-          },
-        }),
-      ]);
+        },
+      }),
+    ]);
 
     if (userBlockedTarget || targetBlockedUser) {
       throw new ConflictException('Friend request unavailable for this user');
@@ -322,9 +328,15 @@ export class FriendsService {
       })
       .catch(() => undefined);
 
-    this.realtimeEvents.emitToUser(targetUser.id, 'friends:update', { reason: 'request_received' });
-    this.realtimeEvents.emitToUser(userId, 'friends:update', { reason: 'request_sent' });
-    this.realtimeEvents.emitToUser(targetUser.id, 'notifications:update', { reason: 'friend_request' });
+    this.realtimeEvents.emitToUser(targetUser.id, 'friends:update', {
+      reason: 'request_received',
+    });
+    this.realtimeEvents.emitToUser(userId, 'friends:update', {
+      reason: 'request_sent',
+    });
+    this.realtimeEvents.emitToUser(targetUser.id, 'notifications:update', {
+      reason: 'friend_request',
+    });
     await this.emitState([targetUser.id, userId]);
 
     return {
@@ -391,8 +403,12 @@ export class FriendsService {
       }),
     ]);
 
-    this.realtimeEvents.emitToUser(userId, 'friends:update', { reason: 'request_accepted' });
-    this.realtimeEvents.emitToUser(request.senderId, 'friends:update', { reason: 'request_accepted' });
+    this.realtimeEvents.emitToUser(userId, 'friends:update', {
+      reason: 'request_accepted',
+    });
+    this.realtimeEvents.emitToUser(request.senderId, 'friends:update', {
+      reason: 'request_accepted',
+    });
     await this.emitState([userId, request.senderId]);
 
     return {
@@ -424,7 +440,9 @@ export class FriendsService {
       },
     });
 
-    this.realtimeEvents.emitToUser(userId, 'friends:update', { reason: 'request_declined' });
+    this.realtimeEvents.emitToUser(userId, 'friends:update', {
+      reason: 'request_declined',
+    });
     await this.emitState([userId]);
 
     return {
@@ -451,7 +469,9 @@ export class FriendsService {
       data: { status: FriendRequestStatus.CANCELED },
     });
 
-    this.realtimeEvents.emitToUser(userId, 'friends:update', { reason: 'request_canceled' });
+    this.realtimeEvents.emitToUser(userId, 'friends:update', {
+      reason: 'request_canceled',
+    });
     await this.emitState([userId]);
 
     return { message: 'Outgoing friend request canceled' };
@@ -477,8 +497,12 @@ export class FriendsService {
       throw new NotFoundException('Friendship not found');
     }
 
-    this.realtimeEvents.emitToUser(userId, 'friends:update', { reason: 'unfriend' });
-    this.realtimeEvents.emitToUser(friendId, 'friends:update', { reason: 'unfriend' });
+    this.realtimeEvents.emitToUser(userId, 'friends:update', {
+      reason: 'unfriend',
+    });
+    this.realtimeEvents.emitToUser(friendId, 'friends:update', {
+      reason: 'unfriend',
+    });
     await this.emitState([userId, friendId]);
 
     return {
@@ -532,15 +556,27 @@ export class FriendsService {
       this.prisma.friendRequest.deleteMany({
         where: {
           OR: [
-            { senderId: userId, receiverId: blockedId, status: FriendRequestStatus.PENDING },
-            { senderId: blockedId, receiverId: userId, status: FriendRequestStatus.PENDING },
+            {
+              senderId: userId,
+              receiverId: blockedId,
+              status: FriendRequestStatus.PENDING,
+            },
+            {
+              senderId: blockedId,
+              receiverId: userId,
+              status: FriendRequestStatus.PENDING,
+            },
           ],
         },
       }),
     ]);
 
-    this.realtimeEvents.emitToUser(userId, 'friends:update', { reason: 'block' });
-    this.realtimeEvents.emitToUser(blockedId, 'friends:update', { reason: 'blocked_by_other' });
+    this.realtimeEvents.emitToUser(userId, 'friends:update', {
+      reason: 'block',
+    });
+    this.realtimeEvents.emitToUser(blockedId, 'friends:update', {
+      reason: 'blocked_by_other',
+    });
     await this.emitState([userId, blockedId]);
 
     return { message: 'User blocked', user: target };
@@ -558,7 +594,9 @@ export class FriendsService {
       throw new NotFoundException('Blocked user not found');
     }
 
-    this.realtimeEvents.emitToUser(userId, 'friends:update', { reason: 'unblock' });
+    this.realtimeEvents.emitToUser(userId, 'friends:update', {
+      reason: 'unblock',
+    });
     await this.emitState([userId]);
 
     return { message: 'User unblocked' };

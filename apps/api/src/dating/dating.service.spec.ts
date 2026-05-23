@@ -49,7 +49,9 @@ describe('DatingService', () => {
 
   it('discover requires a dating profile', async () => {
     prisma.datingProfile.findUnique.mockResolvedValue(null);
-    await expect(service.discover('u1', {})).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.discover('u1', {})).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 
   it('swipe returns no match on pass', async () => {

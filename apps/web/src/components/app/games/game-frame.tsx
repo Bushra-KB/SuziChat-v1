@@ -11,6 +11,7 @@ export function GameFrame({
   immersive = false,
   lobbyHref,
   watcherCount,
+  className,
   children,
 }: {
   title: string;
@@ -22,6 +23,7 @@ export function GameFrame({
   lobbyHref?: string;
   /** Live spectator count (not seated at the table). */
   watcherCount?: number;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -29,6 +31,7 @@ export function GameFrame({
       className={cx(
         "flex h-full min-h-0 flex-col overflow-hidden",
         immersive ? "p-2 sm:p-2.5" : "p-4 sm:p-5",
+        className,
       )}
     >
       <div

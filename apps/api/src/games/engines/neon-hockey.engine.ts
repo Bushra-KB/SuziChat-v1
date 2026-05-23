@@ -110,7 +110,10 @@ function advance(state: NeonHockeyState, now: number) {
         const ny = dy / dist;
         state.puck.x = player.paddle.x + nx * minDist;
         state.puck.y = player.paddle.y + ny * minDist;
-        const speed = Math.max(42, Math.hypot(state.puck.vx, state.puck.vy) * 1.04);
+        const speed = Math.max(
+          42,
+          Math.hypot(state.puck.vx, state.puck.vy) * 1.04,
+        );
         state.puck.vx = nx * speed;
         state.puck.vy = ny * speed;
         state.lastEvent = { type: 'hit', at: now, byUserId: player.userId };
@@ -149,14 +152,20 @@ export function applyNeonHockeyAction(
     const winner = state.players.find((p) => p.userId !== context.userId);
     state.status = 'finished';
     state.winnerUserId = winner?.userId ?? null;
-    state.lastEvent = { type: 'resign', at: Date.now(), byUserId: context.userId };
+    state.lastEvent = {
+      type: 'resign',
+      at: Date.now(),
+      byUserId: context.userId,
+    };
     return { state, status: 'finished', winnerUserId: state.winnerUserId };
   }
 
   const now = Date.now();
   advance(state, now);
 
-  const playerIndex = state.players.findIndex((p) => p.userId === context.userId);
+  const playerIndex = state.players.findIndex(
+    (p) => p.userId === context.userId,
+  );
   if (playerIndex < 0) {
     throw new BadRequestException('You are not a Neon Hockey player.');
   }

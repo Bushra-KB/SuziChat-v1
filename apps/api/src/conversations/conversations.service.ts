@@ -35,25 +35,44 @@ export class ConversationsService {
   }
 
   async listThreads(userId: string) {
-    const messages = await this.prisma.directMessage.findMany({
-      where: {
-        OR: [{ senderId: userId }, { recipientId: userId }],
-      },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        sender: { select: peerSelect },
-        recipient: { select: peerSelect },
-      },
-    });
+    const [messages, states] = await Promise.all([
+      this.prisma.directMessage.findMany({
+        where: {
+          OR: [{ senderId: userId }, { recipientId: userId }],
+        },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          sender: { select: peerSelect },
+          recipient: { select: peerSelect },
+        },
+      }),
+      this.prisma.directConversationState.findMany({
+        where: { userId },
+        select: { peerId: true, clearedAt: true },
+      }),
+    ]);
+
+    const clearedByPeer = new Map(
+      states.map((state) => [state.peerId, state.clearedAt]),
+    );
 
     const seen = new Set<string>();
     const threads: Array<{
       peer: (typeof messages)[0]['sender'];
-      lastMessage: { id: string; body: string; createdAt: Date; senderId: string };
+      lastMessage: {
+        id: string;
+        body: string;
+        createdAt: Date;
+        senderId: string;
+      };
     }> = [];
 
     for (const m of messages) {
       const peer = m.senderId === userId ? m.recipient : m.sender;
+      const clearedAt = clearedByPeer.get(peer.id);
+      if (clearedAt && m.createdAt <= clearedAt) {
+        continue;
+      }
       if (seen.has(peer.id)) {
         continue;
       }
@@ -75,11 +94,21 @@ export class ConversationsService {
   async listMessages(userId: string, peerId: string) {
     await this.getPeer(userId, peerId);
 
+    const state = await this.prisma.directConversationState.findUnique({
+      where: { userId_peerId: { userId, peerId } },
+      select: { clearedAt: true },
+    });
+
     return this.prisma.directMessage.findMany({
       where: {
-        OR: [
-          { senderId: userId, recipientId: peerId },
-          { senderId: peerId, recipientId: userId },
+        AND: [
+          {
+            OR: [
+              { senderId: userId, recipientId: peerId },
+              { senderId: peerId, recipientId: userId },
+            ],
+          },
+          ...(state ? [{ createdAt: { gt: state.clearedAt } }] : []),
         ],
       },
       orderBy: { createdAt: 'asc' },
@@ -110,5 +139,18 @@ export class ConversationsService {
         recipient: { select: { id: true } },
       },
     });
+  }
+
+  async removeConversation(userId: string, peerId: string) {
+    await this.getPeer(userId, peerId);
+
+    const state = await this.prisma.directConversationState.upsert({
+      where: { userId_peerId: { userId, peerId } },
+      update: { clearedAt: new Date() },
+      create: { userId, peerId },
+      select: { peerId: true, clearedAt: true },
+    });
+
+    return state;
   }
 }

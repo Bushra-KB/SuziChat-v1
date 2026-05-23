@@ -24,12 +24,15 @@ describe('checkers.engine', () => {
     const state = buildInitialCheckersState({
       gameType: 'CHECKERS',
       seats,
-    }) as Record<string, unknown>;
+    });
     const result = applyCheckersAction(state, {
       userId: 'black-user',
       payload: { from: '2,1', to: '3,0' },
     });
-    const next = result.state as { board: (string | null)[][]; turnUserId: string };
+    const next = result.state as {
+      board: (string | null)[][];
+      turnUserId: string;
+    };
     expect(next.board[2][1]).toBeNull();
     expect(next.board[3][0]).toBe('b');
     expect(next.turnUserId).toBe('red-user');
@@ -39,7 +42,7 @@ describe('checkers.engine', () => {
     const state = buildInitialCheckersState({
       gameType: 'CHECKERS',
       seats,
-    }) as Record<string, unknown>;
+    });
     expect(() =>
       applyCheckersAction(state, {
         userId: 'black-user',
@@ -52,7 +55,7 @@ describe('checkers.engine', () => {
     const state = buildInitialCheckersState({
       gameType: 'CHECKERS',
       seats,
-    }) as Record<string, unknown>;
+    });
     expect(() =>
       applyCheckersAction(state, {
         userId: 'red-user',
@@ -62,7 +65,9 @@ describe('checkers.engine', () => {
   });
 
   it('keeps the turn on the same piece when another capture is available', () => {
-    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => null as string | null));
+    const board = Array.from({ length: 8 }, () =>
+      Array.from({ length: 8 }, () => null as string | null),
+    );
     board[2][1] = 'b';
     board[3][2] = 'r';
     board[5][4] = 'r';
@@ -84,10 +89,13 @@ describe('checkers.engine', () => {
     expect(first.turnUserId).toBe('black-user');
     expect(first.mustContinueFrom).toBe('4,3');
 
-    const second = applyCheckersAction(first as unknown as Record<string, unknown>, {
-      userId: 'black-user',
-      payload: { from: '4,3', to: '6,5' },
-    }).state as { turnUserId: string; mustContinueFrom: string | null };
+    const second = applyCheckersAction(
+      first as unknown as Record<string, unknown>,
+      {
+        userId: 'black-user',
+        payload: { from: '4,3', to: '6,5' },
+      },
+    ).state as { turnUserId: string; mustContinueFrom: string | null };
 
     expect(second.turnUserId).toBe('red-user');
     expect(second.mustContinueFrom).toBeNull();

@@ -270,6 +270,56 @@ export class AuthService {
     };
   }
 
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const current = currentPassword ?? '';
+    const next = newPassword?.trim();
+
+    if (!current) {
+      throw new BadRequestException('Current password is required');
+    }
+
+    if (!next || next.length < 8) {
+      throw new BadRequestException(
+        'New password must be at least 8 characters long',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, passwordHash: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User account not found');
+    }
+
+    const isCurrentPasswordValid = await this.verifyPassword(
+      user.passwordHash,
+      current,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const passwordHash = await this.hashPassword(next);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetTokenHash: null,
+        passwordResetTokenExpiresAt: null,
+      },
+    });
+
+    return { message: 'Password changed successfully.' };
+  }
+
   getCurrentUser(userId: string) {
     return this.prisma.user.findUnique({
       where: { id: userId },

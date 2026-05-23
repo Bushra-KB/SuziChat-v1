@@ -15,9 +15,11 @@ import { ProfilePageFriendsSection } from "@/components/app/profile-page-friends
 import { ProfilePageShell } from "@/components/app/profile-page-shell";
 import { Icon, Panel, cx } from "@/components/ui/suzi-primitives";
 import { formatRelativeTime } from "@/lib/format-relative-time";
+import { useI18n } from "@/lib/i18n";
 import { loadProfilePrefs, saveProfilePrefs } from "@/lib/profile-prefs-storage";
 import { useMyProfileRealtime } from "@/lib/use-profile-realtime";
 import {
+  changePassword,
   getStoredAuthSession,
   saveAuthSession,
   type AuthSession,
@@ -38,19 +40,203 @@ const DEFAULT_AVATAR = "/ppic/ppic1.jpeg";
 
 const COUNTRY_OPTIONS = [
   "",
-  "Ethiopia",
-  "United States",
-  "United Kingdom",
-  "Canada",
-  "Germany",
-  "France",
-  "Kenya",
-  "Nigeria",
-  "South Africa",
-  "India",
-  "United Arab Emirates",
-  "Saudi Arabia",
+  "Afghanistan",
+  "Albania",
+  "Algeria",
+  "Andorra",
+  "Angola",
+  "Antigua and Barbuda",
+  "Argentina",
+  "Armenia",
   "Australia",
+  "Austria",
+  "Azerbaijan",
+  "Bahamas",
+  "Bahrain",
+  "Bangladesh",
+  "Barbados",
+  "Belarus",
+  "Belgium",
+  "Belize",
+  "Benin",
+  "Bhutan",
+  "Bolivia",
+  "Bosnia and Herzegovina",
+  "Botswana",
+  "Brazil",
+  "Brunei",
+  "Bulgaria",
+  "Burkina Faso",
+  "Burundi",
+  "Cabo Verde",
+  "Cambodia",
+  "Cameroon",
+  "Canada",
+  "Central African Republic",
+  "Chad",
+  "Chile",
+  "China",
+  "Colombia",
+  "Comoros",
+  "Costa Rica",
+  "Cote d'Ivoire",
+  "Croatia",
+  "Cuba",
+  "Cyprus",
+  "Czechia",
+  "Democratic Republic of the Congo",
+  "Denmark",
+  "Djibouti",
+  "Dominica",
+  "Dominican Republic",
+  "Ecuador",
+  "Egypt",
+  "El Salvador",
+  "Equatorial Guinea",
+  "Eritrea",
+  "Estonia",
+  "Eswatini",
+  "Ethiopia",
+  "Fiji",
+  "Finland",
+  "France",
+  "Gabon",
+  "Gambia",
+  "Georgia",
+  "Germany",
+  "Ghana",
+  "Greece",
+  "Grenada",
+  "Guatemala",
+  "Guinea",
+  "Guinea-Bissau",
+  "Guyana",
+  "Haiti",
+  "Honduras",
+  "Hungary",
+  "Iceland",
+  "India",
+  "Indonesia",
+  "Iran",
+  "Iraq",
+  "Ireland",
+  "Israel",
+  "Italy",
+  "Jamaica",
+  "Japan",
+  "Jordan",
+  "Kazakhstan",
+  "Kenya",
+  "Kiribati",
+  "Kosovo",
+  "Kuwait",
+  "Kyrgyzstan",
+  "Laos",
+  "Latvia",
+  "Lebanon",
+  "Lesotho",
+  "Liberia",
+  "Libya",
+  "Liechtenstein",
+  "Lithuania",
+  "Luxembourg",
+  "Madagascar",
+  "Malawi",
+  "Malaysia",
+  "Maldives",
+  "Mali",
+  "Malta",
+  "Marshall Islands",
+  "Mauritania",
+  "Mauritius",
+  "Mexico",
+  "Micronesia",
+  "Moldova",
+  "Monaco",
+  "Mongolia",
+  "Montenegro",
+  "Morocco",
+  "Mozambique",
+  "Myanmar",
+  "Namibia",
+  "Nauru",
+  "Nepal",
+  "Netherlands",
+  "New Zealand",
+  "Nicaragua",
+  "Niger",
+  "Nigeria",
+  "North Korea",
+  "North Macedonia",
+  "Norway",
+  "Oman",
+  "Pakistan",
+  "Palau",
+  "Palestine",
+  "Panama",
+  "Papua New Guinea",
+  "Paraguay",
+  "Peru",
+  "Philippines",
+  "Poland",
+  "Portugal",
+  "Qatar",
+  "Republic of the Congo",
+  "Romania",
+  "Russia",
+  "Rwanda",
+  "Saint Kitts and Nevis",
+  "Saint Lucia",
+  "Saint Vincent and the Grenadines",
+  "Samoa",
+  "San Marino",
+  "Sao Tome and Principe",
+  "Saudi Arabia",
+  "Senegal",
+  "Serbia",
+  "Seychelles",
+  "Sierra Leone",
+  "Singapore",
+  "Slovakia",
+  "Slovenia",
+  "Solomon Islands",
+  "Somalia",
+  "South Africa",
+  "South Korea",
+  "South Sudan",
+  "Spain",
+  "Sri Lanka",
+  "Sudan",
+  "Suriname",
+  "Sweden",
+  "Switzerland",
+  "Syria",
+  "Taiwan",
+  "Tajikistan",
+  "Tanzania",
+  "Thailand",
+  "Timor-Leste",
+  "Togo",
+  "Tonga",
+  "Trinidad and Tobago",
+  "Tunisia",
+  "Turkey",
+  "Turkmenistan",
+  "Tuvalu",
+  "Uganda",
+  "Ukraine",
+  "United Arab Emirates",
+  "United Kingdom",
+  "United States",
+  "Uruguay",
+  "Uzbekistan",
+  "Vanuatu",
+  "Vatican City",
+  "Venezuela",
+  "Vietnam",
+  "Yemen",
+  "Zambia",
+  "Zimbabwe",
   "Other",
 ] as const;
 
@@ -80,6 +266,7 @@ function sessionFromStorage(): AuthSession | null {
 
 function profileToForm(p: UserProfile) {
   return {
+    username: p.username ?? "",
     displayName: p.displayName ?? "",
     bio: p.bio ?? "",
     country: p.country ?? "",
@@ -94,29 +281,29 @@ function resolveAvatarSrc(profile: UserProfile | null, session: AuthSession | nu
   return u;
 }
 
-const QUICK_DEFAULTS: Array<{ id: string; label: string; copy: string }> = [
+const QUICK_DEFAULTS = [
   {
     id: "showOnline",
-    label: "Show online status",
-    copy: "Let friends see when you're online",
+    labelKey: "profile.quick.showOnline.label",
+    copyKey: "profile.quick.showOnline.copy",
   },
   {
     id: "snapsFriends",
-    label: "Default snaps to friends",
-    copy: "Your snaps will be visible to friends by default",
+    labelKey: "profile.quick.snapsFriends.label",
+    copyKey: "profile.quick.snapsFriends.copy",
   },
   {
     id: "roomInvites",
-    label: "Allow room invitations from friends",
-    copy: "Let friends invite you to rooms",
+    labelKey: "profile.quick.roomInvites.label",
+    copyKey: "profile.quick.roomInvites.copy",
   },
-];
+] as const;
 
-const PRIVACY_FIELDS: Array<{ id: string; label: string; options: string[] }> = [
-  { id: "messages", label: "Who can send you messages", options: ["Friends", "Everyone", "Nobody"] },
-  { id: "snaps", label: "Who can see your snaps", options: ["Friends", "Everyone", "Nobody"] },
-  { id: "reels", label: "Who can see your reels", options: ["Everyone", "Friends", "Nobody"] },
-];
+const PRIVACY_FIELDS = [
+  { id: "messages", labelKey: "profile.privacy.messages", options: ["Friends", "Everyone", "Nobody"] },
+  { id: "snaps", labelKey: "profile.privacy.snaps", options: ["Friends", "Everyone", "Nobody"] },
+  { id: "reels", labelKey: "profile.privacy.reels", options: ["Everyone", "Friends", "Nobody"] },
+] as const;
 
 function SectionIcon({ path }: { path: string }) {
   return (
@@ -126,16 +313,46 @@ function SectionIcon({ path }: { path: string }) {
   );
 }
 
+function formatProfileDate(iso?: string | null, locale?: string) {
+  if (!iso) {
+    return "—";
+  }
+  try {
+    return new Date(iso).toLocaleString(locale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
+}
+
 export function AccountProfilePage() {
+  const { language, t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [session, setSession] = useState<AuthSession | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [form, setForm] = useState({ displayName: "", bio: "", country: "" });
+  const [form, setForm] = useState({ username: "", displayName: "", bio: "", country: "" });
   const [loadState, setLoadState] = useState<"idle" | "loading" | "error" | "ready">("idle");
   const [loadMessage, setLoadMessage] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [saveMessage, setSaveMessage] = useState("");
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailForm, setEmailForm] = useState({ email: "" });
+  const [emailState, setEmailState] = useState<"idle" | "saving" | "success" | "error">("idle");
+  const [emailMessage, setEmailMessage] = useState("");
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordState, setPasswordState] = useState<"idle" | "saving" | "success" | "error">("idle");
+  const [passwordMessage, setPasswordMessage] = useState("");
   const [prefToggles, setPrefToggles] = useState<Record<string, boolean>>({
     showOnline: true,
     snapsFriends: true,
@@ -202,11 +419,16 @@ export function AccountProfilePage() {
     const s = sessionFromStorage();
     if (!s) {
       setLoadState("error");
-      setLoadMessage("Not signed in.");
+      setLoadMessage(t("rooms.notSignedIn"));
       return;
     }
     setSession(s);
-    setForm((f) => ({ ...f, displayName: s.user.displayName ?? "" }));
+    setForm((f) => ({
+      ...f,
+      username: s.user.username ?? "",
+      displayName: s.user.displayName ?? "",
+    }));
+    setEmailForm({ email: s.user.email ?? "" });
     setLoadState("loading");
     setLoadMessage("");
 
@@ -218,6 +440,7 @@ export function AccountProfilePage() {
         }
         setProfile(p);
         setForm(profileToForm(p));
+        setEmailForm({ email: p.email ?? "" });
         setLoadState("ready");
       })
       .catch((e) => {
@@ -227,13 +450,18 @@ export function AccountProfilePage() {
         setLoadState("error");
         setLoadMessage(parseUsersApiError(e));
         setProfile(null);
-        setForm((f) => ({ ...f, displayName: s.user.displayName ?? "" }));
+        setForm((f) => ({
+          ...f,
+          username: s.user.username ?? "",
+          displayName: s.user.displayName ?? "",
+        }));
+        setEmailForm({ email: s.user.email ?? "" });
       });
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!session || loadState !== "ready") {
@@ -286,6 +514,7 @@ export function AccountProfilePage() {
     setSaveState("saving");
     setSaveMessage("");
     void updateMyProfile(s.accessToken, {
+      username: form.username.trim(),
       displayName: form.displayName.trim() || undefined,
       bio: form.bio.trim() || undefined,
       country: form.country.trim() || undefined,
@@ -297,14 +526,21 @@ export function AccountProfilePage() {
           ...s,
           user: {
             ...s.user,
+            email: updated.email,
+            username: updated.username,
             displayName: updated.displayName,
             avatarUrl: updated.avatarUrl ?? s.user.avatarUrl,
+            role: updated.role,
+            isAdultConfirmed: updated.isAdultConfirmed,
+            isEmailVerified: updated.isEmailVerified,
+            createdAt: updated.createdAt,
+            updatedAt: updated.updatedAt,
           },
         };
         saveAuthSession(next);
         setSession(next);
         setSaveState("success");
-        setSaveMessage("Profile saved.");
+        setSaveMessage(t("profile.saved"));
       })
       .catch((e) => {
         setSaveState("error");
@@ -334,11 +570,88 @@ export function AccountProfilePage() {
     }
   }
 
+  function openEmailDialog() {
+    const currentEmail = profile?.email ?? session?.user.email ?? "";
+    setEmailForm({ email: currentEmail });
+    setEmailState("idle");
+    setEmailMessage("");
+    setEmailDialogOpen(true);
+  }
+
+  function openPasswordDialog() {
+    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    setPasswordState("idle");
+    setPasswordMessage("");
+    setPasswordDialogOpen(true);
+  }
+
+  function handleChangeEmail(event: React.FormEvent) {
+    event.preventDefault();
+    const s = sessionFromStorage();
+    if (!s) {
+      return;
+    }
+    setEmailState("saving");
+    setEmailMessage("");
+    void updateMyProfile(s.accessToken, { email: emailForm.email.trim() })
+      .then((updated) => {
+        setProfile(updated);
+        setEmailForm({ email: updated.email });
+        const next: AuthSession = {
+          ...s,
+          user: {
+            ...s.user,
+            email: updated.email,
+            isEmailVerified: updated.isEmailVerified,
+            updatedAt: updated.updatedAt,
+          },
+        };
+        saveAuthSession(next);
+        setSession(next);
+        setEmailState("success");
+        setEmailMessage(t("profile.emailDialog.updated"));
+        setEmailDialogOpen(false);
+      })
+      .catch((e) => {
+        setEmailState("error");
+        setEmailMessage(parseUsersApiError(e));
+      });
+  }
+
+  function handleChangePassword(event: React.FormEvent) {
+    event.preventDefault();
+    const s = sessionFromStorage();
+    if (!s) {
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordState("error");
+      setPasswordMessage(t("profile.passwordMismatch"));
+      return;
+    }
+    setPasswordState("saving");
+    setPasswordMessage("");
+    void changePassword(s.accessToken, {
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+    })
+      .then((result) => {
+        setPasswordState("success");
+        setPasswordMessage(result.message);
+        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        setPasswordDialogOpen(false);
+      })
+      .catch((e) => {
+        setPasswordState("error");
+        setPasswordMessage(e instanceof Error ? e.message : t("profile.passwordError"));
+      });
+  }
+
   const avatarSrc = resolveAvatarSrc(profile, session);
   const friendsCount = dashFriends?.friends.length ?? 0;
   const roomsCount = myRooms.length;
   const lastUpdatedLabel = profile?.updatedAt
-    ? `Last updated ${formatRelativeTime(profile.updatedAt, nowTick)}`
+    ? `${t("profile.lastUpdated")} ${formatRelativeTime(profile.updatedAt, nowTick, language)}`
     : null;
 
   const countrySelectValue = resolveCountrySelectValue(form.country);
@@ -352,23 +665,23 @@ export function AccountProfilePage() {
           <div className="suzi-account-hero-inner p-[var(--panel-pad)]">
             <div className="pointer-events-none absolute inset-0 opacity-40 [background:radial-gradient(ellipse_at_18%_0%,rgba(255,32,121,0.2),transparent_52%),radial-gradient(ellipse_at_88%_100%,rgba(0,229,255,0.1),transparent_42%)]" />
             <div className="suzi-account-identity relative">
-              <div
-                className="suzi-account-avatar relative shrink-0 overflow-hidden rounded-full border-2 border-fuchsia-300/40 shadow-[0_18px_40px_rgba(15,23,42,0.45)]"
-              >
-                {avatarSrc.startsWith("/") ? (
-                  <Image src={avatarSrc} alt="" fill sizes="120px" className="object-cover" priority />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarSrc} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                )}
+              <div className="suzi-account-avatar relative shrink-0 rounded-full border-2 border-fuchsia-300/40 shadow-[0_18px_40px_rgba(15,23,42,0.45)]">
+                <div className="absolute inset-0 overflow-hidden rounded-full">
+                  {avatarSrc.startsWith("/") ? (
+                    <Image src={avatarSrc} alt="" fill sizes="120px" className="object-cover" priority />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatarSrc} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                  )}
+                </div>
                 <button
                   type="button"
                   disabled={avatarBusy}
                   onClick={() => fileInputRef.current?.click()}
-                  aria-label="Edit avatar"
-                  className="absolute bottom-0 right-0 inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-fuchsia-500/95 text-white shadow-[0_0_10px_rgba(255,32,121,0.6)] transition hover:scale-105"
+                  aria-label={t("profile.changeAvatar")}
+                  className="suzi-account-avatar-edit absolute -bottom-1 -right-1 inline-flex h-8 w-8 items-center justify-center rounded-full text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  <Icon path="M4 20h4l10-10-4-4L4 16v4Zm12-14 2-2 4 4-2 2-4-4Z" className="h-3.5 w-3.5" />
+                  <Icon path="M4 20h4l10-10-4-4L4 16v4Zm12-14 2-2 4 4-2 2-4-4Z" className="h-4 w-4" />
                 </button>
                 <input
                   ref={fileInputRef}
@@ -384,7 +697,7 @@ export function AccountProfilePage() {
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className={cx(listSection, "suzi-account-eyebrow")}>My account</p>
+                <p className={cx(listSection, "suzi-account-eyebrow")}>{t("profile.myAccount")}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <h1 className={cx(panelTitle, "truncate")}>
                     {displayLabel}
@@ -400,11 +713,11 @@ export function AccountProfilePage() {
                   <span className="opacity-30">·</span>
                   <span className="inline-flex items-center gap-1.5 text-emerald-300/90">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(110,255,178,0.7)]" />
-                    Online
+                    {t("common.online")}
                   </span>
                 </p>
                 <p className={cx(listL2, "mt-2 max-w-md leading-relaxed text-cyan-100/58")}>
-                  Keep your profile fresh across rooms, snaps, reels, dating, and games.
+                  {t("profile.heroCopy")}
                 </p>
                 <div className="suzi-account-hero-actions mt-3">
                   <button
@@ -413,7 +726,7 @@ export function AccountProfilePage() {
                     className="suzi-secondary-btn inline-flex items-center gap-2 px-4 py-2"
                   >
                     <Icon path="M4 20h4l10-10-4-4L4 16v4Zm12-14 2-2 4 4-2 2-4-4Z" className="h-3.5 w-3.5" />
-                    Edit profile
+                    {t("profile.editProfile")}
                   </button>
                   <button
                     type="button"
@@ -422,35 +735,39 @@ export function AccountProfilePage() {
                     className="suzi-secondary-btn inline-flex items-center gap-2 px-4 py-2"
                   >
                     <Icon path="M4 7h3l2-2h6l2 2h3v12H4V7Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" className="h-3.5 w-3.5" />
-                    Change avatar
+                    {t("profile.changeAvatar")}
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="suzi-account-stat-strip" aria-label="Your activity">
+            <div className="suzi-account-stat-strip" aria-label={t("profile.activityLabel")}>
               <StatChip
-                label="Friends"
+                label={t("profile.stats.friends")}
                 value={friendsCount}
                 href="/app#friends"
-                icon="M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-4 8a8 8 0 0 1 16 0H12Z"
+                actionLabel={t("profile.stat.viewAll")}
+                icon="M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4ZM6 21a6 6 0 0 1 12 0M8 13a3 3 0 1 0-3-3 3 3 0 0 0 3 3ZM2 19a4 4 0 0 1 6-3.5"
               />
               <StatChip
-                label="Rooms"
+                label={t("profile.stats.rooms")}
                 value={roomsCount}
                 href="/app#rooms"
+                actionLabel={t("profile.stat.viewAll")}
                 icon="M3 4h18v6H3V4Zm0 10h18v6H3v-6Z"
               />
               <StatChip
-                label="Snaps"
+                label={t("profile.stats.snaps")}
                 value={snapsCount}
                 href="/app/snaps"
+                actionLabel={t("profile.stat.viewAll")}
                 icon="M4 7h3l2-2h6l2 2h3v12H4V7Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
               />
               <StatChip
-                label="Reels"
+                label={t("profile.stats.reels")}
                 value={reelsCount}
                 href="/app/reels"
+                actionLabel={t("profile.stat.viewAll")}
                 icon="M6 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm4 4 5 3-5 3V9Z"
               />
             </div>
@@ -462,11 +779,11 @@ export function AccountProfilePage() {
             <Panel className="suzi-account-panel suzi-account-friends-panel p-[var(--panel-pad)]">
               <div className="suzi-account-section-head">
                 <div className="flex items-start gap-2">
-                  <SectionIcon path="M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-4 8a8 8 0 0 1 16 0H12Z" />
+                  <SectionIcon path="M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4ZM6 21a6 6 0 0 1 12 0M8 13a3 3 0 1 0-3-3 3 3 0 0 0 3 3ZM2 19a4 4 0 0 1 6-3.5" />
                   <div>
-                    <h2 className={panelTitle}>Friends</h2>
+                    <h2 className={panelTitle}>{t("profile.stats.friends")}</h2>
                     <p className={cx(listL2, "mt-0.5 text-[var(--text-muted)]")}>
-                      Manage your connections and see who&apos;s online.
+                      {t("profile.friends.copy")}
                     </p>
                   </div>
                 </div>
@@ -474,7 +791,7 @@ export function AccountProfilePage() {
                   href="/app#friends"
                   className={panelLink}
                 >
-                  View all friends
+                  {t("profile.friends.viewAll")}
                 </Link>
               </div>
               <div className="mt-3">
@@ -490,42 +807,57 @@ export function AccountProfilePage() {
                 <div className="suzi-account-form-head">
                   <SectionIcon path="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z" />
                   <div>
-                    <h2 className={panelTitle}>Profile details</h2>
+                    <h2 className={panelTitle}>{t("profile.details.title")}</h2>
                     <p className={cx(listL2, "mt-0.5 text-[var(--text-muted)]")}>
-                      Name, bio, and region shown on your public profile.
+                      {t("profile.details.copy")}
                     </p>
                   </div>
                 </div>
                 <div className="suzi-account-field">
-                <label htmlFor="account-display-name" className={cx(listSection, "text-[var(--text-muted)]")}>
-                  Display name
-                </label>
-                <input
-                  id="account-display-name"
-                  className={cx("suzi-input mt-1.5 w-full", listL1)}
-                  value={form.displayName}
-                  placeholder={session?.user.username ?? "Your name"}
-                  maxLength={48}
-                  onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))}
-                />
-              </div>
-              <div className="suzi-account-field">
-                <label htmlFor="account-bio" className={cx(listSection, "text-[var(--text-muted)]")}>
-                  About me
-                </label>
-                <textarea
-                  id="account-bio"
-                  className={cx("suzi-input mt-1.5 min-h-[5.5rem] w-full resize-none", listL1)}
-                  value={form.bio}
-                  placeholder="Short line about you"
-                  maxLength={280}
-                  onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
-                />
-              </div>
+                  <label htmlFor="account-username" className={cx(listSection, "text-[var(--text-muted)]")}>
+                    {t("profile.fields.username")}
+                  </label>
+                  <input
+                    id="account-username"
+                    autoComplete="username"
+                    className={cx("suzi-input mt-1.5 w-full", listL1)}
+                    value={form.username}
+                    placeholder={t("profile.placeholders.username")}
+                    minLength={3}
+                    maxLength={32}
+                    onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+                  />
+                </div>
+                <div className="suzi-account-field">
+                  <label htmlFor="account-display-name" className={cx(listSection, "text-[var(--text-muted)]")}>
+                    {t("profile.fields.displayName")}
+                  </label>
+                  <input
+                    id="account-display-name"
+                    className={cx("suzi-input mt-1.5 w-full", listL1)}
+                    value={form.displayName}
+                    placeholder={session?.user.username ?? t("profile.placeholders.yourName")}
+                    maxLength={40}
+                    onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))}
+                  />
+                </div>
+                <div className="suzi-account-field">
+                  <label htmlFor="account-bio" className={cx(listSection, "text-[var(--text-muted)]")}>
+                    {t("profile.fields.aboutMe")}
+                  </label>
+                  <textarea
+                    id="account-bio"
+                    className={cx("suzi-input mt-1.5 min-h-[5.5rem] w-full resize-none", listL1)}
+                    value={form.bio}
+                    placeholder={t("profile.placeholders.shortBio")}
+                    maxLength={280}
+                    onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+                  />
+                </div>
 
-              <div className="suzi-account-field">
+                <div className="suzi-account-field">
                 <label htmlFor="account-country" className={cx(listSection, "text-[var(--text-muted)]")}>
-                  Country / region
+                  {t("profile.fields.countryRegion")}
                 </label>
                 <select
                   id="account-country"
@@ -544,7 +876,7 @@ export function AccountProfilePage() {
                   }}
                 >
                   <option value="" className="bg-[#1a1245]">
-                    Select country…
+                    {t("profile.placeholders.selectCountry")}
                   </option>
                   {LISTED_COUNTRIES.map((c) => (
                     <option key={c} value={c} className="bg-[#1a1245]">
@@ -558,13 +890,28 @@ export function AccountProfilePage() {
                 {showCustomCountry ? (
                   <input
                     className={cx("suzi-input mt-2 w-full", listL1)}
-                    placeholder="Enter your country"
+                    placeholder={t("profile.placeholders.enterCountry")}
                     value={isListedCountry(form.country) ? "" : form.country}
                     maxLength={60}
                     onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
                   />
                 ) : null}
-              </div>
+                </div>
+
+                <div className="suzi-account-readonly-grid">
+                  <ProfileInfoRow label={t("profile.info.role")} value={profile?.role ?? session?.user.role ?? "USER"} />
+                  <ProfileInfoRow
+                    label={t("profile.info.adultConfirmed")}
+                    value={(profile?.isAdultConfirmed ?? session?.user.isAdultConfirmed) ? t("profile.value.yes") : t("profile.value.no")}
+                  />
+                  <ProfileInfoRow
+                    label={t("profile.info.emailVerified")}
+                    value={(profile?.isEmailVerified ?? session?.user.isEmailVerified) ? t("profile.value.yes") : t("profile.value.no")}
+                  />
+                  <ProfileInfoRow label={t("profile.info.avatar")} value={profile?.avatarUrl || session?.user.avatarUrl || t("profile.value.defaultAvatar")} />
+                  <ProfileInfoRow label={t("profile.info.created")} value={formatProfileDate(profile?.createdAt ?? session?.user.createdAt, language)} />
+                  <ProfileInfoRow label={t("profile.info.updated")} value={formatProfileDate(profile?.updatedAt ?? session?.user.updatedAt, language)} />
+                </div>
 
               <div className="pt-1">
                 <button
@@ -572,7 +919,7 @@ export function AccountProfilePage() {
                   disabled={saveState === "saving"}
                   className="suzi-primary-btn w-full py-2.5 font-semibold"
                 >
-                  {saveState === "saving" ? "Saving…" : "Save profile"}
+                  {saveState === "saving" ? t("profile.saving") : t("profile.saveProfile")}
                 </button>
                 <p className={cx(listL3, "mt-2 text-center text-[var(--text-soft)]")}>
                   {lastUpdatedLabel ?? ""}
@@ -598,7 +945,7 @@ export function AccountProfilePage() {
             <Panel className="suzi-account-panel p-[var(--panel-pad)]">
               <div className="flex items-center gap-2">
                 <SectionIcon path="M12 14a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm6.4-3a6.4 6.4 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a6.4 6.4 0 0 0-1.7-1L14 2h-4l-.2 2a6.4 6.4 0 0 0-1.7 1L5.7 4l-2 3.4L5.7 9c-.1.3-.1.6-.1 1s0 .7.1 1l-2 1.6 2 3.4 2.4-1c.5.4 1 .7 1.7 1L10 20h4l.2-2c.7-.3 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.6c.1-.3.1-.6.1-1Z" />
-                <h2 className={panelTitle}>Quick defaults</h2>
+                <h2 className={panelTitle}>{t("profile.quickDefaults.title")}</h2>
               </div>
               <div className="mt-3 space-y-2">
                 {QUICK_DEFAULTS.map((row) => {
@@ -614,8 +961,8 @@ export function AccountProfilePage() {
                       className="flex w-full items-center justify-between gap-4 rounded-[var(--panel-radius)] border border-white/8 bg-white/5 px-3 py-2.5 text-left transition hover:bg-white/8"
                     >
                       <div className="min-w-0">
-                        <p className={cx(listL1, "font-medium text-white")}>{row.label}</p>
-                        <p className={cx(listL3, "text-[var(--text-muted)]")}>{row.copy}</p>
+                        <p className={cx(listL1, "font-medium text-white")}>{t(row.labelKey)}</p>
+                        <p className={cx(listL3, "text-[var(--text-muted)]")}>{t(row.copyKey)}</p>
                       </div>
                       <span className="suzi-switch suzi-switch--settings" data-on={on ? "true" : "false"} aria-hidden />
                     </button>
@@ -627,7 +974,7 @@ export function AccountProfilePage() {
             <Panel className="suzi-account-panel p-[var(--panel-pad)]">
               <div className="flex items-center gap-2">
                 <SectionIcon path="M12 2 4 5v7a8 8 0 0 0 8 8 8 8 0 0 0 8-8V5l-8-3Z" />
-                <h2 className={panelTitle}>Privacy</h2>
+                <h2 className={panelTitle}>{t("profile.privacy.title")}</h2>
               </div>
               <div className="mt-3 space-y-2">
                 {PRIVACY_FIELDS.map((field) => (
@@ -635,7 +982,7 @@ export function AccountProfilePage() {
                     key={field.id}
                     className="grid grid-cols-[minmax(0,1fr)_minmax(8.5rem,42%)] items-center gap-3 rounded-[var(--panel-radius)] border border-white/8 bg-white/5 px-3 py-2.5"
                   >
-                    <p className={cx(listL1, "min-w-0 truncate text-white")}>{field.label}</p>
+                    <p className={cx(listL1, "min-w-0 truncate text-white")}>{t(field.labelKey)}</p>
                     <select
                       value={privacy[field.id] ?? field.options[0]}
                       onChange={(e) => setPrivacy((prev) => ({ ...prev, [field.id]: e.target.value }))}
@@ -643,7 +990,11 @@ export function AccountProfilePage() {
                     >
                       {field.options.map((opt) => (
                         <option key={opt} value={opt} className="bg-[#1a1245]">
-                          {opt}
+                          {opt === "Friends"
+                            ? t("common.friends")
+                            : opt === "Everyone"
+                              ? t("profile.privacy.everyone")
+                              : t("profile.privacy.nobody")}
                         </option>
                       ))}
                     </select>
@@ -655,32 +1006,144 @@ export function AccountProfilePage() {
             <Panel className="suzi-account-panel p-[var(--panel-pad)]">
               <div className="flex items-center gap-2">
                 <SectionIcon path="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z" />
-                <h2 className={panelTitle}>Account</h2>
+                <h2 className={panelTitle}>{t("profile.account.title")}</h2>
               </div>
               <div className="mt-3 divide-y divide-white/8">
                 <Link
                   href="/app/dating"
                   className={cx(listL1, "flex items-center justify-between gap-3 py-3 text-white transition hover:text-fuchsia-100")}
                 >
-                  <span>Suzi Dating</span>
+                  <span>{t("profile.account.suziDating")}</span>
                   <Icon path="M9 6l6 6-6 6" className="h-3.5 w-3.5 text-white/55" />
                 </Link>
-                <AccountRow label="Change password" trailing={<Icon path="M9 6l6 6-6 6" className="h-3.5 w-3.5 text-white/55" />} />
-                <AccountRow
-                  label="Email address"
-                  trailing={
-                    <span className="flex items-center gap-2">
-                      <span className={cx(listL3, "max-w-[10rem] truncate text-[var(--text-muted)]")}>
-                        {session?.user.email}
-                      </span>
-                      <Icon path="M9 6l6 6-6 6" className="h-3.5 w-3.5 shrink-0 text-white/55" />
-                    </span>
-                  }
+                <AccountActionRow
+                  label={t("profile.account.changeEmail")}
+                  detail={profile?.email ?? session?.user.email ?? ""}
+                  onClick={openEmailDialog}
                 />
+                <AccountActionRow label={t("profile.account.changePassword")} onClick={openPasswordDialog} />
               </div>
             </Panel>
           </aside>
         </div>
+
+        {emailDialogOpen ? (
+          <AccountModal title={t("profile.account.changeEmail")} onClose={() => setEmailDialogOpen(false)}>
+            <form onSubmit={handleChangeEmail} className="space-y-3">
+              <div>
+                <label htmlFor="account-email-dialog" className={cx(listSection, "text-[var(--text-muted)]")}>
+                  {t("profile.emailDialog.newEmail")}
+                </label>
+                <input
+                  id="account-email-dialog"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  maxLength={120}
+                  className={cx("suzi-input mt-1.5 w-full", listL1)}
+                  value={emailForm.email}
+                  onChange={(e) => setEmailForm({ email: e.target.value })}
+                />
+                <p className={cx(listL3, "mt-1.5 text-[var(--text-soft)]")}>
+                  {t("profile.emailDialog.copy")}
+                </p>
+              </div>
+              {emailMessage ? (
+                <p className={cx(listL2, emailState === "error" ? "text-pink-100" : "text-emerald-100")}>
+                  {emailMessage}
+                </p>
+              ) : null}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEmailDialogOpen(false)}
+                  className="suzi-secondary-btn px-4 py-2"
+                >
+                  {t("common.cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={emailState === "saving"}
+                  className="suzi-primary-btn px-4 py-2"
+                >
+                  {emailState === "saving" ? t("profile.saving") : t("profile.emailDialog.save")}
+                </button>
+              </div>
+            </form>
+          </AccountModal>
+        ) : null}
+
+        {passwordDialogOpen ? (
+          <AccountModal title={t("profile.account.changePassword")} onClose={() => setPasswordDialogOpen(false)}>
+            <form onSubmit={handleChangePassword} className="space-y-3">
+              <div>
+                <label htmlFor="account-current-password" className={cx(listSection, "text-[var(--text-muted)]")}>
+                  {t("profile.passwordDialog.current")}
+                </label>
+                <input
+                  id="account-current-password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  className={cx("suzi-input mt-1.5 w-full", listL1)}
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label htmlFor="account-new-password" className={cx(listSection, "text-[var(--text-muted)]")}>
+                  {t("profile.passwordDialog.new")}
+                </label>
+                <input
+                  id="account-new-password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  className={cx("suzi-input mt-1.5 w-full", listL1)}
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label htmlFor="account-confirm-password" className={cx(listSection, "text-[var(--text-muted)]")}>
+                  {t("profile.passwordDialog.confirm")}
+                </label>
+                <input
+                  id="account-confirm-password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  className={cx("suzi-input mt-1.5 w-full", listL1)}
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                />
+              </div>
+              {passwordMessage ? (
+                <p className={cx(listL2, passwordState === "error" ? "text-pink-100" : "text-emerald-100")}>
+                  {passwordMessage}
+                </p>
+              ) : null}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPasswordDialogOpen(false)}
+                  className="suzi-secondary-btn px-4 py-2"
+                >
+                  {t("common.cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={passwordState === "saving"}
+                  className="suzi-primary-btn px-4 py-2"
+                >
+                  {passwordState === "saving" ? t("profile.saving") : t("profile.passwordDialog.save")}
+                </button>
+              </div>
+            </form>
+          </AccountModal>
+        ) : null}
       </div>
     </ProfilePageShell>
   );
@@ -691,11 +1154,13 @@ function StatChip({
   value,
   icon,
   href,
+  actionLabel,
 }: {
   label: string;
   value: number;
   icon: string;
   href: string;
+  actionLabel: string;
 }) {
   return (
     <Link href={href} className="suzi-account-stat-chip group">
@@ -705,24 +1170,83 @@ function StatChip({
       <span className="min-w-0 flex-1">
         <span className="suzi-account-stat-chip-label">{label}</span>
         <span className="suzi-account-stat-chip-value">{value}</span>
-        <span className="suzi-account-stat-chip-action">View all</span>
+        <span className="suzi-account-stat-chip-action">{actionLabel}</span>
       </span>
       <Icon path="M9 6l6 6-6 6" className="h-3 w-3 shrink-0 text-white/40 transition group-hover:text-fuchsia-200/90" />
     </Link>
   );
 }
 
-function AccountRow({
-  label,
-  trailing,
+function ProfileInfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-[0.85rem] border border-white/8 bg-white/5 px-3 py-2">
+      <p className={cx(listSection, "text-[var(--text-soft)]")}>{label}</p>
+      <p className={cx(listL2, "mt-1 truncate text-white")} title={value}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function AccountModal({
+  title,
+  children,
+  onClose,
 }: {
-  label: string;
-  trailing?: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
 }) {
   return (
-    <div className={cx(listL1, "flex items-center justify-between gap-3 py-3 text-white")}>
-      <span>{label}</span>
-      {trailing}
+    <div className="suzi-account-modal-backdrop" role="presentation" onClick={onClose}>
+      <section
+        className="suzi-account-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="account-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 id="account-modal-title" className={panelTitle}>
+            {title}
+          </h2>
+          <button
+            type="button"
+            aria-label="Close dialog"
+            onClick={onClose}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/12 bg-white/8 text-white/80 transition hover:bg-white/12 hover:text-white"
+          >
+            <Icon path="M6 6l12 12M18 6 6 18" className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        {children}
+      </section>
     </div>
+  );
+}
+
+function AccountActionRow({
+  label,
+  detail,
+  onClick,
+}: {
+  label: string;
+  detail?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cx(listL1, "flex w-full items-center justify-between gap-3 py-3 text-left text-white transition hover:text-fuchsia-100")}
+    >
+      <span>{label}</span>
+      <span className="flex min-w-0 items-center gap-2">
+        {detail ? (
+          <span className={cx(listL3, "max-w-[10rem] truncate text-[var(--text-muted)]")}>{detail}</span>
+        ) : null}
+        <Icon path="M9 6l6 6-6 6" className="h-3.5 w-3.5 shrink-0 text-white/55" />
+      </span>
+    </button>
   );
 }

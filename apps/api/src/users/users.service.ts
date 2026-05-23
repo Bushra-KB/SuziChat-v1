@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { FriendRequestStatus, PostKind, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -18,11 +23,21 @@ const userProfileSelect = {
   updatedAt: true,
 } as const;
 
-type UserProfileRow = Prisma.UserGetPayload<{ select: typeof userProfileSelect }>;
+type UserProfileRow = Prisma.UserGetPayload<{
+  select: typeof userProfileSelect;
+}>;
 
 function normalizeOptionalString(value?: string) {
   const normalized = value?.trim();
   return normalized ? normalized : null;
+}
+
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function normalizeUsername(value: string) {
+  return value.trim();
 }
 
 @Injectable()
@@ -43,9 +58,61 @@ export class UsersService {
   }
 
   async updateMyProfile(userId: string, updateProfileDto: UpdateProfileDto) {
+    const current = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, username: true },
+    });
+
+    if (!current) {
+      throw new NotFoundException('User profile not found');
+    }
+
+    const nextEmail =
+      updateProfileDto.email !== undefined
+        ? normalizeEmail(updateProfileDto.email)
+        : undefined;
+    const nextUsername =
+      updateProfileDto.username !== undefined
+        ? normalizeUsername(updateProfileDto.username)
+        : undefined;
+
+    if (nextEmail !== undefined && !nextEmail) {
+      throw new BadRequestException('Email is required');
+    }
+
+    if (nextUsername !== undefined && nextUsername.length < 3) {
+      throw new BadRequestException('Username must be at least 3 characters');
+    }
+
+    if (nextEmail && nextEmail !== current.email) {
+      const existingEmail = await this.prisma.user.findUnique({
+        where: { email: nextEmail },
+        select: { id: true },
+      });
+
+      if (existingEmail) {
+        throw new ConflictException('Email is already in use');
+      }
+    }
+
+    if (nextUsername && nextUsername !== current.username) {
+      const existingUsername = await this.prisma.user.findUnique({
+        where: { username: nextUsername },
+        select: { id: true },
+      });
+
+      if (existingUsername) {
+        throw new ConflictException('Username is already in use');
+      }
+    }
+
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
+        email: nextEmail,
+        username: nextUsername,
+        isEmailVerified:
+          nextEmail && nextEmail !== current.email ? false : undefined,
         displayName:
           updateProfileDto.displayName !== undefined
             ? normalizeOptionalString(updateProfileDto.displayName)

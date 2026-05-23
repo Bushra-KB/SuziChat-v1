@@ -30,7 +30,10 @@ const ALLOWED_EXT = new Set([
   '.flv',
 ]);
 
-export function pickStoredReelExtension(mimetype: string, originalName: string): string {
+export function pickStoredReelExtension(
+  mimetype: string,
+  originalName: string,
+): string {
   const mime = mimetype?.trim().toLowerCase() ?? '';
   if (MIME_TO_EXT[mime]) {
     return MIME_TO_EXT[mime];
@@ -45,6 +48,9 @@ export function pickStoredReelExtension(mimetype: string, originalName: string):
   return '';
 }
 
-export function isAllowedReelVideoFile(mimetype: string, originalName: string): boolean {
+export function isAllowedReelVideoFile(
+  mimetype: string,
+  originalName: string,
+): boolean {
   return pickStoredReelExtension(mimetype, originalName) !== '';
 }

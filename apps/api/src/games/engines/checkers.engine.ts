@@ -1,5 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
-import type { EngineApplyContext, EngineContext, EngineResult } from './game-engine.types';
+import type {
+  EngineApplyContext,
+  EngineContext,
+  EngineResult,
+} from './game-engine.types';
 
 type Piece = 'b' | 'B' | 'r' | 'R' | null;
 type CheckersState = {
@@ -13,7 +17,9 @@ type CheckersState = {
 };
 
 function createBoard(): Piece[][] {
-  const board: Piece[][] = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => null));
+  const board: Piece[][] = Array.from({ length: 8 }, () =>
+    Array.from({ length: 8 }, () => null),
+  );
   for (let row = 0; row < 8; row += 1) {
     for (let col = 0; col < 8; col += 1) {
       if ((row + col) % 2 === 0) continue;
@@ -24,7 +30,9 @@ function createBoard(): Piece[][] {
   return board;
 }
 
-export function buildInitialCheckersState(context: EngineContext): Record<string, unknown> {
+export function buildInitialCheckersState(
+  context: EngineContext,
+): Record<string, unknown> {
   if (context.seats.length < 2) {
     throw new BadRequestException('Checkers requires two seated players.');
   }
@@ -60,8 +68,16 @@ function captureDirections(piece: Piece): Array<[number, number]> {
       [-1, -1],
     ];
   }
-  if (piece === 'b') return [[1, 1], [1, -1]];
-  if (piece === 'r') return [[-1, 1], [-1, -1]];
+  if (piece === 'b')
+    return [
+      [1, 1],
+      [1, -1],
+    ];
+  if (piece === 'r')
+    return [
+      [-1, 1],
+      [-1, -1],
+    ];
   return [];
 }
 
@@ -116,7 +132,9 @@ export function applyCheckersAction(
     throw new BadRequestException('Checkers moves only on dark squares.');
   }
   if (state.mustContinueFrom && from !== state.mustContinueFrom) {
-    throw new BadRequestException('You must continue the capture with the same piece.');
+    throw new BadRequestException(
+      'You must continue the capture with the same piece.',
+    );
   }
   const piece = state.board[fr]?.[fc] ?? null;
   if (!piece) {
@@ -136,12 +154,11 @@ export function applyCheckersAction(
   const absCol = Math.abs(colDelta);
   const isKing = piece === 'B' || piece === 'R';
   const isCapture = absRow === 2;
-  const validStep =
-    isKing
-      ? absCol === absRow && (absRow === 1 || absRow === 2)
-      : absCol === absRow &&
-        (absRow === 1 || absRow === 2) &&
-        (rowDelta === dir || rowDelta === dir * 2);
+  const validStep = isKing
+    ? absCol === absRow && (absRow === 1 || absRow === 2)
+    : absCol === absRow &&
+      (absRow === 1 || absRow === 2) &&
+      (rowDelta === dir || rowDelta === dir * 2);
   if (!validStep) {
     throw new BadRequestException('Illegal checkers move.');
   }
@@ -156,7 +173,9 @@ export function applyCheckersAction(
     const mc = fc + colDelta / 2;
     const jumped = board[mr]?.[mc] ?? null;
     if (!jumped || mine.includes(jumped)) {
-      throw new BadRequestException('Capture move requires opponent piece in between.');
+      throw new BadRequestException(
+        'Capture move requires opponent piece in between.',
+      );
     }
     board[mr][mc] = null;
   }
