@@ -4,9 +4,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  listL1,
+  listL2,
+  listL3,
+  listEmpty,
+  listSection,
+  panelLink,
+  panelTitle,
+} from "@/components/app/app-typography";
 import { ProfileMediaGallery } from "@/components/app/profile-media-gallery";
 import { ProfilePageShell } from "@/components/app/profile-page-shell";
-import { Panel, cx } from "@/components/ui/suzi-primitives";
+import { Icon, Panel, cx } from "@/components/ui/suzi-primitives";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { listUserProfilePosts, type ApiPost } from "@/lib/posts-client";
@@ -52,40 +61,83 @@ function formatJoined(iso: string) {
 function StatCard({
   label,
   value,
-  tone = "cyan",
+  sublabel,
+  icon,
 }: {
   label: string;
   value: string | number;
-  tone?: "cyan" | "fuchsia" | "emerald" | "amber";
+  sublabel: string;
+  icon: string;
 }) {
-  const ring =
-    tone === "fuchsia"
-      ? "border-fuchsia-300/22 shadow-[0_0_20px_rgba(255,32,121,0.12)]"
-      : tone === "emerald"
-        ? "border-emerald-300/22 shadow-[0_0_18px_rgba(52,211,153,0.12)]"
-        : tone === "amber"
-          ? "border-amber-300/22 shadow-[0_0_18px_rgba(251,191,36,0.12)]"
-          : "border-cyan-300/22 shadow-[0_0_18px_rgba(34,211,238,0.12)]";
   return (
-    <div
-      className={cx(
-        "rounded-[1.05rem] border bg-[linear-gradient(155deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] px-4 py-3 text-center sm:text-left",
-        ring,
-      )}
-    >
-      <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-cyan-100/48">{label}</p>
-      <p className="mt-1.5 text-2xl font-bold tabular-nums text-white sm:text-[1.65rem]">{value}</p>
+    <div className="suzi-public-stat-card">
+      <span className="suzi-public-stat-icon" aria-hidden>
+        <Icon path={icon} className="h-4 w-4" />
+      </span>
+      <span className="min-w-0">
+        <span className={cx(listSection, "block text-cyan-100/58")}>{label}</span>
+        <span className="mt-1 block text-[var(--fs-2xl)] font-bold leading-none text-white">{value}</span>
+        <span className={cx(listL3, "mt-1 block text-[var(--text-soft)]")}>{sublabel}</span>
+      </span>
     </div>
   );
+}
+
+function SectionTitle({
+  icon,
+  eyebrow,
+  title,
+  copy,
+  action,
+}: {
+  icon: string;
+  eyebrow: string;
+  title: string;
+  copy?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 items-start gap-2">
+        <span className="suzi-account-section-icon" aria-hidden>
+          <Icon path={icon} className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <p className={cx(listSection, "text-cyan-100/58")}>{eyebrow}</p>
+          <h2 className={cx(panelTitle, "mt-0.5")}>{title}</h2>
+          {copy ? <p className={cx(listL2, "mt-0.5 text-[var(--text-soft)]")}>{copy}</p> : null}
+        </div>
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
+  );
+}
+
+function resolveMaybeMediaUrl(url: string | null | undefined) {
+  if (!url) {
+    return null;
+  }
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/")) {
+    return url;
+  }
+  return `/${url.replace(/^\/+/, "")}`;
 }
 
 export function PublicProfileClient(props: { username?: string; userId?: string }) {
   const { username, userId } = props;
   const router = useRouter();
   const [profileView, setProfileView] = useState<UserProfileView | null>(null);
-  const [hostedRooms, setHostedRooms] = useState<Array<{ id: string; slug: string; name: string; description: string | null }>>(
-    [],
-  );
+  const [hostedRooms, setHostedRooms] = useState<
+    Array<{
+      id: string;
+      slug: string;
+      name: string;
+      description: string | null;
+      imageUrl: string | null;
+      privacy: string;
+      members: number;
+    }>
+  >([]);
   const [profileSnaps, setProfileSnaps] = useState<ApiPost[]>([]);
   const [profileReels, setProfileReels] = useState<ApiPost[]>([]);
   const [busy, setBusy] = useState(false);
@@ -127,6 +179,9 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
           slug: room.slug,
           name: room.name,
           description: room.description,
+          imageUrl: room.imageUrl,
+          privacy: room.privacy,
+          members: room._count?.memberships ?? 0,
         })),
     );
   }, [username, userId]);
@@ -347,80 +402,51 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
 
   const showDecline = relation.kind === "incoming_request";
   const showCancelRequest = relation.kind === "outgoing_request";
+  const userBio = user.bio?.trim();
 
   return (
     <ProfilePageShell>
-      <div className="w-full space-y-[var(--row-gap)]">
-      {/* Cover + identity */}
-      <div className="overflow-hidden rounded-[var(--panel-radius)] border border-white/10 bg-[linear-gradient(135deg,rgba(72,28,140,0.55),rgba(10,14,42,0.95))] shadow-[0_18px_44px_rgba(6,8,28,0.45)]">
-        <div className="relative px-[var(--panel-pad)] py-[var(--panel-pad)]">
-          <div className="pointer-events-none absolute inset-0 opacity-30 [background:radial-gradient(ellipse_at_20%_0%,rgba(255,32,121,0.4),transparent_55%),radial-gradient(ellipse_at_80%_30%,rgba(0,229,255,0.2),transparent_50%)]" />
-          <div className="relative grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-            <div className="flex items-center gap-4">
-              <div
-                className="relative shrink-0 overflow-hidden rounded-full border-[3px] border-fuchsia-300/35 bg-[rgba(12,10,40,0.96)] shadow-[0_18px_40px_rgba(15,23,42,0.5)] ring-4 ring-[rgba(15,18,48,0.85)]"
-                style={{ width: "var(--avatar-xl)", height: "var(--avatar-xl)" }}
-              >
+      <div className="suzi-public-profile-layout">
+        <Panel className="suzi-public-profile-hero overflow-hidden p-0">
+          <div className="suzi-public-profile-hero-inner">
+            <div className="suzi-public-profile-identity">
+              <div className="suzi-public-profile-avatar">
                 {avatarSrc.startsWith("http://") || avatarSrc.startsWith("https://") ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatarSrc} alt="" className="absolute inset-0 h-full w-full object-cover" />
                 ) : (
                   <Image src={avatarSrc} alt="" fill sizes="120px" className="object-cover" priority />
                 )}
+                {relation.kind !== "blocked_you" ? (
+                  <span
+                    className={cx(
+                      "absolute bottom-1 right-1 h-3 w-3 rounded-full border-2 border-[#150c43]",
+                      presence === "online"
+                        ? "bg-emerald-400 shadow-[0_0_8px_rgba(110,255,178,0.75)]"
+                        : presence === "away"
+                          ? "bg-amber-300"
+                          : "bg-slate-500",
+                    )}
+                  />
+                ) : null}
               </div>
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="truncate text-[var(--fs-2xl)] font-bold tracking-tight text-white">{displayName}</h1>
-                  {user.isEmailVerified ? (
-                    <span
-                      className="inline-flex items-center rounded-full border border-emerald-300/35 bg-emerald-400/14 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-emerald-100"
-                      title="Verified email"
-                    >
-                      Verified
-                    </span>
-                  ) : null}
+                  <h1 className={cx(panelTitle, "truncate text-white")}>{displayName}</h1>
                   {user.isAdultConfirmed ? (
-                    <span className="rounded-full border border-cyan-300/28 bg-cyan-400/12 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-cyan-50">
+                    <span className={cx(listL3, "rounded-full border border-cyan-300/28 bg-cyan-400/12 px-2 py-0.5 font-bold text-cyan-50")}>
                       18+
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-1 flex flex-wrap items-center gap-2 text-[var(--fs-sm)] font-medium text-cyan-100/75">
-                  <span>@{user.username}</span>
-                  {relation.kind !== "blocked_you" ? (
-                    <>
-                      <span className="opacity-30">·</span>
-                      <span
-                        className={cx(
-                          "inline-flex items-center gap-1.5 text-[var(--fs-xs)]",
-                          presence === "online"
-                            ? "text-emerald-300/90"
-                            : presence === "away"
-                              ? "text-amber-200/85"
-                              : "text-[var(--text-muted)]",
-                        )}
-                      >
-                        <span
-                          className={cx(
-                            "h-1.5 w-1.5 rounded-full",
-                            presence === "online"
-                              ? "bg-emerald-400 shadow-[0_0_8px_rgba(110,255,178,0.7)]"
-                              : presence === "away"
-                                ? "bg-amber-300"
-                                : "bg-slate-500",
-                          )}
-                        />
-                        {presenceLabel(presence)}
-                      </span>
-                    </>
-                  ) : null}
-                </p>
+                <p className={cx(listL1, "mt-1 text-cyan-100/75")}>@{user.username}</p>
 
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span
                     className={cx(
-                      "rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em]",
+                      listSection,
+                      "rounded-full border px-2.5 py-1",
                       relationshipBadge.tone === "ok"
                         ? "border-emerald-300/35 bg-emerald-400/14 text-emerald-100"
                         : relationshipBadge.tone === "accent"
@@ -434,164 +460,216 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
                   >
                     {relationshipBadge.label}
                   </span>
-                  {user.country ? (
-                    <span className="rounded-full border border-white/12 bg-white/5 px-3 py-1 text-[0.72rem] text-[var(--text-muted)]">
-                      {user.country}
+                  {relation.kind === "friends" ? (
+                    <span className={cx(listL3, "rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[var(--text-soft)]")}>
+                      Friends since {formatJoined(relation.friendsSince)}
                     </span>
                   ) : null}
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.72rem] text-[var(--text-soft)]">
-                    Joined {formatJoined(user.createdAt)}
-                  </span>
+                  {relation.kind !== "blocked_you" ? (
+                    <span
+                      className={cx(
+                        listL3,
+                        "inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1",
+                        presence === "online"
+                          ? "text-emerald-300/90"
+                          : presence === "away"
+                            ? "text-amber-200/85"
+                            : "text-[var(--text-soft)]",
+                      )}
+                    >
+                      <span
+                        className={cx(
+                          "h-1.5 w-1.5 rounded-full",
+                          presence === "online"
+                            ? "bg-emerald-400 shadow-[0_0_8px_rgba(110,255,178,0.7)]"
+                            : presence === "away"
+                              ? "bg-amber-300"
+                              : "bg-slate-500",
+                        )}
+                      />
+                      {presenceLabel(presence)}
+                    </span>
+                  ) : null}
                 </div>
+
+                {userBio ? (
+                  <p className={cx(listL2, "mt-4 max-w-2xl leading-relaxed text-[var(--text-muted)]")}>
+                    {userBio}
+                  </p>
+                ) : null}
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex flex-col gap-2 sm:min-w-[min(100%,20rem)]">
-              <div className="flex flex-wrap justify-center gap-2 md:justify-end">
-                {canOpenDm ? (
-                  <Link
-                    href={`/app/messages?with=${encodeURIComponent(user.id)}`}
-                    className="suzi-primary-btn inline-flex min-h-[2.75rem] flex-1 items-center justify-center px-5 py-2.5 text-sm font-semibold sm:flex-none"
-                  >
-                    Message
-                  </Link>
-                ) : (
-                  <span className="inline-flex min-h-[2.75rem] flex-1 cursor-not-allowed items-center justify-center rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-semibold text-[var(--text-muted)] sm:flex-none">
-                    Messaging unavailable
-                  </span>
-                )}
+            <div className="suzi-public-profile-actions">
+              {canOpenDm ? (
+                <Link
+                  href={`/app/messages?with=${encodeURIComponent(user.id)}`}
+                  className="suzi-primary-btn inline-flex items-center justify-center gap-2 px-4 py-2"
+                >
+                  <Icon path="M4 6h16v10H8l-4 4V6Z" className="h-3.5 w-3.5" />
+                  Message
+                </Link>
+              ) : (
+                <span className={cx(listL2, "inline-flex items-center justify-center rounded-[0.8rem] border border-white/10 bg-white/5 px-4 py-2 font-semibold text-[var(--text-muted)]")}>
+                  Messaging unavailable
+                </span>
+              )}
 
+              <button
+                type="button"
+                disabled={primaryDisabled}
+                onClick={() => void handlePrimaryFriendAction()}
+                className="suzi-secondary-btn inline-flex items-center justify-center px-4 py-2 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {busy ? "Please wait..." : primaryFriendLabel}
+              </button>
+
+              {showDecline ? (
                 <button
                   type="button"
-                  disabled={primaryDisabled}
-                  onClick={() => void handlePrimaryFriendAction()}
-                  className="inline-flex min-h-[2.75rem] flex-1 items-center justify-center rounded-xl border border-fuchsia-300/35 bg-fuchsia-400/14 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-fuchsia-300/55 hover:bg-fuchsia-400/22 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none"
+                  disabled={busy}
+                  onClick={() => void handleDeclineIncoming()}
+                  className="suzi-secondary-btn inline-flex items-center justify-center px-4 py-2"
                 >
-                  {busy ? "Please wait…" : primaryFriendLabel}
+                  Decline
                 </button>
-              </div>
+              ) : null}
 
-              <div className="flex flex-wrap justify-center gap-2 md:justify-end">
-                {showDecline ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void handleDeclineIncoming()}
-                    className="suzi-secondary-btn min-h-[2.5rem] px-4 py-2 text-sm"
-                  >
-                    Decline
-                  </button>
-                ) : null}
-                {showCancelRequest ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void handleCancelOutgoing()}
-                    className="suzi-secondary-btn min-h-[2.5rem] px-4 py-2 text-sm"
-                  >
-                    Cancel request
-                  </button>
-                ) : null}
+              {showCancelRequest ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleCancelOutgoing()}
+                  className="suzi-secondary-btn inline-flex items-center justify-center px-4 py-2"
+                >
+                  Cancel request
+                </button>
+              ) : null}
 
-                {relation.kind !== "blocked_you" ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void handleToggleBlock()}
-                    className="inline-flex min-h-[2.5rem] items-center justify-center rounded-xl border border-pink-300/30 bg-pink-500/12 px-4 py-2 text-sm font-semibold text-pink-100 transition hover:border-pink-300/45 hover:bg-pink-500/18"
-                  >
-                    {relation.kind === "blocked_by_me" ? "Unblock" : "Block"}
-                  </button>
-                ) : null}
-              </div>
+              {relation.kind !== "blocked_you" ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleToggleBlock()}
+                  className={cx(listL2, "inline-flex items-center justify-center rounded-[0.8rem] border border-pink-300/30 bg-pink-500/12 px-4 py-2 font-semibold text-pink-100 transition hover:border-pink-300/45 hover:bg-pink-500/18")}
+                >
+                  {relation.kind === "blocked_by_me" ? "Unblock" : "Block"}
+                </button>
+              ) : null}
             </div>
           </div>
 
-          {relation.kind === "friends" ? (
-            <p className="relative mt-3 text-[var(--fs-xs)] text-cyan-100/55">
-              Friends since {formatJoined(relation.friendsSince)}
-            </p>
-          ) : null}
-
           {relation.kind === "blocked_you" ? (
-            <p className="relative mt-3 rounded-[1rem] border border-pink-300/22 bg-pink-500/10 px-4 py-3 text-[var(--fs-sm)] text-pink-100">
+            <p className={cx(listL2, "relative mx-[var(--panel-pad)] mb-[var(--panel-pad)] rounded-[1rem] border border-pink-300/22 bg-pink-500/10 px-4 py-3 text-pink-100")}>
               You cannot interact with this account.
             </p>
           ) : null}
-
-          {user.bio?.trim() ? (
-            <p className="relative mt-3 max-w-3xl text-[var(--fs-sm)] leading-relaxed text-[var(--text-muted)]">
-              <span className="mr-1 text-fuchsia-300">✦</span>
-              {user.bio.trim()}
-            </p>
-          ) : null}
-        </div>
-      </div>
-
-      {error ? (
-        <Panel className="border border-amber-300/28 bg-amber-500/10 p-4">
-          <p className="text-sm text-amber-100">{error}</p>
         </Panel>
-      ) : null}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-[var(--col-gap)] lg:grid-cols-4">
-        <StatCard label="Friends" value={counts.friends} tone="cyan" />
-        <StatCard label="Rooms" value={counts.rooms} tone="fuchsia" />
-        <StatCard label="Snaps" value={counts.snaps} tone="emerald" />
-        <StatCard label="Reels" value={counts.reels} tone="amber" />
-      </div>
+        {error ? (
+          <Panel className="border border-amber-300/28 bg-amber-500/10 p-4">
+            <p className={cx(listL2, "text-amber-100")}>{error}</p>
+          </Panel>
+        ) : null}
 
-      {/* Bio (only shown if no bio in hero) */}
-      {!user.bio?.trim() ? (
-        <Panel className="border border-white/10 bg-[linear-gradient(160deg,rgba(28,18,82,0.45),rgba(12,10,40,0.65))] p-[var(--panel-pad)]">
-          <p className="text-[var(--fs-2xs)] font-bold uppercase tracking-[0.26em] text-cyan-100/52">About</p>
-          <p className="mt-2 text-[var(--fs-sm)] text-[var(--text-soft)]">No bio yet.</p>
-          <p className="mt-1 text-[var(--fs-xs)] text-[var(--text-soft)]">@{user.username} hasn&apos;t written a bio yet.</p>
-        </Panel>
-      ) : null}
-
-      {/* Hosted rooms */}
-      <Panel className="p-[var(--panel-pad)]">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[var(--fs-2xs)] font-bold uppercase tracking-[0.22em] text-cyan-100/52">Hosted Spaces</p>
-            <p className="mt-0.5 text-[var(--fs-xs)] text-[var(--text-soft)]">Rooms owned by @{user.username}</p>
-          </div>
-          <Link href="/app#rooms" className="text-[var(--fs-xs)] font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100">
-            View all rooms →
-          </Link>
+        <div className="suzi-public-stats-grid">
+          <StatCard
+            label="Friends"
+            value={counts.friends}
+            sublabel="People"
+            icon="M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4ZM6 21a6 6 0 0 1 12 0M8 13a3 3 0 1 0-3-3 3 3 0 0 0 3 3ZM2 19a4 4 0 0 1 6-3.5"
+          />
+          <StatCard
+            label="Rooms"
+            value={counts.rooms}
+            sublabel="Hosted"
+            icon="M4 5h16v14H4V5Zm4 4h8M8 13h5"
+          />
+          <StatCard
+            label="Snaps"
+            value={counts.snaps}
+            sublabel="Shared"
+            icon="M4 7h3l2-2h6l2 2h3v12H4V7Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+          />
+          <StatCard
+            label="Reels"
+            value={counts.reels}
+            sublabel="Posted"
+            icon="M6 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm4 4 5 3-5 3V9Z"
+          />
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {hostedRooms.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)]">No rooms hosted yet.</p>
-          ) : (
-            hostedRooms.map((room) => (
-              <Link
-                key={room.id}
-                href={`/app/rooms/${encodeURIComponent(room.slug)}`}
-                className="group rounded-[1.1rem] border border-cyan-300/18 bg-[linear-gradient(155deg,rgba(255,32,121,0.08),rgba(0,229,255,0.05))] p-4 transition hover:border-cyan-300/35 hover:bg-white/6"
-              >
-                <p className="font-semibold text-white group-hover:text-cyan-100">{room.name}</p>
-                {room.description ? (
-                  <p className="mt-2 line-clamp-2 text-sm text-[var(--text-muted)]">{room.description}</p>
-                ) : null}
-                <p className="mt-3 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-fuchsia-200/75">
-                  Open room →
-                </p>
+
+        <Panel className="suzi-public-panel p-[var(--panel-pad)]">
+          <SectionTitle
+            icon="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z"
+            eyebrow="About"
+            title={userBio ? "Bio" : "No bio yet."}
+            copy={userBio ?? `@${user.username} hasn't written a bio yet.`}
+          />
+        </Panel>
+
+        <Panel className="suzi-public-panel p-[var(--panel-pad)]">
+          <SectionTitle
+            icon="M4 5h16v14H4V5Zm4 4h8M8 13h5"
+            eyebrow="Hosted spaces"
+            title="Rooms"
+            copy={`Rooms owned by @${user.username}`}
+            action={
+              <Link href="/app#rooms" className={panelLink}>
+                View all rooms
               </Link>
-            ))
-          )}
-        </div>
-      </Panel>
+            }
+          />
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {hostedRooms.length === 0 ? (
+              <p className={cx(listEmpty, "rounded-[0.85rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-3 text-cyan-100/58")}>
+                No rooms hosted yet.
+              </p>
+            ) : (
+              hostedRooms.slice(0, 3).map((room) => {
+                const roomImage = resolveMaybeMediaUrl(room.imageUrl);
+                return (
+                  <Link
+                    key={room.id}
+                    href={`/app/rooms/${encodeURIComponent(room.slug)}`}
+                    className="suzi-public-room-card group"
+                  >
+                    <span className="suzi-public-room-thumb">
+                      {roomImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={roomImage} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center bg-fuchsia-400/12 text-cyan-100/78">
+                          <Icon path="M4 5h16v14H4V5Zm4 4h8M8 13h5" className="h-5 w-5" />
+                        </span>
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className={cx(listL1, "block truncate font-semibold text-white group-hover:text-cyan-100")}>
+                        {room.name}
+                      </span>
+                      <span className={cx(listL3, "mt-1 flex flex-wrap items-center gap-2 text-[var(--text-soft)]")}>
+                        <span>{room.members} members</span>
+                        <span className="opacity-40">·</span>
+                        <span>{room.privacy}</span>
+                      </span>
+                    </span>
+                    <span className={cx(listAction, "rounded-[0.55rem] border border-fuchsia-300/26 px-2 py-1 text-fuchsia-100/88")}>
+                      Open room
+                    </span>
+                  </Link>
+                );
+              })
+            )}
+          </div>
+        </Panel>
 
-      <ProfileMediaGallery
-        username={user.username}
-        snaps={profileSnaps}
-        reels={profileReels}
-        loading={busy}
-      />
+        <ProfileMediaGallery
+          username={user.username}
+          snaps={profileSnaps}
+          reels={profileReels}
+          loading={busy}
+        />
       </div>
     </ProfilePageShell>
   );

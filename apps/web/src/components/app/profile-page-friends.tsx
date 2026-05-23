@@ -3,6 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  listAction,
+  listEmpty,
+  listL2,
+  listL3,
+  listTitleLink,
+} from "@/components/app/app-typography";
 import { cx } from "@/components/ui/suzi-primitives";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { getStoredAuthSession } from "@/lib/auth-client";
@@ -14,8 +21,6 @@ import {
 import { getRealtimeSocket } from "@/lib/realtime-client";
 
 type Presence = "online" | "away" | "offline";
-
-const PREVIEW_COUNT = 4;
 
 function displayName(user: { displayName: string | null; username: string }) {
   return user.displayName?.trim() || user.username;
@@ -64,7 +69,6 @@ export function ProfilePageFriendsSection({
   const [friends, setFriends] = useState<FriendsSummary | null>(initialFriends);
   const [presenceById, setPresenceById] = useState<Record<string, Presence>>({});
   const [busy, setBusy] = useState(false);
-  const [showAll, setShowAll] = useState(false);
 
   const refresh = useCallback(async () => {
     const s = getStoredAuthSession();
@@ -137,8 +141,6 @@ export function ProfilePageFriendsSection({
     return sortFriendsForDisplay(friends.friends, presenceById);
   }, [friends, presenceById]);
 
-  const visibleFriends = showAll ? sortedFriends : sortedFriends.slice(0, PREVIEW_COUNT);
-
   async function runAction(fn: () => Promise<void>) {
     setBusy(true);
     try {
@@ -152,9 +154,9 @@ export function ProfilePageFriendsSection({
   return (
     <div className="space-y-3">
       {!friends ? (
-        <p className="text-sm text-[var(--text-muted)]">Loading friends…</p>
+        <p className={cx(listEmpty, "text-[var(--text-muted)]")}>Loading friends…</p>
       ) : sortedFriends.length === 0 ? (
-        <div className="rounded-[0.85rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-3 text-sm text-cyan-100/56">
+        <div className={cx(listEmpty, "rounded-[0.85rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-3 text-cyan-100/56")}>
           You have no friends yet. Open{" "}
           <Link href="/app" className="font-semibold text-cyan-200 underline-offset-2 hover:underline">
             Home
@@ -163,8 +165,8 @@ export function ProfilePageFriendsSection({
         </div>
       ) : (
         <>
-          <div className="space-y-2">
-            {visibleFriends.map((friend) => {
+          <div className="suzi-profile-friends-list suzi-thin-scroll space-y-2 pr-1">
+            {sortedFriends.map((friend) => {
               const status = presenceById[friend.id] ?? "offline";
               return (
                 <div
@@ -189,15 +191,15 @@ export function ProfilePageFriendsSection({
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`/app/profile/u/${encodeURIComponent(friend.id)}`}
-                      className="block truncate text-[1.02rem] font-semibold leading-tight text-white hover:text-cyan-100"
+                      className={cx(listTitleLink, "block truncate")}
                     >
                       {displayName(friend)}
                     </Link>
-                    <p className="mt-0.5 truncate text-[0.82rem] text-cyan-100/66">@{friend.username}</p>
+                    <p className={cx(listL2, "mt-0.5 truncate text-cyan-100/66")}>@{friend.username}</p>
                     {status === "online" ? (
-                      <p className="mt-0.5 text-[0.72rem] font-medium text-emerald-300/90">Online</p>
+                      <p className={cx(listL3, "mt-0.5 font-medium text-emerald-300/90")}>Online</p>
                     ) : status === "away" ? (
-                      <p className="mt-0.5 text-[0.72rem] font-medium text-amber-200/85">Away</p>
+                      <p className={cx(listL3, "mt-0.5 font-medium text-amber-200/85")}>Away</p>
                     ) : null}
                   </div>
                   <Link
@@ -230,7 +232,7 @@ export function ProfilePageFriendsSection({
                         await unfriend(s.accessToken, friend.id);
                       })
                     }
-                    className="shrink-0 rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-2.5 py-1 text-[0.66rem] font-semibold text-pink-100 transition hover:border-fuchsia-300/45"
+                    className={cx(listAction, "shrink-0 rounded-full border border-fuchsia-300/30 bg-fuchsia-500/16 px-2.5 py-1 font-semibold text-pink-100 transition hover:border-fuchsia-300/45")}
                   >
                     Unfriend
                   </button>
@@ -238,33 +240,8 @@ export function ProfilePageFriendsSection({
               );
             })}
           </div>
-          {sortedFriends.length > PREVIEW_COUNT ? (
-            <button
-              type="button"
-              onClick={() => setShowAll((v) => !v)}
-              className="flex w-full items-center justify-center gap-1 rounded-[0.75rem] border border-cyan-300/16 bg-white/4 py-2 text-[0.78rem] font-semibold text-cyan-100/75 transition hover:bg-white/7 hover:text-cyan-50"
-            >
-              {showAll ? "Show fewer friends" : "Show more friends"}
-              <IconChevron open={showAll} />
-            </button>
-          ) : null}
         </>
       )}
     </div>
-  );
-}
-
-function IconChevron({ open }: { open: boolean }) {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      className={cx("h-4 w-4 transition-transform", open ? "rotate-180" : undefined)}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <path d="M6 9l6 6 6-6" />
-    </svg>
   );
 }

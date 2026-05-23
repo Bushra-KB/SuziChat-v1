@@ -8,7 +8,6 @@ export type StoredProfilePrefs = {
 const DEFAULT_PREFS: StoredProfilePrefs = {
   prefToggles: {
     showOnline: true,
-    darkMode: true,
     snapsFriends: true,
     roomInvites: true,
   },

@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { Panel } from "@/components/ui/suzi-primitives";
+import {
+  listEmpty,
+  listL3,
+  listSection,
+  panelLink,
+  panelTitle,
+} from "@/components/app/app-typography";
+import { Icon, Panel, cx } from "@/components/ui/suzi-primitives";
 import { resolvePostMediaUrl } from "@/lib/post-media-url";
 import type { ApiPost } from "@/lib/posts-client";
 
@@ -17,7 +24,7 @@ function MediaTile({ post }: { post: ApiPost }) {
       className="group block w-full"
       title={post.caption ?? post.title ?? undefined}
     >
-      <div className="relative aspect-square w-full overflow-hidden rounded-[0.85rem] border border-cyan-300/18 bg-[rgba(18,13,65,0.55)] transition group-hover:border-fuchsia-300/35 group-hover:shadow-[0_0_16px_rgba(255,32,121,0.15)]">
+      <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[0.75rem] border border-cyan-300/18 bg-[rgba(18,13,65,0.55)] transition group-hover:border-fuchsia-300/35 group-hover:shadow-[0_0_16px_rgba(255,32,121,0.15)]">
         {isVideo ? (
           <video
             src={src}
@@ -30,8 +37,14 @@ function MediaTile({ post }: { post: ApiPost }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
         )}
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-[rgba(8,6,28,0.88)] to-transparent px-2 py-2 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-cyan-50/90">
-          {post.kind === "SNAP" ? "Snap" : "Reel"}
+        <span className="pointer-events-none absolute left-1.5 top-1.5 inline-flex h-5 w-5 items-center justify-center rounded-[0.45rem] border border-white/18 bg-[rgba(10,8,38,0.72)] text-cyan-50/90">
+          <Icon
+            path={post.kind === "SNAP" ? "M4 7h3l2-2h6l2 2h3v12H4V7Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" : "M6 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm4 4 5 3-5 3V9Z"}
+            className="h-3 w-3"
+          />
+        </span>
+        <span className={cx(listL3, "pointer-events-none absolute bottom-1.5 right-1.5 rounded-full bg-[rgba(10,8,38,0.72)] px-1.5 py-0.5 font-semibold text-cyan-50/90")}>
+          {new Date(post.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
         </span>
       </div>
     </Link>
@@ -69,27 +82,28 @@ export function ProfileMediaGallery({
   }, [snaps, reels]);
 
   return (
-    <Panel className="w-full p-[var(--panel-pad)]">
+    <Panel className="suzi-public-panel w-full p-[var(--panel-pad)]">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[var(--fs-2xs)] font-bold uppercase tracking-[0.22em] text-cyan-100/52">
+          <p className={cx(listSection, "text-cyan-100/58")}>
             Snaps & Reels
           </p>
-          <p className="mt-0.5 text-[var(--fs-xs)] text-[var(--text-soft)]">
+          <h2 className={cx(panelTitle, "mt-0.5")}>Recent posts</h2>
+          <p className={cx(listL3, "mt-0.5 text-[var(--text-soft)]")}>
             {username ? `Recent posts from @${username}` : "Your recent posts"}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/app/snaps"
-            className="text-[var(--fs-xs)] font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100"
+            className={panelLink}
           >
             Snaps ({snaps.length})
           </Link>
           <span className="text-cyan-100/30">·</span>
           <Link
             href="/app/reels"
-            className="text-[var(--fs-xs)] font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100"
+            className={panelLink}
           >
             Reels ({reels.length})
           </Link>
@@ -97,13 +111,13 @@ export function ProfileMediaGallery({
       </div>
 
       {loading ? (
-        <p className="mt-4 text-sm text-[var(--text-muted)]">Loading media…</p>
+        <p className={cx(listEmpty, "mt-4 text-[var(--text-muted)]")}>Loading media...</p>
       ) : preview.length === 0 ? (
-        <p className="mt-4 rounded-[0.85rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-4 text-sm text-cyan-100/58">
+        <p className={cx(listEmpty, "mt-4 rounded-[0.85rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-4 text-cyan-100/58")}>
           No snaps or reels to show yet.
         </p>
       ) : (
-        <div className="mt-3 grid w-full grid-cols-2 gap-2 sm:grid-cols-3 md:gap-3 lg:grid-cols-6">
+        <div className="mt-3 grid w-full grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {preview.map((post) => (
             <MediaTile key={post.id} post={post} />
           ))}
