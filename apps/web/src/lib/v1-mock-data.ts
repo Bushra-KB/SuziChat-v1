@@ -719,11 +719,11 @@ export const games = [
     playing: "842 playing",
   },
   {
-    id: "neonhockey",
-    name: "Suzi Neon Hockey",
-    icon: gameIcons.neonhockey,
-    copy: "Realtime air hockey with glowing paddles and arcade SFX.",
-    tone: "from-cyan-400/24 via-fuchsia-400/12 to-transparent",
+    id: "gomoku",
+    name: "Gomoku",
+    icon: gameIcons.gomoku,
+    copy: "Place stones, read threats, and connect five before your rival.",
+    tone: "from-emerald-400/24 via-cyan-400/12 to-transparent",
     playing: "1.5K playing",
   },
   {
@@ -735,11 +735,11 @@ export const games = [
     playing: "623 playing",
   },
   {
-    id: "tankduel",
-    name: "Suzi Cosmic Tank Duel",
-    icon: gameIcons.tankduel,
-    copy: "2-player hover tank arena with lasers, KOs, and live spectators.",
-    tone: "from-rose-400/24 via-fuchsia-400/12 to-transparent",
+    id: "dotsandboxes",
+    name: "Dots and Boxes",
+    icon: gameIcons.dotsandboxes,
+    copy: "Draw smart lines, close boxes, and keep combo turns alive.",
+    tone: "from-violet-400/24 via-fuchsia-400/12 to-transparent",
     playing: "932 playing",
   },
 ];

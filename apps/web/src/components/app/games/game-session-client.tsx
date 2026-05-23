@@ -5,10 +5,10 @@ import Link from "next/link";
 import { CheckersBoardView } from "@/components/app/games/checkers-board-view";
 import { ChessBoardView } from "@/components/app/games/chess-board-view";
 import { Connect4BoardView } from "@/components/app/games/connect4-board-view";
-import { CosmicTankDuelArena } from "@/components/app/games/cosmic-tank-duel-arena";
+import { DotsAndBoxesBoardView } from "@/components/app/games/dots-and-boxes-board-view";
 import { GameFrame } from "@/components/app/games/game-frame";
 import { gameMeta, gameTypeToId } from "@/components/app/games/game-meta";
-import { NeonHockeyArena } from "@/components/app/games/neon-hockey-arena";
+import { GomokuBoardView } from "@/components/app/games/gomoku-board-view";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { formatMoveListForSession, getLastChessMoveSquares } from "@/lib/format-game-move";
@@ -64,7 +64,6 @@ export function GameSessionClient({
   const prevMovesLen = useRef(0);
   const prevTurnId = useRef<string | null>(null);
   const seatedRef = useRef(false);
-  const realtimeInFlight = useRef(false);
 
   const auth = useMemo(() => getStoredAuthSession(), []);
 
@@ -243,32 +242,6 @@ export function GameSessionClient({
     }
   }
 
-  const runRealtimeAction = useCallback(
-    (payload: Record<string, unknown>) => {
-      if (!auth?.accessToken || realtimeInFlight.current) return;
-      const seated =
-        session?.lobby.seats.some((s) => s.userId === auth.user.id) ?? false;
-      if (!seated) return;
-      realtimeInFlight.current = true;
-      const socket = openGamesSocket(auth.accessToken);
-      const action = socket.connected
-        ? postGameSessionAction(socket, sessionId, payload)
-        : postGameAction(auth.accessToken, sessionId, payload);
-      void action
-        .then((next) => {
-          setSession(next);
-          setError("");
-        })
-        .catch(() => {
-          // Realtime games send frequent control packets; avoid noisy transient errors.
-        })
-        .finally(() => {
-          realtimeInFlight.current = false;
-        });
-    },
-    [auth?.accessToken, auth?.user.id, session?.lobby.seats, sessionId],
-  );
-
   async function sendChat() {
     const body = chatDraft.trim();
     if (!body || !auth?.accessToken) return;
@@ -430,6 +403,24 @@ export function GameSessionClient({
   const connect4Board = Array.from({ length: 6 }, (_, r) =>
     Array.from({ length: 7 }, (_, c) => Number(asArray(rawC4[r])[c] ?? 0)),
   );
+  const gomokuSize = Number(state.size ?? 15);
+  const gomokuBoard = Array.from({ length: gomokuSize }, (_, r) =>
+    Array.from({ length: gomokuSize }, (_, c) => Number(asArray(rawC4[r])[c] ?? 0)),
+  );
+  const dotsSize = Number(state.size ?? 4);
+  const rawHorizontalEdges = asArray(state.horizontalEdges);
+  const rawVerticalEdges = asArray(state.verticalEdges);
+  const rawBoxes = asArray(state.boxes);
+  const dotsHorizontalEdges = Array.from({ length: dotsSize + 1 }, (_, r) =>
+    Array.from({ length: dotsSize }, (_, c) => Boolean(asArray(rawHorizontalEdges[r])[c])),
+  );
+  const dotsVerticalEdges = Array.from({ length: dotsSize }, (_, r) =>
+    Array.from({ length: dotsSize + 1 }, (_, c) => Boolean(asArray(rawVerticalEdges[r])[c])),
+  );
+  const dotsBoxes = Array.from({ length: dotsSize }, (_, r) =>
+    Array.from({ length: dotsSize }, (_, c) => Number(asArray(rawBoxes[r])[c] ?? 0)),
+  );
+  const dotsScores = asArray(state.scores).map(Number);
 
   const gamePlayers = (() => {
     const fromState = asArray(state.players).map(String).filter(Boolean);
@@ -448,19 +439,15 @@ export function GameSessionClient({
     ? (gameMeta.find((game) => game.id === gameRouteId || game.type === session.gameType)?.name ??
       `${session.gameType.replace("_", " ")} Session`)
     : "Game Session";
-  const realtimeArena =
-    session?.gameType === "NEON_HOCKEY" || session?.gameType === "TANK_DUEL";
   const frameSubtitle = !session
     ? undefined
     : spectator
       ? "You’re watching — open a seat in the lobby to play."
-      : realtimeArena && session.status === "ACTIVE"
-        ? "Live arena — control updates sync in realtime"
-        : session.status === "ACTIVE"
-          ? isTurn
-            ? "Your turn"
-            : `Waiting for ${turnDisplay}`
-          : "Finished";
+      : session.status === "ACTIVE"
+        ? isTurn
+          ? "Your turn"
+          : `Waiting for ${turnDisplay}`
+        : "Finished";
 
   return (
     <section className="suzi-app-frame-fill suzi-game-session-page">
@@ -599,7 +586,6 @@ export function GameSessionClient({
               subtitle={frameSubtitle}
               reconnecting={!socketReady}
               reconnectHint={RECONNECT_HINT}
-              immersive={realtimeArena}
               lobbyHref={`/app/games/${gameRouteId ?? gameTypeToId(session.gameType)}`}
               watcherCount={watcherCount}
             >
@@ -656,24 +642,34 @@ export function GameSessionClient({
                     onDrop={(column) => void runAction({ column })}
                   />
                 ) : null}
-                {session.gameType === "NEON_HOCKEY" ? (
-                  <NeonHockeyArena
-                    state={state}
+                {session.gameType === "GOMOKU" && gamePlayers.length >= 2 ? (
+                  <GomokuBoardView
+                    board={gomokuBoard}
+                    players={gamePlayers}
                     meId={meId}
+                    myTurn={session.status === "ACTIVE" && isTurn}
+                    busy={busy}
                     active={session.status === "ACTIVE"}
                     spectator={spectator}
-                    soundOn={soundOn}
-                    onControl={runRealtimeAction}
+                    onPlace={(row, col) => void runAction({ row, col })}
                   />
                 ) : null}
-                {session.gameType === "TANK_DUEL" ? (
-                  <CosmicTankDuelArena
-                    state={state}
+                {session.gameType === "DOTS_AND_BOXES" && gamePlayers.length >= 2 ? (
+                  <DotsAndBoxesBoardView
+                    size={dotsSize}
+                    horizontalEdges={dotsHorizontalEdges}
+                    verticalEdges={dotsVerticalEdges}
+                    boxes={dotsBoxes}
+                    scores={dotsScores}
+                    players={gamePlayers}
                     meId={meId}
+                    myTurn={session.status === "ACTIVE" && isTurn}
+                    busy={busy}
                     active={session.status === "ACTIVE"}
                     spectator={spectator}
-                    soundOn={soundOn}
-                    onControl={runRealtimeAction}
+                    onClaimEdge={(orientation, row, col) =>
+                      void runAction({ orientation, row, col })
+                    }
                   />
                 ) : null}
               </div>
