@@ -2538,13 +2538,13 @@ h5 {
 
 /* My Account — reference layout: centered column, hero + two-column body */
 .suzi-account-page .suzi-profile-page-inner {
-  width: min(100%, 68rem);
-  max-width: 68rem;
+  width: min(100%, 74rem);
+  max-width: 74rem;
   margin-inline: auto;
 }
 
 .suzi-account-page-scroll {
-  padding-inline: clamp(0.35rem, 1.2vw, 0.65rem);
+  padding-inline: clamp(0.25rem, 0.9vw, 0.55rem);
 }
 
 .suzi-account-layout {
@@ -2552,7 +2552,7 @@ h5 {
   flex-direction: column;
   gap: clamp(0.7rem, 1.4vw, 1rem);
   width: 100%;
-  max-width: 68rem;
+  max-width: 74rem;
   margin-inline: auto;
 }
 
@@ -2560,9 +2560,12 @@ h5 {
   border-color: rgba(255, 255, 255, 0.09);
   background: linear-gradient(
     148deg,
-    rgba(28, 14, 68, 0.88),
-    rgba(14, 8, 38, 0.82)
+    rgba(37, 18, 92, 0.9),
+    rgba(15, 9, 46, 0.82)
   );
+  box-shadow:
+    0 18px 48px rgba(4, 8, 32, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .suzi-account-hero-inner {
@@ -2575,8 +2578,8 @@ h5 {
 
 @media (min-width: 960px) {
   .suzi-account-hero-inner {
-    grid-template-columns: minmax(0, 1.1fr) minmax(12.5rem, 17.5rem);
-    gap: 1rem 1.25rem;
+    grid-template-columns: minmax(20rem, 0.82fr) minmax(0, 1.48fr);
+    gap: 1rem 1.35rem;
   }
 }
 
@@ -2588,34 +2591,43 @@ h5 {
 }
 
 .suzi-account-avatar {
-  width: clamp(4.35rem, 5.5vw + 1.75rem, 5.35rem);
-  height: clamp(4.35rem, 5.5vw + 1.75rem, 5.35rem);
+  width: clamp(5rem, 5.5vw + 1.75rem, 6.5rem);
+  height: clamp(5rem, 5.5vw + 1.75rem, 6.5rem);
+}
+
+.suzi-account-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
 }
 
 .suzi-account-stat-strip {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
+  gap: 0.6rem;
   width: 100%;
 }
 
-@media (min-width: 960px) {
+@media (min-width: 720px) {
   .suzi-account-stat-strip {
-    grid-template-columns: 1fr;
-    gap: 0.4rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 .suzi-account-stat-chip {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.6rem;
-  border-radius: 0.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-height: clamp(4.8rem, 5vw, 6.4rem);
+  padding: clamp(0.7rem, 0.75vw + 0.35rem, 1rem);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 32, 121, 0.12), transparent 44%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025));
   color: inherit;
   text-decoration: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition:
     background 160ms ease,
     border-color 160ms ease,
@@ -2624,7 +2636,9 @@ h5 {
 
 .suzi-account-stat-chip:hover {
   border-color: rgba(0, 229, 255, 0.28);
-  background: rgba(0, 229, 255, 0.07);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(0, 229, 255, 0.14), transparent 44%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.095), rgba(255, 255, 255, 0.035));
   transform: translateY(-1px);
 }
 
@@ -2633,11 +2647,11 @@ h5 {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 1.65rem;
-  height: 1.65rem;
-  border-radius: 0.55rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.7rem;
   border: 1px solid rgba(103, 232, 249, 0.22);
-  background: rgba(88, 36, 175, 0.35);
+  background: rgba(88, 36, 175, 0.45);
   color: rgba(207, 250, 254, 0.95);
 }
 
@@ -2652,10 +2666,19 @@ h5 {
 
 .suzi-account-stat-chip-value {
   display: block;
-  font-size: var(--fs-lg);
+  margin-top: 0.35rem;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   line-height: 1.1;
   color: #fff;
+}
+
+.suzi-account-stat-chip-action {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: rgba(207, 250, 254, 0.66);
 }
 
 .suzi-account-body {
@@ -2668,7 +2691,7 @@ h5 {
 
 @media (min-width: 900px) {
   .suzi-account-body {
-    grid-template-columns: minmax(0, 1.12fr) minmax(16rem, 0.88fr);
+    grid-template-columns: minmax(0, 1.02fr) minmax(20rem, 0.98fr);
   }
 }
 
@@ -2692,9 +2715,192 @@ h5 {
   border-color: rgba(255, 255, 255, 0.07);
   background: linear-gradient(
     165deg,
-    rgba(20, 11, 52, 0.62),
-    rgba(12, 7, 34, 0.52)
+    rgba(22, 12, 60, 0.68),
+    rgba(12, 7, 36, 0.54)
   );
+  box-shadow:
+    0 14px 36px rgba(4, 8, 32, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.suzi-account-friends-panel {
+  min-height: clamp(17rem, 30vh, 21rem);
+}
+
+.suzi-profile-friends-list {
+  max-height: clamp(13.5rem, 24vh, 16.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.suzi-public-profile-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--row-gap);
+  width: min(100%, 62rem);
+  margin-inline: auto;
+  padding-top: clamp(1.15rem, 2.8vh, 2.1rem);
+}
+
+.suzi-public-profile-hero {
+  min-height: clamp(7.4rem, 13vh, 9rem);
+  border-color: rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(ellipse at 84% 44%, rgba(255, 32, 121, 0.24), transparent 42%),
+    radial-gradient(ellipse at 20% 0%, rgba(0, 229, 255, 0.08), transparent 44%),
+    linear-gradient(135deg, rgba(31, 15, 82, 0.94), rgba(14, 8, 42, 0.9));
+  box-shadow:
+    0 20px 54px rgba(4, 8, 32, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.suzi-public-profile-hero-inner {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  align-items: center;
+  min-height: inherit;
+  padding: clamp(0.85rem, 0.9vw + 0.45rem, 1.2rem);
+}
+
+.suzi-public-profile-hero-inner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.28;
+  background:
+    radial-gradient(ellipse at 18% 0%, rgba(0, 229, 255, 0.22), transparent 52%),
+    radial-gradient(ellipse at 84% 40%, rgba(255, 32, 121, 0.28), transparent 48%);
+}
+
+@media (min-width: 900px) {
+  .suzi-public-profile-hero-inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+.suzi-public-profile-identity {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: clamp(0.75rem, 1vw, 1.1rem);
+  min-width: 0;
+}
+
+.suzi-public-profile-avatar {
+  position: relative;
+  width: clamp(5.25rem, 6vw + 1.5rem, 6.75rem);
+  height: clamp(5.25rem, 6vw + 1.5rem, 6.75rem);
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 2px solid rgba(217, 70, 239, 0.46);
+  background: rgba(12, 10, 40, 0.96);
+  box-shadow:
+    0 18px 40px rgba(15, 23, 42, 0.48),
+    0 0 0 4px rgba(15, 18, 48, 0.7);
+}
+
+.suzi-public-profile-actions {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 0.55rem;
+}
+
+@media (min-width: 900px) {
+  .suzi-public-profile-actions {
+    max-width: 18rem;
+    justify-content: flex-end;
+  }
+}
+
+.suzi-public-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--col-gap);
+}
+
+@media (min-width: 760px) {
+  .suzi-public-stats-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.suzi-public-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 4.65rem;
+  padding: clamp(0.65rem, 0.75vw + 0.3rem, 0.95rem);
+  border-radius: 1rem;
+  border: 1px solid rgba(103, 232, 249, 0.16);
+  background:
+    radial-gradient(circle at 15% 0%, rgba(255, 32, 121, 0.12), transparent 40%),
+    linear-gradient(145deg, rgba(34, 18, 88, 0.74), rgba(14, 8, 42, 0.68));
+  box-shadow:
+    0 12px 30px rgba(4, 8, 32, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.suzi-public-stat-icon {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  background: rgba(88, 36, 175, 0.45);
+  color: rgba(207, 250, 254, 0.96);
+}
+
+.suzi-public-panel {
+  border-color: rgba(103, 232, 249, 0.11);
+  background: linear-gradient(
+    165deg,
+    rgba(24, 12, 68, 0.82),
+    rgba(12, 7, 36, 0.76)
+  );
+  box-shadow:
+    0 14px 36px rgba(4, 8, 32, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.suzi-public-room-card {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  border-radius: 1rem;
+  border: 1px solid rgba(103, 232, 249, 0.18);
+  background: linear-gradient(155deg, rgba(43, 18, 99, 0.72), rgba(17, 10, 48, 0.72));
+  padding: 0.65rem;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.suzi-public-room-card:hover {
+  border-color: rgba(103, 232, 249, 0.34);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+
+.suzi-public-room-thumb {
+  display: block;
+  width: clamp(3.8rem, 6vw, 5rem);
+  height: clamp(2.65rem, 4vw, 3.4rem);
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  background: rgba(18, 13, 65, 0.55);
 }
 
 .suzi-account-form-head {

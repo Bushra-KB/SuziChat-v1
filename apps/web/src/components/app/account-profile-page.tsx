@@ -2,16 +2,22 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  listL1,
+  listL2,
+  listL3,
+  listSection,
+  panelLink,
+  panelTitle,
+} from "@/components/app/app-typography";
 import { ProfilePageFriendsSection } from "@/components/app/profile-page-friends";
 import { ProfilePageShell } from "@/components/app/profile-page-shell";
-import { Icon, Panel } from "@/components/ui/suzi-primitives";
+import { Icon, Panel, cx } from "@/components/ui/suzi-primitives";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import { loadProfilePrefs, saveProfilePrefs } from "@/lib/profile-prefs-storage";
 import { useMyProfileRealtime } from "@/lib/use-profile-realtime";
 import {
-  clearAuthSession,
   getStoredAuthSession,
   saveAuthSession,
   type AuthSession,
@@ -95,11 +101,6 @@ const QUICK_DEFAULTS: Array<{ id: string; label: string; copy: string }> = [
     copy: "Let friends see when you're online",
   },
   {
-    id: "darkMode",
-    label: "Enable dark mode",
-    copy: "Use dark theme across Suzi Chat",
-  },
-  {
     id: "snapsFriends",
     label: "Default snaps to friends",
     copy: "Your snaps will be visible to friends by default",
@@ -126,7 +127,6 @@ function SectionIcon({ path }: { path: string }) {
 }
 
 export function AccountProfilePage() {
-  const { setTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [session, setSession] = useState<AuthSession | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -138,7 +138,6 @@ export function AccountProfilePage() {
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [prefToggles, setPrefToggles] = useState<Record<string, boolean>>({
     showOnline: true,
-    darkMode: true,
     snapsFriends: true,
     roomInvites: true,
   });
@@ -265,8 +264,7 @@ export function AccountProfilePage() {
     const stored = loadProfilePrefs(session.user.id);
     setPrefToggles(stored.prefToggles);
     setPrivacy(stored.privacy);
-    setTheme(stored.prefToggles.darkMode ? "dark" : "light");
-  }, [session?.user.id, setTheme]);
+  }, [session?.user.id]);
 
   useEffect(() => {
     if (!session?.user.id) {
@@ -312,11 +310,6 @@ export function AccountProfilePage() {
         setSaveState("error");
         setSaveMessage(parseUsersApiError(e));
       });
-  }
-
-  function handleLogout() {
-    clearAuthSession();
-    window.location.href = "/login";
   }
 
   async function handleAvatarFile(file: File | null) {
@@ -391,9 +384,9 @@ export function AccountProfilePage() {
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="suzi-account-eyebrow">My account</p>
+                <p className={cx(listSection, "suzi-account-eyebrow")}>My account</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <h1 className="truncate text-[var(--fs-2xl)] font-bold tracking-tight text-white">
+                  <h1 className={cx(panelTitle, "truncate")}>
                     {displayLabel}
                   </h1>
                   {session?.user.isEmailVerified ? (
@@ -402,7 +395,7 @@ export function AccountProfilePage() {
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-1 flex flex-wrap items-center gap-2 text-[var(--fs-sm)] text-cyan-100/75">
+                <p className={cx(listL1, "mt-1 flex flex-wrap items-center gap-2 text-cyan-100/75")}>
                   <span>@{session?.user.username ?? "—"}</span>
                   <span className="opacity-30">·</span>
                   <span className="inline-flex items-center gap-1.5 text-emerald-300/90">
@@ -410,17 +403,26 @@ export function AccountProfilePage() {
                     Online
                   </span>
                 </p>
-                <p className="mt-2 text-[var(--fs-2xs)] text-cyan-100/55">
-                  Tap your photo to change avatar
+                <p className={cx(listL2, "mt-2 max-w-md leading-relaxed text-cyan-100/58")}>
+                  Keep your profile fresh across rooms, snaps, reels, dating, and games.
                 </p>
-                <div className="mt-2.5">
+                <div className="suzi-account-hero-actions mt-3">
                   <button
                     type="button"
                     onClick={scrollToAbout}
-                    className="suzi-secondary-btn inline-flex items-center gap-2 px-4 py-2 text-[var(--fs-xs)]"
+                    className="suzi-secondary-btn inline-flex items-center gap-2 px-4 py-2"
                   >
                     <Icon path="M4 20h4l10-10-4-4L4 16v4Zm12-14 2-2 4 4-2 2-4-4Z" className="h-3.5 w-3.5" />
                     Edit profile
+                  </button>
+                  <button
+                    type="button"
+                    disabled={avatarBusy}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="suzi-secondary-btn inline-flex items-center gap-2 px-4 py-2"
+                  >
+                    <Icon path="M4 7h3l2-2h6l2 2h3v12H4V7Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" className="h-3.5 w-3.5" />
+                    Change avatar
                   </button>
                 </div>
               </div>
@@ -457,50 +459,50 @@ export function AccountProfilePage() {
 
         <div className="suzi-account-body">
           <div className="suzi-account-main">
-          <Panel className="suzi-account-panel p-[var(--panel-pad)]">
-            <div className="suzi-account-section-head">
-              <div className="flex items-start gap-2">
-                <SectionIcon path="M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-4 8a8 8 0 0 1 16 0H12Z" />
-                <div>
-                  <h2 className="text-[var(--fs-lg)] font-semibold text-white">Friends</h2>
-                  <p className="mt-0.5 text-[var(--fs-xs)] text-[var(--text-muted)]">
-                    Manage your connections and see who&apos;s online.
-                  </p>
+            <Panel className="suzi-account-panel suzi-account-friends-panel p-[var(--panel-pad)]">
+              <div className="suzi-account-section-head">
+                <div className="flex items-start gap-2">
+                  <SectionIcon path="M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-4 8a8 8 0 0 1 16 0H12Z" />
+                  <div>
+                    <h2 className={panelTitle}>Friends</h2>
+                    <p className={cx(listL2, "mt-0.5 text-[var(--text-muted)]")}>
+                      Manage your connections and see who&apos;s online.
+                    </p>
+                  </div>
                 </div>
+                <Link
+                  href="/app#friends"
+                  className={panelLink}
+                >
+                  View all friends
+                </Link>
               </div>
-              <Link
-                href="/app#friends"
-                className="shrink-0 text-[var(--fs-xs)] font-medium text-fuchsia-200/90 transition hover:text-fuchsia-100"
-              >
-                View all friends
-              </Link>
-            </div>
-            <div className="mt-3">
-              <ProfilePageFriendsSection
-                initialFriends={dashFriends}
-                accessToken={session?.accessToken ?? null}
-              />
-            </div>
+              <div className="mt-3">
+                <ProfilePageFriendsSection
+                  initialFriends={dashFriends}
+                  accessToken={session?.accessToken ?? null}
+                />
+              </div>
             </Panel>
 
             <Panel className="suzi-account-panel p-[var(--panel-pad)]">
-            <form id="account-about" onSubmit={handleSaveProfile} className="suzi-account-form space-y-4">
-              <div className="suzi-account-form-head">
-                <SectionIcon path="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z" />
-                <div>
-                  <h2 className="text-[var(--fs-lg)] font-semibold text-white">Profile details</h2>
-                  <p className="mt-0.5 text-[var(--fs-xs)] text-[var(--text-muted)]">
-                    Name, bio, and region shown on your public profile.
-                  </p>
+              <form id="account-about" onSubmit={handleSaveProfile} className="suzi-account-form space-y-4">
+                <div className="suzi-account-form-head">
+                  <SectionIcon path="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z" />
+                  <div>
+                    <h2 className={panelTitle}>Profile details</h2>
+                    <p className={cx(listL2, "mt-0.5 text-[var(--text-muted)]")}>
+                      Name, bio, and region shown on your public profile.
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="suzi-account-field">
-                <label htmlFor="account-display-name" className="text-[var(--fs-xs)] font-medium text-[var(--text-muted)]">
+                <div className="suzi-account-field">
+                <label htmlFor="account-display-name" className={cx(listSection, "text-[var(--text-muted)]")}>
                   Display name
                 </label>
                 <input
                   id="account-display-name"
-                  className="suzi-input mt-1.5 w-full text-[var(--fs-sm)]"
+                  className={cx("suzi-input mt-1.5 w-full", listL1)}
                   value={form.displayName}
                   placeholder={session?.user.username ?? "Your name"}
                   maxLength={48}
@@ -508,12 +510,12 @@ export function AccountProfilePage() {
                 />
               </div>
               <div className="suzi-account-field">
-                <label htmlFor="account-bio" className="text-[var(--fs-xs)] font-medium text-[var(--text-muted)]">
+                <label htmlFor="account-bio" className={cx(listSection, "text-[var(--text-muted)]")}>
                   About me
                 </label>
                 <textarea
                   id="account-bio"
-                  className="suzi-input mt-1.5 min-h-[5.5rem] w-full resize-none text-[var(--fs-sm)]"
+                  className={cx("suzi-input mt-1.5 min-h-[5.5rem] w-full resize-none", listL1)}
                   value={form.bio}
                   placeholder="Short line about you"
                   maxLength={280}
@@ -522,12 +524,12 @@ export function AccountProfilePage() {
               </div>
 
               <div className="suzi-account-field">
-                <label htmlFor="account-country" className="text-[var(--fs-xs)] font-medium text-[var(--text-muted)]">
+                <label htmlFor="account-country" className={cx(listSection, "text-[var(--text-muted)]")}>
                   Country / region
                 </label>
                 <select
                   id="account-country"
-                  className="suzi-input mt-1.5 w-full text-[var(--fs-sm)]"
+                  className={cx("suzi-input mt-1.5 w-full", listL1)}
                   value={countrySelectValue}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -555,7 +557,7 @@ export function AccountProfilePage() {
                 </select>
                 {showCustomCountry ? (
                   <input
-                    className="suzi-input mt-2 w-full text-[var(--fs-sm)]"
+                    className={cx("suzi-input mt-2 w-full", listL1)}
                     placeholder="Enter your country"
                     value={isListedCountry(form.country) ? "" : form.country}
                     maxLength={60}
@@ -568,11 +570,11 @@ export function AccountProfilePage() {
                 <button
                   type="submit"
                   disabled={saveState === "saving"}
-                  className="suzi-primary-btn w-full py-2.5 text-[var(--fs-sm)] font-semibold"
+                  className="suzi-primary-btn w-full py-2.5 font-semibold"
                 >
                   {saveState === "saving" ? "Saving…" : "Save profile"}
                 </button>
-                <p className="mt-2 text-center text-[var(--fs-2xs)] text-[var(--text-soft)]">
+                <p className={cx(listL3, "mt-2 text-center text-[var(--text-soft)]")}>
                   {lastUpdatedLabel ?? ""}
                   {saveMessage && saveState === "success" ? (
                     <span className="ml-1 text-emerald-200">· {saveMessage}</span>
@@ -585,7 +587,7 @@ export function AccountProfilePage() {
             </form>
 
             {loadState === "error" && loadMessage ? (
-              <p className="mt-4 rounded-[var(--panel-radius)] border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-[var(--fs-xs)] text-amber-100">
+              <p className={cx(listL2, "mt-4 rounded-[var(--panel-radius)] border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-amber-100")}>
                 {loadMessage}
               </p>
             ) : null}
@@ -596,7 +598,7 @@ export function AccountProfilePage() {
             <Panel className="suzi-account-panel p-[var(--panel-pad)]">
               <div className="flex items-center gap-2">
                 <SectionIcon path="M12 14a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm6.4-3a6.4 6.4 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a6.4 6.4 0 0 0-1.7-1L14 2h-4l-.2 2a6.4 6.4 0 0 0-1.7 1L5.7 4l-2 3.4L5.7 9c-.1.3-.1.6-.1 1s0 .7.1 1l-2 1.6 2 3.4 2.4-1c.5.4 1 .7 1.7 1L10 20h4l.2-2c.7-.3 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.6c.1-.3.1-.6.1-1Z" />
-                <h2 className="text-[var(--fs-lg)] font-semibold text-white">Quick defaults</h2>
+                <h2 className={panelTitle}>Quick defaults</h2>
               </div>
               <div className="mt-3 space-y-2">
                 {QUICK_DEFAULTS.map((row) => {
@@ -608,15 +610,12 @@ export function AccountProfilePage() {
                       onClick={() => {
                         const next = !on;
                         setPrefToggles((p) => ({ ...p, [row.id]: next }));
-                        if (row.id === "darkMode") {
-                          setTheme(next ? "dark" : "light");
-                        }
                       }}
                       className="flex w-full items-center justify-between gap-4 rounded-[var(--panel-radius)] border border-white/8 bg-white/5 px-3 py-2.5 text-left transition hover:bg-white/8"
                     >
                       <div className="min-w-0">
-                        <p className="text-[var(--fs-sm)] font-medium text-white">{row.label}</p>
-                        <p className="text-[var(--fs-2xs)] text-[var(--text-muted)]">{row.copy}</p>
+                        <p className={cx(listL1, "font-medium text-white")}>{row.label}</p>
+                        <p className={cx(listL3, "text-[var(--text-muted)]")}>{row.copy}</p>
                       </div>
                       <span className="suzi-switch suzi-switch--settings" data-on={on ? "true" : "false"} aria-hidden />
                     </button>
@@ -628,19 +627,19 @@ export function AccountProfilePage() {
             <Panel className="suzi-account-panel p-[var(--panel-pad)]">
               <div className="flex items-center gap-2">
                 <SectionIcon path="M12 2 4 5v7a8 8 0 0 0 8 8 8 8 0 0 0 8-8V5l-8-3Z" />
-                <h2 className="text-[var(--fs-lg)] font-semibold text-white">Privacy</h2>
+                <h2 className={panelTitle}>Privacy</h2>
               </div>
               <div className="mt-3 space-y-2">
                 {PRIVACY_FIELDS.map((field) => (
                   <div
                     key={field.id}
-                    className="flex items-center justify-between gap-3 rounded-[var(--panel-radius)] border border-white/8 bg-white/5 px-3 py-2.5"
+                    className="grid grid-cols-[minmax(0,1fr)_minmax(8.5rem,42%)] items-center gap-3 rounded-[var(--panel-radius)] border border-white/8 bg-white/5 px-3 py-2.5"
                   >
-                    <p className="min-w-0 text-[var(--fs-sm)] text-white">{field.label}</p>
+                    <p className={cx(listL1, "min-w-0 truncate text-white")}>{field.label}</p>
                     <select
                       value={privacy[field.id] ?? field.options[0]}
                       onChange={(e) => setPrivacy((prev) => ({ ...prev, [field.id]: e.target.value }))}
-                      className="suzi-input shrink-0 rounded-md px-2 py-1 text-[var(--fs-xs)] font-semibold"
+                      className={cx("suzi-input w-full min-w-0 rounded-md px-2 py-1 font-semibold", listL2)}
                     >
                       {field.options.map((opt) => (
                         <option key={opt} value={opt} className="bg-[#1a1245]">
@@ -656,12 +655,12 @@ export function AccountProfilePage() {
             <Panel className="suzi-account-panel p-[var(--panel-pad)]">
               <div className="flex items-center gap-2">
                 <SectionIcon path="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z" />
-                <h2 className="text-[var(--fs-lg)] font-semibold text-white">Account</h2>
+                <h2 className={panelTitle}>Account</h2>
               </div>
               <div className="mt-3 divide-y divide-white/8">
                 <Link
                   href="/app/dating"
-                  className="flex items-center justify-between gap-3 py-3 text-[var(--fs-sm)] text-white transition hover:text-fuchsia-100"
+                  className={cx(listL1, "flex items-center justify-between gap-3 py-3 text-white transition hover:text-fuchsia-100")}
                 >
                   <span>Suzi Dating</span>
                   <Icon path="M9 6l6 6-6 6" className="h-3.5 w-3.5 text-white/55" />
@@ -671,30 +670,13 @@ export function AccountProfilePage() {
                   label="Email address"
                   trailing={
                     <span className="flex items-center gap-2">
-                      <span className="max-w-[10rem] truncate text-[var(--fs-2xs)] text-[var(--text-muted)]">
+                      <span className={cx(listL3, "max-w-[10rem] truncate text-[var(--text-muted)]")}>
                         {session?.user.email}
                       </span>
                       <Icon path="M9 6l6 6-6 6" className="h-3.5 w-3.5 shrink-0 text-white/55" />
                     </span>
                   }
                 />
-                <AccountRow
-                  label="Two-factor authentication"
-                  trailing={
-                    <span className="flex items-center gap-2">
-                      <span className="text-[var(--fs-2xs)] font-semibold text-emerald-300/90">Enabled</span>
-                      <Icon path="M9 6l6 6-6 6" className="h-3.5 w-3.5 text-white/55" />
-                    </span>
-                  }
-                />
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex w-full items-center justify-between py-3 text-left text-[var(--fs-sm)] font-semibold text-pink-200/90 transition hover:text-pink-100"
-                >
-                  <span>Log out</span>
-                  <Icon path="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" className="h-4 w-4" />
-                </button>
               </div>
             </Panel>
           </aside>
@@ -723,6 +705,7 @@ function StatChip({
       <span className="min-w-0 flex-1">
         <span className="suzi-account-stat-chip-label">{label}</span>
         <span className="suzi-account-stat-chip-value">{value}</span>
+        <span className="suzi-account-stat-chip-action">View all</span>
       </span>
       <Icon path="M9 6l6 6-6 6" className="h-3 w-3 shrink-0 text-white/40 transition group-hover:text-fuchsia-200/90" />
     </Link>
@@ -737,7 +720,7 @@ function AccountRow({
   trailing?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-3 text-[var(--fs-sm)] text-white">
+    <div className={cx(listL1, "flex items-center justify-between gap-3 py-3 text-white")}>
       <span>{label}</span>
       {trailing}
     </div>
