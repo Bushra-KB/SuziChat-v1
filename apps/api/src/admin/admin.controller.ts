@@ -10,6 +10,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/auth.types';
 import { AdminRoleGuard } from './admin-role.guard';
 import { AdminService } from './admin.service';
 
@@ -23,6 +25,16 @@ export class AdminController {
     return this.adminService.dashboard();
   }
 
+  @Get('moderation')
+  moderation() {
+    return this.adminService.moderationQueues();
+  }
+
+  @Get('audit-logs')
+  listAuditLogs(@Query('take') take?: string, @Query('skip') skip?: string) {
+    return this.adminService.listAuditLogs({ take, skip });
+  }
+
   @Get('users')
   listUsers(
     @Query('search') search?: string,
@@ -34,13 +46,17 @@ export class AdminController {
   }
 
   @Patch('users/:id')
-  updateUser(@Param('id') id: string, @Body() body: Record<string, unknown>) {
-    return this.adminService.updateUser(id, body);
+  updateUser(
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.updateUser(id, body, user.id);
   }
 
   @Delete('users/:id')
-  deleteUser(@Param('id') id: string) {
-    return this.adminService.deleteUser(id);
+  deleteUser(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.adminService.deleteUser(id, user.id);
   }
 
   @Get('rooms')
@@ -64,13 +80,17 @@ export class AdminController {
   updateRoom(
     @Param('slug') slug: string,
     @Body() body: Record<string, unknown>,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.adminService.updateRoom(slug, body);
+    return this.adminService.updateRoom(slug, body, user.id);
   }
 
   @Delete('rooms/:slug')
-  deleteRoom(@Param('slug') slug: string) {
-    return this.adminService.deleteRoom(slug);
+  deleteRoom(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.deleteRoom(slug, user.id);
   }
 
   @Get('room-categories')
@@ -79,21 +99,28 @@ export class AdminController {
   }
 
   @Post('room-categories')
-  createRoomCategory(@Body() body: Record<string, unknown>) {
-    return this.adminService.createRoomCategory(body);
+  createRoomCategory(
+    @Body() body: Record<string, unknown>,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.createRoomCategory(body, user.id);
   }
 
   @Patch('room-categories/:id')
   updateRoomCategory(
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.adminService.updateRoomCategory(id, body);
+    return this.adminService.updateRoomCategory(id, body, user.id);
   }
 
   @Delete('room-categories/:id')
-  deleteRoomCategory(@Param('id') id: string) {
-    return this.adminService.deleteRoomCategory(id);
+  deleteRoomCategory(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.deleteRoomCategory(id, user.id);
   }
 
   @Get('room-messages')
@@ -107,8 +134,11 @@ export class AdminController {
   }
 
   @Delete('room-messages/:id')
-  deleteRoomMessage(@Param('id') id: string) {
-    return this.adminService.deleteRoomMessage(id);
+  deleteRoomMessage(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.deleteRoomMessage(id, user.id);
   }
 
   @Get('direct-messages')
@@ -121,8 +151,11 @@ export class AdminController {
   }
 
   @Delete('direct-messages/:id')
-  deleteDirectMessage(@Param('id') id: string) {
-    return this.adminService.deleteDirectMessage(id);
+  deleteDirectMessage(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.deleteDirectMessage(id, user.id);
   }
 
   @Get('posts')
@@ -136,13 +169,17 @@ export class AdminController {
   }
 
   @Patch('posts/:id')
-  updatePost(@Param('id') id: string, @Body() body: Record<string, unknown>) {
-    return this.adminService.updatePost(id, body);
+  updatePost(
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.updatePost(id, body, user.id);
   }
 
   @Delete('posts/:id')
-  deletePost(@Param('id') id: string) {
-    return this.adminService.deletePost(id);
+  deletePost(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.adminService.deletePost(id, user.id);
   }
 
   @Get('post-comments')
@@ -155,8 +192,11 @@ export class AdminController {
   }
 
   @Delete('post-comments/:id')
-  deletePostComment(@Param('id') id: string) {
-    return this.adminService.deletePostComment(id);
+  deletePostComment(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.deletePostComment(id, user.id);
   }
 
   @Get('games')
@@ -165,13 +205,19 @@ export class AdminController {
   }
 
   @Post('games/sessions/:id/close')
-  closeGameSession(@Param('id') id: string) {
-    return this.adminService.closeGameSession(id);
+  closeGameSession(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.closeGameSession(id, user.id);
   }
 
   @Delete('games/lobbies/:id')
-  deleteGameLobby(@Param('id') id: string) {
-    return this.adminService.deleteGameLobby(id);
+  deleteGameLobby(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.deleteGameLobby(id, user.id);
   }
 
   @Get('dating')
@@ -183,18 +229,25 @@ export class AdminController {
   updateDatingProfile(
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.adminService.updateDatingProfile(id, body);
+    return this.adminService.updateDatingProfile(id, body, user.id);
   }
 
   @Delete('dating/profiles/:id')
-  deleteDatingProfile(@Param('id') id: string) {
-    return this.adminService.deleteDatingProfile(id);
+  deleteDatingProfile(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.deleteDatingProfile(id, user.id);
   }
 
   @Delete('dating/matches/:id')
-  deleteDatingMatch(@Param('id') id: string) {
-    return this.adminService.deleteDatingMatch(id);
+  deleteDatingMatch(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.deleteDatingMatch(id, user.id);
   }
 
   @Get('notifications')
@@ -206,7 +259,10 @@ export class AdminController {
   }
 
   @Post('notifications')
-  createNotification(@Body() body: Record<string, unknown>) {
-    return this.adminService.createNotification(body);
+  createNotification(
+    @Body() body: Record<string, unknown>,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.adminService.createNotification(body, user.id);
   }
 }

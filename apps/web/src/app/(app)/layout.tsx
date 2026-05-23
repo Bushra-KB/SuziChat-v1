@@ -40,6 +40,10 @@ export default function ProtectedAppLayout({
           router.replace("/login");
           return;
         }
+        if (nextSession.user.role === "ADMIN") {
+          router.replace("/app/admin");
+          return;
+        }
 
         setSession(nextSession);
         setIsReady(true);
@@ -56,6 +60,10 @@ export default function ProtectedAppLayout({
       const next = getStoredAuthSession();
       if (!next) {
         router.replace("/login");
+        return;
+      }
+      if (next.user.role === "ADMIN") {
+        router.replace("/app/admin");
         return;
       }
       setSession(next);
