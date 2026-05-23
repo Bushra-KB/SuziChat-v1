@@ -1,6 +1,6 @@
 import { apiJson } from "@/lib/api-auth-request";
 
-export type ApiGameType = "CHESS" | "CHECKERS" | "CONNECT4" | "NEON_HOCKEY" | "TANK_DUEL";
+export type ApiGameType = "CHESS" | "CHECKERS" | "CONNECT4" | "GOMOKU" | "DOTS_AND_BOXES";
 export type ApiSessionStatus = "WAITING" | "ACTIVE" | "FINISHED" | "CANCELED";
 
 export type ApiGameCatalog = {

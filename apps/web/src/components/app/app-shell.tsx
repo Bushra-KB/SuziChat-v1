@@ -201,6 +201,7 @@ export function AppShell({
   const [isMobileLanguageOpen, setIsMobileLanguageOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isMobileOverlayOpen, setIsMobileOverlayOpen] = useState(false);
   const [legalDialog, setLegalDialog] = useState<LegalDialog | null>(null);
   const createRef = useRef<HTMLDivElement | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
@@ -230,6 +231,31 @@ export function AppShell({
     const list = await listNotifications(session.accessToken);
     setShellNotifications(list);
   };
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const selectors = [
+      ".suzi-mobile-modal-root",
+      ".suzi-room-members--open",
+      ".suzi-m-sheet[data-open='true']",
+      ".suzi-account-modal-backdrop",
+    ].join(",");
+    const syncOverlayState = () => {
+      setIsMobileOverlayOpen(Boolean(document.querySelector(selectors)));
+    };
+
+    syncOverlayState();
+    const observer = new MutationObserver(syncOverlayState);
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["class", "data-open"],
+      childList: true,
+      subtree: true,
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   async function handleMarkNotificationRead(id: string) {
     setShellNotifications((prev) =>
@@ -433,6 +459,7 @@ export function AppShell({
       className={cx(
         "suzi-hybrid-bg relative flex h-[100dvh] min-h-0 flex-col overflow-hidden text-white",
         isMobileDrawerOpen && "suzi-mobile-drawer-open",
+        isMobileOverlayOpen && "suzi-mobile-overlay-open",
       )}
     >
       <div className="pointer-events-none absolute inset-0 opacity-12 [background-image:radial-gradient(rgba(255,255,255,0.6)_0.7px,transparent_0.7px)] [background-size:28px_28px]" />

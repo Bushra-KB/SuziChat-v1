@@ -2,8 +2,8 @@
 export const gameIcons = {
   chess: "/games/Chess_icon.jpg",
   checkers: "/games/Checker_icon.jpg",
-  neonhockey: "/games/Suzi_Neon_Hockey.png",
-  tankduel: "/games/Suzi_Cosmic_Tank_Duel.png",
+  gomoku: "/games/Gomoku.png",
+  dotsandboxes: "/games/Dots_and_Boxes.png",
   connect4: "/games/Connect4_icon.jpg",
 } as const;
 
@@ -11,8 +11,8 @@ export const gameIcons = {
 export const gameLobbyArt = {
   chess: "/games/table-chess.png",
   checkers: "/games/checker_table.png",
-  neonhockey: "/games/Suzi_Neon_Hockey._lobby_table.png",
-  tankduel: "/games/Suzi_Cosmic_Tank_Duel_lobby_table.png",
+  gomoku: "/games/Gomoku_table.png",
+  dotsandboxes: "/games/Dots_and_Boxes_table.png",
   connect4: "/games/connect4_table.png",
 } as const;
 

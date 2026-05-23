@@ -80,7 +80,19 @@ export function formatSessionMoveSummary(gameType: ApiGameSession["gameType"], m
     return move.kind;
   }
 
-  if (gameType === "NEON_HOCKEY") return "Arena update";
-  if (gameType === "TANK_DUEL") return "Duel update";
+  if (gameType === "GOMOKU") {
+    const row = p.row;
+    const col = p.col;
+    if (typeof row === "number" && typeof col === "number") return `Stone ${row + 1}, ${col + 1}`;
+    return move.kind;
+  }
+
+  if (gameType === "DOTS_AND_BOXES") {
+    const row = p.row;
+    const col = p.col;
+    const orientation = p.orientation === "v" ? "vertical" : "horizontal";
+    if (typeof row === "number" && typeof col === "number") return `${orientation} edge ${row + 1}, ${col + 1}`;
+    return move.kind;
+  }
   return JSON.stringify(move.payload);
 }

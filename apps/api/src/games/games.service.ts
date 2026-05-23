@@ -30,13 +30,13 @@ import {
   buildInitialConnect4State,
 } from './engines/connect4.engine';
 import {
-  applyNeonHockeyAction,
-  buildInitialNeonHockeyState,
-} from './engines/neon-hockey.engine';
+  applyDotsAndBoxesAction,
+  buildInitialDotsAndBoxesState,
+} from './engines/dots-and-boxes.engine';
 import {
-  applyTankDuelAction,
-  buildInitialTankDuelState,
-} from './engines/tank-duel.engine';
+  applyGomokuAction,
+  buildInitialGomokuState,
+} from './engines/gomoku.engine';
 import type { EngineContext, SeatSnapshot } from './engines/game-engine.types';
 import {
   applyPokerAction,
@@ -68,16 +68,16 @@ const GAME_CATALOG = [
     maxPlayers: 2,
   },
   {
-    id: 'neonhockey',
-    gameType: GameType.NEON_HOCKEY,
-    name: 'Suzi Neon Hockey',
+    id: 'gomoku',
+    gameType: GameType.GOMOKU,
+    name: 'Gomoku',
     minPlayers: 2,
     maxPlayers: 2,
   },
   {
-    id: 'tankduel',
-    gameType: GameType.TANK_DUEL,
-    name: 'Suzi Cosmic Tank Duel',
+    id: 'dotsandboxes',
+    gameType: GameType.DOTS_AND_BOXES,
+    name: 'Dots and Boxes',
     minPlayers: 2,
     maxPlayers: 2,
   },
@@ -111,14 +111,9 @@ function jsonPrimitiveString(value: unknown, fallback = ''): string {
 }
 
 function gameTypeToRouteId(gameType: GameType) {
-  if (gameType === GameType.NEON_HOCKEY) return 'neonhockey';
-  if (gameType === GameType.TANK_DUEL) return 'tankduel';
+  if (gameType === GameType.DOTS_AND_BOXES) return 'dotsandboxes';
   if (gameType === GameType.POKER_HOLDEM) return 'poker';
   return gameType.toLowerCase();
-}
-
-function isRealtimeArenaGame(gameType: GameType) {
-  return gameType === GameType.NEON_HOCKEY || gameType === GameType.TANK_DUEL;
 }
 
 type LobbySeatRow = { seatIndex: number; userId: string | null };
@@ -685,10 +680,10 @@ export class GamesService {
       return buildInitialCheckersState(context);
     if (context.gameType === GameType.CONNECT4)
       return buildInitialConnect4State(context);
-    if (context.gameType === GameType.NEON_HOCKEY)
-      return buildInitialNeonHockeyState(context);
-    if (context.gameType === GameType.TANK_DUEL)
-      return buildInitialTankDuelState(context);
+    if (context.gameType === GameType.GOMOKU)
+      return buildInitialGomokuState(context);
+    if (context.gameType === GameType.DOTS_AND_BOXES)
+      return buildInitialDotsAndBoxesState(context);
     if (context.gameType === GameType.POKER_HOLDEM)
       return buildInitialPokerState(context);
     throw new BadRequestException('Unsupported game type.');
@@ -710,11 +705,11 @@ export class GamesService {
     if (gameType === GameType.CONNECT4) {
       return applyConnect4Action(state, { userId, payload });
     }
-    if (gameType === GameType.NEON_HOCKEY) {
-      return applyNeonHockeyAction(state, { userId, payload });
+    if (gameType === GameType.GOMOKU) {
+      return applyGomokuAction(state, { userId, payload });
     }
-    if (gameType === GameType.TANK_DUEL) {
-      return applyTankDuelAction(state, { userId, payload });
+    if (gameType === GameType.DOTS_AND_BOXES) {
+      return applyDotsAndBoxesAction(state, { userId, payload });
     }
     if (gameType === GameType.POKER_HOLDEM) {
       return applyPokerAction(state, { userId, payload });
@@ -784,7 +779,6 @@ export class GamesService {
       options: dto.options,
     };
     const state = this.buildInitialState(context);
-    const realtimeArena = isRealtimeArenaGame(lobby.gameType);
     const pokerTurnUserId =
       lobby.gameType === GameType.POKER_HOLDEM
         ? this.pokerActorUserId(state, seated)
@@ -795,9 +789,7 @@ export class GamesService {
         gameType: lobby.gameType,
         status: GameSessionStatus.ACTIVE,
         state: toJson(state),
-        turnUserId: realtimeArena
-          ? null
-          : (pokerTurnUserId ?? seated[0]?.userId ?? null),
+        turnUserId: pokerTurnUserId ?? seated[0]?.userId ?? null,
         startedAt: new Date(),
       },
     });
@@ -1190,7 +1182,6 @@ export class GamesService {
       session.gameType === GameType.POKER_HOLDEM &&
       pokerPhase === PokerRound.COMPLETE;
     const sessionFinished = result.status === 'finished';
-    const realtimeArena = isRealtimeArenaGame(session.gameType);
 
     const updated = await this.prisma.gameSession.update({
       where: { id: sessionId },
@@ -1203,37 +1194,33 @@ export class GamesService {
           sessionFinished || pokerHandComplete
             ? (result.winnerUserId ?? null)
             : null,
-        turnUserId: realtimeArena || pokerHandComplete ? null : nextTurnUserId,
+        turnUserId: pokerHandComplete ? null : nextTurnUserId,
         endedAt: sessionFinished ? new Date() : null,
       },
     });
-    const shouldPersistAction =
-      !realtimeArena || sessionFinished || dto.payload.type === 'resign';
-    if (shouldPersistAction) {
-      const ply = await this.prisma.gameMove.count({ where: { sessionId } });
-      await this.prisma.gameMove.create({
-        data: {
-          sessionId,
-          userId,
-          kind:
-            dto.kind ??
-            (session.gameType === GameType.POKER_HOLDEM
-              ? MoveKind.POKER_ACTION
-              : MoveKind.MOVE),
-          ply: ply + 1,
-          payload: toJson(dto.payload),
-        },
-      });
-      await this.prisma.gameEvent.create({
-        data: {
-          lobbyId: session.lobbyId,
-          sessionId: session.id,
-          userId,
-          type: GameEventType.ACTION,
-          payload: toJson(dto.payload),
-        },
-      });
-    }
+    const ply = await this.prisma.gameMove.count({ where: { sessionId } });
+    await this.prisma.gameMove.create({
+      data: {
+        sessionId,
+        userId,
+        kind:
+          dto.kind ??
+          (session.gameType === GameType.POKER_HOLDEM
+            ? MoveKind.POKER_ACTION
+            : MoveKind.MOVE),
+        ply: ply + 1,
+        payload: toJson(dto.payload),
+      },
+    });
+    await this.prisma.gameEvent.create({
+      data: {
+        lobbyId: session.lobbyId,
+        sessionId: session.id,
+        userId,
+        type: GameEventType.ACTION,
+        payload: toJson(dto.payload),
+      },
+    });
     if (session.gameType === GameType.POKER_HOLDEM) {
       const pokerState = result.state as {
         board?: unknown[];

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { gameMeta, gameTypeToId } from "@/components/app/games/game-meta";
 import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
-import { createGameLobby, listGameLobbies, type ApiGameLobby } from "@/lib/games-client";
+import { createGameLobby, listGameLobbies, type ApiGameLobby, type ApiGameType } from "@/lib/games-client";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { gameIconForId } from "@/lib/game-icons";
 import { openGamesSocket, subscribeGameLobbyListChannel } from "@/lib/games-realtime";
@@ -54,7 +54,7 @@ export function GamesHubClient() {
     return map;
   }, [lobbies]);
 
-  async function createQuickLobby(gameType: "CHESS" | "CHECKERS" | "CONNECT4" | "NEON_HOCKEY" | "TANK_DUEL", gameName: string) {
+  async function createQuickLobby(gameType: ApiGameType, gameName: string) {
     const session = getStoredAuthSession();
     if (!session?.accessToken) {
       setError(t("games.loginRequired"));
