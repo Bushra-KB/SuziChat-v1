@@ -2,10 +2,13 @@ import { apiJson } from "@/lib/api-auth-request";
 
 export type AdminDashboard = {
   stats: Record<string, number>;
+  health: Record<string, number>;
   recentUsers: AdminUser[];
   recentRooms: AdminRoom[];
   recentPosts: AdminPost[];
   recentGameSessions: AdminGameSession[];
+  recentAuditLogs: AdminAuditLog[];
+  moderation: AdminModerationQueues;
 };
 
 export type AdminUser = {
@@ -148,6 +151,32 @@ export type AdminNotification = {
   user?: AdminPerson;
 };
 
+export type AdminAuditLog = {
+  id: string;
+  adminId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;
+  admin?: AdminPerson | null;
+};
+
+export type AdminRoomJoinRequest = {
+  id: string;
+  status: string;
+  createdAt: string;
+  room?: { id: string; slug: string; name: string };
+  user?: AdminPerson;
+};
+
+export type AdminModerationQueues = {
+  users: AdminUser[];
+  posts: AdminPost[];
+  datingProfiles: AdminDatingProfile[];
+  roomJoinRequests: AdminRoomJoinRequest[];
+};
+
 function withQuery(path: string, query: Record<string, string | undefined>) {
   const params = new URLSearchParams();
   Object.entries(query).forEach(([key, value]) => {
@@ -159,6 +188,14 @@ function withQuery(path: string, query: Record<string, string | undefined>) {
 
 export function getAdminDashboard(accessToken: string) {
   return apiJson<AdminDashboard>("/v1/admin/dashboard", { method: "GET", accessToken });
+}
+
+export function getAdminModeration(accessToken: string) {
+  return apiJson<AdminModerationQueues>("/v1/admin/moderation", { method: "GET", accessToken });
+}
+
+export function listAdminAuditLogs(accessToken: string, query: Record<string, string | undefined> = {}) {
+  return apiJson<AdminAuditLog[]>(withQuery("/v1/admin/audit-logs", query), { method: "GET", accessToken });
 }
 
 export function listAdminUsers(accessToken: string, query: Record<string, string | undefined> = {}) {

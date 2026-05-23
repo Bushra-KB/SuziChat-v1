@@ -45,7 +45,7 @@ export function LoginPanel({
       setUser(session.user);
       setStatus("success");
       setMessage("Signed in successfully.");
-      router.push("/app");
+      router.push(session.user.role === "ADMIN" ? "/app/admin" : "/app");
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Login failed.");

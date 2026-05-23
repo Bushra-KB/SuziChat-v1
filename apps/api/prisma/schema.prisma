@@ -155,6 +155,7 @@ model User {
   gameMoves                GameMove[]
   gameEvents               GameEvent[]
   pokerActions             PokerAction[]
+  adminAuditLogs           AdminAuditLog[]
 }
 
 model GameLobby {
@@ -491,6 +492,21 @@ model DirectConversationState {
 
   @@unique([userId, peerId])
   @@index([peerId])
+}
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  adminId    String?
+  admin      User?    @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([entityType, createdAt])
+  @@index([action, createdAt])
 }
 
 model Post {
