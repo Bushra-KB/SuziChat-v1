@@ -304,11 +304,11 @@ export function AdminPanelClient() {
   ];
 
   return (
-    <main className="min-h-screen bg-slate-100 text-slate-900">
+    <main className="suzi-admin-shell min-h-screen bg-slate-100 text-slate-900">
       {sidebarOpen ? <div className="fixed inset-0 z-30 bg-slate-950/40 lg:hidden" onClick={() => setSidebarOpen(false)} /> : null}
       <aside
         className={cx(
-          "fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-200 bg-slate-950 text-white transition-transform lg:translate-x-0",
+          "suzi-admin-sidebar fixed inset-y-0 left-0 z-40 flex flex-col border-r border-slate-200 bg-slate-950 text-white transition-transform lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -342,7 +342,7 @@ export function AdminPanelClient() {
         </div>
       </aside>
 
-      <section className="min-h-screen lg:pl-72">
+      <section className="suzi-admin-content min-h-screen">
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
           <div className="flex min-h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">

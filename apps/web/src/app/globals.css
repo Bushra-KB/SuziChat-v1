@@ -142,6 +142,50 @@ body {
   min-height: 100vh;
 }
 
+/* Standalone admin dashboard layout. Keep it independent from the consumer app shell. */
+.suzi-admin-shell {
+  --admin-sidebar-w: 18rem;
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.suzi-admin-sidebar {
+  width: var(--admin-sidebar-w);
+}
+
+.suzi-admin-content {
+  min-width: 0;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .suzi-admin-sidebar {
+    position: fixed !important;
+    top: 0;
+    bottom: 0;
+    height: 100vh;
+    transform: none !important;
+  }
+
+  .suzi-admin-content {
+    margin-left: var(--admin-sidebar-w);
+    width: calc(100% - var(--admin-sidebar-w));
+  }
+}
+
+@media (max-width: 1023px) {
+  .suzi-admin-shell {
+    display: block;
+  }
+
+  .suzi-admin-content {
+    width: 100%;
+  }
+}
+
 /* ------------------------------------------------------------------
  * Locked app shell — document never scrolls; only inner panels scroll.
  * ------------------------------------------------------------------ */
