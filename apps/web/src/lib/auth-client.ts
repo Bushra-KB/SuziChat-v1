@@ -148,6 +148,19 @@ export async function resetPassword(payload: {
   });
 }
 
+export async function changePassword(
+  accessToken: string,
+  payload: { currentPassword: string; newPassword: string },
+) {
+  return request<{ message: string }>("/v1/auth/change-password", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function getCurrentUser(accessToken: string) {
   return request<AuthUser>("/v1/auth/me", {
     headers: {

@@ -15,8 +15,8 @@ export function DatingMatchesModal({
   onUnmatch: (matchId: string) => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/55 p-4 sm:items-center">
-      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-[1.2rem] border border-white/12 bg-[rgba(14,16,34,0.98)] p-5 shadow-2xl">
+    <div className="suzi-mobile-modal-root fixed inset-0 z-[80] flex items-end justify-center bg-black/55 p-4 sm:items-center">
+      <div className="suzi-mobile-modal-panel max-h-[85vh] w-full max-w-md overflow-y-auto rounded-[1.2rem] border border-white/12 bg-[rgba(14,16,34,0.98)] p-5 shadow-2xl">
         <div className="flex items-center justify-between gap-3">
           <p className="text-lg font-semibold text-white">Matches</p>
           <button type="button" className="text-slate-400 hover:text-white" onClick={onClose}>

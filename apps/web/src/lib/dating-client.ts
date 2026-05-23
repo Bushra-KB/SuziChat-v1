@@ -1,5 +1,5 @@
 import { apiJson } from "@/lib/api-auth-request";
-import { getApiBaseUrl } from "@/lib/api-base-url";
+import { uploadFormWithProgress } from "@/lib/api-upload";
 
 export type DatingSwipeAction = "LIKE" | "PASS";
 
@@ -265,38 +265,8 @@ export function uploadDatingPhoto(
 ) {
   const form = new FormData();
   form.append("file", file);
-
-  return new Promise<{ url: string }>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${getApiBaseUrl()}/v1/dating/me/profile/photos`);
-    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
-
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        onProgress?.(Math.round((event.loaded / event.total) * 100));
-      }
-    };
-
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        onProgress?.(100);
-        try {
-          resolve(JSON.parse(xhr.responseText) as { url: string });
-        } catch {
-          reject(new Error("Upload failed."));
-        }
-        return;
-      }
-      try {
-        const payload = JSON.parse(xhr.responseText) as { message?: string | string[] };
-        const message = Array.isArray(payload.message) ? payload.message[0] : payload.message;
-        reject(new Error(message || "Upload failed."));
-      } catch {
-        reject(new Error("Upload failed."));
-      }
-    };
-
-    xhr.onerror = () => reject(new Error("Upload failed."));
-    xhr.send(form);
+  return uploadFormWithProgress<{ url: string }>("/v1/dating/me/profile/photos", form, {
+    accessToken,
+    onProgress,
   });
 }

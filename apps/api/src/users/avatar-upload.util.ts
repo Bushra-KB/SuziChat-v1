@@ -4,6 +4,8 @@ const MIME_EXT: Record<string, string> = {
   'image/png': '.png',
   'image/webp': '.webp',
   'image/gif': '.gif',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
 };
 
 export function isAllowedAvatarImageFile(
@@ -19,7 +21,9 @@ export function isAllowedAvatarImageFile(
     lower.endsWith('.jpeg') ||
     lower.endsWith('.png') ||
     lower.endsWith('.webp') ||
-    lower.endsWith('.gif')
+    lower.endsWith('.gif') ||
+    lower.endsWith('.heic') ||
+    lower.endsWith('.heif')
   );
 }
 
@@ -42,6 +46,12 @@ export function pickStoredAvatarExtension(
   }
   if (lower.endsWith('.gif')) {
     return '.gif';
+  }
+  if (lower.endsWith('.heic')) {
+    return '.heic';
+  }
+  if (lower.endsWith('.heif')) {
+    return '.heif';
   }
   return null;
 }

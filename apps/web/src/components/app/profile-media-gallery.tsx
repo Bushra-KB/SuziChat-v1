@@ -10,10 +10,11 @@ import {
   panelTitle,
 } from "@/components/app/app-typography";
 import { Icon, Panel, cx } from "@/components/ui/suzi-primitives";
+import { useI18n } from "@/lib/i18n";
 import { resolvePostMediaUrl } from "@/lib/post-media-url";
 import type { ApiPost } from "@/lib/posts-client";
 
-function MediaTile({ post }: { post: ApiPost }) {
+function MediaTile({ post, locale }: { post: ApiPost; locale: string }) {
   const href = post.kind === "SNAP" ? "/app/snaps" : "/app/reels";
   const src = resolvePostMediaUrl(post.mediaUrl);
   const isVideo = post.kind === "REEL";
@@ -44,7 +45,7 @@ function MediaTile({ post }: { post: ApiPost }) {
           />
         </span>
         <span className={cx(listL3, "pointer-events-none absolute bottom-1.5 right-1.5 rounded-full bg-[rgba(10,8,38,0.72)] px-1.5 py-0.5 font-semibold text-cyan-50/90")}>
-          {new Date(post.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          {new Date(post.createdAt).toLocaleDateString(locale, { month: "short", day: "numeric" })}
         </span>
       </div>
     </Link>
@@ -62,6 +63,7 @@ export function ProfileMediaGallery({
   reels: ApiPost[];
   loading?: boolean;
 }) {
+  const { language, t } = useI18n();
   const preview = useMemo(() => {
     const seen = new Set<string>();
     const merged = [...snaps, ...reels].sort(
@@ -82,15 +84,15 @@ export function ProfileMediaGallery({
   }, [snaps, reels]);
 
   return (
-    <Panel className="suzi-public-panel w-full p-[var(--panel-pad)]">
+    <Panel className="suzi-public-panel suzi-public-panel--light suzi-public-media-panel w-full p-[var(--panel-pad)]">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className={cx(listSection, "text-cyan-100/58")}>
-            Snaps & Reels
+            {t("profile.media.eyebrow")}
           </p>
-          <h2 className={cx(panelTitle, "mt-0.5")}>Recent posts</h2>
+          <h2 className={cx(panelTitle, "mt-0.5")}>{t("profile.media.recentPosts")}</h2>
           <p className={cx(listL3, "mt-0.5 text-[var(--text-soft)]")}>
-            {username ? `Recent posts from @${username}` : "Your recent posts"}
+            {username ? `${t("profile.media.recentFrom")} @${username}` : t("profile.media.yourRecent")}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -98,28 +100,28 @@ export function ProfileMediaGallery({
             href="/app/snaps"
             className={panelLink}
           >
-            Snaps ({snaps.length})
+            {t("profile.stats.snaps")} ({snaps.length})
           </Link>
           <span className="text-cyan-100/30">·</span>
           <Link
             href="/app/reels"
             className={panelLink}
           >
-            Reels ({reels.length})
+            {t("profile.stats.reels")} ({reels.length})
           </Link>
         </div>
       </div>
 
       {loading ? (
-        <p className={cx(listEmpty, "mt-4 text-[var(--text-muted)]")}>Loading media...</p>
+        <p className={cx(listEmpty, "mt-4 flex-1 text-[var(--text-muted)]")}>{t("profile.media.loading")}</p>
       ) : preview.length === 0 ? (
-        <p className={cx(listEmpty, "mt-4 rounded-[0.85rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-4 text-cyan-100/58")}>
-          No snaps or reels to show yet.
+        <p className={cx(listEmpty, "mt-4 flex-1 rounded-[0.85rem] border border-cyan-300/14 bg-[rgba(18,13,65,0.45)] px-3 py-4 text-cyan-100/58")}>
+          {t("profile.media.empty")}
         </p>
       ) : (
-        <div className="mt-3 grid w-full grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mt-3 grid w-full flex-1 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {preview.map((post) => (
-            <MediaTile key={post.id} post={post} />
+            <MediaTile key={post.id} post={post} locale={language} />
           ))}
         </div>
       )}

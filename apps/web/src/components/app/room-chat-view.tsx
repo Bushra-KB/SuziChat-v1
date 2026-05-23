@@ -420,36 +420,36 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   return (
     <section className="suzi-app-frame-fill suzi-room-active">
       <div className="suzi-room-grid">
-      <Panel className="suzi-room-chat flex h-full min-h-0 flex-col overflow-hidden border border-cyan-300/24 bg-[linear-gradient(180deg,rgba(36,45,116,0.52),rgba(40,16,117,0.52))] p-0 shadow-[0_14px_38px_rgba(15,23,42,0.2)]">
-        <div className="shrink-0 border-b border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex min-w-0 flex-1 items-start gap-2">
-              <Link
-                href="/app"
-                aria-label="Back"
-                className="suzi-m-icon-btn shrink-0 md:hidden"
-              >
-                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-                  <path d="M15 18l-6-6 6-6" />
-                </svg>
-              </Link>
-            <div className="min-w-0">
-              <p className="flex items-center gap-2 text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.3em] text-cyan-100/64">
-                <span>Room Chat</span>
-                <span className="inline-flex items-center gap-1.5 normal-case tracking-normal text-emerald-300/85">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(110,255,178,0.7)]" />
-                  {socketReady ? "Realtime connected" : "Reconnecting…"}
-                </span>
-              </p>
-              <h1 className="mt-1 truncate text-[var(--fs-2xl)] font-semibold text-white">
-                {loading ? "…" : room?.name ?? roomSlug}
-              </h1>
-              <p className="mt-1 max-w-2xl truncate text-[var(--fs-sm)] text-cyan-100/82">
-                {room?.description ?? ""}
-              </p>
-            </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
+        <Panel className="suzi-room-chat flex h-full min-h-0 flex-col overflow-hidden border border-cyan-300/24 bg-[linear-gradient(180deg,rgba(36,45,116,0.52),rgba(40,16,117,0.52))] p-0 shadow-[0_14px_38px_rgba(15,23,42,0.2)]">
+          <div className="suzi-room-chat-header shrink-0 border-b border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
+            <div className="suzi-room-chat-header-inner flex flex-wrap items-end justify-between gap-3">
+              <div className="flex min-w-0 flex-1 items-start gap-2">
+                <Link
+                  href="/app"
+                  aria-label="Back"
+                  className="suzi-m-icon-btn shrink-0 md:hidden"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                </Link>
+                <div className="suzi-room-chat-title min-w-0">
+                  <p className="flex items-center gap-2 text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.3em] text-cyan-100/64">
+                    <span>Room Chat</span>
+                    <span className="suzi-room-chat-status inline-flex items-center gap-1.5 normal-case tracking-normal text-emerald-300/85">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(110,255,178,0.7)]" />
+                      {socketReady ? "Realtime connected" : "Reconnecting…"}
+                    </span>
+                  </p>
+                  <h1 className="mt-1 truncate text-[var(--fs-2xl)] font-semibold text-white">
+                    {loading ? "…" : room?.name ?? roomSlug}
+                  </h1>
+                  <p className="mt-1 max-w-2xl truncate text-[var(--fs-sm)] text-cyan-100/82">
+                    {room?.description ?? ""}
+                  </p>
+                </div>
+              </div>
+            <div className="suzi-room-chat-actions flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 aria-label="Room members"
@@ -551,7 +551,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
           </div>
         )}
 
-        <div className="shrink-0 border-t border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
+        <div className="suzi-room-composer-shell shrink-0 border-t border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
           {typingName ? (
             <p className="mb-2 text-xs font-medium text-cyan-100/85">{typingName} is typing...</p>
           ) : null}

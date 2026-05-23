@@ -716,6 +716,7 @@ export function DatingHub() {
               onActiveIndexChange={setActiveIndex}
               onInterested={(userId) => void runSwipe(userId, "LIKE")}
               onRemoveInterest={(userId) => void removeInterest(userId)}
+              onPass={(userId) => void runSwipe(userId, "PASS")}
               onBlock={(userId) => void blockDatingPerson(userId)}
               onRefresh={() => accessToken && void loadDiscover(accessToken)}
               onOpenProfile={openProfileEditor}
@@ -725,8 +726,8 @@ export function DatingHub() {
       </div>
 
       {showMobileFilters ? (
-        <div className="suzi-dating-filter-modal fixed inset-0 z-[80] flex items-end justify-center bg-black/58 p-3 md:hidden">
-          <div className="w-full max-w-md rounded-[1.2rem] border border-fuchsia-300/22 bg-[rgba(15,11,42,0.98)] p-3 shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+        <div className="suzi-mobile-modal-root suzi-dating-filter-modal fixed inset-0 z-[80] flex items-end justify-center bg-black/58 p-3 md:hidden">
+          <div className="suzi-mobile-modal-panel w-full max-w-md rounded-[1.2rem] border border-fuchsia-300/22 bg-[rgba(15,11,42,0.98)] p-3 shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-xl">
             <div className="mb-2 flex items-center justify-between gap-3 px-1">
               <div>
                 <p className="text-sm font-semibold text-white">Dating Filters</p>
@@ -755,8 +756,8 @@ export function DatingHub() {
       ) : null}
 
       {showPreviewModal && previewProfile ? (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/55 p-4 sm:items-center">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[1.2rem] border border-white/12 bg-[rgba(14,16,34,0.98)] p-5 shadow-2xl">
+        <div className="suzi-mobile-modal-root fixed inset-0 z-[80] flex items-end justify-center bg-black/55 p-4 sm:items-center">
+          <div className="suzi-mobile-modal-panel max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[1.2rem] border border-white/12 bg-[rgba(14,16,34,0.98)] p-5 shadow-2xl">
             <div className="flex items-center justify-between gap-3">
               <p className="text-lg font-semibold text-white">Profile</p>
               <button

@@ -59,7 +59,9 @@ export class AdminService {
       this.prisma.datingProfile.count(),
       this.prisma.datingMatch.count(),
       this.prisma.gameLobby.count(),
-      this.prisma.gameSession.count({ where: { status: GameSessionStatus.ACTIVE } }),
+      this.prisma.gameSession.count({
+        where: { status: GameSessionStatus.ACTIVE },
+      }),
       this.prisma.notification.count(),
       this.prisma.user.findMany({
         orderBy: { createdAt: 'desc' },
@@ -76,17 +78,26 @@ export class AdminService {
       this.prisma.room.findMany({
         orderBy: { createdAt: 'desc' },
         take: 8,
-        include: { owner: { select: { username: true, displayName: true } }, _count: { select: { memberships: true, messages: true } } },
+        include: {
+          owner: { select: { username: true, displayName: true } },
+          _count: { select: { memberships: true, messages: true } },
+        },
       }),
       this.prisma.post.findMany({
         orderBy: { createdAt: 'desc' },
         take: 8,
-        include: { author: { select: { username: true, displayName: true } }, _count: { select: { likes: true, comments: true, views: true } } },
+        include: {
+          author: { select: { username: true, displayName: true } },
+          _count: { select: { likes: true, comments: true, views: true } },
+        },
       }),
       this.prisma.gameSession.findMany({
         orderBy: { createdAt: 'desc' },
         take: 8,
-        include: { lobby: { select: { title: true, gameType: true } }, winnerUser: { select: { username: true, displayName: true } } },
+        include: {
+          lobby: { select: { title: true, gameType: true } },
+          winnerUser: { select: { username: true, displayName: true } },
+        },
       }),
     ]);
 
@@ -110,7 +121,12 @@ export class AdminService {
     };
   }
 
-  listUsers(query: { search?: string; role?: string; take?: string; skip?: string }) {
+  listUsers(query: {
+    search?: string;
+    role?: string;
+    take?: string;
+    skip?: string;
+  }) {
     const search = query.search?.trim();
     const where: Prisma.UserWhereInput = {
       ...(query.role === UserRole.ADMIN || query.role === UserRole.USER
@@ -191,7 +207,13 @@ export class AdminService {
     });
   }
 
-  listRooms(query: { search?: string; category?: string; privacy?: string; take?: string; skip?: string }) {
+  listRooms(query: {
+    search?: string;
+    category?: string;
+    privacy?: string;
+    take?: string;
+    skip?: string;
+  }) {
     const search = query.search?.trim();
     return this.prisma.room.findMany({
       where: {
@@ -211,8 +233,17 @@ export class AdminService {
       take: clampTake(query.take),
       skip: clampSkip(query.skip),
       include: {
-        owner: { select: { id: true, username: true, displayName: true, email: true } },
-        _count: { select: { memberships: true, messages: true, joinRequests: true, bans: true } },
+        owner: {
+          select: { id: true, username: true, displayName: true, email: true },
+        },
+        _count: {
+          select: {
+            memberships: true,
+            messages: true,
+            joinRequests: true,
+            bans: true,
+          },
+        },
       },
     });
   }
@@ -220,7 +251,10 @@ export class AdminService {
   async updateRoom(slug: string, body: Record<string, unknown>) {
     const data: Prisma.RoomUpdateInput = {};
     const name = stringOrUndefined(body.name);
-    const description = typeof body.description === 'string' ? body.description.trim() : undefined;
+    const description =
+      typeof body.description === 'string'
+        ? body.description.trim()
+        : undefined;
     const category = stringOrUndefined(body.category);
     const privacy = stringOrUndefined(body.privacy);
     if (name) data.name = name;
@@ -244,7 +278,12 @@ export class AdminService {
     });
   }
 
-  listRoomMessages(query: { search?: string; roomId?: string; take?: string; skip?: string }) {
+  listRoomMessages(query: {
+    search?: string;
+    roomId?: string;
+    take?: string;
+    skip?: string;
+  }) {
     const search = query.search?.trim();
     return this.prisma.roomMessage.findMany({
       where: {
@@ -256,13 +295,18 @@ export class AdminService {
       skip: clampSkip(query.skip),
       include: {
         room: { select: { id: true, slug: true, name: true } },
-        sender: { select: { id: true, username: true, displayName: true, email: true } },
+        sender: {
+          select: { id: true, username: true, displayName: true, email: true },
+        },
       },
     });
   }
 
   deleteRoomMessage(id: string) {
-    return this.prisma.roomMessage.delete({ where: { id }, select: { id: true } });
+    return this.prisma.roomMessage.delete({
+      where: { id },
+      select: { id: true },
+    });
   }
 
   listDirectMessages(query: { search?: string; take?: string; skip?: string }) {
@@ -273,18 +317,33 @@ export class AdminService {
       take: clampTake(query.take),
       skip: clampSkip(query.skip),
       include: {
-        sender: { select: { id: true, username: true, displayName: true, email: true } },
-        recipient: { select: { id: true, username: true, displayName: true, email: true } },
+        sender: {
+          select: { id: true, username: true, displayName: true, email: true },
+        },
+        recipient: {
+          select: { id: true, username: true, displayName: true, email: true },
+        },
       },
     });
   }
 
   deleteDirectMessage(id: string) {
-    return this.prisma.directMessage.delete({ where: { id }, select: { id: true } });
+    return this.prisma.directMessage.delete({
+      where: { id },
+      select: { id: true },
+    });
   }
 
-  listPosts(query: { kind?: string; search?: string; take?: string; skip?: string }) {
-    const kind = query.kind === PostKind.REEL || query.kind === PostKind.SNAP ? query.kind : undefined;
+  listPosts(query: {
+    kind?: string;
+    search?: string;
+    take?: string;
+    skip?: string;
+  }) {
+    const kind =
+      query.kind === PostKind.REEL || query.kind === PostKind.SNAP
+        ? query.kind
+        : undefined;
     const search = query.search?.trim();
     return this.prisma.post.findMany({
       where: {
@@ -302,7 +361,9 @@ export class AdminService {
       take: clampTake(query.take),
       skip: clampSkip(query.skip),
       include: {
-        author: { select: { id: true, username: true, displayName: true, email: true } },
+        author: {
+          select: { id: true, username: true, displayName: true, email: true },
+        },
         _count: { select: { likes: true, comments: true, views: true } },
       },
     });
@@ -315,7 +376,10 @@ export class AdminService {
   }
 
   deletePost(id: string) {
-    return this.prisma.post.delete({ where: { id }, select: { id: true, kind: true } });
+    return this.prisma.post.delete({
+      where: { id },
+      select: { id: true, kind: true },
+    });
   }
 
   listPostComments(query: { search?: string; take?: string; skip?: string }) {
@@ -326,14 +390,19 @@ export class AdminService {
       take: clampTake(query.take),
       skip: clampSkip(query.skip),
       include: {
-        user: { select: { id: true, username: true, displayName: true, email: true } },
+        user: {
+          select: { id: true, username: true, displayName: true, email: true },
+        },
         post: { select: { id: true, kind: true, title: true } },
       },
     });
   }
 
   deletePostComment(id: string) {
-    return this.prisma.postComment.delete({ where: { id }, select: { id: true } });
+    return this.prisma.postComment.delete({
+      where: { id },
+      select: { id: true },
+    });
   }
 
   listGames() {
@@ -372,7 +441,10 @@ export class AdminService {
   }
 
   deleteGameLobby(id: string) {
-    return this.prisma.gameLobby.delete({ where: { id }, select: { id: true, title: true } });
+    return this.prisma.gameLobby.delete({
+      where: { id },
+      select: { id: true, title: true },
+    });
   }
 
   listDating() {
@@ -380,14 +452,37 @@ export class AdminService {
       this.prisma.datingProfile.findMany({
         orderBy: { updatedAt: 'desc' },
         take: 80,
-        include: { user: { select: { id: true, username: true, displayName: true, email: true } } },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              email: true,
+            },
+          },
+        },
       }),
       this.prisma.datingMatch.findMany({
         orderBy: { createdAt: 'desc' },
         take: 80,
         include: {
-          userA: { select: { id: true, username: true, displayName: true, email: true } },
-          userB: { select: { id: true, username: true, displayName: true, email: true } },
+          userA: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              email: true,
+            },
+          },
+          userB: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              email: true,
+            },
+          },
           _count: { select: { messages: true } },
         },
       }),
@@ -399,15 +494,24 @@ export class AdminService {
     if (isDiscoverable === undefined) {
       throw new BadRequestException('isDiscoverable is required.');
     }
-    return this.prisma.datingProfile.update({ where: { id }, data: { isDiscoverable } });
+    return this.prisma.datingProfile.update({
+      where: { id },
+      data: { isDiscoverable },
+    });
   }
 
   deleteDatingProfile(id: string) {
-    return this.prisma.datingProfile.delete({ where: { id }, select: { id: true, userId: true } });
+    return this.prisma.datingProfile.delete({
+      where: { id },
+      select: { id: true, userId: true },
+    });
   }
 
   deleteDatingMatch(id: string) {
-    return this.prisma.datingMatch.delete({ where: { id }, select: { id: true } });
+    return this.prisma.datingMatch.delete({
+      where: { id },
+      select: { id: true },
+    });
   }
 
   listNotifications(query: { take?: string; skip?: string }) {
@@ -415,7 +519,11 @@ export class AdminService {
       orderBy: { createdAt: 'desc' },
       take: clampTake(query.take),
       skip: clampSkip(query.skip),
-      include: { user: { select: { id: true, username: true, displayName: true, email: true } } },
+      include: {
+        user: {
+          select: { id: true, username: true, displayName: true, email: true },
+        },
+      },
     });
   }
 
@@ -424,8 +532,12 @@ export class AdminService {
     const text = stringOrUndefined(body.body);
     const userId = stringOrUndefined(body.userId);
     const broadcast = body.broadcast === true;
-    if (!title || !text) throw new BadRequestException('title and body are required.');
-    if (!broadcast && !userId) throw new BadRequestException('userId is required unless broadcast=true.');
+    if (!title || !text)
+      throw new BadRequestException('title and body are required.');
+    if (!broadcast && !userId)
+      throw new BadRequestException(
+        'userId is required unless broadcast=true.',
+      );
     if (broadcast) {
       const users = await this.prisma.user.findMany({ select: { id: true } });
       await this.prisma.notification.createMany({
@@ -433,7 +545,9 @@ export class AdminService {
       });
       return { ok: true, sent: users.length };
     }
-    return this.prisma.notification.create({ data: { userId: userId as string, title, body: text } });
+    return this.prisma.notification.create({
+      data: { userId: userId as string, title, body: text },
+    });
   }
 
   listRoomCategories() {
@@ -460,7 +574,8 @@ export class AdminService {
     const data: Prisma.RoomCategoryUpdateInput = {};
     const name = stringOrUndefined(body.name);
     if (name) data.name = name;
-    if (typeof body.description === 'string') data.description = body.description.trim();
+    if (typeof body.description === 'string')
+      data.description = body.description.trim();
     if (typeof body.color === 'string') data.color = body.color.trim();
     if (typeof body.sortOrder === 'number') data.sortOrder = body.sortOrder;
     const isActive = boolOrUndefined(body.isActive);
@@ -469,6 +584,9 @@ export class AdminService {
   }
 
   deleteRoomCategory(id: string) {
-    return this.prisma.roomCategory.delete({ where: { id }, select: { id: true, name: true } });
+    return this.prisma.roomCategory.delete({
+      where: { id },
+      select: { id: true, name: true },
+    });
   }
 }

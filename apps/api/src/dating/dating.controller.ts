@@ -22,10 +22,7 @@ import { diskStorage } from 'multer';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
-import {
-  AVATAR_UPLOAD_FIELD,
-  AVATAR_UPLOAD_MAX_BYTES,
-} from '../users/avatar-upload.constants';
+import { AVATAR_UPLOAD_FIELD } from '../users/avatar-upload.constants';
 import {
   isAllowedAvatarImageFile,
   pickStoredAvatarExtension,
@@ -34,6 +31,8 @@ import { CreateDatingMessageDto } from './dto/create-dating-message.dto';
 import { DatingSwipeDto } from './dto/dating-swipe.dto';
 import { UpsertDatingProfileDto } from './dto/upsert-dating-profile.dto';
 import { DatingService } from './dating.service';
+
+const DATING_PHOTO_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 
 @Controller('v1/dating')
 export class DatingController {
@@ -58,7 +57,7 @@ export class DatingController {
   @UseGuards(AccessTokenGuard)
   @UseInterceptors(
     FileInterceptor(AVATAR_UPLOAD_FIELD, {
-      limits: { fileSize: AVATAR_UPLOAD_MAX_BYTES },
+      limits: { fileSize: DATING_PHOTO_UPLOAD_MAX_BYTES },
       storage: diskStorage({
         destination: (_req: Request, _file: Express.Multer.File, cb) => {
           const dir = join(process.cwd(), 'uploads', 'dating');
@@ -86,7 +85,7 @@ export class DatingController {
         }
         cb(
           new BadRequestException(
-            'Unsupported image. Use JPEG, PNG, WebP, or GIF.',
+            'Unsupported image. Use JPEG, PNG, WebP, GIF, HEIC, or HEIF.',
           ),
           false,
         );

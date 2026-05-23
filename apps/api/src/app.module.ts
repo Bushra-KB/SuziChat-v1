@@ -23,7 +23,10 @@ import { UsersModule } from './users/users.module';
     ConfigModule.forRoot({
       isGlobal: true,
       // Prefer apps/api/.env; fall back to monorepo root when you run `pnpm start:dev` from apps/api.
-      envFilePath: [join(process.cwd(), '.env'), join(process.cwd(), '..', '.env')],
+      envFilePath: [
+        join(process.cwd(), '.env'),
+        join(process.cwd(), '..', '.env'),
+      ],
     }),
     PrismaModule,
     AdminModule,

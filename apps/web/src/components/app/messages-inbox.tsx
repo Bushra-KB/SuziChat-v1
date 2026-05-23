@@ -12,6 +12,7 @@ import {
   getConversationPeer,
   listConversationThreads,
   listDirectMessages,
+  removeConversation,
   sendDirectMessage,
   type ConversationThread,
   type DirectMessageRow,
@@ -90,6 +91,8 @@ export function MessagesInbox() {
   const [meId, setMeId] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
   const [presenceById, setPresenceById] = useState<Record<string, Presence>>({});
+  const [confirmRemovePeer, setConfirmRemovePeer] = useState<ConversationThread["peer"] | null>(null);
+  const [removingPeerId, setRemovingPeerId] = useState<string | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const typingHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingAtRef = useRef(0);
@@ -264,6 +267,16 @@ export function MessagesInbox() {
       });
       void loadThreads();
     };
+    const onDmConversationRemoved = (payload: { peerId?: string }) => {
+      if (!payload?.peerId) {
+        return;
+      }
+      setThreads((prev) => prev.filter((thread) => thread.peer.id !== payload.peerId));
+      if (payload.peerId === selectedPeerId) {
+        setMessages([]);
+      }
+      void loadThreads();
+    };
     const onDmTyping = (payload: { userId?: string; peerId?: string; typing?: boolean }) => {
       if (!payload?.userId || payload.userId !== selectedPeerId) {
         return;
@@ -293,10 +306,12 @@ export function MessagesInbox() {
     };
 
     socket.on("dm:message", onDmMessage);
+    socket.on("dm:conversation:removed", onDmConversationRemoved);
     socket.on("dm:typing", onDmTyping);
     return () => {
       socket.off("connect", joinSelectedPeer);
       socket.off("dm:message", onDmMessage);
+      socket.off("dm:conversation:removed", onDmConversationRemoved);
       socket.off("dm:typing", onDmTyping);
     };
   }, [draftPeer, loadThreads, selectedPeerId, threads]);
@@ -489,6 +504,31 @@ export function MessagesInbox() {
     }
   }
 
+  async function handleRemoveConversation(peerId: string) {
+    const s = getStoredAuthSession();
+    if (!s) {
+      setError("Not signed in.");
+      return;
+    }
+    setRemovingPeerId(peerId);
+    setError("");
+    try {
+      await removeConversation(s.accessToken, peerId);
+      setThreads((prev) => prev.filter((thread) => thread.peer.id !== peerId));
+      setDraftPeer((prev) => (prev?.id === peerId ? null : prev));
+      setConfirmRemovePeer(null);
+      if (selectedPeerId === peerId) {
+        setMessages([]);
+        router.replace("/app/messages", { scroll: false });
+      }
+      await loadThreads();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Could not remove conversation.");
+    } finally {
+      setRemovingPeerId(null);
+    }
+  }
+
   const authSnap = getStoredAuthSession();
   const myAvatarUrl = authSnap?.user.avatarUrl?.trim() || null;
 
@@ -597,8 +637,19 @@ export function MessagesInbox() {
               <button type="button" aria-label="Video call" className="suzi-icon-btn inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80">
                 <Icon path="M3 7a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm13 3 5-3v10l-5-3V10Z" className="h-4 w-4" />
               </button>
-              <button type="button" aria-label="More" className="suzi-icon-btn inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80">
-                <Icon path="M5 12a1 1 0 1 0 2 0 1 1 0 0 0-2 0Zm6 0a1 1 0 1 0 2 0 1 1 0 0 0-2 0Zm6 0a1 1 0 1 0 2 0 1 1 0 0 0-2 0Z" className="h-4 w-4" />
+              <button
+                type="button"
+                aria-label="Delete conversation"
+                title="Delete conversation"
+                disabled={!activeThread || removingPeerId === activeThread.peer.id}
+                onClick={() => {
+                  if (activeThread) {
+                    setConfirmRemovePeer(activeThread.peer);
+                  }
+                }}
+                className="suzi-icon-btn inline-flex h-9 w-9 items-center justify-center rounded-xl text-pink-100/85 disabled:opacity-45"
+              >
+                <Icon path="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -701,6 +752,70 @@ export function MessagesInbox() {
           </div>
         </Panel>
       </div>
+      {confirmRemovePeer ? (
+        <div
+          className="suzi-account-modal-backdrop"
+          role="presentation"
+          onClick={() => {
+            if (!removingPeerId) {
+              setConfirmRemovePeer(null);
+            }
+          }}
+        >
+          <div
+            className="suzi-account-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="remove-dm-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.16em] text-cyan-100/66">
+                  Direct Messages
+                </p>
+                <h3 id="remove-dm-title" className="mt-1 text-[var(--fs-lg)] font-semibold text-white">
+                  Delete conversation?
+                </h3>
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                disabled={!!removingPeerId}
+                onClick={() => setConfirmRemovePeer(null)}
+                className="suzi-icon-btn inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80 disabled:opacity-45"
+              >
+                <Icon path="M6 6l12 12M18 6 6 18" className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-3 text-[var(--fs-sm)] leading-6 text-cyan-100/82">
+              This removes the conversation with{" "}
+              <span className="font-semibold text-white">
+                {confirmRemovePeer.displayName?.trim() || confirmRemovePeer.username}
+              </span>{" "}
+              for you only. It will not delete it for the other person.
+            </p>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={!!removingPeerId}
+                onClick={() => setConfirmRemovePeer(null)}
+                className="suzi-secondary-btn px-4 py-2 text-[var(--fs-sm)] disabled:opacity-45"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!!removingPeerId}
+                onClick={() => void handleRemoveConversation(confirmRemovePeer.id)}
+                className="suzi-primary-btn px-4 py-2 text-[var(--fs-sm)] disabled:opacity-45"
+              >
+                {removingPeerId === confirmRemovePeer.id ? "Deleting..." : "Delete for me"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

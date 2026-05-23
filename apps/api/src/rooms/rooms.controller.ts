@@ -58,19 +58,28 @@ export class RoomsController {
 
   @Get(':slug/messages')
   @UseGuards(AccessTokenGuard)
-  listMessages(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+  listMessages(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.roomsService.listMessagesForUser(slug, user.id);
   }
 
   @Get(':slug/me/access')
   @UseGuards(AccessTokenGuard)
-  getMyAccess(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+  getMyAccess(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.roomsService.getRoomAccess(slug, user.id);
   }
 
   @Get(':slug/me/messages')
   @UseGuards(AccessTokenGuard)
-  listMessagesForMe(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+  listMessagesForMe(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.roomsService.listMessagesForUser(slug, user.id);
   }
 
@@ -102,7 +111,10 @@ export class RoomsController {
 
   @Delete(':slug')
   @UseGuards(AccessTokenGuard)
-  async deleteRoom(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+  async deleteRoom(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     const result = await this.roomsService.deleteRoom(slug, user.id);
     this.emitRoomsCatalogUpdate('deleted', slug);
     return result;
@@ -115,15 +127,23 @@ export class RoomsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateRoomMessageDto,
   ) {
-    return this.roomsService.postMessage(slug, user.id, dto.body).then((message) => {
-      this.realtimeEvents.emitRoom(slug, 'room:message', { roomSlug: slug, message });
-      return message;
-    });
+    return this.roomsService
+      .postMessage(slug, user.id, dto.body)
+      .then((message) => {
+        this.realtimeEvents.emitRoom(slug, 'room:message', {
+          roomSlug: slug,
+          message,
+        });
+        return message;
+      });
   }
 
   @Post(':slug/join')
   @UseGuards(AccessTokenGuard)
-  async joinRoom(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+  async joinRoom(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     const result = await this.roomsService.joinRoom(slug, user.id);
     await this.emitRoomStats(slug);
     this.emitRoomsCatalogUpdate('joined', slug);
@@ -132,7 +152,10 @@ export class RoomsController {
 
   @Post(':slug/request-access')
   @UseGuards(AccessTokenGuard)
-  async requestAccess(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+  async requestAccess(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     const result = await this.roomsService.requestAccess(slug, user.id);
     this.emitRoomsCatalogUpdate('access_requested', slug);
     return result;
@@ -140,7 +163,10 @@ export class RoomsController {
 
   @Post(':slug/cancel-request')
   @UseGuards(AccessTokenGuard)
-  async cancelJoinRequest(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+  async cancelJoinRequest(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     const result = await this.roomsService.cancelJoinRequest(slug, user.id);
     this.emitRoomsCatalogUpdate('access_canceled', slug);
     return result;
@@ -148,7 +174,10 @@ export class RoomsController {
 
   @Post(':slug/leave')
   @UseGuards(AccessTokenGuard)
-  async leaveRoom(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+  async leaveRoom(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     const result = await this.roomsService.leaveRoom(slug, user.id);
     await this.emitRoomStats(slug);
     this.emitRoomsCatalogUpdate('left', slug);
@@ -157,7 +186,10 @@ export class RoomsController {
 
   @Get(':slug/manage')
   @UseGuards(AccessTokenGuard)
-  getRoomManagement(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+  getRoomManagement(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.roomsService.getRoomManagement(slug, user.id);
   }
 
@@ -168,11 +200,13 @@ export class RoomsController {
     @Param('userId') userId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.roomsService.approveJoinRequest(slug, user.id, userId).then(async (result) => {
-      await this.emitRoomStats(slug);
-      this.emitRoomsCatalogUpdate('member_approved', slug);
-      return result;
-    });
+    return this.roomsService
+      .approveJoinRequest(slug, user.id, userId)
+      .then(async (result) => {
+        await this.emitRoomStats(slug);
+        this.emitRoomsCatalogUpdate('member_approved', slug);
+        return result;
+      });
   }
 
   @Post(':slug/manage/requests/:userId/reject')
@@ -192,11 +226,13 @@ export class RoomsController {
     @Param('userId') userId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.roomsService.removeMember(slug, user.id, userId).then(async (result) => {
-      await this.emitRoomStats(slug);
-      this.emitRoomsCatalogUpdate('member_removed', slug);
-      return result;
-    });
+    return this.roomsService
+      .removeMember(slug, user.id, userId)
+      .then(async (result) => {
+        await this.emitRoomStats(slug);
+        this.emitRoomsCatalogUpdate('member_removed', slug);
+        return result;
+      });
   }
 
   @Post(':slug/manage/members/:userId/ban')
@@ -206,11 +242,13 @@ export class RoomsController {
     @Param('userId') userId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.roomsService.banMember(slug, user.id, userId).then(async (result) => {
-      await this.emitRoomStats(slug);
-      this.emitRoomsCatalogUpdate('member_banned', slug);
-      return result;
-    });
+    return this.roomsService
+      .banMember(slug, user.id, userId)
+      .then(async (result) => {
+        await this.emitRoomStats(slug);
+        this.emitRoomsCatalogUpdate('member_banned', slug);
+        return result;
+      });
   }
 
   @Post(':slug/manage/members/:userId/moderator')
@@ -220,10 +258,12 @@ export class RoomsController {
     @Param('userId') userId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.roomsService.assignModerator(slug, user.id, userId).then((result) => {
-      this.emitRoomsCatalogUpdate('moderator_assigned', slug);
-      return result;
-    });
+    return this.roomsService
+      .assignModerator(slug, user.id, userId)
+      .then((result) => {
+        this.emitRoomsCatalogUpdate('moderator_assigned', slug);
+        return result;
+      });
   }
 
   @Delete(':slug/manage/members/:userId/moderator')
@@ -233,10 +273,12 @@ export class RoomsController {
     @Param('userId') userId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.roomsService.removeModerator(slug, user.id, userId).then((result) => {
-      this.emitRoomsCatalogUpdate('moderator_removed', slug);
-      return result;
-    });
+    return this.roomsService
+      .removeModerator(slug, user.id, userId)
+      .then((result) => {
+        this.emitRoomsCatalogUpdate('moderator_removed', slug);
+        return result;
+      });
   }
 
   @Post(':slug/manage/bans/:userId/unban')
@@ -246,9 +288,11 @@ export class RoomsController {
     @Param('userId') userId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.roomsService.unbanMember(slug, user.id, userId).then((result) => {
-      this.emitRoomsCatalogUpdate('member_unbanned', slug);
-      return result;
-    });
+    return this.roomsService
+      .unbanMember(slug, user.id, userId)
+      .then((result) => {
+        this.emitRoomsCatalogUpdate('member_unbanned', slug);
+        return result;
+      });
   }
 }

@@ -1,5 +1,8 @@
 import { PokerRound } from '@prisma/client';
-import { applyPokerAction, buildInitialPokerState } from './poker-holdem.engine';
+import {
+  applyPokerAction,
+  buildInitialPokerState,
+} from './poker-holdem.engine';
 
 describe('poker-holdem.engine', () => {
   it('progresses rounds and reaches a finished hand', () => {
@@ -16,13 +19,19 @@ describe('poker-holdem.engine', () => {
       const current = state as {
         currentTurnSeatIndex: number;
         currentBet: number;
-        players: Array<{ seatIndex: number; userId: string; committed: number }>;
+        players: Array<{
+          seatIndex: number;
+          userId: string;
+          committed: number;
+        }>;
         phase: PokerRound;
       };
-      const actor = current.players.find((p) => p.seatIndex === current.currentTurnSeatIndex);
+      const actor = current.players.find(
+        (p) => p.seatIndex === current.currentTurnSeatIndex,
+      );
       if (!actor) break;
-      const kind = current.currentBet > actor.committed ? "CALL" : "CHECK";
-      const out = applyPokerAction(state as Record<string, unknown>, {
+      const kind = current.currentBet > actor.committed ? 'CALL' : 'CHECK';
+      const out = applyPokerAction(state, {
         userId: actor.userId,
         payload: { kind },
       });
@@ -34,14 +43,19 @@ describe('poker-holdem.engine', () => {
       }
     }
     // If checks alone do not end due to bets, force completion with folds.
-    const current = state as { currentTurnSeatIndex: number; players: Array<{ seatIndex: number; userId: string }> };
-    const actor = current.players.find((p) => p.seatIndex === current.currentTurnSeatIndex);
+    const current = state as {
+      currentTurnSeatIndex: number;
+      players: Array<{ seatIndex: number; userId: string }>;
+    };
+    const actor = current.players.find(
+      (p) => p.seatIndex === current.currentTurnSeatIndex,
+    );
     if (!actor) {
       throw new Error('Expected acting player');
     }
-    const folded = applyPokerAction(state as Record<string, unknown>, {
+    const folded = applyPokerAction(state, {
       userId: actor.userId,
-      payload: { kind: "FOLD" },
+      payload: { kind: 'FOLD' },
     });
     expect(folded.status).toBe('finished');
   });
@@ -59,7 +73,7 @@ describe('poker-holdem.engine', () => {
       players: Array<{ userId: string; seatIndex: number; stack: number }>;
     };
 
-    const first = state.players[0]!;
+    const first = state.players[0];
     let out = applyPokerAction(state as Record<string, unknown>, {
       userId: first.userId,
       payload: { kind: 'ALL_IN' },

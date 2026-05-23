@@ -76,7 +76,14 @@ export async function getMyProfile(accessToken: string) {
 
 export async function updateMyProfile(
   accessToken: string,
-  payload: { displayName?: string; bio?: string; country?: string; avatarUrl?: string },
+  payload: {
+    email?: string;
+    username?: string;
+    displayName?: string;
+    bio?: string;
+    country?: string;
+    avatarUrl?: string;
+  },
 ) {
   return authedRequest<UserProfile>("/v1/users/me/profile", accessToken, {
     method: "PATCH",

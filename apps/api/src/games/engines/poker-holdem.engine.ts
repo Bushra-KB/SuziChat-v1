@@ -209,13 +209,13 @@ function assignBlindSeats(
     return {
       buttonSeatIndex,
       smallBlindSeatIndex: buttonSeatIndex,
-      bigBlindSeatIndex: ordered[(pos + 1) % n]!.seatIndex,
+      bigBlindSeatIndex: ordered[(pos + 1) % n].seatIndex,
     };
   }
   return {
     buttonSeatIndex,
-    smallBlindSeatIndex: ordered[(pos + 1) % n]!.seatIndex,
-    bigBlindSeatIndex: ordered[(pos + 2) % n]!.seatIndex,
+    smallBlindSeatIndex: ordered[(pos + 1) % n].seatIndex,
+    bigBlindSeatIndex: ordered[(pos + 2) % n].seatIndex,
   };
 }
 
@@ -225,7 +225,9 @@ function nextButtonSeat(
 ): number {
   const active = ordered.filter((s) => s.stack > 0);
   if (active.length < 2) {
-    throw new BadRequestException('Not enough players with chips for another hand.');
+    throw new BadRequestException(
+      'Not enough players with chips for another hand.',
+    );
   }
   const pos = active.findIndex((s) => s.seatIndex === currentButton);
   const start = pos >= 0 ? pos : 0;
@@ -233,7 +235,7 @@ function nextButtonSeat(
     const seat = active[(start + step) % active.length];
     if (seat && seat.stack > 0) return seat.seatIndex;
   }
-  return active[0]!.seatIndex;
+  return active[0].seatIndex;
 }
 
 function playersWithChips(state: RuntimePokerState) {
@@ -256,14 +258,19 @@ function showdown(state: RuntimePokerState): {
   winners: Array<{ userId: string; rankName: string; amount: number }>;
 } {
   const alive = state.players.filter((p) => !p.folded);
-  const winners: Array<{ userId: string; rankName: string; amount: number }> = [];
+  const winners: Array<{ userId: string; rankName: string; amount: number }> =
+    [];
 
   if (alive.length === 1) {
-    const winner = alive[0]!;
+    const winner = alive[0];
     const amount = state.pot;
     winner.stack += amount;
     state.pot = 0;
-    winners.push({ userId: winner.userId, rankName: 'Last player standing', amount });
+    winners.push({
+      userId: winner.userId,
+      rankName: 'Last player standing',
+      amount,
+    });
     return { winnerUserId: winner.userId, winners };
   }
 
@@ -273,9 +280,7 @@ function showdown(state: RuntimePokerState): {
   }));
 
   const levels = [
-    ...new Set(
-      state.players.map((p) => p.totalCommitted).filter((c) => c > 0),
-    ),
+    ...new Set(state.players.map((p) => p.totalCommitted).filter((c) => c > 0)),
   ].sort((a, b) => a - b);
 
   let awarded = 0;
@@ -283,7 +288,9 @@ function showdown(state: RuntimePokerState): {
   const winTotals = new Map<string, number>();
 
   for (const level of levels) {
-    const eligibleContrib = state.players.filter((p) => p.totalCommitted >= level);
+    const eligibleContrib = state.players.filter(
+      (p) => p.totalCommitted >= level,
+    );
     const potSize = (level - prev) * eligibleContrib.length;
     const eligibleWinners = contenders.filter(
       (c) => c.player.totalCommitted >= level && !c.player.folded,
@@ -291,7 +298,7 @@ function showdown(state: RuntimePokerState): {
     if (eligibleWinners.length === 0) continue;
     const top = [...eligibleWinners].sort((a, b) =>
       b.rank.join(',') > a.rank.join(',') ? 1 : -1,
-    )[0]!;
+    )[0];
     const best = eligibleWinners.filter(
       (c) => c.rank.join(',') === top.rank.join(','),
     );
@@ -396,7 +403,9 @@ function buildPokerStateFromStacks(
   handNumber: number,
 ): RuntimePokerState {
   if (stacks.length < 2) {
-    throw new BadRequestException('Poker requires at least 2 seated players with chips.');
+    throw new BadRequestException(
+      'Poker requires at least 2 seated players with chips.',
+    );
   }
   const blindSmall = Math.max(5, Number(context.options?.smallBlind ?? 10));
   const blindBig = Math.max(
@@ -405,7 +414,9 @@ function buildPokerStateFromStacks(
   );
   const ordered = [...stacks].sort((a, b) => a.seatIndex - b.seatIndex);
   const blinds = assignBlindSeats(ordered, buttonSeatIndex);
-  const deck = buildDeck(Number(context.options?.seed ?? Date.now()) + handNumber);
+  const deck = buildDeck(
+    Number(context.options?.seed ?? Date.now()) + handNumber,
+  );
   const players: RuntimePokerPlayer[] = ordered.map((seat) => ({
     userId: seat.userId,
     seatIndex: seat.seatIndex,
@@ -437,8 +448,12 @@ function buildPokerStateFromStacks(
     bigBlind: blindBig,
   };
 
-  const sb = state.players.find((p) => p.seatIndex === blinds.smallBlindSeatIndex);
-  const bb = state.players.find((p) => p.seatIndex === blinds.bigBlindSeatIndex);
+  const sb = state.players.find(
+    (p) => p.seatIndex === blinds.smallBlindSeatIndex,
+  );
+  const bb = state.players.find(
+    (p) => p.seatIndex === blinds.bigBlindSeatIndex,
+  );
   if (!sb || !bb) throw new BadRequestException('Could not initialize blinds.');
 
   const postBlind = (player: RuntimePokerPlayer, amount: number) => {

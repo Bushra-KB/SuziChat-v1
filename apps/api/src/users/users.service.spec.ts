@@ -62,6 +62,10 @@ describe('UsersService', () => {
   });
 
   it('updates the current profile', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      email: 'profile@example.com',
+      username: 'profileuser',
+    });
     prismaMock.user.update.mockResolvedValueOnce({
       id: 'user_1',
       email: 'profile@example.com',
@@ -96,6 +100,9 @@ describe('UsersService', () => {
             displayName: string;
             bio: string;
             country: string;
+            email?: string;
+            username?: string;
+            isEmailVerified?: boolean;
             avatarUrl?: string | null;
           };
           select: {
@@ -108,7 +115,7 @@ describe('UsersService', () => {
     const updateArgs = updateCalls[0][0];
 
     expect(updateArgs.where.id).toBe('user_1');
-    expect(updateArgs.data).toEqual({
+    expect(updateArgs.data).toMatchObject({
       displayName: 'Updated User',
       bio: 'Updated bio',
       country: 'Ireland',

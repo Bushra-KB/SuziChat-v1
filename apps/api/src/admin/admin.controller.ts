@@ -51,11 +51,20 @@ export class AdminController {
     @Query('take') take?: string,
     @Query('skip') skip?: string,
   ) {
-    return this.adminService.listRooms({ search, category, privacy, take, skip });
+    return this.adminService.listRooms({
+      search,
+      category,
+      privacy,
+      take,
+      skip,
+    });
   }
 
   @Patch('rooms/:slug')
-  updateRoom(@Param('slug') slug: string, @Body() body: Record<string, unknown>) {
+  updateRoom(
+    @Param('slug') slug: string,
+    @Body() body: Record<string, unknown>,
+  ) {
     return this.adminService.updateRoom(slug, body);
   }
 
@@ -189,7 +198,10 @@ export class AdminController {
   }
 
   @Get('notifications')
-  listNotifications(@Query('take') take?: string, @Query('skip') skip?: string) {
+  listNotifications(
+    @Query('take') take?: string,
+    @Query('skip') skip?: string,
+  ) {
     return this.adminService.listNotifications({ take, skip });
   }
 

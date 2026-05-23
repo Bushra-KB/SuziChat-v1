@@ -27,10 +27,22 @@ import { postsFeedChannel } from '../realtime/realtime-channels';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CreatePostCommentDto } from './dto/create-post-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
-import { REEL_UPLOAD_FIELD, REEL_UPLOAD_MAX_BYTES } from './reel-upload.constants';
-import { isAllowedReelVideoFile, pickStoredReelExtension } from './reel-upload.util';
-import { SNAP_UPLOAD_FIELD, SNAP_UPLOAD_MAX_BYTES } from './snap-upload.constants';
-import { isAllowedSnapImageFile, pickStoredSnapExtension } from './snap-upload.util';
+import {
+  REEL_UPLOAD_FIELD,
+  REEL_UPLOAD_MAX_BYTES,
+} from './reel-upload.constants';
+import {
+  isAllowedReelVideoFile,
+  pickStoredReelExtension,
+} from './reel-upload.util';
+import {
+  SNAP_UPLOAD_FIELD,
+  SNAP_UPLOAD_MAX_BYTES,
+} from './snap-upload.constants';
+import {
+  isAllowedSnapImageFile,
+  pickStoredSnapExtension,
+} from './snap-upload.util';
 import { PostsService } from './posts.service';
 
 @Controller('v1/posts')
@@ -106,10 +118,14 @@ export class PostsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     const result = await this.postsService.deletePostAsAuthor(id, user.id);
-    this.realtimeEvents.emitToChannel(postsFeedChannel(result.kind), 'posts:feed:update', {
-      kind: result.kind,
-      postId: result.id,
-    });
+    this.realtimeEvents.emitToChannel(
+      postsFeedChannel(result.kind),
+      'posts:feed:update',
+      {
+        kind: result.kind,
+        postId: result.id,
+      },
+    );
     return result;
   }
 
@@ -215,10 +231,14 @@ export class PostsController {
     @Body() dto: CreatePostDto,
   ) {
     const post = await this.postsService.createPost(user.id, dto);
-    this.realtimeEvents.emitToChannel(postsFeedChannel(dto.kind), 'posts:feed:update', {
-      kind: dto.kind,
-      postId: post.id,
-    });
+    this.realtimeEvents.emitToChannel(
+      postsFeedChannel(dto.kind),
+      'posts:feed:update',
+      {
+        kind: dto.kind,
+        postId: post.id,
+      },
+    );
     return post;
   }
 
@@ -239,23 +259,40 @@ export class PostsController {
 
   @Get(':id/engagement')
   @UseGuards(AccessTokenGuard)
-  getEngagement(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  getEngagement(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.postsService.getEngagement(id, user.id);
   }
 
   @Post(':id/view')
   @UseGuards(AccessTokenGuard)
-  async trackView(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  async trackView(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     const engagement = await this.postsService.trackView(id, user.id);
-    this.realtimeEvents.emitToChannel(`post:${id}`, 'post:engagement', engagement);
+    this.realtimeEvents.emitToChannel(
+      `post:${id}`,
+      'post:engagement',
+      engagement,
+    );
     return engagement;
   }
 
   @Post(':id/like')
   @UseGuards(AccessTokenGuard)
-  async toggleLike(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  async toggleLike(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     const engagement = await this.postsService.toggleLike(id, user.id);
-    this.realtimeEvents.emitToChannel(`post:${id}`, 'post:engagement', engagement);
+    this.realtimeEvents.emitToChannel(
+      `post:${id}`,
+      'post:engagement',
+      engagement,
+    );
     return engagement;
   }
 
@@ -271,7 +308,11 @@ export class PostsController {
       postId: id,
       comment: created.comment,
     });
-    this.realtimeEvents.emitToChannel(`post:${id}`, 'post:engagement', created.engagement);
+    this.realtimeEvents.emitToChannel(
+      `post:${id}`,
+      'post:engagement',
+      created.engagement,
+    );
     return created;
   }
 }

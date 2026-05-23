@@ -14,33 +14,46 @@ export class RealtimeStateService {
   constructor(private readonly prisma: PrismaService) {}
 
   async buildUserState(userId: string): Promise<RealtimeUserState> {
-    const [unreadNotifications, incomingFriendRequests, outgoingFriendRequests, sentRows, recvRows] =
-      await Promise.all([
-        this.prisma.notification.count({
-          where: { userId, read: false },
-        }),
-        this.prisma.friendRequest.count({
-          where: { receiverId: userId, status: FriendRequestStatus.PENDING },
-        }),
-        this.prisma.friendRequest.count({
-          where: { senderId: userId, status: FriendRequestStatus.PENDING },
-        }),
-        this.prisma.directMessage.findMany({
-          where: { senderId: userId },
-          select: { recipientId: true },
-        }),
-        this.prisma.directMessage.findMany({
-          where: { recipientId: userId },
-          select: { senderId: true },
-        }),
-      ]);
+    const [
+      unreadNotifications,
+      incomingFriendRequests,
+      outgoingFriendRequests,
+      messages,
+      states,
+    ] = await Promise.all([
+      this.prisma.notification.count({
+        where: { userId, read: false },
+      }),
+      this.prisma.friendRequest.count({
+        where: { receiverId: userId, status: FriendRequestStatus.PENDING },
+      }),
+      this.prisma.friendRequest.count({
+        where: { senderId: userId, status: FriendRequestStatus.PENDING },
+      }),
+      this.prisma.directMessage.findMany({
+        where: {
+          OR: [{ senderId: userId }, { recipientId: userId }],
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { senderId: true, recipientId: true, createdAt: true },
+      }),
+      this.prisma.directConversationState.findMany({
+        where: { userId },
+        select: { peerId: true, clearedAt: true },
+      }),
+    ]);
 
+    const clearedByPeer = new Map(
+      states.map((state) => [state.peerId, state.clearedAt]),
+    );
     const peers = new Set<string>();
-    for (const row of sentRows) {
-      peers.add(row.recipientId);
-    }
-    for (const row of recvRows) {
-      peers.add(row.senderId);
+    for (const row of messages) {
+      const peerId = row.senderId === userId ? row.recipientId : row.senderId;
+      const clearedAt = clearedByPeer.get(peerId);
+      if (clearedAt && row.createdAt <= clearedAt) {
+        continue;
+      }
+      peers.add(peerId);
     }
 
     return {

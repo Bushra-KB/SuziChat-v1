@@ -44,7 +44,9 @@ export class NotificationsService {
         read: true,
       },
     });
-    this.realtimeEvents.emitToUser(userId, 'notifications:update', { reason: 'mark_read' });
+    this.realtimeEvents.emitToUser(userId, 'notifications:update', {
+      reason: 'mark_read',
+    });
     const state = await this.realtimeState.buildUserState(userId);
     this.realtimeEvents.emitToUser(userId, 'realtime:state', state);
     return updated;
@@ -56,7 +58,9 @@ export class NotificationsService {
       data: { read: true },
     });
 
-    this.realtimeEvents.emitToUser(userId, 'notifications:update', { reason: 'mark_all_read' });
+    this.realtimeEvents.emitToUser(userId, 'notifications:update', {
+      reason: 'mark_all_read',
+    });
     const state = await this.realtimeState.buildUserState(userId);
     this.realtimeEvents.emitToUser(userId, 'realtime:state', state);
     return { updated: result.count };

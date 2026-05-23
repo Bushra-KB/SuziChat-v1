@@ -1,6 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import { Chess } from 'chess.js';
-import type { EngineApplyContext, EngineContext, EngineResult } from './game-engine.types';
+import type {
+  EngineApplyContext,
+  EngineContext,
+  EngineResult,
+} from './game-engine.types';
 
 type ChessState = {
   gameType: 'CHESS';
@@ -21,7 +25,9 @@ function playerForColor(
   return color === 'w' ? whitePlayerId : blackPlayerId;
 }
 
-export function buildInitialChessState(context: EngineContext): Record<string, unknown> {
+export function buildInitialChessState(
+  context: EngineContext,
+): Record<string, unknown> {
   if (context.seats.length < 2) {
     throw new BadRequestException('Chess requires two seated players.');
   }

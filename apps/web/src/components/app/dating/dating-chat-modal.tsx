@@ -36,8 +36,8 @@ export function DatingChatModal({
   }, [messages]);
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/55 p-4 sm:items-center">
-      <div className="flex max-h-[88vh] w-full max-w-lg flex-col rounded-[1.2rem] border border-white/12 bg-[rgba(14,16,34,0.98)] shadow-2xl">
+    <div className="suzi-mobile-modal-root fixed inset-0 z-[90] flex items-end justify-center bg-black/55 p-4 sm:items-center">
+      <div className="suzi-mobile-modal-panel flex max-h-[88vh] w-full max-w-lg flex-col rounded-[1.2rem] border border-white/12 bg-[rgba(14,16,34,0.98)] shadow-2xl">
         <div className="flex items-center justify-between gap-3 border-b border-white/10 p-4">
           <div>
             <p className="font-semibold text-white">{peerName}</p>

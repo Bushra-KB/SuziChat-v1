@@ -1,5 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
-import type { EngineApplyContext, EngineContext, EngineResult } from './game-engine.types';
+import type {
+  EngineApplyContext,
+  EngineContext,
+  EngineResult,
+} from './game-engine.types';
 
 type Cell = 0 | 1 | 2;
 type Connect4State = {
@@ -11,13 +15,17 @@ type Connect4State = {
   winnerUserId: string | null;
 };
 
-export function buildInitialConnect4State(context: EngineContext): Record<string, unknown> {
+export function buildInitialConnect4State(
+  context: EngineContext,
+): Record<string, unknown> {
   if (context.seats.length < 2) {
     throw new BadRequestException('Connect 4 requires two seated players.');
   }
   return {
     gameType: 'CONNECT4',
-    board: Array.from({ length: 6 }, () => Array.from({ length: 7 }, () => 0 as Cell)),
+    board: Array.from({ length: 6 }, () =>
+      Array.from({ length: 7 }, () => 0 as Cell),
+    ),
     players: [context.seats[0]?.userId ?? '', context.seats[1]?.userId ?? ''],
     turnUserId: context.seats[0]?.userId ?? '',
     status: 'active',
@@ -79,7 +87,8 @@ export function applyConnect4Action(
   if (placedRow < 0) {
     throw new BadRequestException('Column is full.');
   }
-  const nextTurn = state.players.find((id) => id !== context.userId) ?? context.userId;
+  const nextTurn =
+    state.players.find((id) => id !== context.userId) ?? context.userId;
   const next: Connect4State = { ...state, board, turnUserId: nextTurn };
 
   if (hasFour(board, meIndex as Cell)) {

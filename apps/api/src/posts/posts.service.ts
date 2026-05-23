@@ -109,7 +109,10 @@ export class PostsService {
   async listPostsForUser(userId: string, kind: PostKind, take = 40) {
     const friends = await this.friendIdsFor(userId);
     const friendFilter: Prisma.PostWhereInput[] = friends.map((fid) => ({
-      AND: [{ visibility: { equals: 'Friends', mode: 'insensitive' } }, { authorId: fid }],
+      AND: [
+        { visibility: { equals: 'Friends', mode: 'insensitive' } },
+        { authorId: fid },
+      ],
     }));
     return this.prisma.post.findMany({
       where: {

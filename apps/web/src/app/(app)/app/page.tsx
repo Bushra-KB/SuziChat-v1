@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { gameMeta } from "@/components/app/games/game-meta";
 import { HomeChatRoomsPanel } from "@/components/app/home-chat-rooms-panel";
@@ -72,6 +73,7 @@ function subscribeMobileHomeHash(callback: () => void) {
  */
 export default function AppHomePage() {
   const { t } = useI18n();
+  const router = useRouter();
   const [lobbies, setLobbies] = useState<ApiGameLobby[]>([]);
   const [mobileGamesOpen, setMobileGamesOpen] = useState(false);
   const { isMobile: isCompactHome } = useIsMobile(MQ_HOME_COMPACT);
@@ -134,6 +136,11 @@ export default function AppHomePage() {
     return counts;
   }, [lobbies]);
 
+  function openGameLobby(gameId: string) {
+    setMobileGamesOpen(false);
+    router.push(`/app/games/${gameId}`);
+  }
+
   if (isCompactHome) {
     const totalPlaying = Array.from(playingByGameType.values()).reduce(
       (acc, value) => acc + value,
@@ -141,10 +148,7 @@ export default function AppHomePage() {
     );
 
     const mobileGamesCard = (
-      <button
-        type="button"
-        onClick={() => setMobileGamesOpen(true)}
-        aria-label={t("home.browseGameLobbies")}
+      <div
         className="suzi-home-mobile-games-card group relative flex h-full w-full flex-col overflow-hidden rounded-[var(--panel-radius)] border p-[var(--panel-pad)] text-left transition active:scale-[0.985]"
       >
         <div className="flex shrink-0 items-center justify-between gap-3">
@@ -169,9 +173,14 @@ export default function AppHomePage() {
             const meta = gameMeta.find((entry) => entry.id === game.id);
             const playing = meta ? (playingByGameType.get(meta.type) ?? 0) : 0;
             return (
-              <div
+              <button
+                type="button"
                 key={game.id}
-                className={cx(homeGameCard, "relative min-h-0 overflow-hidden rounded-[0.75rem] border")}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openGameLobby(game.id);
+                }}
+                className={cx(homeGameCard, "relative h-full min-h-0 w-full overflow-hidden rounded-[0.75rem] border")}
               >
                 <Image
                   src={game.icon}
@@ -187,7 +196,7 @@ export default function AppHomePage() {
                 <p className={cx(listL1, "absolute inset-x-1.5 bottom-1.5 truncate text-center font-bold leading-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]")}>
                   {game.name}
                 </p>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -196,14 +205,19 @@ export default function AppHomePage() {
           <span className={cx(listMeta, "text-cyan-100/72")}>
             {t("home.tapBrowseTables")}
           </span>
-          <span className={cx(homeBtnPrimary, listActionPrimary, "gap-1 px-2.5 py-1")}>
+          <button
+            type="button"
+            onClick={() => setMobileGamesOpen(true)}
+            aria-label={t("home.browseGameLobbies")}
+            className={cx(homeBtnPrimary, listActionPrimary, "gap-1 px-2.5 py-1")}
+          >
             {t("common.open")}
             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 6l6 6-6 6" />
             </svg>
-          </span>
+          </button>
         </div>
-      </button>
+      </div>
     );
 
     const mobileHomeContent =
@@ -303,10 +317,10 @@ export default function AppHomePage() {
                     const playing = meta ? (playingByGameType.get(meta.type) ?? 0) : 0;
                     return (
                       <li key={game.id}>
-                        <Link
-                          href={`/app/games/${game.id}`}
-                          onClick={() => setMobileGamesOpen(false)}
-                          className="suzi-tap-row group flex items-center gap-3 overflow-hidden rounded-[0.95rem] border border-cyan-300/22 bg-[linear-gradient(165deg,rgba(42,26,108,0.55),rgba(18,11,46,0.55))] p-2 transition active:scale-[0.99]"
+                        <button
+                          type="button"
+                          onClick={() => openGameLobby(game.id)}
+                          className="suzi-tap-row group flex w-full items-center gap-3 overflow-hidden rounded-[0.95rem] border border-cyan-300/22 bg-[linear-gradient(165deg,rgba(42,26,108,0.55),rgba(18,11,46,0.55))] p-2 text-left transition active:scale-[0.99]"
                         >
                           <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[0.75rem] border border-cyan-300/22">
                             <Image src={game.icon} alt={game.name} fill sizes="56px" className="object-cover" />
@@ -326,7 +340,7 @@ export default function AppHomePage() {
                               <path d="M9 6l6 6-6 6" />
                             </svg>
                           </span>
-                        </Link>
+                        </button>
                       </li>
                     );
                   })}

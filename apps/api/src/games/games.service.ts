@@ -180,9 +180,7 @@ function assertSeatPick(
         throw new BadRequestException('The second player must take seat 2.');
       }
       if (!seat0Taken) {
-        throw new BadRequestException(
-          'Seat 1 must be taken before seat 2.',
-        );
+        throw new BadRequestException('Seat 1 must be taken before seat 2.');
       }
     }
     return;
@@ -520,7 +518,9 @@ export class GamesService {
   ) {
     if (this.isSeatedInLobby(session.lobby, userId)) return;
     if (session.lobby.ownerId === userId) return;
-    const { allowSpectatorChat } = parseGameLobbySettings(session.lobby.settings);
+    const { allowSpectatorChat } = parseGameLobbySettings(
+      session.lobby.settings,
+    );
     if (!allowSpectatorChat) {
       throw new ForbiddenException('Spectators cannot chat in this game.');
     }
@@ -747,7 +747,9 @@ export class GamesService {
       throw new BadRequestException('Lobby already has an active session.');
     }
     if (hasActiveSession && lobby.ownerId !== userId) {
-      throw new ForbiddenException('Only lobby owner can restart an active session.');
+      throw new ForbiddenException(
+        'Only lobby owner can restart an active session.',
+      );
     }
     if (hasActiveSession && dto.restart) {
       await this.prisma.gameSession.updateMany({
@@ -1093,7 +1095,10 @@ export class GamesService {
       .sort((a, b) => a.seatIndex - b.seatIndex);
 
     const actionKind = jsonPrimitiveString(dto.payload.kind).toUpperCase();
-    if (session.gameType === GameType.POKER_HOLDEM && actionKind === 'NEXT_HAND') {
+    if (
+      session.gameType === GameType.POKER_HOLDEM &&
+      actionKind === 'NEXT_HAND'
+    ) {
       const phase = jsonPrimitiveString(
         (session.state as Record<string, unknown>).phase,
       );
@@ -1126,20 +1131,23 @@ export class GamesService {
             (nextState as { buttonSeatIndex?: number }).buttonSeatIndex ?? 0,
           ),
           smallBlindSeatIndex: Number(
-            (nextState as { smallBlindSeatIndex?: number }).smallBlindSeatIndex ??
-              0,
+            (nextState as { smallBlindSeatIndex?: number })
+              .smallBlindSeatIndex ?? 0,
           ),
           bigBlindSeatIndex: Number(
-            (nextState as { bigBlindSeatIndex?: number }).bigBlindSeatIndex ?? 0,
+            (nextState as { bigBlindSeatIndex?: number }).bigBlindSeatIndex ??
+              0,
           ),
           communityCards: [],
           round: PokerRound.PREFLOP,
-          currentBet: Number((nextState as { currentBet?: number }).currentBet ?? 0),
+          currentBet: Number(
+            (nextState as { currentBet?: number }).currentBet ?? 0,
+          ),
           minRaise: Number((nextState as { minRaise?: number }).minRaise ?? 0),
           pot: Number((nextState as { pot?: number }).pot ?? 0),
           actionSeatIndex: Number(
-            (nextState as { currentTurnSeatIndex?: number }).currentTurnSeatIndex ??
-              0,
+            (nextState as { currentTurnSeatIndex?: number })
+              .currentTurnSeatIndex ?? 0,
           ),
         },
       });
@@ -1176,7 +1184,7 @@ export class GamesService {
     }
     const pokerPhase =
       session.gameType === GameType.POKER_HOLDEM
-        ? jsonPrimitiveString((result.state as Record<string, unknown>).phase)
+        ? jsonPrimitiveString(result.state.phase)
         : '';
     const pokerHandComplete =
       session.gameType === GameType.POKER_HOLDEM &&

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { cx } from "@/components/ui/suzi-primitives";
 import type { DatingDiscoverItem } from "@/lib/dating-client";
 import { cardImageUrl, cardImageUrls, datingDisplayName, getCircularOffset, getLayerForOffset } from "@/components/app/dating/dating-utils";
@@ -42,6 +42,7 @@ export function DatingDiscoverDeck({
   onActiveIndexChange,
   onInterested,
   onRemoveInterest,
+  onPass,
   onBlock,
   onRefresh,
   onOpenProfile,
@@ -55,12 +56,14 @@ export function DatingDiscoverDeck({
   onActiveIndexChange: (index: number) => void;
   onInterested: (userId: string) => void;
   onRemoveInterest: (userId: string) => void;
+  onPass: (userId: string) => void;
   onBlock: (userId: string) => void;
   onRefresh: () => void;
   onOpenProfile: () => void;
 }) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const wheelLockRef = useRef(0);
+  const [photoIndexByUserId, setPhotoIndexByUserId] = useState<Record<string, number>>({});
   const dragRef = useRef<DragState>({
     pointerId: null,
     startX: 0,
@@ -69,6 +72,12 @@ export function DatingDiscoverDeck({
     didMove: false,
   });
   const activeCard = deck[activeIndex] ?? null;
+
+  const setCardPhotoIndex = useCallback((userId: string, index: number, total: number) => {
+    if (total <= 1) return;
+    const nextIndex = ((index % total) + total) % total;
+    setPhotoIndexByUserId((prev) => ({ ...prev, [userId]: nextIndex }));
+  }, []);
 
   const handleWheel = useCallback(
     (event: React.WheelEvent<HTMLDivElement>) => {
@@ -217,8 +226,13 @@ export function DatingDiscoverDeck({
               if (!layer) {
                 return null;
               }
-              const img = cardImageUrl(item);
               const photos = cardImageUrls(item);
+              const fallbackImg = cardImageUrl(item);
+              const activePhotoIndex = Math.min(
+                Math.max(photoIndexByUserId[item.userId] ?? 0, 0),
+                Math.max(photos.length - 1, 0),
+              );
+              const img = photos[activePhotoIndex] ?? fallbackImg;
               const name = datingDisplayName(item);
               const isLiked = item.viewerSwipeAction === "LIKE";
               const isPassed = item.viewerSwipeAction === "PASS";
@@ -260,11 +274,59 @@ export function DatingDiscoverDeck({
                     </div>
                     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,24,0.02),rgba(10,12,24,0.18)_42%,rgba(10,12,24,0.88))]" />
                     {photos.length > 1 ? (
-                      <div className="absolute left-3 top-3 z-10 flex max-w-[58%] gap-1.5">
-                        {photos.slice(0, 4).map((photo, photoIndex) => (
-                          <span
+                      <div className="absolute left-3 right-3 top-3 z-10 flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="inline-flex rounded-full border border-white/25 bg-black/45 px-2 py-1 text-[0.62rem] font-semibold text-white shadow-[0_4px_12px_rgba(0,0,0,0.25)] backdrop-blur">
+                            {activePhotoIndex + 1}/{photos.length}
+                          </div>
+                          <div className="flex gap-1.5">
+                            <button
+                              type="button"
+                              aria-label="Previous photo"
+                              onPointerDown={(event) => event.stopPropagation()}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setCardPhotoIndex(item.userId, activePhotoIndex - 1, photos.length);
+                              }}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white shadow-[0_4px_12px_rgba(0,0,0,0.25)] backdrop-blur transition hover:bg-fuchsia-500/50"
+                            >
+                              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                <path d="m15 18-6-6 6-6" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Next photo"
+                              onPointerDown={(event) => event.stopPropagation()}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setCardPhotoIndex(item.userId, activePhotoIndex + 1, photos.length);
+                              }}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white shadow-[0_4px_12px_rgba(0,0,0,0.25)] backdrop-blur transition hover:bg-fuchsia-500/50"
+                            >
+                              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                <path d="m9 18 6-6-6-6" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        <div className="suzi-dating-photo-strip flex max-w-full gap-1.5 overflow-x-auto pb-1">
+                        {photos.map((photo, photoIndex) => (
+                          <button
+                            type="button"
                             key={photo}
-                            className="relative h-10 w-8 overflow-hidden rounded-[0.55rem] border border-white/35 bg-black/30 shadow-[0_4px_12px_rgba(0,0,0,0.25)]"
+                            aria-label={`Show photo ${photoIndex + 1}`}
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setCardPhotoIndex(item.userId, photoIndex, photos.length);
+                            }}
+                            className={cx(
+                              "relative h-10 w-8 shrink-0 overflow-hidden rounded-[0.55rem] border bg-black/30 shadow-[0_4px_12px_rgba(0,0,0,0.25)] transition",
+                              photoIndex === activePhotoIndex
+                                ? "border-fuchsia-200 ring-2 ring-fuchsia-400/65"
+                                : "border-white/35 hover:border-white/70",
+                            )}
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={photo} alt="" className="h-full w-full object-cover" />
@@ -273,16 +335,12 @@ export function DatingDiscoverDeck({
                                 Main
                               </span>
                             ) : null}
-                          </span>
+                          </button>
                         ))}
-                        {photos.length > 4 ? (
-                          <span className="inline-flex h-10 w-8 items-center justify-center rounded-[0.55rem] border border-white/25 bg-black/45 text-[0.62rem] font-semibold text-white">
-                            +{photos.length - 4}
-                          </span>
-                        ) : null}
+                        </div>
                       </div>
                     ) : null}
-                    <div className="absolute right-3 top-3 flex flex-col gap-2">
+                    <div className={cx("absolute right-3 flex flex-col gap-2", photos.length > 1 ? "top-[4.35rem]" : "top-3")}>
                     {item.isMatched ? (
                       <span className="rounded-full border border-emerald-300/45 bg-emerald-400/18 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-emerald-100">
                         Match
@@ -298,12 +356,13 @@ export function DatingDiscoverDeck({
                     <button
                       type="button"
                       disabled={busy}
+                      onPointerDown={(event) => event.stopPropagation()}
                       onClick={(event) => {
                         event.stopPropagation();
-                        onRotate(1);
+                        onPass(item.userId);
                       }}
                       className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/35 text-white shadow-lg transition hover:border-slate-100/60 hover:bg-white/12"
-                      aria-label="Next dating profile"
+                      aria-label="Pass dating profile"
                     >
                       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M18 6 6 18" />
@@ -315,6 +374,7 @@ export function DatingDiscoverDeck({
                     <button
                       type="button"
                       disabled={busy}
+                      onPointerDown={(event) => event.stopPropagation()}
                       onClick={(event) => {
                         event.stopPropagation();
                         if (isLiked) {
@@ -358,6 +418,7 @@ export function DatingDiscoverDeck({
                       <button
                         type="button"
                         disabled={busy}
+                        onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => {
                           event.stopPropagation();
                           onBlock(item.userId);
