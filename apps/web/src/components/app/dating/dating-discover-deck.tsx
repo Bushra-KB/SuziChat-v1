@@ -13,17 +13,6 @@ type DragState = {
   didMove: boolean;
 };
 
-function compactText(value: string | null | undefined, maxChars: number) {
-  const text = value?.trim();
-  if (!text) {
-    return "";
-  }
-  if (text.length <= maxChars) {
-    return text;
-  }
-  return `${text.slice(0, maxChars).trimEnd()}...`;
-}
-
 function formatGender(value: string | null | undefined) {
   const text = value?.trim();
   if (!text) {
@@ -64,6 +53,7 @@ export function DatingDiscoverDeck({
   const stageRef = useRef<HTMLDivElement | null>(null);
   const wheelLockRef = useRef(0);
   const [photoIndexByUserId, setPhotoIndexByUserId] = useState<Record<string, number>>({});
+  const [detailsUserId, setDetailsUserId] = useState<string | null>(null);
   const dragRef = useRef<DragState>({
     pointerId: null,
     startX: 0,
@@ -90,6 +80,7 @@ export function DatingDiscoverDeck({
         return;
       }
       wheelLockRef.current = now;
+      setDetailsUserId(null);
       onRotate(dominant > 0 ? 1 : -1);
       event.preventDefault();
     },
@@ -138,6 +129,7 @@ export function DatingDiscoverDeck({
     const dy = event.clientY - state.startY;
     const dominant = Math.abs(dx) >= Math.abs(dy) ? dx : dy;
     if (Math.abs(dominant) > 42) {
+      setDetailsUserId(null);
       onRotate(dominant < 0 ? 1 : -1);
     }
   };
@@ -172,6 +164,7 @@ export function DatingDiscoverDeck({
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
+                setDetailsUserId(null);
                 onRotate(-1);
               }}
               className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-fuchsia-200/35 bg-black/35 text-fuchsia-50 shadow-lg backdrop-blur transition hover:border-fuchsia-100/70 hover:bg-fuchsia-500/34"
@@ -186,6 +179,7 @@ export function DatingDiscoverDeck({
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
+                setDetailsUserId(null);
                 onRotate(1);
               }}
               className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-fuchsia-200/35 bg-black/35 text-fuchsia-50 shadow-lg backdrop-blur transition hover:border-fuchsia-100/70 hover:bg-fuchsia-500/34"
@@ -237,8 +231,10 @@ export function DatingDiscoverDeck({
               const isLiked = item.viewerSwipeAction === "LIKE";
               const isPassed = item.viewerSwipeAction === "PASS";
               const genderLabel = formatGender(item.gender);
-              const headline = compactText(item.headline, 58);
-              const bio = compactText(item.datingBio, 96);
+              const country = item.user.country?.trim();
+              const headline = item.headline?.trim();
+              const bio = item.datingBio?.trim() || item.user.bio?.trim();
+              const detailsOpen = layer.isActive && detailsUserId === item.userId;
               return (
                 <div
                   key={item.userId}
@@ -260,7 +256,10 @@ export function DatingDiscoverDeck({
                       transformStyle: "preserve-3d",
                       willChange: "transform, opacity",
                     }}
-                    onClick={() => onActiveIndexChange(index)}
+                    onClick={() => {
+                      setDetailsUserId(null);
+                      onActiveIndexChange(index);
+                    }}
                   >
                     <div className="absolute inset-0 bg-[rgba(6,9,28,0.35)]">
                     {img ? (
@@ -272,7 +271,7 @@ export function DatingDiscoverDeck({
                       </div>
                     )}
                     </div>
-                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,24,0.02),rgba(10,12,24,0.18)_42%,rgba(10,12,24,0.88))]" />
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,24,0.02),rgba(10,12,24,0.08)_46%,rgba(10,12,24,0.34))]" />
                     {photos.length > 1 ? (
                       <div className="absolute left-3 right-3 top-3 z-10 flex flex-col gap-2">
                         <div className="flex items-center justify-between gap-2">
@@ -359,14 +358,26 @@ export function DatingDiscoverDeck({
                       onPointerDown={(event) => event.stopPropagation()}
                       onClick={(event) => {
                         event.stopPropagation();
-                        onPass(item.userId);
+                        setDetailsUserId((current) => (current === item.userId ? null : item.userId));
                       }}
-                      className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/35 text-white shadow-lg transition hover:border-slate-100/60 hover:bg-white/12"
-                      aria-label="Pass dating profile"
+                      className={cx(
+                        "inline-flex h-12 w-12 items-center justify-center rounded-full border text-white shadow-lg backdrop-blur transition",
+                        detailsOpen
+                          ? "border-cyan-200/70 bg-cyan-400/28"
+                          : "border-white/20 bg-black/35 hover:border-cyan-100/60 hover:bg-cyan-400/18",
+                      )}
+                      aria-label={detailsOpen ? "Hide dating profile details" : "View dating profile details"}
                     >
                       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M18 6 6 18" />
-                        <path d="m6 6 12 12" />
+                        {detailsOpen ? (
+                          <path d="M6 15l6-6 6 6" />
+                        ) : (
+                          <>
+                            <circle cx="12" cy="12" r="9" />
+                            <path d="M12 10v6" />
+                            <path d="M12 7h.01" />
+                          </>
+                        )}
                       </svg>
                     </button>
                     </div>
@@ -396,37 +407,81 @@ export function DatingDiscoverDeck({
                       </svg>
                     </button>
                     </div>
-                    <div className="absolute inset-x-14 bottom-4 z-10 flex flex-col items-center gap-2 text-center sm:inset-x-16">
-                    <div>
-                      <p className="text-2xl font-bold tracking-tight text-white">
-                        {name}
-                        {item.age != null ? `, ${item.age}` : ""}
-                        {genderLabel ? `, ${genderLabel}` : ""}
-                      </p>
-                    </div>
-                    {headline ? <p className="text-[0.78rem] font-medium leading-snug text-white/90">{headline}</p> : null}
-                    {bio ? <p className="text-[0.72rem] leading-relaxed text-slate-200/78">{bio}</p> : null}
-                    {item.interests.length ? (
-                      <div className="flex flex-wrap justify-center gap-x-1.5 gap-y-0.5">
-                        {item.interests.slice(0, 4).map((tag) => (
-                          <span key={tag} className="text-[0.55rem] font-semibold italic tracking-wide text-fuchsia-200/82">
-                            #{tag.replace(/^#/, "")}
-                          </span>
-                        ))}
+                    <div
+                      className={cx(
+                        "absolute inset-x-0 bottom-0 z-20 rounded-t-[1.6rem] border-t border-white/18 bg-[linear-gradient(180deg,rgba(25,19,70,0.9),rgba(12,10,34,0.97))] px-4 pb-4 pt-4 text-white shadow-[0_-18px_44px_rgba(4,6,20,0.55)] backdrop-blur-xl transition duration-300 ease-out",
+                        detailsOpen ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-[105%] opacity-0",
+                      )}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/28" />
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-2xl font-bold tracking-tight text-white">
+                            {name}
+                            {item.age != null ? `, ${item.age}` : ""}
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {genderLabel ? (
+                              <span className="rounded-full border border-fuchsia-200/24 bg-fuchsia-400/14 px-2.5 py-1 text-[0.64rem] font-semibold uppercase tracking-[0.11em] text-fuchsia-100">
+                                {genderLabel}
+                              </span>
+                            ) : null}
+                            {country ? (
+                              <span className="rounded-full border border-cyan-200/22 bg-cyan-400/12 px-2.5 py-1 text-[0.64rem] font-semibold uppercase tracking-[0.11em] text-cyan-100">
+                                {country}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setDetailsUserId(null)}
+                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/18 bg-white/8 text-white/80 transition hover:bg-white/14 hover:text-white"
+                          aria-label="Close details"
+                        >
+                          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M6 6l12 12M18 6 6 18" />
+                          </svg>
+                        </button>
                       </div>
-                    ) : null}
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onBlock(item.userId);
-                        }}
-                        className="rounded-full border border-rose-300/30 bg-black/28 px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-rose-100/86 transition hover:border-rose-200/70 hover:bg-rose-500/28 hover:text-white"
-                      >
-                        Block
-                      </button>
+
+                      {headline ? <p className="mt-3 text-sm font-semibold leading-snug text-fuchsia-50">{headline}</p> : null}
+                      {bio ? <p className="mt-2 max-h-24 overflow-y-auto pr-1 text-[0.78rem] leading-relaxed text-slate-100/82">{bio}</p> : null}
+                      {item.interests.length ? (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {item.interests.slice(0, 8).map((tag) => (
+                            <span key={tag} className="rounded-full bg-white/9 px-2.5 py-1 text-[0.63rem] font-semibold italic tracking-wide text-fuchsia-100/90">
+                              #{tag.replace(/^#/, "")}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            setDetailsUserId(null);
+                            onPass(item.userId);
+                          }}
+                          className="rounded-full border border-white/18 bg-white/8 px-3 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-slate-100 transition hover:bg-white/14"
+                        >
+                          Pass
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            setDetailsUserId(null);
+                            onBlock(item.userId);
+                          }}
+                          className="rounded-full border border-rose-300/30 bg-rose-500/12 px-3 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-rose-100/92 transition hover:border-rose-200/70 hover:bg-rose-500/24 hover:text-white"
+                        >
+                          Block
+                        </button>
+                      </div>
                     </div>
                   </article>
                 </div>

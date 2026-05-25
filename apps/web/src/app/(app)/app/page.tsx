@@ -65,11 +65,11 @@ function subscribeMobileHomeHash(callback: () => void) {
  * Home dashboard — at >=1280px (xl): 6-panel SPA grid in 100dvh, no page scroll.
  * Below 1280px: stacked sections in `.suzi-home-mobile-stack` (see MQ_HOME_COMPACT).
  *
- *   ┌──────────────┬──────────────────────────┬────────────────┐
- *   │  Friends     │  Suzi Chat Rooms         │  Suzi Snaps    │
- *   ├──────────────┼──────────────────────────┼────────────────┤
- *   │  Reels       │  Suzi Games              │  Suzi Dating   │
- *   └──────────────┴──────────────────────────┴────────────────┘
+ *   ┌──────────────┬──────────────┬──────────────┬────────────────┐
+ *   │              │  Friends     │ Chat Rooms   │  Suzi Snaps    │
+ *   │  Reels       ├──────────────┴──────────────┼────────────────┤
+ *   │              │  Suzi Games                 │  Suzi Dating   │
+ *   └──────────────┴─────────────────────────────┴────────────────┘
  */
 export default function AppHomePage() {
   const { t } = useI18n();

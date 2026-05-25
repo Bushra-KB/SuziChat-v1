@@ -1,19 +1,23 @@
 const STORAGE_PREFIX = "suzi-profile-prefs";
 
 export type StoredProfilePrefs = {
+  version?: number;
   prefToggles: Record<string, boolean>;
   privacy: Record<string, string>;
 };
 
+const PREFS_VERSION = 2;
+
 const DEFAULT_PREFS: StoredProfilePrefs = {
+  version: PREFS_VERSION,
   prefToggles: {
     showOnline: true,
     snapsFriends: true,
     roomInvites: true,
   },
   privacy: {
-    messages: "Friends",
-    snaps: "Friends",
+    messages: "Everyone",
+    snaps: "Everyone",
     reels: "Everyone",
   },
 };
@@ -32,9 +36,20 @@ export function loadProfilePrefs(userId: string): StoredProfilePrefs {
       return DEFAULT_PREFS;
     }
     const parsed = JSON.parse(raw) as Partial<StoredProfilePrefs>;
+    const privacy = { ...DEFAULT_PREFS.privacy, ...parsed.privacy };
+    if (
+      !parsed.version &&
+      privacy.messages === "Friends" &&
+      privacy.snaps === "Friends" &&
+      privacy.reels === "Everyone"
+    ) {
+      privacy.messages = "Everyone";
+      privacy.snaps = "Everyone";
+    }
     return {
+      version: PREFS_VERSION,
       prefToggles: { ...DEFAULT_PREFS.prefToggles, ...parsed.prefToggles },
-      privacy: { ...DEFAULT_PREFS.privacy, ...parsed.privacy },
+      privacy,
     };
   } catch {
     return DEFAULT_PREFS;

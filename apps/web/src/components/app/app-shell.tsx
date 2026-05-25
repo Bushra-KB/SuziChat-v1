@@ -192,6 +192,15 @@ export function AppShell({
       sentAt: string;
     }>
   >([]);
+  const [roomInvites, setRoomInvites] = useState<
+    Array<{
+      roomSlug: string;
+      fromUserId: string;
+      title: string;
+      deepLink: string;
+      sentAt: string;
+    }>
+  >([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isMobileCreateOpen, setIsMobileCreateOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
@@ -424,12 +433,37 @@ export function AppShell({
         return next.slice(0, 4);
       });
     });
+    socket.on("room:invite", (payload: {
+      roomSlug?: string;
+      fromUserId?: string;
+      title?: string;
+      deepLink?: string;
+      sentAt?: string;
+    }) => {
+      if (!payload.roomSlug || !payload.deepLink) {
+        return;
+      }
+      setRoomInvites((prev) => {
+        const next = [
+          {
+            roomSlug: payload.roomSlug as string,
+            fromUserId: String(payload.fromUserId ?? ""),
+            title: String(payload.title ?? "Room Invite"),
+            deepLink: String(payload.deepLink ?? "/app"),
+            sentAt: String(payload.sentAt ?? new Date().toISOString()),
+          },
+          ...prev.filter((entry) => entry.roomSlug !== payload.roomSlug),
+        ];
+        return next.slice(0, 4);
+      });
+    });
     return () => {
       socket.off("dm:message", refreshThreads);
       socket.off("dm:conversation:removed", refreshThreads);
       socket.off("notifications:update", refreshNotifications);
       socket.off("realtime:state", onRealtimeState);
       socket.off("game:invite");
+      socket.off("room:invite");
     };
   }, [session.accessToken]);
 
@@ -1154,7 +1188,7 @@ export function AppShell({
         </div>
         </header>
 
-        {gameInvites.length > 0 ? (
+        {gameInvites.length > 0 || roomInvites.length > 0 ? (
           <div
             className="suzi-shell-game-invites pointer-events-auto absolute right-3 z-[219] w-[min(26rem,calc(100vw-1.5rem))] space-y-2 sm:right-4"
           >
@@ -1169,6 +1203,24 @@ export function AppShell({
                   <button
                     type="button"
                     onClick={() => setGameInvites((prev) => prev.filter((item) => item.lobbyId !== invite.lobbyId))}
+                    className="text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.12em] text-cyan-100/78 transition hover:text-white"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ))}
+            {roomInvites.map((invite) => (
+              <div key={invite.roomSlug} className="rounded-xl border border-cyan-300/28 bg-[linear-gradient(155deg,rgba(30,18,84,0.94),rgba(20,12,60,0.92))] px-3 py-2.5 shadow-[0_10px_30px_rgba(6,9,28,0.48)]">
+                <p className="text-[var(--fs-2xs)] uppercase tracking-[0.14em] text-cyan-100/72">Room Invite</p>
+                <p className="mt-1 text-[var(--fs-sm)] font-semibold text-white">{invite.title}</p>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <Link href={invite.deepLink} className="suzi-primary-btn px-3 py-1.5 text-[var(--fs-xs)]">
+                    Join room
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setRoomInvites((prev) => prev.filter((item) => item.roomSlug !== invite.roomSlug))}
                     className="text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.12em] text-cyan-100/78 transition hover:text-white"
                   >
                     Dismiss
