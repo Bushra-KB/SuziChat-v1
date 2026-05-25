@@ -19,6 +19,14 @@ export type AuthSession = {
   user: AuthUser;
 };
 
+export type RegisterResponse = {
+  message: string;
+  requiresEmailVerification: boolean;
+  emailVerificationTokenPreview?: string;
+  emailVerificationTokenExpiresAt?: string;
+  user: AuthUser;
+};
+
 export type ForgotPasswordResponse = {
   message: string;
   resetTokenPreview?: string;
@@ -107,8 +115,10 @@ export async function register(payload: {
   username: string;
   password: string;
   isAdultConfirmed: boolean;
+  termsAccepted: boolean;
+  privacyAccepted: boolean;
 }) {
-  return request<AuthSession>("/v1/auth/register", {
+  return request<RegisterResponse>("/v1/auth/register", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -119,6 +129,18 @@ export async function login(payload: {
   password: string;
 }) {
   return request<AuthSession>("/v1/auth/login", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function loginWithGoogle(payload: {
+  credential: string;
+  isAdultConfirmed?: boolean;
+  termsAccepted?: boolean;
+  privacyAccepted?: boolean;
+}) {
+  return request<AuthSession>("/v1/auth/google", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -143,6 +165,24 @@ export async function resetPassword(payload: {
   newPassword: string;
 }) {
   return request<{ message: string }>("/v1/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyEmail(payload: { token: string }) {
+  return request<{ message: string }>("/v1/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resendVerification(payload: { email: string }) {
+  return request<{
+    message: string;
+    emailVerificationTokenPreview?: string;
+    emailVerificationTokenExpiresAt?: string;
+  }>("/v1/auth/resend-verification", {
     method: "POST",
     body: JSON.stringify(payload),
   });

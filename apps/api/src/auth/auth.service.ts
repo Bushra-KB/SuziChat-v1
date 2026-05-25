@@ -11,8 +11,11 @@ import { JwtService } from '@nestjs/jwt';
 import type { JwtSignOptions, JwtVerifyOptions } from '@nestjs/jwt';
 import { UserRole } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { OAuth2Client } from 'google-auth-library';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthEmailService } from './auth-email.service';
 import authConfig from './config/auth.config';
+import type { GoogleAuthDto } from './dto/google-auth.dto';
 import type { LoginDto } from './dto/login.dto';
 import type { RegisterDto } from './dto/register.dto';
 import type { AuthTokenPayload } from './auth.types';
@@ -54,6 +57,10 @@ function hashResetToken(token: string) {
   return createHash('sha256').update(token).digest('hex');
 }
 
+function buildVerificationToken() {
+  return randomBytes(32).toString('hex');
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -61,6 +68,7 @@ export class AuthService {
     private readonly config: ConfigType<typeof authConfig>,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly authEmail: AuthEmailService,
   ) {}
 
   findUserByEmail(email: string) {
@@ -85,6 +93,8 @@ export class AuthService {
       username,
       password,
       isAdultConfirmed: registerDto.isAdultConfirmed,
+      termsAccepted: registerDto.termsAccepted,
+      privacyAccepted: registerDto.privacyAccepted,
     });
 
     const [existingEmailUser, existingUsernameUser] = await Promise.all([
@@ -101,17 +111,40 @@ export class AuthService {
     }
 
     const passwordHash = await this.hashPassword(password);
+    const verificationToken = buildVerificationToken();
+    const verificationExpiresAt = new Date(
+      Date.now() + this.config.emailVerificationTtlMinutes * 60 * 1000,
+    );
     const user = await this.prisma.user.create({
       data: {
         email,
         username,
         passwordHash,
         isAdultConfirmed: true,
+        termsAcceptedAt: new Date(),
+        privacyAcceptedAt: new Date(),
+        emailVerificationTokenHash: hashResetToken(verificationToken),
+        emailVerificationTokenExpiresAt: verificationExpiresAt,
       },
       select: publicUserSelect,
     });
 
-    return this.issueAuthResponse(user);
+    await this.authEmail.sendVerificationEmail({
+      to: user.email,
+      username: user.username,
+      token: verificationToken,
+    });
+
+    return {
+      message:
+        'Account created. Please check your email to verify your account before signing in.',
+      requiresEmailVerification: true,
+      emailVerificationTokenExpiresAt: verificationExpiresAt.toISOString(),
+      emailVerificationTokenPreview: this.authEmail.isConfigured
+        ? undefined
+        : verificationToken,
+      user,
+    };
   }
 
   async login(loginDto: LoginDto) {
@@ -143,6 +176,12 @@ export class AuthService {
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.isEmailVerified) {
+      throw new UnauthorizedException(
+        'Please verify your email before signing in.',
+      );
     }
 
     const publicUser = await this.getCurrentUser(user.id);
@@ -216,10 +255,17 @@ export class AuthService {
       },
     });
 
+    await this.authEmail.sendPasswordResetEmail({
+      to: user.email,
+      username: user.username,
+      token: resetToken,
+    });
+
     return {
       message:
         'If an account exists for this email, a password reset flow will be sent.',
       resetTokenExpiresAt: expiresAt.toISOString(),
+      resetTokenPreview: this.authEmail.isConfigured ? undefined : resetToken,
     };
   }
 
@@ -268,6 +314,193 @@ export class AuthService {
     return {
       message: 'Password has been reset successfully. You can now sign in.',
     };
+  }
+
+  async verifyEmail(token: string) {
+    const normalizedToken = token?.trim();
+
+    if (!normalizedToken) {
+      throw new BadRequestException('Verification token is required');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        emailVerificationTokenHash: hashResetToken(normalizedToken),
+        emailVerificationTokenExpiresAt: {
+          gt: new Date(),
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException(
+        'Verification link is invalid or expired',
+      );
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isEmailVerified: true,
+        emailVerificationTokenHash: null,
+        emailVerificationTokenExpiresAt: null,
+      },
+    });
+
+    return { message: 'Email verified successfully. You can now sign in.' };
+  }
+
+  async resendVerification(email: string) {
+    const normalizedEmail = normalizeEmail(email ?? '');
+
+    if (!normalizedEmail || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      throw new BadRequestException('Email must be valid');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        isEmailVerified: true,
+      },
+    });
+
+    if (!user || user.isEmailVerified) {
+      return {
+        message:
+          'If an unverified account exists for this email, a verification link will be sent.',
+      };
+    }
+
+    const verificationToken = buildVerificationToken();
+    const verificationExpiresAt = new Date(
+      Date.now() + this.config.emailVerificationTtlMinutes * 60 * 1000,
+    );
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerificationTokenHash: hashResetToken(verificationToken),
+        emailVerificationTokenExpiresAt: verificationExpiresAt,
+      },
+    });
+
+    await this.authEmail.sendVerificationEmail({
+      to: user.email,
+      username: user.username,
+      token: verificationToken,
+    });
+
+    return {
+      message:
+        'If an unverified account exists for this email, a verification link will be sent.',
+      emailVerificationTokenExpiresAt: verificationExpiresAt.toISOString(),
+      emailVerificationTokenPreview: this.authEmail.isConfigured
+        ? undefined
+        : verificationToken,
+    };
+  }
+
+  async googleAuth(googleAuthDto: GoogleAuthDto) {
+    const credential = googleAuthDto.credential?.trim();
+
+    if (!credential) {
+      throw new BadRequestException('Google credential is required');
+    }
+
+    if (!this.config.googleClientId) {
+      throw new BadRequestException('Google sign-in is not configured');
+    }
+
+    const client = new OAuth2Client(this.config.googleClientId);
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: this.config.googleClientId,
+    });
+    const payload = ticket.getPayload();
+    const googleId = payload?.sub;
+    const email = normalizeEmail(payload?.email ?? '');
+
+    if (!googleId || !email) {
+      throw new UnauthorizedException('Google account is missing email data');
+    }
+
+    if (!payload?.email_verified) {
+      throw new UnauthorizedException('Google email is not verified');
+    }
+
+    const existingGoogleUser = await this.prisma.user.findUnique({
+      where: { googleId },
+      select: publicUserSelect,
+    });
+
+    if (existingGoogleUser) {
+      return this.issueAuthResponse(existingGoogleUser);
+    }
+
+    const existingEmailUser = await this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        ...publicUserSelect,
+        googleId: true,
+      },
+    });
+
+    if (existingEmailUser) {
+      const linkedUser = await this.prisma.user.update({
+        where: { id: existingEmailUser.id },
+        data: {
+          googleId,
+          isEmailVerified: true,
+          emailVerificationTokenHash: null,
+          emailVerificationTokenExpiresAt: null,
+          displayName: existingEmailUser.displayName || payload.name || null,
+          avatarUrl: existingEmailUser.avatarUrl || payload.picture || null,
+        },
+        select: publicUserSelect,
+      });
+      return this.issueAuthResponse(linkedUser);
+    }
+
+    if (
+      !googleAuthDto.isAdultConfirmed ||
+      !googleAuthDto.termsAccepted ||
+      !googleAuthDto.privacyAccepted
+    ) {
+      throw new BadRequestException(
+        'Create account with Google requires age, terms, and privacy acceptance',
+      );
+    }
+
+    const username = await this.buildUniqueUsername(
+      payload.name || email.split('@')[0] || 'suziuser',
+    );
+    const passwordHash = await this.hashPassword(
+      randomBytes(32).toString('hex'),
+    );
+    const now = new Date();
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        username,
+        displayName: payload.name || null,
+        avatarUrl: payload.picture || null,
+        googleId,
+        passwordHash,
+        isAdultConfirmed: true,
+        isEmailVerified: true,
+        termsAcceptedAt: now,
+        privacyAcceptedAt: now,
+      },
+      select: publicUserSelect,
+    });
+
+    return this.issueAuthResponse(user);
   }
 
   async changePassword(
@@ -404,6 +637,8 @@ export class AuthService {
     username: string;
     password: string;
     isAdultConfirmed: boolean;
+    termsAccepted: boolean;
+    privacyAccepted: boolean;
   }) {
     if (!input.email || !input.username || !input.password) {
       throw new BadRequestException(
@@ -426,6 +661,33 @@ export class AuthService {
     if (!input.isAdultConfirmed) {
       throw new BadRequestException('18+ confirmation is required');
     }
+
+    if (!input.termsAccepted) {
+      throw new BadRequestException('Terms acceptance is required');
+    }
+
+    if (!input.privacyAccepted) {
+      throw new BadRequestException('Privacy policy acceptance is required');
+    }
+  }
+
+  private async buildUniqueUsername(base: string) {
+    const normalized = normalizeUsername(
+      base
+        .replace(/[^a-zA-Z0-9_ -]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    ).slice(0, 24);
+    const fallback = normalized.length >= 3 ? normalized : 'suziuser';
+    let candidate = fallback;
+    let suffix = 1;
+
+    while (await this.findUserByUsername(candidate)) {
+      suffix += 1;
+      candidate = `${fallback}${suffix}`;
+    }
+
+    return candidate;
   }
 
   private async issueAuthResponse(user: PublicUser & { role: UserRole }) {

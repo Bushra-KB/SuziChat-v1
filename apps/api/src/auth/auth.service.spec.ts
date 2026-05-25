@@ -75,7 +75,7 @@ describe('AuthService', () => {
     expect(token.length).toBeGreaterThan(20);
   });
 
-  it('registers a new user and returns tokens', async () => {
+  it('registers a new user and returns verification state', async () => {
     prismaMock.user.findUnique
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null);
@@ -89,20 +89,20 @@ describe('AuthService', () => {
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     });
-    prismaMock.user.update.mockResolvedValue({});
 
     const result = await authService.register({
       email: 'new@example.com',
       username: 'newuser',
       password: 'super-secret-password',
       isAdultConfirmed: true,
+      termsAccepted: true,
+      privacyAccepted: true,
     });
 
     expect(result.user.email).toBe('new@example.com');
-    expect(result.accessToken).toEqual(expect.any(String));
-    expect(result.refreshToken).toEqual(expect.any(String));
+    expect(result.requiresEmailVerification).toBe(true);
+    expect(result.emailVerificationTokenExpiresAt).toEqual(expect.any(String));
     expect(prismaMock.user.create).toHaveBeenCalled();
-    expect(prismaMock.user.update).toHaveBeenCalled();
   });
 
   it('logs in with username and returns tokens', async () => {
@@ -117,7 +117,7 @@ describe('AuthService', () => {
       passwordHash,
       role: UserRole.USER,
       isAdultConfirmed: true,
-      isEmailVerified: false,
+      isEmailVerified: true,
     });
     prismaMock.user.findUnique.mockResolvedValueOnce({
       id: 'user_1',
@@ -125,7 +125,7 @@ describe('AuthService', () => {
       username: 'loginuser',
       role: UserRole.USER,
       isAdultConfirmed: true,
-      isEmailVerified: false,
+      isEmailVerified: true,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     });

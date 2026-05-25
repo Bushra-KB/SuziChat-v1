@@ -114,9 +114,14 @@ model User {
   bio                       String?
   country                   String?
   passwordHash              String
+  googleId                  String?   @unique
   refreshTokenHash          String?
   passwordResetTokenHash    String?
   passwordResetTokenExpiresAt DateTime?
+  emailVerificationTokenHash String?
+  emailVerificationTokenExpiresAt DateTime?
+  termsAcceptedAt           DateTime?
+  privacyAcceptedAt         DateTime?
   sentFriendRequests        FriendRequest[]   @relation("FriendRequestSender")
   receivedFriendRequests    FriendRequest[]   @relation("FriendRequestReceiver")
   friendships               Friendship[]      @relation("FriendshipUser")

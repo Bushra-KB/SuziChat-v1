@@ -5,6 +5,7 @@ import { JwtModule } from '@nestjs/jwt';
 import type { JwtSignOptions } from '@nestjs/jwt';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthController } from './auth.controller';
+import { AuthEmailService } from './auth-email.service';
 import authConfig from './config/auth.config';
 import { AuthService } from './auth.service';
 import { AccessTokenGuard } from './guards/access-token.guard';
@@ -31,7 +32,7 @@ function toJwtExpiresIn(
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AccessTokenGuard],
+  providers: [AuthService, AuthEmailService, AccessTokenGuard],
   exports: [AuthService, AccessTokenGuard],
 })
 export class AuthModule {}

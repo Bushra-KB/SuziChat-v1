@@ -3,10 +3,12 @@ import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ResendVerificationDto, VerifyEmailDto } from './dto/verify-email.dto';
 import { AccessTokenGuard } from './guards/access-token.guard';
 import type { AuthenticatedUser } from './auth.types';
 
@@ -22,6 +24,11 @@ export class AuthController {
   @Post('login')
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Post('google')
+  google(@Body() googleAuthDto: GoogleAuthDto) {
+    return this.authService.googleAuth(googleAuthDto);
   }
 
   @Post('refresh')
@@ -40,6 +47,16 @@ export class AuthController {
       resetPasswordDto.token,
       resetPasswordDto.newPassword,
     );
+  }
+
+  @Post('verify-email')
+  verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
+    return this.authService.verifyEmail(verifyEmailDto.token);
+  }
+
+  @Post('resend-verification')
+  resendVerification(@Body() resendVerificationDto: ResendVerificationDto) {
+    return this.authService.resendVerification(resendVerificationDto.email);
   }
 
   @UseGuards(AccessTokenGuard)

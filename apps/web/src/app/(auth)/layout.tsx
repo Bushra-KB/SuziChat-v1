@@ -24,7 +24,7 @@ const shootingStars = [
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="suzi-hybrid-bg relative min-h-screen overflow-hidden text-white">
+    <main className="suzi-hybrid-bg relative min-h-screen overflow-x-hidden text-white">
       <AuthSessionRedirect to="/app" />
       <div className="absolute inset-0 opacity-12 [background-image:radial-gradient(rgba(255,255,255,0.6)_0.7px,transparent_0.7px)] [background-size:28px_28px]" />
       <div className="absolute left-[-8%] top-[-6%] h-[34rem] w-[34rem] rounded-full bg-sky-300/14 blur-[150px]" />
@@ -59,7 +59,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         />
       ))}
 
-      <section className="relative mx-auto flex min-h-screen w-full max-w-[1400px] flex-col px-6 py-8 sm:px-8 lg:px-12">
+      <section className="relative mx-auto flex min-h-screen w-full max-w-[1400px] flex-col px-4 py-6 sm:px-8 lg:px-12">
         <div className="index-reveal-header flex items-center justify-between gap-4">
           <Link href="/" className="inline-flex items-center gap-3.5">
             <span className="relative block h-[2.8rem] w-[8.8rem] overflow-hidden sm:h-[3rem] sm:w-[9.8rem]">
@@ -90,7 +90,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </Link>
         </div>
 
-        <section className="relative mt-10 flex flex-1 items-center lg:mt-0 lg:justify-end">
+        <section className="relative mt-8 flex flex-1 items-center pb-8 lg:mt-0 lg:justify-end">
           <div className="grid w-full gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,520px)] lg:items-center">
             <section className="index-reveal-hero flex min-h-[420px] items-end pb-4 max-lg:hidden">
               <div className="max-w-xl">
