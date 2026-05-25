@@ -14,4 +14,10 @@ export class RegisterDto {
 
   @IsBoolean()
   isAdultConfirmed!: boolean;
+
+  @IsBoolean()
+  termsAccepted!: boolean;
+
+  @IsBoolean()
+  privacyAccepted!: boolean;
 }

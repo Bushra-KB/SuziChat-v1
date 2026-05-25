@@ -1,10 +1,19 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import {
+  AuthCard,
+  AuthDivider,
+  AuthField,
+  AuthMessage,
+  AuthTextLink,
+  PrimaryAuthButton,
+} from "@/components/auth/auth-ui";
+import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import {
   login,
+  loginWithGoogle,
   saveAuthSession,
   type AuthUser,
 } from "@/lib/auth-client";
@@ -25,6 +34,7 @@ export function LoginPanel({
   const router = useRouter();
   const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<{ identifier?: string; password?: string }>({});
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
     "idle",
   );
@@ -33,6 +43,18 @@ export function LoginPanel({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const nextErrors = {
+      identifier: emailOrUsername.trim() ? "" : "Email or username is required.",
+      password: password ? "" : "Password is required.",
+    };
+    setErrors(nextErrors);
+
+    if (nextErrors.identifier || nextErrors.password) {
+      setStatus("error");
+      setMessage("Please correct the highlighted fields.");
+      return;
+    }
+
     setStatus("loading");
     setMessage("");
 
@@ -52,92 +74,90 @@ export function LoginPanel({
     }
   }
 
+  const handleGoogleCredential = useCallback(
+    async (credential: string) => {
+      setStatus("loading");
+      setMessage("");
+      try {
+        const session = await loginWithGoogle({ credential });
+        saveAuthSession(session);
+        setUser(session.user);
+        setStatus("success");
+        setMessage("Signed in with Google.");
+        router.push(session.user.role === "ADMIN" ? "/app/admin" : "/app");
+      } catch (error) {
+        setStatus("error");
+        setMessage(error instanceof Error ? error.message : "Google sign-in failed.");
+      }
+    },
+    [router],
+  );
+
   return (
-    <section
-      className={`rounded-[2.1rem] border border-white/12 bg-[linear-gradient(180deg,rgba(49,10,82,0.78),rgba(33,6,55,0.84))] p-6 shadow-[0_24px_80px_rgba(8,0,24,0.48),inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-xl sm:p-8 ${className}`}
-    >
-      <p className="text-xs font-semibold uppercase tracking-[0.38em] text-cyan-100/70">
-        {eyebrow}
-      </p>
-      <h2 className="mt-5 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-        {title}
-      </h2>
-      <p className="mt-4 max-w-xl text-sm leading-7 text-white/68 sm:text-base">
-        {description}
-      </p>
-
+    <div className={className}>
+      <AuthCard
+        eyebrow={eyebrow}
+        title={title}
+        description={description}
+        footer={
+          <>
+            New here? <AuthTextLink href="/register">Create an account</AuthTextLink>
+          </>
+        }
+      >
       <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
-        <div>
-          <label
-            htmlFor="login-email"
-            className="text-sm font-semibold text-white"
-          >
-            Email or username
-          </label>
-          <input
-            id="login-email"
-            type="text"
-            value={emailOrUsername}
-            onChange={(event) => setEmailOrUsername(event.target.value)}
-            placeholder="yourname@gmail.com"
-            className="mt-3 w-full rounded-[1.1rem] border border-white/8 bg-[#3b0a59]/82 px-4 py-4 text-white outline-none transition placeholder:text-white/36 focus:border-cyan-300/45 focus:bg-[#461066]/88"
-          />
-        </div>
-        <div>
-          <label
-            htmlFor="login-password"
-            className="text-sm font-semibold text-white"
-          >
-            Password
-          </label>
-          <input
-            id="login-password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Enter your password"
-            className="mt-3 w-full rounded-[1.1rem] border border-white/8 bg-[#3b0a59]/82 px-4 py-4 text-white outline-none transition placeholder:text-white/36 focus:border-cyan-300/45 focus:bg-[#461066]/88"
-          />
+        <AuthField
+          id="login-email"
+          label="Email or username"
+          type="text"
+          value={emailOrUsername}
+          onChange={(event) => setEmailOrUsername(event.target.value)}
+          placeholder="yourname@gmail.com"
+          autoComplete="username"
+          error={errors.identifier}
+        />
+        <AuthField
+          id="login-password"
+          label="Password"
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="Enter your password"
+          autoComplete="current-password"
+          error={errors.password}
+        />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <Link
-              href="/forgot-password"
-              className="text-sm font-medium text-white/68 transition hover:text-white"
-            >
-              Forgot password?
-            </Link>
-            <Link
-              href="/register"
-              className="text-sm font-medium text-cyan-100/88 transition hover:text-white"
-            >
-              Create account
-            </Link>
+            <AuthTextLink href="/forgot-password">Forgot password?</AuthTextLink>
+            <AuthTextLink href="/resend-verification">Resend verification</AuthTextLink>
           </div>
-        </div>
 
-        <button
-          type="submit"
-          className="w-full rounded-[1.1rem] border border-cyan-300/20 bg-[linear-gradient(90deg,#7f10c9,#8744f6_52%,#3f89d3)] px-5 py-4 text-lg font-semibold text-white shadow-[0_16px_36px_rgba(88,49,224,0.34)] transition hover:brightness-110"
-        >
+        <PrimaryAuthButton disabled={status === "loading"}>
           {status === "loading" ? "Signing in..." : "Sign in"}
-        </button>
+        </PrimaryAuthButton>
       </form>
 
+      <div className="mt-5 space-y-5">
+        <AuthDivider />
+        <GoogleAuthButton
+          mode="login"
+          disabled={status === "loading"}
+          onCredential={handleGoogleCredential}
+        />
+      </div>
+
       {message ? (
-        <p
-          className={`mt-5 text-sm ${
-            status === "error" ? "text-amber-100/90" : "text-cyan-100/85"
-          }`}
-        >
-          {message}
-        </p>
+        <div className="mt-5">
+          <AuthMessage tone={status === "error" ? "error" : "success"}>{message}</AuthMessage>
+        </div>
       ) : null}
 
       {user ? (
-        <div className="mt-5 rounded-[1.2rem] border border-white/10 bg-white/6 px-4 py-4 text-sm text-blue-100/82 backdrop-blur-md">
+        <div className="mt-5 rounded-[1rem] border border-white/10 bg-white/6 px-4 py-4 text-sm text-blue-100/82 backdrop-blur-md">
           Signed in as <span className="font-semibold text-white">{user.username}</span>
           .
         </div>
       ) : null}
-    </section>
+      </AuthCard>
+    </div>
   );
 }

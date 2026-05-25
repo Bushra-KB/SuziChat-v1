@@ -1,7 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import {
+  AuthCard,
+  AuthField,
+  AuthMessage,
+  AuthTextLink,
+  PrimaryAuthButton,
+  validateEmail,
+} from "@/components/auth/auth-ui";
 import {
   forgotPassword,
   type ForgotPasswordResponse,
@@ -13,14 +20,23 @@ export default function ForgotPasswordPage() {
     "idle",
   );
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const [resetPreview, setResetPreview] = useState<ForgotPasswordResponse | null>(
     null,
   );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!validateEmail(email)) {
+      setStatus("error");
+      setError("Enter a valid email address.");
+      setMessage("Please correct the highlighted field.");
+      return;
+    }
+
     setStatus("loading");
     setMessage("");
+    setError("");
     setResetPreview(null);
 
     try {
@@ -35,52 +51,39 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <section className="rounded-[2rem] border border-white/18 bg-[linear-gradient(180deg,rgba(88,70,255,0.34),rgba(57,24,121,0.38))] p-6 shadow-[0_0_30px_rgba(117,84,255,0.28),inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-xl sm:p-8">
-      <p className="text-sm font-medium uppercase tracking-[0.35em] text-pink-100/78">
-        Password Reset
-      </p>
-      <h2 className="mt-4 text-3xl font-semibold sm:text-4xl">
-        Reset your password
-      </h2>
-      <p className="mt-4 max-w-xl text-base leading-7 text-blue-100/78">
-        Enter your account email to request a password reset. For V1 preview,
-        the API returns a temporary reset token instead of sending email.
-      </p>
+    <AuthCard
+      eyebrow="Password reset"
+      title="Reset your password"
+      description="Enter your account email and we will send a secure link to choose a new password."
+      footer={
+        <>
+          Remembered it? <AuthTextLink href="/login">Back to login</AuthTextLink>
+        </>
+      }
+    >
+      <form className="space-y-5" onSubmit={handleSubmit}>
+        <AuthField
+          id="forgot-email"
+          label="Account email"
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="you@example.com"
+          autoComplete="email"
+          error={error}
+        />
 
-      <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
-        <div>
-          <label
-            htmlFor="forgot-email"
-            className="text-xs uppercase tracking-[0.28em] text-cyan-100/70"
-          >
-            Account email
-          </label>
-          <input
-            id="forgot-email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@example.com"
-            className="mt-2 w-full rounded-[1.35rem] border border-white/15 bg-white/10 px-4 py-3 text-white outline-none backdrop-blur-md placeholder:text-blue-100/45"
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="w-full rounded-full border border-cyan-300/35 bg-[linear-gradient(90deg,rgba(108,220,255,0.72),rgba(104,92,255,0.76))] px-5 py-3 text-base font-semibold text-white shadow-[0_0_26px_rgba(86,208,255,0.2)] transition hover:brightness-110"
-        >
+        <PrimaryAuthButton disabled={status === "loading"}>
           {status === "loading" ? "Sending..." : "Send reset link"}
-        </button>
+        </PrimaryAuthButton>
       </form>
 
       {message ? (
-        <p
-          className={`mt-5 text-sm ${
-            status === "error" ? "text-amber-100/90" : "text-cyan-100/85"
-          }`}
-        >
-          {message}
-        </p>
+        <div className="mt-5">
+          <AuthMessage tone={status === "error" ? "error" : "success"}>
+            {message}
+          </AuthMessage>
+        </div>
       ) : null}
 
       {resetPreview?.resetTokenPreview ? (
@@ -94,24 +97,13 @@ export default function ForgotPasswordPage() {
           <p className="mt-3 text-xs text-blue-100/72">
             Expires at: {resetPreview.resetTokenExpiresAt}
           </p>
-          <Link
+          <AuthTextLink
             href={`/reset-password?token=${encodeURIComponent(resetPreview.resetTokenPreview)}`}
-            className="mt-4 inline-flex rounded-full border border-pink-300/40 bg-pink-400/16 px-4 py-2 text-sm font-medium text-white transition hover:bg-pink-400/22"
           >
             Continue to reset password
-          </Link>
+          </AuthTextLink>
         </div>
       ) : null}
-
-      <p className="mt-6 text-sm text-blue-100/72">
-        Remembered it?{" "}
-        <Link
-          href="/login"
-          className="font-medium text-white transition hover:text-pink-100"
-        >
-          Back to login
-        </Link>
-      </p>
-    </section>
+    </AuthCard>
   );
 }

@@ -255,11 +255,11 @@ export default function AppHomePage() {
             </div>
             <footer className="suzi-home-mobile-footer">
               <nav aria-label="Footer links" className="suzi-home-mobile-footer__links">
-                <Link href="#">Privacy</Link>
+                <Link href="/privacy">Privacy</Link>
                 <span aria-hidden="true">·</span>
-                <Link href="#">Terms</Link>
+                <Link href="/terms">Terms</Link>
                 <span aria-hidden="true">·</span>
-                <Link href="#">Help</Link>
+                <Link href="/help">Help</Link>
               </nav>
               <p>© Suzi Chat. All rights reserved.</p>
             </footer>
