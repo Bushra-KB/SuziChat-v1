@@ -26,6 +26,7 @@ type AuthSocket = Socket & {
   data: {
     userId?: string;
     gameSessionIds?: Set<string>;
+    roomSlugs?: Set<string>;
   };
 };
 
@@ -41,7 +42,6 @@ export class RealtimeGateway
   @WebSocketServer()
   server!: Server;
   private readonly logger = new Logger(RealtimeGateway.name);
-  private readonly idleAfterMs = 90_000;
   private readonly lastGameSocketActionAt = new Map<string, number>();
   private readonly gameSocketActionCooldownMs = Number(
     process.env.GAMES_SOCKET_ACTION_COOLDOWN_MS ?? 400,
@@ -126,18 +126,31 @@ export class RealtimeGateway
     return 'game:lobbies';
   }
 
-  private getRoomOnlineCount(roomSlug: string) {
-    const sockets = this.server.sockets.adapter.rooms.get(
-      this.roomChannel(roomSlug),
-    );
-    return sockets?.size ?? 0;
+  private async getRoomOnlineUsers(roomSlug: string) {
+    const sockets = await this.server
+      .in(this.roomChannel(roomSlug))
+      .fetchSockets();
+    const userIds = [
+      ...new Set(
+        sockets
+          .map((socket) => (socket.data as { userId?: string }).userId)
+          .filter((userId): userId is string => Boolean(userId)),
+      ),
+    ];
+    return this.roomsService.listPublicUsersByIds(userIds);
   }
 
-  private emitRoomStats(roomSlug: string, totalMembers?: number) {
-    this.server.to(this.roomStatsChannel(roomSlug)).emit('room:stats', {
+  private async emitRoomStats(roomSlug: string, totalMembers?: number) {
+    const onlineUsers = await this.getRoomOnlineUsers(roomSlug);
+    const stats = {
       roomSlug,
-      onlineUsers: this.getRoomOnlineCount(roomSlug),
+      onlineUsers: onlineUsers.length,
       totalMembers,
+    };
+    this.server.to(this.roomStatsChannel(roomSlug)).emit('room:stats', stats);
+    this.server.to(this.roomStatsChannel(roomSlug)).emit('room:presence', {
+      ...stats,
+      onlineUsers,
     });
   }
 
@@ -163,11 +176,7 @@ export class RealtimeGateway
   }
 
   private computePresenceStatus(userId: string): 'online' | 'away' | 'offline' {
-    if (!this.isUserOnline(userId)) {
-      return 'offline';
-    }
-    const activeAt = this.activeAtByUserId.get(userId) ?? 0;
-    return Date.now() - activeAt > this.idleAfterMs ? 'away' : 'online';
+    return this.isUserOnline(userId) ? 'online' : 'offline';
   }
 
   private markUserActive(userId: string) {
@@ -218,11 +227,8 @@ export class RealtimeGateway
     // Defer until socket.io updates room membership.
     setTimeout(() => {
       this.emitPresence(userId);
-      const joinedRoomStats = [...client.rooms]
-        .filter((name) => name.startsWith('room:'))
-        .map((name) => name.slice('room:'.length));
-      for (const roomSlug of joinedRoomStats) {
-        this.emitRoomStats(roomSlug);
+      for (const roomSlug of client.data.roomSlugs ?? []) {
+        void this.emitRoomStats(roomSlug);
       }
       const sessionIds = new Set<string>([
         ...(client.data.gameSessionIds ?? []),
@@ -335,7 +341,9 @@ export class RealtimeGateway
     }
     await client.join(this.roomChannel(roomSlug));
     await client.join(this.roomStatsChannel(roomSlug));
-    this.emitRoomStats(roomSlug);
+    client.data.roomSlugs ??= new Set<string>();
+    client.data.roomSlugs.add(roomSlug);
+    await this.emitRoomStats(roomSlug);
     return { ok: true };
   }
 
@@ -355,7 +363,7 @@ export class RealtimeGateway
     }
     const room = await this.roomsService.getRoomBySlug(roomSlug);
     await client.join(this.roomStatsChannel(roomSlug));
-    this.emitRoomStats(roomSlug, room._count?.memberships ?? undefined);
+    await this.emitRoomStats(roomSlug, room._count?.memberships ?? undefined);
     return { ok: true };
   }
 

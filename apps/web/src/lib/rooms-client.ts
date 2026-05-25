@@ -31,6 +31,8 @@ export type ApiRoomMessage = {
   };
 };
 
+export type ApiRoomPresenceUser = ApiRoomMessage["sender"];
+
 export type ApiRoomAccess = {
   roomSlug: string;
   isOwner: boolean;
@@ -167,6 +169,16 @@ export async function leaveRoom(accessToken: string, slug: string) {
     method: "POST",
     accessToken,
   });
+}
+
+export async function inviteRoomFriend(accessToken: string, slug: string, targetUserId: string) {
+  return apiJson<{ ok: true }>(
+    `/v1/rooms/${encodeURIComponent(slug)}/invite/${encodeURIComponent(targetUserId)}`,
+    {
+      method: "POST",
+      accessToken,
+    },
+  );
 }
 
 export async function getRoomAccess(accessToken: string, slug: string) {

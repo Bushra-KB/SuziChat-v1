@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, RoomJoinRequestStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 
@@ -94,7 +95,10 @@ type RoomAccessState = {
 export class RoomsService implements OnModuleInit {
   private readonly log = new Logger(RoomsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtimeEvents: RealtimeEventsService,
+  ) {}
 
   async onModuleInit() {
     try {
@@ -395,6 +399,22 @@ export class RoomsService implements OnModuleInit {
     return room;
   }
 
+  async listPublicUsersByIds(userIds: string[]) {
+    const uniqueIds = [...new Set(userIds.filter(Boolean))];
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: uniqueIds } },
+      select: userPublicSelect,
+    });
+    const byId = new Map(users.map((user) => [user.id, user]));
+    return uniqueIds.flatMap((id) => {
+      const user = byId.get(id);
+      return user ? [user] : [];
+    });
+  }
+
   async listMessages(roomSlug: string, take = 80) {
     const room = await this.prisma.room.findUnique({
       where: { slug: roomSlug },
@@ -646,6 +666,62 @@ export class RoomsService implements OnModuleInit {
         sender: { select: userPublicSelect },
       },
     });
+  }
+
+  async sendInvite(slug: string, fromUserId: string, targetUserId: string) {
+    if (fromUserId === targetUserId) {
+      throw new BadRequestException('Choose a friend to invite');
+    }
+    const access = await this.resolveAccessState(slug, fromUserId);
+    if (access.isBlocked || !access.isMember) {
+      throw new ForbiddenException('Join the room before inviting friends');
+    }
+
+    const [room, friendship, blocked] = await Promise.all([
+      this.prisma.room.findUnique({
+        where: { id: access.roomId },
+        select: { slug: true, name: true },
+      }),
+      this.prisma.friendship.findUnique({
+        where: {
+          userId_friendId: {
+            userId: fromUserId,
+            friendId: targetUserId,
+          },
+        },
+        select: { id: true },
+      }),
+      this.prisma.userBlock.findFirst({
+        where: {
+          OR: [
+            { blockerId: fromUserId, blockedId: targetUserId },
+            { blockerId: targetUserId, blockedId: fromUserId },
+          ],
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+    if (!friendship) {
+      throw new BadRequestException('You can invite friends only');
+    }
+    if (blocked) {
+      throw new ForbiddenException('Cannot invite this user');
+    }
+
+    const payload = {
+      roomSlug: room.slug,
+      fromUserId,
+      targetUserId,
+      title: room.name,
+      deepLink: `/app/rooms/${room.slug}`,
+      sentAt: new Date().toISOString(),
+    };
+    this.realtimeEvents.emitToUser(targetUserId, 'room:invite', payload);
+    return { ok: true };
   }
 
   private async ensureOwner(slug: string, ownerId: string) {

@@ -300,8 +300,8 @@ const QUICK_DEFAULTS = [
 ] as const;
 
 const PRIVACY_FIELDS = [
-  { id: "messages", labelKey: "profile.privacy.messages", options: ["Friends", "Everyone", "Nobody"] },
-  { id: "snaps", labelKey: "profile.privacy.snaps", options: ["Friends", "Everyone", "Nobody"] },
+  { id: "messages", labelKey: "profile.privacy.messages", options: ["Everyone", "Friends", "Nobody"] },
+  { id: "snaps", labelKey: "profile.privacy.snaps", options: ["Everyone", "Friends", "Nobody"] },
   { id: "reels", labelKey: "profile.privacy.reels", options: ["Everyone", "Friends", "Nobody"] },
 ] as const;
 
@@ -359,8 +359,8 @@ export function AccountProfilePage() {
     roomInvites: true,
   });
   const [privacy, setPrivacy] = useState<Record<string, string>>({
-    messages: "Friends",
-    snaps: "Friends",
+    messages: "Everyone",
+    snaps: "Everyone",
     reels: "Everyone",
   });
   const [dashFriends, setDashFriends] = useState<FriendsSummary | null>(null);

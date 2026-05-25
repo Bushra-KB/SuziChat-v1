@@ -16,6 +16,7 @@ import {
   getRoom,
   getRoomAccess,
   getRoomManagement,
+  inviteRoomFriend,
   joinRoom,
   listRoomMessages,
   listMyRoomMessages,
@@ -31,8 +32,10 @@ import {
   type ApiRoomAccess,
   type ApiRoomManagement,
   type ApiRoomMessage,
+  type ApiRoomPresenceUser,
 } from "@/lib/rooms-client";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
+import { getFriendsSummary, type FriendSummaryUser } from "@/lib/friends-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 
 function formatShortTime(iso: string) {
@@ -62,17 +65,22 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
   const [showDeleteRoomModal, setShowDeleteRoomModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+  const [inviteFriends, setInviteFriends] = useState<FriendSummaryUser[]>([]);
+  const [inviteMessage, setInviteMessage] = useState("");
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editCategory, setEditCategory] = useState("Social");
   const [editPrivacy, setEditPrivacy] = useState<"Public" | "Friends" | "Private">("Public");
   const [editImageUrl, setEditImageUrl] = useState("");
   const [mobileMembersOpen, setMobileMembersOpen] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<ApiRoomPresenceUser[]>([]);
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const typingHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingAtRef = useRef(0);
   const lastTypingValueRef = useRef(false);
+  const roomPeopleRef = useRef(new Map<string, ApiRoomPresenceUser>());
 
   const refresh = useCallback(async () => {
     setError("");
@@ -130,6 +138,12 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         return [...prev, payload.message];
       });
     };
+    const onRoomPresence = (payload: { roomSlug?: string; onlineUsers?: ApiRoomPresenceUser[] }) => {
+      if (payload?.roomSlug !== roomSlug) {
+        return;
+      }
+      setOnlineUsers(payload.onlineUsers ?? []);
+    };
     const onRoomTyping = (payload: { roomSlug?: string; userId?: string; typing?: boolean }) => {
       if (!payload?.roomSlug || payload.roomSlug !== roomSlug) {
         return;
@@ -145,7 +159,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         }
         return;
       }
-      const person = messages.find((row) => row.sender.id === payload.userId)?.sender;
+      const person = roomPeopleRef.current.get(payload.userId);
       const name = person?.displayName?.trim() || person?.username || "Someone";
       setTypingName(name);
       if (typingHideTimerRef.current) {
@@ -157,18 +171,32 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     };
 
     socket.on("room:message", onRoomMessage);
+    socket.on("room:presence", onRoomPresence);
     socket.on("room:typing", onRoomTyping);
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.off("connect", joinRoom);
       socket.off("room:message", onRoomMessage);
+      socket.off("room:presence", onRoomPresence);
       socket.off("room:typing", onRoomTyping);
     };
-  }, [meId, messages, roomSlug]);
+  }, [meId, roomSlug]);
+
+  useEffect(() => {
+    const next = new Map<string, ApiRoomPresenceUser>();
+    for (const user of onlineUsers) {
+      next.set(user.id, user);
+    }
+    for (const message of messages) {
+      next.set(message.sender.id, message.sender);
+    }
+    roomPeopleRef.current = next;
+  }, [messages, onlineUsers]);
 
   useEffect(() => {
     setTypingName(null);
+    setOnlineUsers([]);
     if (typingHideTimerRef.current) {
       clearTimeout(typingHideTimerRef.current);
       typingHideTimerRef.current = null;
@@ -218,14 +246,15 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     void refreshManagement();
   }, [access?.isModerator, access?.isOwner, meId, room?.owner.id]);
 
-  const participantRows = useMemo(() => {
+  const messageParticipantRows = useMemo(() => {
     const map = new Map<string, ApiRoomMessage["sender"]>();
     for (const message of messages) {
       map.set(message.sender.id, message.sender);
     }
     return [...map.values()];
   }, [messages]);
-  const onlineCount = participantRows.length;
+  const visibleRoomMembers = onlineUsers.length > 0 ? onlineUsers : messageParticipantRows;
+  const onlineCount = onlineUsers.length;
   const authSnap = getStoredAuthSession();
   const myAvatarUrl = authSnap?.user.avatarUrl?.trim() || null;
   const canManageRoom = Boolean(access?.isOwner || access?.isModerator);
@@ -395,6 +424,41 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     }
   }
 
+  async function handleOpenInviteModal() {
+    const s = getStoredAuthSession();
+    if (!s?.accessToken || !room) {
+      return;
+    }
+    setShowInviteModal(true);
+    setInviteMessage("");
+    setActionBusyId("load-invites");
+    try {
+      const summary = await getFriendsSummary(s.accessToken);
+      setInviteFriends(summary.friends);
+    } catch (e: unknown) {
+      setInviteMessage(e instanceof Error ? e.message : "Could not load friends.");
+    } finally {
+      setActionBusyId(null);
+    }
+  }
+
+  async function handleInviteFriend(targetUserId: string) {
+    const s = getStoredAuthSession();
+    if (!s?.accessToken || !room) {
+      return;
+    }
+    setActionBusyId(`invite-${targetUserId}`);
+    setInviteMessage("");
+    try {
+      await inviteRoomFriend(s.accessToken, room.slug, targetUserId);
+      setInviteMessage("Invite sent.");
+    } catch (e: unknown) {
+      setInviteMessage(e instanceof Error ? e.message : "Could not send invite.");
+    } finally {
+      setActionBusyId(null);
+    }
+  }
+
   async function handleChooseEditImage(event: React.ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget;
     const file = input.files?.[0];
@@ -462,17 +526,17 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                   <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
               </button>
-              <span className="inline-flex rounded-md border border-cyan-300/35 bg-cyan-400/15 px-3 py-1 text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.12em] text-cyan-100">
+              <span className="suzi-room-meta-badge suzi-room-meta-badge--category">
                 {room?.category ?? "—"}
               </span>
               <span
                 className={cx(
-                  "inline-flex rounded-md border px-3 py-1 text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.12em]",
+                  "suzi-room-meta-badge",
                   room?.privacy === "Private"
-                    ? "border-pink-300/35 bg-pink-400/15 text-pink-100"
+                    ? "suzi-room-meta-badge--private"
                     : room?.privacy === "Friends"
-                      ? "border-violet-300/35 bg-violet-400/15 text-violet-100"
-                      : "border-white/14 bg-white/7 text-cyan-100/86",
+                      ? "suzi-room-meta-badge--friends"
+                      : "suzi-room-meta-badge--public",
                 )}
               >
                 {room?.privacy ?? "—"}
@@ -651,6 +715,39 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
               </div>
             </div>
 
+            {onlineUsers.length > 0 ? (
+              <div>
+                <p className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-emerald-100/82">
+                  Online Now
+                </p>
+                <div className="space-y-3">
+                  {onlineUsers.map((person) => (
+                    <PersonRow
+                      key={`online-${person.id}`}
+                      person={{
+                        id: person.id,
+                        name: person.displayName?.trim() || person.username,
+                        handle: `@${person.username}`,
+                        avatar: resolveUserAvatarUrl(person.avatarUrl),
+                      }}
+                      subtitle="In this room"
+                      compact
+                      action={
+                        person.id !== meId ? (
+                          <Link
+                            href={`/app/messages?with=${encodeURIComponent(person.id)}`}
+                            className="suzi-secondary-btn px-3 py-2 text-xs"
+                          >
+                            DM
+                          </Link>
+                        ) : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             <div>
               <p className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
                 Room Members
@@ -658,7 +755,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
               <div className="space-y-3">
                 {(canManageRoom
                   ? management?.members ?? []
-                  : participantRows.map((user) => ({ userId: user.id, role: "member", user }))
+                  : visibleRoomMembers.map((user) => ({ userId: user.id, role: "member", user }))
                 ).map((row) => {
                   const person = row.user;
                   const isModerator = row.role === "moderator";
@@ -813,8 +910,13 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         <Panel className="shrink-0 p-[var(--panel-pad)]">
           <h2 className="text-[var(--fs-lg)] font-semibold tracking-tight text-white">Options</h2>
           <div className="mt-3 grid gap-2">
-            <button type="button" className="suzi-secondary-btn px-3 py-2 text-[var(--fs-sm)]">
-              Invite friends
+            <button
+              type="button"
+              onClick={() => void handleOpenInviteModal()}
+              disabled={!access?.isMember || actionBusyId === "load-invites"}
+              className="suzi-secondary-btn px-3 py-2 text-[var(--fs-sm)]"
+            >
+              {actionBusyId === "load-invites" ? "Loading friends..." : "Invite friends"}
             </button>
             {access?.isMember && !access?.isOwner ? (
               <button
@@ -897,6 +999,63 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {showInviteModal && room ? (
+        <div className="fixed inset-0 z-[272] flex items-center justify-center bg-[rgba(6,10,28,0.72)] p-4">
+          <div className="w-full max-w-md rounded-[1.1rem] border border-cyan-300/24 bg-[linear-gradient(160deg,rgba(34,20,101,0.96),rgba(20,14,76,0.94))] p-4 shadow-[0_20px_60px_rgba(7,11,30,0.62)] sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-semibold text-white">Invite friends</h3>
+                <p className="mt-1 text-sm text-cyan-100/76">Send a live room invite for {room.name}.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInviteModal(false)}
+                className="suzi-secondary-btn px-3 py-1.5 text-xs"
+              >
+                Close
+              </button>
+            </div>
+
+            {inviteMessage ? (
+              <p className="mt-3 rounded-[0.8rem] border border-cyan-300/18 bg-white/7 px-3 py-2 text-sm text-cyan-50/88">
+                {inviteMessage}
+              </p>
+            ) : null}
+
+            <div className="suzi-thin-scroll mt-4 max-h-[52vh] space-y-3 overflow-y-auto pr-1">
+              {actionBusyId === "load-invites" ? (
+                <p className="text-sm text-cyan-100/72">Loading friends...</p>
+              ) : inviteFriends.length === 0 ? (
+                <p className="text-sm text-cyan-100/72">Add friends first, then invite them into this room.</p>
+              ) : (
+                inviteFriends.map((friend) => (
+                  <PersonRow
+                    key={friend.id}
+                    person={{
+                      id: friend.id,
+                      name: friend.displayName?.trim() || friend.username,
+                      handle: `@${friend.username}`,
+                      avatar: resolveUserAvatarUrl(friend.avatarUrl),
+                    }}
+                    compact
+                    action={
+                      <button
+                        type="button"
+                        onClick={() => void handleInviteFriend(friend.id)}
+                        disabled={actionBusyId === `invite-${friend.id}`}
+                        className="suzi-primary-btn px-3 py-2 text-xs"
+                      >
+                        {actionBusyId === `invite-${friend.id}` ? "Sending..." : "Invite"}
+                      </button>
+                    }
+                  />
+                ))
+              )}
+            </div>
           </div>
         </div>
       ) : null}
