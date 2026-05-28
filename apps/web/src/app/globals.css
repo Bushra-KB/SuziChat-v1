@@ -2519,7 +2519,6 @@ h5 {
     grid-template-columns:
       clamp(calc(17rem + 15px), calc(19.5vw + 15px), calc(22rem + 15px))
       minmax(0, 1fr)
-      minmax(0, 1fr)
       clamp(13rem, 14.5vw, 16.5rem);
     /* Row 1 / row 2 — 65% / 35% of home grid height. */
     grid-template-rows: minmax(0, 13fr) minmax(0, 7fr);
@@ -2540,13 +2539,13 @@ h5 {
   }
 
   .suzi-home-area-friends {
-    grid-column: 2;
-    grid-row: 1;
+    grid-column: 1;
+    grid-row: 2;
   }
 
   .suzi-home-area-reels {
     grid-column: 1;
-    grid-row: 1 / 3;
+    grid-row: 1;
   }
 
   .suzi-home-area-friends,
@@ -2582,12 +2581,12 @@ h5 {
   }
 
   .suzi-home-area-chat {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1;
   }
 
   .suzi-home-area-games {
-    grid-column: 2 / 4;
+    grid-column: 2;
     grid-row: 2;
   }
 
@@ -2603,16 +2602,16 @@ h5 {
   }
 
   .suzi-home-area-snaps {
-    grid-column: 4;
+    grid-column: 3;
     grid-row: 1;
   }
 
   .suzi-home-area-dating {
-    grid-column: 4;
+    grid-column: 3;
     grid-row: 2;
   }
 
-  /* Row 1 — Friends | Chat rooms | Snaps fill the 65% row; lists scroll inside. */
+  /* Row 1 — Reels | Chat rooms | Snaps fill the 65% row; lists scroll inside. */
   .suzi-home-row1-panel {
     display: flex;
     flex-direction: column;
