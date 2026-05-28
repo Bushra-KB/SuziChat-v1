@@ -71,6 +71,7 @@ jobs:
             "cd '$PROD_APP_DIR' && \
              docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod build && \
              mkdir -p ~/backups && \
+             docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod up -d postgres && \
              docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod exec -T postgres sh -lc 'pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Fc' > ~/backups/suzi_chat_before_ci_deploy_${GITHUB_SHA}_\$(date +%Y%m%d_%H%M%S).dump && \
              docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod run --rm -T --no-deps api pnpm --filter api db:migrate:deploy && \
              docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod run --rm -T --no-deps api pnpm --filter api db:push && \
