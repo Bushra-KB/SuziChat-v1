@@ -1,0 +1,82 @@
+name: Deploy Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Main to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
+
+    env:
+      PROD_PORT: ${{ secrets.PROD_PORT || '22' }}
+      PROD_APP_DIR: ${{ secrets.PROD_APP_DIR || '/home/suziadmin/apps/suzi-chat' }}
+      PROD_DOMAIN: ${{ secrets.PROD_DOMAIN || 'suzichat.com' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify required secrets
+        run: |
+          test -n "${{ secrets.PROD_HOST }}" || (echo "Missing PROD_HOST secret" && exit 1)
+          test -n "${{ secrets.PROD_USER }}" || (echo "Missing PROD_USER secret" && exit 1)
+          test -n "${{ secrets.PROD_SSH_KEY }}" || (echo "Missing PROD_SSH_KEY secret" && exit 1)
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "$PROD_PORT" "${{ secrets.PROD_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Ensure remote app directory exists
+        run: |
+          ssh -p "$PROD_PORT" "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
+            "mkdir -p '$PROD_APP_DIR' ~/backups"
+
+      - name: Sync repository to server
+        run: |
+          rsync -az --delete \
+            -e "ssh -p $PROD_PORT" \
+            --filter='P infra/docker/.env.prod' \
+            --filter='P backups/***' \
+            --filter='P uploads/***' \
+            --exclude node_modules \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude apps/web/.next \
+            --exclude apps/web/tsconfig.tsbuildinfo \
+            --exclude apps/api/dist \
+            --exclude .env \
+            --exclude 'apps/*/.env' \
+            --exclude 'apps/*/.env.*' \
+            ./ "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:$PROD_APP_DIR/"
+
+      - name: Build, backup, migrate, and restart production
+        run: |
+          ssh -p "$PROD_PORT" "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
+            "cd '$PROD_APP_DIR' && \
+             docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod build && \
+             mkdir -p ~/backups && \
+             docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod exec -T postgres sh -lc 'pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Fc' > ~/backups/suzi_chat_before_ci_deploy_${GITHUB_SHA}_\$(date +%Y%m%d_%H%M%S).dump && \
+             docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod run --rm -T --no-deps api pnpm --filter api db:migrate:deploy && \
+             docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod run --rm -T --no-deps api pnpm --filter api db:push && \
+             docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod up -d && \
+             docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod ps"
+
+      - name: Verify public site
+        run: |
+          curl -fsSI "https://$PROD_DOMAIN"

@@ -87,6 +87,6 @@ describe('poker-holdem.engine', () => {
     state = out.state as typeof state;
 
     expect((state as { board: string[] }).board.length).toBe(5);
-    expect((state as { phase: string }).phase).toBe('COMPLETE');
+    expect((state as unknown as { phase: string }).phase).toBe('COMPLETE');
   });
 });

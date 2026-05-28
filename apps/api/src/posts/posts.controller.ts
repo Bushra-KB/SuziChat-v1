@@ -1,6 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { join } from 'node:path';
-import { existsSync, mkdirSync } from 'node:fs';
 import {
   BadRequestException,
   Body,
@@ -25,6 +23,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
 import { postsFeedChannel } from '../realtime/realtime-channels';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
+import { ensureUploadSubdir } from '../upload-storage/upload-paths';
 import { CreatePostCommentDto } from './dto/create-post-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import {
@@ -141,11 +140,7 @@ export class PostsController {
       limits: { fileSize: REEL_UPLOAD_MAX_BYTES },
       storage: diskStorage({
         destination: (_req: Request, _file: Express.Multer.File, cb) => {
-          const dir = join(process.cwd(), 'uploads', 'reels');
-          if (!existsSync(dir)) {
-            mkdirSync(dir, { recursive: true });
-          }
-          cb(null, dir);
+          cb(null, ensureUploadSubdir('reels'));
         },
         filename: (_req: Request, file: Express.Multer.File, cb) => {
           const ext = pickStoredReelExtension(file.mimetype, file.originalname);
@@ -186,11 +181,7 @@ export class PostsController {
       limits: { fileSize: SNAP_UPLOAD_MAX_BYTES },
       storage: diskStorage({
         destination: (_req: Request, _file: Express.Multer.File, cb) => {
-          const dir = join(process.cwd(), 'uploads', 'snaps');
-          if (!existsSync(dir)) {
-            mkdirSync(dir, { recursive: true });
-          }
-          cb(null, dir);
+          cb(null, ensureUploadSubdir('snaps'));
         },
         filename: (_req: Request, file: Express.Multer.File, cb) => {
           const ext = pickStoredSnapExtension(file.mimetype, file.originalname);
