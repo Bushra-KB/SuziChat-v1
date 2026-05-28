@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
+import { useIsMobile } from "@/lib/use-is-mobile";
 
 const attachIcon = "M12 5v14M5 12h14";
 
@@ -15,6 +16,7 @@ export function ChatComposer({
   onSend,
   onTyping,
   disabled,
+  rows = 1,
 }: {
   attachInputId: string;
   placeholder?: string;
@@ -22,8 +24,11 @@ export function ChatComposer({
   onSend?: (text: string) => void | Promise<void>;
   onTyping?: (text: string) => void;
   disabled?: boolean;
+  rows?: 1 | 2;
 }) {
   const [text, setText] = useState("");
+  const { isMobile } = useIsMobile();
+  const visibleRows = isMobile ? 1 : rows;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -33,6 +38,14 @@ export function ChatComposer({
     }
     await onSend(trimmed);
     setText("");
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey) {
+      return;
+    }
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
   }
 
   return (
@@ -45,14 +58,14 @@ export function ChatComposer({
           : "border-slate-200/35 bg-[linear-gradient(180deg,#f4f5ff_0%,#e8ecff_100%)]",
       )}
     >
-      <div className="flex items-stretch gap-2 sm:gap-2.5">
+      <div className="flex items-center gap-2 sm:gap-2.5">
         <input id={attachInputId} type="file" className="sr-only" multiple tabIndex={-1} />
 
         <label
           htmlFor={attachInputId}
           title="Add attachment"
           className={cx(
-            "inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-[0.7rem] border border-sky-400/55 bg-[linear-gradient(180deg,#2b5bd3_0%,#172a62_100%)] text-white shadow-[0_2px_8px_rgba(15,23,42,0.28)] transition hover:brightness-110",
+            "suzi-composer-attach-btn inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-[0.7rem] border border-sky-400/55 bg-[linear-gradient(180deg,#2b5bd3_0%,#172a62_100%)] text-white shadow-[0_2px_8px_rgba(15,23,42,0.28)] transition hover:brightness-110",
             "focus-within:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/90",
             disabled && "pointer-events-none opacity-50",
           )}
@@ -69,16 +82,20 @@ export function ChatComposer({
         >
           <textarea
             name="message"
-            rows={1}
+            rows={visibleRows}
             placeholder={placeholder}
             value={text}
+            onKeyDown={handleKeyDown}
             onChange={(e) => {
               const next = e.target.value;
               setText(next);
               onTyping?.(next);
             }}
             disabled={disabled}
-            className="suzi-composer-textarea min-h-[2.75rem] max-h-[7.5rem] w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 disabled:opacity-60"
+            className={cx(
+              "suzi-composer-textarea w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 disabled:opacity-60",
+              visibleRows === 2 ? "min-h-[4.5rem] max-h-[8rem]" : "min-h-[2.75rem] max-h-[7.5rem]",
+            )}
           />
           <div className="w-px shrink-0 bg-slate-200" aria-hidden />
           <button
@@ -95,7 +112,7 @@ export function ChatComposer({
         <button
           type="submit"
           disabled={disabled}
-          className="inline-flex h-11 min-w-[5.5rem] shrink-0 items-center justify-center rounded-[0.7rem] border border-sky-400/55 bg-[linear-gradient(180deg,#2b5bd3_0%,#172a62_100%)] px-4 text-sm font-semibold text-white shadow-[0_2px_8px_rgba(15,23,42,0.28)] transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/90 disabled:opacity-50"
+          className="suzi-composer-send-btn inline-flex h-11 min-w-[5.5rem] shrink-0 items-center justify-center rounded-[0.7rem] border border-sky-400/55 bg-[linear-gradient(180deg,#2b5bd3_0%,#172a62_100%)] px-4 text-sm font-semibold text-white shadow-[0_2px_8px_rgba(15,23,42,0.28)] transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/90 disabled:opacity-50"
         >
           Send
         </button>

@@ -17,6 +17,8 @@ import { getRealtimeSocket } from "@/lib/realtime-client";
 import { subscribeRoomsCatalog } from "@/lib/realtime-feed";
 import { joinRoom, listRooms, listRoomsForMe, requestRoomAccess, type ApiRoom } from "@/lib/rooms-client";
 
+const DEFAULT_ROOM_COVER = "/logo/logo.png";
+
 function formatPrivacyLabel(privacy: string) {
   if (privacy.toLowerCase() === "friends") {
     return "Friends";
@@ -197,7 +199,7 @@ export function RoomsCatalogPageClient() {
                 <div className="flex items-start gap-3">
                   <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[0.7rem] border border-cyan-300/20">
                     <img
-                      src={room.imageUrl?.trim() || "/banner/general_chat_banner.png"}
+                      src={room.imageUrl?.trim() || DEFAULT_ROOM_COVER}
                       alt={`${room.name} cover`}
                       className="h-full w-full object-cover"
                     />
