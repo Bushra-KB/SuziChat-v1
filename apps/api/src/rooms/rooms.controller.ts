@@ -194,6 +194,15 @@ export class RoomsController {
     return this.roomsService.sendInvite(slug, user.id, targetUserId);
   }
 
+  @Get(':slug/invite-candidates')
+  @UseGuards(AccessTokenGuard)
+  listInviteCandidates(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.roomsService.listInviteCandidates(slug, user.id);
+  }
+
   @Get(':slug/manage')
   @UseGuards(AccessTokenGuard)
   getRoomManagement(

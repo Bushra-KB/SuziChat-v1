@@ -10,6 +10,11 @@ export type ApiRoom = {
   privacy: string;
   createdAt: string;
   owner: { id: string; username: string; displayName: string | null; avatarUrl?: string | null };
+  moderators?: Array<{
+    userId: string;
+    role: "moderator" | string;
+    user: { id: string; username: string; displayName: string | null; avatarUrl?: string | null };
+  }>;
   _count?: { messages: number; memberships: number };
   actor?: {
     isMember: boolean;
@@ -32,6 +37,14 @@ export type ApiRoomMessage = {
 };
 
 export type ApiRoomPresenceUser = ApiRoomMessage["sender"];
+
+export type ApiRoomInviteCandidate = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl?: string | null;
+  country?: string | null;
+};
 
 export type ApiRoomAccess = {
   roomSlug: string;
@@ -176,6 +189,16 @@ export async function inviteRoomFriend(accessToken: string, slug: string, target
     `/v1/rooms/${encodeURIComponent(slug)}/invite/${encodeURIComponent(targetUserId)}`,
     {
       method: "POST",
+      accessToken,
+    },
+  );
+}
+
+export async function listRoomInviteCandidates(accessToken: string, slug: string) {
+  return apiJson<ApiRoomInviteCandidate[]>(
+    `/v1/rooms/${encodeURIComponent(slug)}/invite-candidates`,
+    {
+      method: "GET",
       accessToken,
     },
   );

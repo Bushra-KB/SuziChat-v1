@@ -347,6 +347,23 @@ export class RealtimeGateway
     return { ok: true };
   }
 
+  @SubscribeMessage('room:leave')
+  async onRoomLeave(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { roomSlug?: string },
+  ) {
+    this.getUserId(client);
+    const roomSlug = payload?.roomSlug?.trim();
+    if (!roomSlug) {
+      throw new WsException('roomSlug is required');
+    }
+    await client.leave(this.roomChannel(roomSlug));
+    await client.leave(this.roomStatsChannel(roomSlug));
+    client.data.roomSlugs?.delete(roomSlug);
+    await this.emitRoomStats(roomSlug);
+    return { ok: true };
+  }
+
   @SubscribeMessage('room:watch')
   async onRoomWatch(
     @ConnectedSocket() client: AuthSocket,

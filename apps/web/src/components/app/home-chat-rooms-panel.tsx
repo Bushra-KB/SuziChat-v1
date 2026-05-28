@@ -60,7 +60,7 @@ const primaryCategories = ["All", "Hobbies", "Music", "Sports", "Chill"] as cons
 const extraCategories = ["Dating", "Media", "Travel"];
 const PRIVACY_OPTIONS = ["Public", "Friends", "Private"] as const;
 
-const DEFAULT_ROOM_COVER = "/banner/general_chat_banner.png";
+const DEFAULT_ROOM_COVER = "/logo/logo.png";
 
 const MAX_IMAGE_EDGE = 1400;
 const JPEG_QUALITY = 0.82;

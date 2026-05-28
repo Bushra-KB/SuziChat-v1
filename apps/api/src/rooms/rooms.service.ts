@@ -45,6 +45,7 @@ type RoomAccessState = {
   isOwner: boolean;
   isMember: boolean;
   membershipRole: string | null;
+  membershipJoinedAt: Date | null;
   isModerator: boolean;
   isBlocked: boolean;
   hasPendingRequest: boolean;
@@ -121,7 +122,7 @@ export class RoomsService {
         },
         memberships: {
           where: { userId },
-          select: { id: true, role: true },
+          select: { id: true, role: true, joinedAt: true },
           take: 1,
         },
         joinRequests: {
@@ -207,7 +208,7 @@ export class RoomsService {
         privacy: true,
         memberships: {
           where: { userId },
-          select: { id: true, role: true },
+          select: { id: true, role: true, joinedAt: true },
           take: 1,
         },
         joinRequests: {
@@ -226,6 +227,7 @@ export class RoomsService {
       throw new NotFoundException('Room not found');
     }
     const membershipRole = room.memberships[0]?.role ?? null;
+    const membershipJoinedAt = room.memberships[0]?.joinedAt ?? null;
     return {
       roomId: room.id,
       ownerId: room.ownerId,
@@ -233,6 +235,7 @@ export class RoomsService {
       isOwner: room.ownerId === userId,
       isMember: room.ownerId === userId || room.memberships.length > 0,
       membershipRole,
+      membershipJoinedAt,
       isModerator: membershipRole === ROOM_ROLE_MODERATOR,
       isBlocked: room.bans.length > 0,
       hasPendingRequest: room.joinRequests.length > 0,
@@ -273,6 +276,15 @@ export class RoomsService {
         owner: {
           select: userPublicSelect,
         },
+        memberships: {
+          where: { role: ROOM_ROLE_MODERATOR },
+          orderBy: { joinedAt: 'asc' },
+          select: {
+            userId: true,
+            role: true,
+            user: { select: userPublicSelect },
+          },
+        },
         _count: {
           select: {
             messages: true,
@@ -286,7 +298,11 @@ export class RoomsService {
       throw new NotFoundException('Room not found');
     }
 
-    return room;
+    const { memberships, ...publicRoom } = room;
+    return {
+      ...publicRoom,
+      moderators: memberships,
+    };
   }
 
   async listPublicUsersByIds(userIds: string[]) {
@@ -338,7 +354,28 @@ export class RoomsService {
     if (access.privacy.toLowerCase() !== 'public' && !access.isMember) {
       throw new ForbiddenException('You are not allowed to open this room');
     }
-    return this.listMessages(roomSlug, take);
+    if (access.isOwner) {
+      return this.listMessages(roomSlug, take);
+    }
+    if (!access.isMember || !access.membershipJoinedAt) {
+      return [];
+    }
+    const messages = await this.prisma.roomMessage.findMany({
+      where: {
+        roomId: access.roomId,
+        createdAt: { gte: access.membershipJoinedAt },
+      },
+      orderBy: { createdAt: 'desc' },
+      take,
+      select: {
+        id: true,
+        body: true,
+        createdAt: true,
+        sender: { select: userPublicSelect },
+      },
+    });
+
+    return messages.reverse();
   }
 
   private slugifyRoomName(name: string) {
@@ -558,6 +595,64 @@ export class RoomsService {
     });
   }
 
+  async listInviteCandidates(slug: string, userId: string) {
+    const access = await this.resolveAccessState(slug, userId);
+    if (access.isBlocked || !access.isMember) {
+      throw new ForbiddenException('Join the room before inviting friends');
+    }
+
+    const [room, friendships, blockedPairs] = await Promise.all([
+      this.prisma.room.findUnique({
+        where: { id: access.roomId },
+        select: {
+          ownerId: true,
+          memberships: { select: { userId: true } },
+          bans: { select: { userId: true } },
+          joinRequests: {
+            where: { status: RoomJoinRequestStatus.PENDING },
+            select: { userId: true },
+          },
+        },
+      }),
+      this.prisma.friendship.findMany({
+        where: { userId },
+        select: { friend: { select: userPublicSelect } },
+      }),
+      this.prisma.userBlock.findMany({
+        where: {
+          OR: [{ blockerId: userId }, { blockedId: userId }],
+        },
+        select: { blockerId: true, blockedId: true },
+      }),
+    ]);
+
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+
+    const excludedUserIds = new Set<string>([
+      userId,
+      room.ownerId,
+      ...room.memberships.map((row) => row.userId),
+      ...room.bans.map((row) => row.userId),
+      ...room.joinRequests.map((row) => row.userId),
+    ]);
+    for (const pair of blockedPairs) {
+      excludedUserIds.add(
+        pair.blockerId === userId ? pair.blockedId : pair.blockerId,
+      );
+    }
+
+    return friendships
+      .map((row) => row.friend)
+      .filter((friend) => !excludedUserIds.has(friend.id))
+      .sort((a, b) =>
+        (a.displayName?.trim() || a.username).localeCompare(
+          b.displayName?.trim() || b.username,
+        ),
+      );
+  }
+
   async sendInvite(slug: string, fromUserId: string, targetUserId: string) {
     if (fromUserId === targetUserId) {
       throw new BadRequestException('Choose a friend to invite');
@@ -567,10 +662,11 @@ export class RoomsService {
       throw new ForbiddenException('Join the room before inviting friends');
     }
 
-    const [room, friendship, blocked] = await Promise.all([
+    const [room, friendship, blocked, targetMembership, targetBan, targetRequest] =
+      await Promise.all([
       this.prisma.room.findUnique({
         where: { id: access.roomId },
-        select: { slug: true, name: true },
+        select: { slug: true, name: true, ownerId: true },
       }),
       this.prisma.friendship.findUnique({
         where: {
@@ -590,6 +686,33 @@ export class RoomsService {
         },
         select: { id: true },
       }),
+      this.prisma.roomMembership.findUnique({
+        where: {
+          roomId_userId: {
+            roomId: access.roomId,
+            userId: targetUserId,
+          },
+        },
+        select: { id: true },
+      }),
+      this.prisma.roomBan.findUnique({
+        where: {
+          roomId_userId: {
+            roomId: access.roomId,
+            userId: targetUserId,
+          },
+        },
+        select: { id: true },
+      }),
+      this.prisma.roomJoinRequest.findUnique({
+        where: {
+          roomId_userId: {
+            roomId: access.roomId,
+            userId: targetUserId,
+          },
+        },
+        select: { status: true },
+      }),
     ]);
 
     if (!room) {
@@ -600,6 +723,15 @@ export class RoomsService {
     }
     if (blocked) {
       throw new ForbiddenException('Cannot invite this user');
+    }
+    if (room.ownerId === targetUserId || targetMembership) {
+      throw new BadRequestException('This user is already in the room');
+    }
+    if (targetBan) {
+      throw new ForbiddenException('This user is banned from this room');
+    }
+    if (targetRequest?.status === RoomJoinRequestStatus.PENDING) {
+      throw new BadRequestException('This user already has a pending room request');
     }
 
     const payload = {

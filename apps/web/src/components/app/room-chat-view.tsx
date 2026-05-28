@@ -2,10 +2,21 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChatComposer } from "@/components/app/chat-composer";
 import { ChatMessageRow, type LiveChatMessage } from "@/components/app/chat-message-row";
 import { PersonRow } from "@/components/app/v1-blocks";
+import {
+  homePanelHeader,
+  listActionBtn,
+  listEmpty,
+  listL2,
+  listMeta,
+  listSection,
+  listSubtitle,
+  listTitle,
+  panelTitle,
+} from "@/components/app/home-typography";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import {
@@ -18,6 +29,8 @@ import {
   getRoomManagement,
   inviteRoomFriend,
   joinRoom,
+  listRoomCategories,
+  listRoomInviteCandidates,
   listRoomMessages,
   listMyRoomMessages,
   leaveRoom,
@@ -30,12 +43,12 @@ import {
   updateRoom,
   type ApiRoom,
   type ApiRoomAccess,
+  type ApiRoomInviteCandidate,
   type ApiRoomManagement,
   type ApiRoomMessage,
   type ApiRoomPresenceUser,
 } from "@/lib/rooms-client";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
-import { getFriendsSummary, type FriendSummaryUser } from "@/lib/friends-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 
 function formatShortTime(iso: string) {
@@ -47,6 +60,65 @@ function formatShortTime(iso: string) {
   } catch {
     return "";
   }
+}
+
+const DEFAULT_ROOM_IMAGE = "/logo/logo.png";
+const lockIconPath = "M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z";
+const globeIconPath = "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 3v18M3 12h18";
+const friendsIconPath =
+  "M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5H7a3 3 0 0 0-3 3V20M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6M20 20v-1a2.8 2.8 0 0 0-2.1-2.7M16.5 5.5a2.5 2.5 0 0 1 0 5";
+const membersIconPath =
+  "M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75";
+
+type RoomUserSummary = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl?: string | null;
+};
+
+function displayRoomUserName(user: RoomUserSummary) {
+  return user.displayName?.trim() || user.username;
+}
+
+function roomPresenceDotClass(online: boolean) {
+  return online
+    ? "bg-emerald-300 shadow-[0_0_10px_rgba(110,255,178,0.75)]"
+    : "bg-slate-500";
+}
+
+function RoomUserRow({
+  user,
+  subtitle,
+  online,
+  action,
+}: {
+  user: RoomUserSummary;
+  subtitle?: string;
+  online: boolean;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="suzi-home-row flex items-center justify-between gap-2.5 rounded-[0.72rem] px-2.5 py-1.5">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <div className="relative shrink-0" style={{ width: "var(--avatar-md)", height: "var(--avatar-md)" }}>
+          <img
+            src={resolveUserAvatarUrl(user.avatarUrl)}
+            alt={`${displayRoomUserName(user)} avatar`}
+            className="h-full w-full rounded-full border border-white/14 object-cover"
+          />
+          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[rgba(24,16,82,0.95)] bg-[rgba(24,16,82,0.95)]">
+            <span className={cx("block h-full w-full rounded-full", roomPresenceDotClass(online))} />
+          </span>
+        </div>
+        <div className="min-w-0">
+          <p className={cx(listTitle, "truncate")}>{displayRoomUserName(user)}</p>
+          <p className={cx(listSubtitle, "truncate")}>{subtitle ?? `@${user.username}`}</p>
+        </div>
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
+  );
 }
 
 export function RoomChatView({ roomSlug }: { roomSlug: string }) {
@@ -66,12 +138,14 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const [showManageModal, setShowManageModal] = useState(false);
   const [showDeleteRoomModal, setShowDeleteRoomModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showRoomImageModal, setShowRoomImageModal] = useState(false);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
-  const [inviteFriends, setInviteFriends] = useState<FriendSummaryUser[]>([]);
+  const [inviteFriends, setInviteFriends] = useState<ApiRoomInviteCandidate[]>([]);
   const [inviteMessage, setInviteMessage] = useState("");
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editCategory, setEditCategory] = useState("Social");
+  const [editCategories, setEditCategories] = useState<string[]>(["Social"]);
   const [editPrivacy, setEditPrivacy] = useState<"Public" | "Friends" | "Private">("Public");
   const [editImageUrl, setEditImageUrl] = useState("");
   const [mobileMembersOpen, setMobileMembersOpen] = useState(false);
@@ -174,6 +248,9 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     socket.on("room:presence", onRoomPresence);
     socket.on("room:typing", onRoomTyping);
     return () => {
+      if (socket.connected) {
+        socket.emit("room:leave", { roomSlug });
+      }
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.off("connect", joinRoom);
@@ -246,19 +323,46 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     void refreshManagement();
   }, [access?.isModerator, access?.isOwner, meId, room?.owner.id]);
 
-  const messageParticipantRows = useMemo(() => {
-    const map = new Map<string, ApiRoomMessage["sender"]>();
-    for (const message of messages) {
-      map.set(message.sender.id, message.sender);
+  useEffect(() => {
+    if (!showEditModal) {
+      return;
     }
-    return [...map.values()];
-  }, [messages]);
-  const visibleRoomMembers = onlineUsers.length > 0 ? onlineUsers : messageParticipantRows;
+    void listRoomCategories()
+      .then((categories) => {
+        const next = categories.map((category) => category.trim()).filter(Boolean);
+        setEditCategories(next.length ? next : ["Social"]);
+      })
+      .catch(() => {
+        setEditCategories((prev) => (prev.length ? prev : ["Social"]));
+      });
+  }, [showEditModal]);
+
   const onlineCount = onlineUsers.length;
   const authSnap = getStoredAuthSession();
   const myAvatarUrl = authSnap?.user.avatarUrl?.trim() || null;
   const canManageRoom = Boolean(access?.isOwner || access?.isModerator);
   const canAssignModerators = Boolean(access?.isOwner);
+  const onlineUserIds = useMemo(
+    () => new Set(onlineUsers.map((user) => user.id)),
+    [onlineUsers],
+  );
+  const roomImageUrl = room?.imageUrl?.trim() || DEFAULT_ROOM_IMAGE;
+  const roomModerators = room?.moderators?.map((row) => row.user) ?? [];
+  const totalRoomMembers = (room?._count?.memberships ?? 0) + (room ? 1 : 0);
+  const editCategoryOptions = useMemo(() => {
+    const values = new Set(
+      [...editCategories, editCategory]
+        .map((category) => category.trim())
+        .filter(Boolean),
+    );
+    return [...values];
+  }, [editCategories, editCategory]);
+  const privacyIconPath =
+    room?.privacy === "Private"
+      ? lockIconPath
+      : room?.privacy === "Friends"
+        ? friendsIconPath
+        : globeIconPath;
 
   async function handleSend(body: string) {
     const s = getStoredAuthSession();
@@ -400,7 +504,24 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     setActionBusyId("leave-room");
     try {
       await leaveRoom(s.accessToken, room.slug);
-      await refresh();
+      const socket = getRealtimeSocket(s.accessToken);
+      if (socket.connected) {
+        socket.emit("room:leave", { roomSlug: room.slug });
+      }
+      setAccess((prev) =>
+        prev
+          ? {
+              ...prev,
+              isMember: false,
+              isModerator: false,
+              role: null,
+              canPost: false,
+              canOpen: prev.privacy.toLowerCase() === "public",
+            }
+          : prev,
+      );
+      setMessages([]);
+      router.replace("/app#chatrooms");
     } finally {
       setActionBusyId(null);
     }
@@ -433,8 +554,8 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     setInviteMessage("");
     setActionBusyId("load-invites");
     try {
-      const summary = await getFriendsSummary(s.accessToken);
-      setInviteFriends(summary.friends);
+      const candidates = await listRoomInviteCandidates(s.accessToken, room.slug);
+      setInviteFriends(candidates);
     } catch (e: unknown) {
       setInviteMessage(e instanceof Error ? e.message : "Could not load friends.");
     } finally {
@@ -452,6 +573,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     try {
       await inviteRoomFriend(s.accessToken, room.slug, targetUserId);
       setInviteMessage("Invite sent.");
+      setInviteFriends((prev) => prev.filter((friend) => friend.id !== targetUserId));
     } catch (e: unknown) {
       setInviteMessage(e instanceof Error ? e.message : "Could not send invite.");
     } finally {
@@ -484,8 +606,8 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   return (
     <section className="suzi-app-frame-fill suzi-room-active">
       <div className="suzi-room-grid">
-        <Panel className="suzi-room-chat flex h-full min-h-0 flex-col overflow-hidden border border-cyan-300/24 bg-[linear-gradient(180deg,rgba(36,45,116,0.52),rgba(40,16,117,0.52))] p-0 shadow-[0_14px_38px_rgba(15,23,42,0.2)]">
-          <div className="suzi-room-chat-header shrink-0 border-b border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
+        <Panel className="suzi-panel--home suzi-room-chat flex h-full min-h-0 flex-col overflow-hidden p-0">
+          <div className={cx("suzi-room-chat-header shrink-0", homePanelHeader)}>
             <div className="suzi-room-chat-header-inner flex flex-wrap items-end justify-between gap-3">
               <div className="flex min-w-0 flex-1 items-start gap-2">
                 <Link
@@ -497,19 +619,46 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                     <path d="M15 18l-6-6 6-6" />
                   </svg>
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => setShowRoomImageModal(true)}
+                  className="suzi-room-cover-btn relative h-12 w-12 shrink-0 overflow-hidden rounded-[0.85rem] border border-cyan-300/30 bg-white/8 shadow-[0_0_18px_rgba(0,229,255,0.12)]"
+                  aria-label="View room image"
+                >
+                  <img
+                    src={roomImageUrl}
+                    alt={`${room?.name ?? roomSlug} room cover`}
+                    className="h-full w-full object-cover"
+                  />
+                </button>
                 <div className="suzi-room-chat-title min-w-0">
-                  <p className="flex items-center gap-2 text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.3em] text-cyan-100/64">
-                    <span>Room Chat</span>
-                    <span className="suzi-room-chat-status inline-flex items-center gap-1.5 normal-case tracking-normal text-emerald-300/85">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(110,255,178,0.7)]" />
-                      {socketReady ? "Realtime connected" : "Reconnecting…"}
-                    </span>
-                  </p>
-                  <h1 className="mt-1 truncate text-[var(--fs-2xl)] font-semibold text-white">
+                  <h1 className={cx(panelTitle, "truncate")}>
                     {loading ? "…" : room?.name ?? roomSlug}
                   </h1>
-                  <p className="mt-1 max-w-2xl truncate text-[var(--fs-sm)] text-cyan-100/82">
+                  <p className={cx(listL2, "mt-1 max-w-2xl truncate text-cyan-100/82")}>
                     {room?.description ?? ""}
+                  </p>
+                  <p className={cx(listMeta, "mt-1 flex flex-wrap items-center gap-2 font-bold italic text-cyan-100/78")}>
+                    <span>#{room?.category ?? "room"}</span>
+                    <span
+                      title={room?.privacy ?? "Public"}
+                      aria-label={`Room privacy: ${room?.privacy ?? "Public"}`}
+                      className="inline-flex items-center"
+                    >
+                      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d={privacyIconPath} />
+                      </svg>
+                    </span>
+                    <span className="inline-flex items-center gap-1" title={`${totalRoomMembers} members`}>
+                      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d={membersIconPath} />
+                      </svg>
+                      {totalRoomMembers}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-emerald-200/85">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(110,255,178,0.7)]" />
+                      {socketReady ? "live" : "reconnecting"}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -526,27 +675,12 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                   <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
               </button>
-              <span className="suzi-room-meta-badge suzi-room-meta-badge--category">
-                {room?.category ?? "—"}
-              </span>
-              <span
-                className={cx(
-                  "suzi-room-meta-badge",
-                  room?.privacy === "Private"
-                    ? "suzi-room-meta-badge--private"
-                    : room?.privacy === "Friends"
-                      ? "suzi-room-meta-badge--friends"
-                      : "suzi-room-meta-badge--public",
-                )}
-              >
-                {room?.privacy ?? "—"}
-              </span>
               {canManageRoom ? (
                 <>
                   <button
                     type="button"
                     onClick={() => setShowEditModal(true)}
-                    className="suzi-secondary-btn px-3 py-1 text-[var(--fs-xs)]"
+                    className="suzi-room-action-btn suzi-room-action-btn--header"
                   >
                     Edit
                   </button>
@@ -556,7 +690,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                       setShowManageModal(true);
                       void refreshManagement();
                     }}
-                    className="suzi-secondary-btn px-3 py-1 text-[var(--fs-xs)]"
+                    className="suzi-room-action-btn suzi-room-action-btn--header"
                   >
                     Manage
                   </button>
@@ -623,6 +757,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
             attachInputId={`room-chat-attachment-${roomSlug}`}
             placeholder="Write your message, invite a friend, or call out a game table"
             variant="onDark"
+            rows={2}
             disabled={!hasSession || sending || !access?.canPost}
             onTyping={(text) => {
               const s = getStoredAuthSession();
@@ -676,254 +811,111 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
             </svg>
           </button>
         </div>
-        <Panel className="flex min-h-0 flex-[3_1_0%] flex-col overflow-hidden p-[var(--panel-pad)]">
-          <div className="flex shrink-0 items-center justify-between gap-3">
-            <h2 className="text-[var(--fs-lg)] font-semibold tracking-tight text-white">Room Members</h2>
-            <span className="inline-flex items-center gap-1.5 text-[var(--fs-xs)] font-semibold text-emerald-100">
+        <Panel className="suzi-panel--home suzi-room-people-panel flex min-h-0 flex-[3_1_0%] flex-col overflow-hidden p-[var(--panel-pad)]">
+          <div className={cx(homePanelHeader, "flex shrink-0 items-center justify-between gap-3")}>
+            <h2 className={panelTitle}>Room People</h2>
+            <span className={cx(listMeta, "inline-flex items-center gap-1 font-semibold text-emerald-100")}>
               <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,255,178,0.72)]" />
               {onlineCount} online
             </span>
           </div>
-          <div className="suzi-thin-scroll mt-3 flex-1 space-y-4 overflow-y-auto pr-1">
+          <div className="suzi-home-inset suzi-thin-scroll suzi-room-people-scroll mt-3 flex-1 space-y-3 overflow-y-auto p-2">
             <div>
-              <p className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
-                Room Hosts
-              </p>
-              <div className="space-y-3">
-                {room ? (
-                  <PersonRow
-                    key={room?.owner.id ?? "owner"}
-                    person={{
-                      id: room?.owner.id ?? "owner",
-                      name: room?.owner.displayName?.trim() || room?.owner.username || "Owner",
-                      handle: `@${room?.owner.username ?? "owner"}`,
-                      avatar: resolveUserAvatarUrl(room?.owner.avatarUrl),
-                    }}
-                    compact
-                    action={
-                      room?.owner.id && room.owner.id !== meId ? (
-                        <Link
-                          href={`/app/messages?with=${encodeURIComponent(room.owner.id)}`}
-                          className="suzi-secondary-btn px-3 py-2 text-xs"
-                        >
-                          DM
-                        </Link>
-                      ) : undefined
-                    }
-                  />
-                ) : null}
-              </div>
+              <p className={cx(listSection, "mb-1.5 text-cyan-100/76")}>Room Host</p>
+              {room ? (
+                <RoomUserRow
+                  user={room.owner}
+                  subtitle="Creator"
+                  online={onlineUserIds.has(room.owner.id)}
+                  action={
+                    room.owner.id !== meId ? (
+                      <Link
+                        href={`/app/messages?with=${encodeURIComponent(room.owner.id)}`}
+                        className={cx(listActionBtn, "border-cyan-300/30 bg-cyan-400/16 text-cyan-50")}
+                      >
+                        DM
+                      </Link>
+                    ) : undefined
+                  }
+                />
+              ) : null}
             </div>
 
-            {onlineUsers.length > 0 ? (
-              <div>
-                <p className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-emerald-100/82">
-                  Online Now
-                </p>
-                <div className="space-y-3">
-                  {onlineUsers.map((person) => (
-                    <PersonRow
-                      key={`online-${person.id}`}
-                      person={{
-                        id: person.id,
-                        name: person.displayName?.trim() || person.username,
-                        handle: `@${person.username}`,
-                        avatar: resolveUserAvatarUrl(person.avatarUrl),
-                      }}
-                      subtitle="In this room"
-                      compact
+            <div>
+              <p className={cx(listSection, "mb-1.5 text-cyan-100/76")}>Room Moderators</p>
+              <div className="space-y-1">
+                {roomModerators.length ? (
+                  roomModerators.map((person) => (
+                    <RoomUserRow
+                      key={`mod-${person.id}`}
+                      user={person}
+                      subtitle="Moderator"
+                      online={onlineUserIds.has(person.id)}
                       action={
                         person.id !== meId ? (
                           <Link
                             href={`/app/messages?with=${encodeURIComponent(person.id)}`}
-                            className="suzi-secondary-btn px-3 py-2 text-xs"
+                            className={cx(listActionBtn, "border-cyan-300/30 bg-cyan-400/16 text-cyan-50")}
                           >
                             DM
                           </Link>
                         ) : undefined
                       }
                     />
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            <div>
-              <p className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
-                Room Members
-              </p>
-              <div className="space-y-3">
-                {(canManageRoom
-                  ? management?.members ?? []
-                  : visibleRoomMembers.map((user) => ({ userId: user.id, role: "member", user }))
-                ).map((row) => {
-                  const person = row.user;
-                  const isModerator = row.role === "moderator";
-                  const canManageThisMember =
-                    canManageRoom && person.id !== meId && (!isModerator || canAssignModerators);
-                  return (
-                    <PersonRow
-                      key={person.id}
-                      person={{
-                        id: person.id,
-                        name: person.displayName?.trim() || person.username,
-                        handle: `@${person.username}`,
-                        avatar: resolveUserAvatarUrl(person.avatarUrl),
-                      }}
-                      subtitle={isModerator ? "Moderator" : `@${person.username}`}
-                      compact
-                      action={
-                        person.id !== meId ? (
-                          <div className="flex flex-wrap gap-1">
-                            <Link
-                              href={`/app/messages?with=${encodeURIComponent(person.id)}`}
-                              className="suzi-secondary-btn px-3 py-2 text-xs"
-                            >
-                              DM
-                            </Link>
-                            {canManageThisMember ? (
-                              <>
-                                {canAssignModerators ? (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      void handleOwnerAction(
-                                        isModerator ? "removeModerator" : "assignModerator",
-                                        person.id,
-                                      )
-                                    }
-                                    disabled={
-                                      actionBusyId ===
-                                      `${isModerator ? "removeModerator" : "assignModerator"}-${person.id}`
-                                    }
-                                    className="suzi-secondary-btn px-2 py-2 text-[11px]"
-                                  >
-                                    {isModerator ? "Take mod" : "Make mod"}
-                                  </button>
-                                ) : null}
-                                <button
-                                  type="button"
-                                  onClick={() => void handleOwnerAction("remove", person.id)}
-                                  disabled={actionBusyId === `remove-${person.id}`}
-                                  className="suzi-secondary-btn px-2 py-2 text-[11px]"
-                                >
-                                  Remove
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => void handleOwnerAction("ban", person.id)}
-                                  disabled={actionBusyId === `ban-${person.id}`}
-                                  className="suzi-secondary-btn px-2 py-2 text-[11px]"
-                                >
-                                  Ban
-                                </button>
-                              </>
-                            ) : null}
-                          </div>
-                        ) : undefined
-                      }
-                    />
-                  );
-                })}
+                  ))
+                ) : (
+                  <p className={cx(listEmpty, "px-2 py-1.5")}>No moderators yet.</p>
+                )}
               </div>
             </div>
 
-            {canManageRoom ? (
-              <>
-                <div>
-                  <p className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
-                    Pending Requests
-                  </p>
-                  <div className="space-y-3">
-                    {management?.pendingRequests.length ? management.pendingRequests.map((row) => (
-                      <PersonRow
-                        key={`req-${row.userId}`}
-                        person={{
-                          id: row.user.id,
-                          name: row.user.displayName?.trim() || row.user.username,
-                          handle: `@${row.user.username}`,
-                          avatar: resolveUserAvatarUrl(row.user.avatarUrl),
-                        }}
-                        compact
-                        action={
-                          <div className="flex gap-1">
-                            <button
-                              type="button"
-                              onClick={() => void handleOwnerAction("approve", row.userId)}
-                              disabled={actionBusyId === `approve-${row.userId}`}
-                              className="suzi-primary-btn px-2 py-2 text-[11px]"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleOwnerAction("reject", row.userId)}
-                              disabled={actionBusyId === `reject-${row.userId}`}
-                              className="suzi-secondary-btn px-2 py-2 text-[11px]"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        }
-                      />
-                    )) : (
-                      <p className="text-xs text-cyan-100/64">No pending requests.</p>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <p className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
-                    Banned Users
-                  </p>
-                  <div className="space-y-3">
-                    {management?.bannedUsers.length ? management.bannedUsers.map((row) => (
-                      <PersonRow
-                        key={`ban-${row.userId}`}
-                        person={{
-                          id: row.user.id,
-                          name: row.user.displayName?.trim() || row.user.username,
-                          handle: `@${row.user.username}`,
-                          avatar: resolveUserAvatarUrl(row.user.avatarUrl),
-                        }}
-                        compact
-                        action={
-                          <button
-                            type="button"
-                            onClick={() => void handleOwnerAction("unban", row.userId)}
-                            disabled={actionBusyId === `unban-${row.userId}`}
-                            className="suzi-secondary-btn px-2 py-2 text-[11px]"
+            <div>
+              <p className={cx(listSection, "mb-1.5 text-emerald-100/82")}>Online Now</p>
+              <div className="space-y-1">
+                {onlineUsers.length ? (
+                  onlineUsers.map((person) => (
+                    <RoomUserRow
+                      key={`online-${person.id}`}
+                      user={person}
+                      subtitle="In this room"
+                      online
+                      action={
+                        person.id !== meId ? (
+                          <Link
+                            href={`/app/messages?with=${encodeURIComponent(person.id)}`}
+                            className={cx(listActionBtn, "border-cyan-300/30 bg-cyan-400/16 text-cyan-50")}
                           >
-                            Unban
-                          </button>
-                        }
-                      />
-                    )) : (
-                      <p className="text-xs text-cyan-100/64">No banned users.</p>
-                    )}
-                  </div>
-                </div>
-              </>
-            ) : null}
+                            DM
+                          </Link>
+                        ) : undefined
+                      }
+                    />
+                  ))
+                ) : (
+                  <p className={cx(listEmpty, "px-2 py-1.5")}>No one else is online right now.</p>
+                )}
+              </div>
+            </div>
           </div>
         </Panel>
 
-        <Panel className="shrink-0 p-[var(--panel-pad)]">
-          <h2 className="text-[var(--fs-lg)] font-semibold tracking-tight text-white">Options</h2>
+        <Panel className="suzi-room-options-panel shrink-0 p-[var(--panel-pad)]">
+          <h2 className={panelTitle}>Options</h2>
           <div className="mt-3 grid gap-2">
             <button
               type="button"
               onClick={() => void handleOpenInviteModal()}
               disabled={!access?.isMember || actionBusyId === "load-invites"}
-              className="suzi-secondary-btn px-3 py-2 text-[var(--fs-sm)]"
+              className="suzi-room-action-btn suzi-room-action-btn--invite"
             >
-              {actionBusyId === "load-invites" ? "Loading friends..." : "Invite friends"}
+              {actionBusyId === "load-invites" ? "Loading friends..." : "Invite friend"}
             </button>
             {access?.isMember && !access?.isOwner ? (
               <button
                 type="button"
                 onClick={() => void handleLeaveRoom()}
                 disabled={actionBusyId === "leave-room"}
-                className="suzi-secondary-btn px-3 py-2 text-[var(--fs-sm)]"
+                className="suzi-room-action-btn suzi-room-action-btn--invite"
               >
                 {actionBusyId === "leave-room" ? "Leaving..." : "Leave room"}
               </button>
@@ -934,7 +926,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 onClick={() => {
                   setShowDeleteRoomModal(true);
                 }}
-                className="rounded-[0.75rem] border border-red-400/40 bg-red-500/10 px-3 py-2 text-[var(--fs-sm)] font-semibold text-red-100/95 transition hover:border-red-300/55 hover:bg-red-500/18"
+                className="suzi-room-action-btn suzi-room-action-btn--danger"
               >
                 Delete room…
               </button>
@@ -943,6 +935,39 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         </Panel>
       </div>
       </div>
+
+      {showRoomImageModal && room ? (
+        <div
+          className="fixed inset-0 z-[276] flex items-center justify-center bg-[rgba(6,10,28,0.78)] p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${room.name} room image`}
+          onClick={() => setShowRoomImageModal(false)}
+        >
+          <div
+            className="max-h-[86vh] w-full max-w-3xl overflow-hidden rounded-[1.15rem] border border-cyan-300/24 bg-[rgba(12,16,48,0.95)] shadow-[0_24px_70px_rgba(5,8,28,0.58)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-cyan-300/18 px-4 py-3">
+              <h3 className={panelTitle}>{room.name}</h3>
+              <button
+                type="button"
+                onClick={() => setShowRoomImageModal(false)}
+                className="suzi-secondary-btn px-3 py-1.5 text-xs"
+              >
+                Close
+              </button>
+            </div>
+            <div className="flex max-h-[74vh] items-center justify-center p-3">
+              <img
+                src={roomImageUrl}
+                alt={`${room.name} room cover`}
+                className="max-h-[70vh] w-auto max-w-full rounded-[0.9rem] object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showEditModal ? (
         <div className="fixed inset-0 z-[270] flex items-center justify-center bg-[rgba(6,10,28,0.72)] p-4">
@@ -956,7 +981,17 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
             <form onSubmit={handleSaveRoomEdit} className="mt-4 space-y-3">
               <input value={editName} onChange={(e) => setEditName(e.target.value)} className="suzi-input" required />
               <div className="grid gap-3 sm:grid-cols-2">
-                <input value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="suzi-input" />
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="suzi-input"
+                >
+                  {editCategoryOptions.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
                 <select
                   value={editPrivacy}
                   onChange={(e) => setEditPrivacy(e.target.value as "Public" | "Friends" | "Private")}
@@ -1030,7 +1065,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
               {actionBusyId === "load-invites" ? (
                 <p className="text-sm text-cyan-100/72">Loading friends...</p>
               ) : inviteFriends.length === 0 ? (
-                <p className="text-sm text-cyan-100/72">Add friends first, then invite them into this room.</p>
+                <p className="text-sm text-cyan-100/72">No eligible friends to invite right now.</p>
               ) : (
                 inviteFriends.map((friend) => (
                   <PersonRow
