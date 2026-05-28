@@ -1,6 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { join } from 'node:path';
-import { existsSync, mkdirSync } from 'node:fs';
 import {
   BadRequestException,
   Body,
@@ -20,6 +18,7 @@ import { diskStorage } from 'multer';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
+import { ensureUploadSubdir } from '../upload-storage/upload-paths';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import {
   AVATAR_UPLOAD_FIELD,
@@ -72,11 +71,7 @@ export class UsersController {
       limits: { fileSize: AVATAR_UPLOAD_MAX_BYTES },
       storage: diskStorage({
         destination: (_req: Request, _file: Express.Multer.File, cb) => {
-          const dir = join(process.cwd(), 'uploads', 'avatars');
-          if (!existsSync(dir)) {
-            mkdirSync(dir, { recursive: true });
-          }
-          cb(null, dir);
+          cb(null, ensureUploadSubdir('avatars'));
         },
         filename: (_req: Request, file: Express.Multer.File, cb) => {
           const ext = pickStoredAvatarExtension(

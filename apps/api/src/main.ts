@@ -3,10 +3,9 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Request, Response, NextFunction } from 'express';
 import express, { json, urlencoded } from 'express';
-import { existsSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
 import { AppModule } from './app.module';
 import { loadEnvBeforeNestBootstrap } from './load-env';
+import { ensureUploadDirs, uploadsRoot } from './upload-storage/upload-paths';
 
 loadEnvBeforeNestBootstrap();
 
@@ -14,23 +13,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
   });
-  const reelsDir = join(process.cwd(), 'uploads', 'reels');
-  if (!existsSync(reelsDir)) {
-    mkdirSync(reelsDir, { recursive: true });
-  }
-  const snapsDir = join(process.cwd(), 'uploads', 'snaps');
-  if (!existsSync(snapsDir)) {
-    mkdirSync(snapsDir, { recursive: true });
-  }
-  const avatarsDir = join(process.cwd(), 'uploads', 'avatars');
-  if (!existsSync(avatarsDir)) {
-    mkdirSync(avatarsDir, { recursive: true });
-  }
-  const datingDir = join(process.cwd(), 'uploads', 'dating');
-  if (!existsSync(datingDir)) {
-    mkdirSync(datingDir, { recursive: true });
-  }
-  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+  ensureUploadDirs();
+  app.use('/uploads', express.static(uploadsRoot()));
   app.use(json({ limit: '15mb' }));
   app.use(urlencoded({ limit: '15mb', extended: true }));
   app.use((_req: Request, res: Response, next: NextFunction) => {

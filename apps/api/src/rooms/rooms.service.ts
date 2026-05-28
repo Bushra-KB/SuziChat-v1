@@ -2,12 +2,10 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
-  OnModuleInit,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Prisma, RoomJoinRequestStatus, UserRole } from '@prisma/client';
+import { RoomJoinRequestStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CreateRoomDto } from './dto/create-room.dto';
@@ -21,45 +19,6 @@ const userPublicSelect = {
   avatarUrl: true,
 } as const;
 
-const DEFAULT_ROOMS: Array<{
-  slug: string;
-  name: string;
-  description: string;
-  category: string;
-  privacy: string;
-}> = [
-  {
-    slug: 'general-chat',
-    name: 'General Chat',
-    description:
-      'Warm open room for friendly conversations and community check-ins.',
-    category: 'Social',
-    privacy: 'Public',
-  },
-  {
-    slug: 'music-lounge',
-    name: 'Music Lounge',
-    description:
-      'Share playlists, compare headphones, and post your current mood track.',
-    category: 'Music',
-    privacy: 'Public',
-  },
-  {
-    slug: 'late-night-chat',
-    name: 'Late Night Chat',
-    description: 'Adults-only conversations with a slower, more intimate pace.',
-    category: 'Dating',
-    privacy: 'Public',
-  },
-  {
-    slug: 'movie-nights',
-    name: 'Movie Nights',
-    description:
-      'Watchlist swaps, room rewatches, and scene-by-scene reactions.',
-    category: 'Media',
-    privacy: 'Friends',
-  },
-];
 const DEFAULT_ROOM_CATEGORIES = [
   'Social',
   'Music',
@@ -92,80 +51,11 @@ type RoomAccessState = {
 };
 
 @Injectable()
-export class RoomsService implements OnModuleInit {
-  private readonly log = new Logger(RoomsService.name);
-
+export class RoomsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtimeEvents: RealtimeEventsService,
   ) {}
-
-  async onModuleInit() {
-    try {
-      await this.ensureSeedRooms();
-    } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError) {
-        if (err.code === 'P1001') {
-          this.log.warn(
-            'Database unreachable; skipped default room seed. Start PostgreSQL and restart the API (see repo docker compose or DATABASE_URL).',
-          );
-          return;
-        }
-        if (err.message.includes('does not exist')) {
-          this.log.warn(
-            'Database schema not applied (missing tables); skipped default room seed. Run: DATABASE_URL="<same as API>" pnpm db:push',
-          );
-          return;
-        }
-      }
-      this.log.error(
-        'Default room seed failed',
-        err instanceof Error ? err.stack : err,
-      );
-    }
-  }
-
-  async ensureSeedRooms() {
-    await Promise.all(
-      DEFAULT_ROOM_CATEGORIES.map((name, index) =>
-        this.prisma.roomCategory.upsert({
-          where: { name },
-          create: { name, sortOrder: index, isActive: true },
-          update: {},
-        }),
-      ),
-    );
-
-    const owner = await this.prisma.user.findFirst({
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (!owner) {
-      return;
-    }
-
-    for (const room of DEFAULT_ROOMS) {
-      await this.prisma.room.upsert({
-        where: { slug: room.slug },
-        create: {
-          slug: room.slug,
-          name: room.name,
-          description: room.description,
-          imageUrl: null,
-          category: room.category,
-          privacy: room.privacy,
-          ownerId: owner.id,
-        },
-        update: {
-          name: room.name,
-          description: room.description,
-          imageUrl: null,
-          category: room.category,
-          privacy: room.privacy,
-        },
-      });
-    }
-  }
 
   async listCategories() {
     const managedCategories = await this.prisma.roomCategory.findMany({

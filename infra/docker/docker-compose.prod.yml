@@ -26,6 +26,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
+      UPLOADS_DIR: /app/uploads
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-suzi_chat}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}

@@ -13,8 +13,6 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express } from 'express';
 import type { Request } from 'express';
@@ -22,6 +20,7 @@ import { diskStorage } from 'multer';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
+import { ensureUploadSubdir } from '../upload-storage/upload-paths';
 import { AVATAR_UPLOAD_FIELD } from '../users/avatar-upload.constants';
 import {
   isAllowedAvatarImageFile,
@@ -60,11 +59,7 @@ export class DatingController {
       limits: { fileSize: DATING_PHOTO_UPLOAD_MAX_BYTES },
       storage: diskStorage({
         destination: (_req: Request, _file: Express.Multer.File, cb) => {
-          const dir = join(process.cwd(), 'uploads', 'dating');
-          if (!existsSync(dir)) {
-            mkdirSync(dir, { recursive: true });
-          }
-          cb(null, dir);
+          cb(null, ensureUploadSubdir('dating'));
         },
         filename: (_req: Request, file: Express.Multer.File, cb) => {
           const ext = pickStoredAvatarExtension(
