@@ -5,6 +5,10 @@ export type UserProfile = {
   id: string;
   email: string;
   username: string;
+  firstName: string | null;
+  lastName: string | null;
+  birthday: string | null;
+  gender: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY";
   displayName: string | null;
   avatarUrl: string | null;
   bio: string | null;
@@ -80,6 +84,10 @@ export async function updateMyProfile(
     email?: string;
     username?: string;
     displayName?: string;
+    firstName?: string;
+    lastName?: string;
+    birthday?: string;
+    gender?: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY";
     bio?: string;
     country?: string;
     avatarUrl?: string;

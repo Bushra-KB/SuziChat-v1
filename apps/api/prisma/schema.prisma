@@ -11,6 +11,13 @@ enum UserRole {
   ADMIN
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
 enum FriendRequestStatus {
   PENDING
   ACCEPTED
@@ -109,6 +116,10 @@ model User {
   id                        String    @id @default(cuid())
   email                     String    @unique
   username                  String    @unique
+  firstName                 String?
+  lastName                  String?
+  birthday                  DateTime?
+  gender                    Gender    @default(PREFER_NOT_TO_SAY)
   displayName               String?
   avatarUrl                 String?
   bio                       String?

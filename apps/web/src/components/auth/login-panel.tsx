@@ -126,17 +126,16 @@ export function LoginPanel({
           autoComplete="current-password"
           error={errors.password}
         />
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
             <AuthTextLink href="/forgot-password">Forgot password?</AuthTextLink>
-            <AuthTextLink href="/resend-verification">Resend verification</AuthTextLink>
           </div>
 
         <PrimaryAuthButton disabled={status === "loading"}>
-          {status === "loading" ? "Signing in..." : "Sign in"}
+          {status === "loading" ? "Logging in..." : "Login"}
         </PrimaryAuthButton>
       </form>
 
-      <div className="mt-5 space-y-5">
+      <div className="mt-5 space-y-5 text-center">
         <AuthDivider />
         <GoogleAuthButton
           mode="login"

@@ -4,6 +4,10 @@ export type AuthUser = {
   id: string;
   email: string;
   username: string;
+  firstName: string | null;
+  lastName: string | null;
+  birthday: string | null;
+  gender: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY";
   displayName: string | null;
   avatarUrl: string | null;
   role: "USER" | "ADMIN";
@@ -111,8 +115,11 @@ export function clearAuthSession() {
 }
 
 export async function register(payload: {
+  firstName: string;
+  lastName: string;
+  birthday: string;
+  gender: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY";
   email: string;
-  username: string;
   password: string;
   isAdultConfirmed: boolean;
   termsAccepted: boolean;
