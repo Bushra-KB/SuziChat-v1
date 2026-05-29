@@ -9,12 +9,13 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { ConfigType } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { JwtSignOptions, JwtVerifyOptions } from '@nestjs/jwt';
-import { UserRole } from '@prisma/client';
+import { Gender, UserRole } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { OAuth2Client } from 'google-auth-library';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthEmailService } from './auth-email.service';
 import authConfig from './config/auth.config';
+import { RegisterGender } from './dto/register.dto';
 import type { GoogleAuthDto } from './dto/google-auth.dto';
 import type { LoginDto } from './dto/login.dto';
 import type { RegisterDto } from './dto/register.dto';
@@ -34,6 +35,10 @@ const publicUserSelect = {
   id: true,
   email: true,
   username: true,
+  firstName: true,
+  lastName: true,
+  birthday: true,
+  gender: true,
   displayName: true,
   avatarUrl: true,
   role: true,
@@ -51,6 +56,10 @@ function normalizeEmail(email: string) {
 
 function normalizeUsername(username: string) {
   return username.trim();
+}
+
+function normalizeName(value: string) {
+  return value.trim().replace(/\s+/g, ' ');
 }
 
 function hashResetToken(token: string) {
@@ -84,30 +93,31 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
+    const firstName = normalizeName(registerDto.firstName ?? '');
+    const lastName = normalizeName(registerDto.lastName ?? '');
+    const birthday = new Date(registerDto.birthday ?? '');
+    const gender = registerDto.gender as RegisterGender;
     const email = normalizeEmail(registerDto.email ?? '');
-    const username = normalizeUsername(registerDto.username ?? '');
     const password = registerDto.password ?? '';
+    const usernameBase = `${firstName}${lastName}` || email.split('@')[0];
+    const username = await this.buildUniqueUsername(usernameBase);
 
     this.validateRegistrationInput({
+      firstName,
+      lastName,
+      birthday,
+      gender,
       email,
-      username,
       password,
       isAdultConfirmed: registerDto.isAdultConfirmed,
       termsAccepted: registerDto.termsAccepted,
       privacyAccepted: registerDto.privacyAccepted,
     });
 
-    const [existingEmailUser, existingUsernameUser] = await Promise.all([
-      this.findUserByEmail(email),
-      this.findUserByUsername(username),
-    ]);
+    const existingEmailUser = await this.findUserByEmail(email);
 
     if (existingEmailUser) {
       throw new ConflictException('Email is already in use');
-    }
-
-    if (existingUsernameUser) {
-      throw new ConflictException('Username is already in use');
     }
 
     const passwordHash = await this.hashPassword(password);
@@ -119,6 +129,11 @@ export class AuthService {
       data: {
         email,
         username,
+        firstName,
+        lastName,
+        birthday,
+        gender: gender as Gender,
+        displayName: `${firstName} ${lastName}`.trim(),
         passwordHash,
         isAdultConfirmed: true,
         termsAcceptedAt: new Date(),
@@ -129,7 +144,7 @@ export class AuthService {
       select: publicUserSelect,
     });
 
-    await this.authEmail.sendVerificationEmail({
+    const verificationSent = await this.authEmail.sendVerificationEmail({
       to: user.email,
       username: user.username,
       token: verificationToken,
@@ -140,9 +155,7 @@ export class AuthService {
         'Account created. Please check your email to verify your account before signing in.',
       requiresEmailVerification: true,
       emailVerificationTokenExpiresAt: verificationExpiresAt.toISOString(),
-      emailVerificationTokenPreview: this.authEmail.isConfigured
-        ? undefined
-        : verificationToken,
+      emailVerificationTokenPreview: verificationSent ? undefined : verificationToken,
       user,
     };
   }
@@ -255,7 +268,7 @@ export class AuthService {
       },
     });
 
-    await this.authEmail.sendPasswordResetEmail({
+    const resetSent = await this.authEmail.sendPasswordResetEmail({
       to: user.email,
       username: user.username,
       token: resetToken,
@@ -265,7 +278,7 @@ export class AuthService {
       message:
         'If an account exists for this email, a password reset flow will be sent.',
       resetTokenExpiresAt: expiresAt.toISOString(),
-      resetTokenPreview: this.authEmail.isConfigured ? undefined : resetToken,
+      resetTokenPreview: resetSent ? undefined : resetToken,
     };
   }
 
@@ -390,7 +403,7 @@ export class AuthService {
       },
     });
 
-    await this.authEmail.sendVerificationEmail({
+    const verificationSent = await this.authEmail.sendVerificationEmail({
       to: user.email,
       username: user.username,
       token: verificationToken,
@@ -400,9 +413,7 @@ export class AuthService {
       message:
         'If an unverified account exists for this email, a verification link will be sent.',
       emailVerificationTokenExpiresAt: verificationExpiresAt.toISOString(),
-      emailVerificationTokenPreview: this.authEmail.isConfigured
-        ? undefined
-        : verificationToken,
+      emailVerificationTokenPreview: verificationSent ? undefined : verificationToken,
     };
   }
 
@@ -425,6 +436,8 @@ export class AuthService {
     const payload = ticket.getPayload();
     const googleId = payload?.sub;
     const email = normalizeEmail(payload?.email ?? '');
+    const firstName = normalizeName(payload?.given_name ?? '');
+    const lastName = normalizeName(payload?.family_name ?? '');
 
     if (!googleId || !email) {
       throw new UnauthorizedException('Google account is missing email data');
@@ -460,6 +473,8 @@ export class AuthService {
           emailVerificationTokenHash: null,
           emailVerificationTokenExpiresAt: null,
           displayName: existingEmailUser.displayName || payload.name || null,
+          firstName: existingEmailUser.firstName || firstName || null,
+          lastName: existingEmailUser.lastName || lastName || null,
           avatarUrl: existingEmailUser.avatarUrl || payload.picture || null,
         },
         select: publicUserSelect,
@@ -488,6 +503,8 @@ export class AuthService {
       data: {
         email,
         username,
+        firstName: firstName || null,
+        lastName: lastName || null,
         displayName: payload.name || null,
         avatarUrl: payload.picture || null,
         googleId,
@@ -633,25 +650,50 @@ export class AuthService {
   }
 
   private validateRegistrationInput(input: {
+    firstName: string;
+    lastName: string;
+    birthday: Date;
+    gender: RegisterGender;
     email: string;
-    username: string;
     password: string;
     isAdultConfirmed: boolean;
     termsAccepted: boolean;
     privacyAccepted: boolean;
   }) {
-    if (!input.email || !input.username || !input.password) {
+    if (!input.firstName || !input.lastName || !input.email || !input.password) {
       throw new BadRequestException(
-        'Email, username, and password are required',
+        'First name, last name, email, and password are required',
       );
+    }
+
+    if (input.firstName.length > 60) {
+      throw new BadRequestException('First name is too long');
+    }
+
+    if (input.lastName.length > 60) {
+      throw new BadRequestException('Last name is too long');
+    }
+
+    if (Number.isNaN(input.birthday.getTime())) {
+      throw new BadRequestException('Birthday must be valid');
+    }
+
+    const now = new Date();
+    const minAdultDate = new Date(
+      now.getFullYear() - 18,
+      now.getMonth(),
+      now.getDate(),
+    );
+    if (input.birthday > minAdultDate) {
+      throw new BadRequestException('You must be at least 18 years old');
+    }
+
+    if (!Object.values(RegisterGender).includes(input.gender)) {
+      throw new BadRequestException('Gender must be valid');
     }
 
     if (!/^\S+@\S+\.\S+$/.test(input.email)) {
       throw new BadRequestException('Email must be valid');
-    }
-
-    if (input.username.length < 3) {
-      throw new BadRequestException('Username must be at least 3 characters');
     }
 
     if (input.password.length < 8) {

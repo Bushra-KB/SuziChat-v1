@@ -50,6 +50,25 @@ function formatJoined(iso: string, locale?: string) {
   }
 }
 
+function formatDateOnly(iso?: string | null, locale?: string) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString(locale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function formatGender(value?: string | null) {
+  if (!value) return "";
+  if (value === "PREFER_NOT_TO_SAY") return "Prefer not to say";
+  return value.charAt(0) + value.slice(1).toLowerCase();
+}
+
 function StatCard({
   label,
   value,
@@ -434,6 +453,9 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
                   ) : null}
                 </div>
                 <p className={cx(listL1, "mt-1 text-cyan-100/75")}>@{user.username}</p>
+                <p className={cx(listL3, "mt-1 text-[var(--text-soft)]")}>
+                  {[formatGender(user.gender), formatDateOnly(user.birthday, language)].filter(Boolean).join(" · ")}
+                </p>
 
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span

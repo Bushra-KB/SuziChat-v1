@@ -268,6 +268,10 @@ function profileToForm(p: UserProfile) {
   return {
     username: p.username ?? "",
     displayName: p.displayName ?? "",
+    firstName: p.firstName ?? "",
+    lastName: p.lastName ?? "",
+    birthday: p.birthday ? p.birthday.slice(0, 10) : "",
+    gender: p.gender ?? "PREFER_NOT_TO_SAY",
     bio: p.bio ?? "",
     country: p.country ?? "",
   };
@@ -330,12 +334,46 @@ function formatProfileDate(iso?: string | null, locale?: string) {
   }
 }
 
+function formatDateOnly(iso?: string | null, locale?: string) {
+  if (!iso) {
+    return "—";
+  }
+  try {
+    return new Date(iso).toLocaleDateString(locale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function formatGender(value?: string | null) {
+  if (!value) {
+    return "—";
+  }
+  if (value === "PREFER_NOT_TO_SAY") {
+    return "Prefer not to say";
+  }
+  return value.charAt(0) + value.slice(1).toLowerCase();
+}
+
 export function AccountProfilePage() {
   const { language, t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [session, setSession] = useState<AuthSession | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [form, setForm] = useState({ username: "", displayName: "", bio: "", country: "" });
+  const [form, setForm] = useState({
+    username: "",
+    displayName: "",
+    firstName: "",
+    lastName: "",
+    birthday: "",
+    gender: "PREFER_NOT_TO_SAY" as "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY",
+    bio: "",
+    country: "",
+  });
   const [loadState, setLoadState] = useState<"idle" | "loading" | "error" | "ready">("idle");
   const [loadMessage, setLoadMessage] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "success" | "error">("idle");
@@ -427,6 +465,10 @@ export function AccountProfilePage() {
       ...f,
       username: s.user.username ?? "",
       displayName: s.user.displayName ?? "",
+      firstName: s.user.firstName ?? "",
+      lastName: s.user.lastName ?? "",
+      birthday: s.user.birthday ? s.user.birthday.slice(0, 10) : "",
+      gender: s.user.gender ?? "PREFER_NOT_TO_SAY",
     }));
     setEmailForm({ email: s.user.email ?? "" });
     setLoadState("loading");
@@ -454,6 +496,10 @@ export function AccountProfilePage() {
           ...f,
           username: s.user.username ?? "",
           displayName: s.user.displayName ?? "",
+          firstName: s.user.firstName ?? "",
+          lastName: s.user.lastName ?? "",
+          birthday: s.user.birthday ? s.user.birthday.slice(0, 10) : "",
+          gender: s.user.gender ?? "PREFER_NOT_TO_SAY",
         }));
         setEmailForm({ email: s.user.email ?? "" });
       });
@@ -516,6 +562,10 @@ export function AccountProfilePage() {
     void updateMyProfile(s.accessToken, {
       username: form.username.trim(),
       displayName: form.displayName.trim() || undefined,
+      firstName: form.firstName.trim() || undefined,
+      lastName: form.lastName.trim() || undefined,
+      birthday: form.birthday || undefined,
+      gender: form.gender,
       bio: form.bio.trim() || undefined,
       country: form.country.trim() || undefined,
     })
@@ -528,6 +578,10 @@ export function AccountProfilePage() {
             ...s.user,
             email: updated.email,
             username: updated.username,
+            firstName: updated.firstName,
+            lastName: updated.lastName,
+            birthday: updated.birthday,
+            gender: updated.gender,
             displayName: updated.displayName,
             avatarUrl: updated.avatarUrl ?? s.user.avatarUrl,
             role: updated.role,
@@ -841,6 +895,67 @@ export function AccountProfilePage() {
                     onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))}
                   />
                 </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="suzi-account-field">
+                    <label htmlFor="account-first-name" className={cx(listSection, "text-[var(--text-muted)]")}>
+                      First name
+                    </label>
+                    <input
+                      id="account-first-name"
+                      className={cx("suzi-input mt-1.5 w-full", listL1)}
+                      value={form.firstName}
+                      maxLength={60}
+                      onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+                    />
+                  </div>
+                  <div className="suzi-account-field">
+                    <label htmlFor="account-last-name" className={cx(listSection, "text-[var(--text-muted)]")}>
+                      Last name
+                    </label>
+                    <input
+                      id="account-last-name"
+                      className={cx("suzi-input mt-1.5 w-full", listL1)}
+                      value={form.lastName}
+                      maxLength={60}
+                      onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="suzi-account-field">
+                    <label htmlFor="account-birthday" className={cx(listSection, "text-[var(--text-muted)]")}>
+                      Birthday
+                    </label>
+                    <input
+                      id="account-birthday"
+                      type="date"
+                      className={cx("suzi-input mt-1.5 w-full", listL1)}
+                      value={form.birthday}
+                      onChange={(e) => setForm((f) => ({ ...f, birthday: e.target.value }))}
+                    />
+                  </div>
+                  <div className="suzi-account-field">
+                    <label htmlFor="account-gender" className={cx(listSection, "text-[var(--text-muted)]")}>
+                      Gender
+                    </label>
+                    <select
+                      id="account-gender"
+                      className={cx("suzi-input mt-1.5 w-full", listL1)}
+                      value={form.gender}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          gender: e.target.value as typeof f.gender,
+                        }))
+                      }
+                    >
+                      <option value="MALE">Male</option>
+                      <option value="FEMALE">Female</option>
+                      <option value="OTHER">Other</option>
+                      <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                    </select>
+                  </div>
+                </div>
                 <div className="suzi-account-field">
                   <label htmlFor="account-bio" className={cx(listSection, "text-[var(--text-muted)]")}>
                     {t("profile.fields.aboutMe")}
@@ -899,6 +1014,15 @@ export function AccountProfilePage() {
                 </div>
 
                 <div className="suzi-account-readonly-grid">
+                  <ProfileInfoRow
+                    label="Full name"
+                    value={`${profile?.firstName ?? session?.user.firstName ?? ""} ${profile?.lastName ?? session?.user.lastName ?? ""}`.trim() || "—"}
+                  />
+                  <ProfileInfoRow
+                    label="Birthday"
+                    value={formatDateOnly(profile?.birthday ?? session?.user.birthday, language)}
+                  />
+                  <ProfileInfoRow label="Gender" value={formatGender(profile?.gender ?? session?.user.gender)} />
                   <ProfileInfoRow label={t("profile.info.role")} value={profile?.role ?? session?.user.role ?? "USER"} />
                   <ProfileInfoRow
                     label={t("profile.info.adultConfirmed")}

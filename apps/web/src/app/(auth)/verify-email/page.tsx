@@ -42,8 +42,6 @@ export default function VerifyEmailPage() {
       description="Confirming your email protects your account and unlocks sign in."
       footer={
         <>
-          Need a new link? <AuthTextLink href="/resend-verification">Resend verification</AuthTextLink>
-          <span className="mx-2 text-white/30">/</span>
           <AuthTextLink href="/login">Back to login</AuthTextLink>
         </>
       }

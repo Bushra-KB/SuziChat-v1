@@ -103,7 +103,7 @@ export function GoogleAuthButton({
   }
 
   return (
-    <div>
+    <div className="flex flex-col items-center">
       <div
         ref={containerRef}
         className={disabled ? "pointer-events-none opacity-60" : ""}

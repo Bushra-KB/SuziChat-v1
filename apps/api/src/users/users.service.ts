@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { FriendRequestStatus, PostKind, Prisma } from '@prisma/client';
+import { FriendRequestStatus, Gender, PostKind, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -12,6 +12,10 @@ const userProfileSelect = {
   id: true,
   email: true,
   username: true,
+  firstName: true,
+  lastName: true,
+  birthday: true,
+  gender: true,
   displayName: true,
   avatarUrl: true,
   bio: true,
@@ -38,6 +42,10 @@ function normalizeEmail(value: string) {
 
 function normalizeUsername(value: string) {
   return value.trim();
+}
+
+function normalizeName(value: string) {
+  return value.trim().replace(/\s+/g, ' ');
 }
 
 @Injectable()
@@ -84,6 +92,26 @@ export class UsersService {
       throw new BadRequestException('Username must be at least 3 characters');
     }
 
+    if (
+      updateProfileDto.birthday !== undefined &&
+      Number.isNaN(new Date(updateProfileDto.birthday).getTime())
+    ) {
+      throw new BadRequestException('Birthday must be valid');
+    }
+
+    if (updateProfileDto.birthday !== undefined) {
+      const birthday = new Date(updateProfileDto.birthday);
+      const now = new Date();
+      const minAdultDate = new Date(
+        now.getFullYear() - 18,
+        now.getMonth(),
+        now.getDate(),
+      );
+      if (birthday > minAdultDate) {
+        throw new BadRequestException('You must be at least 18 years old');
+      }
+    }
+
     if (nextEmail && nextEmail !== current.email) {
       const existingEmail = await this.prisma.user.findUnique({
         where: { email: nextEmail },
@@ -116,6 +144,22 @@ export class UsersService {
         displayName:
           updateProfileDto.displayName !== undefined
             ? normalizeOptionalString(updateProfileDto.displayName)
+            : undefined,
+        firstName:
+          updateProfileDto.firstName !== undefined
+            ? normalizeOptionalString(normalizeName(updateProfileDto.firstName))
+            : undefined,
+        lastName:
+          updateProfileDto.lastName !== undefined
+            ? normalizeOptionalString(normalizeName(updateProfileDto.lastName))
+            : undefined,
+        birthday:
+          updateProfileDto.birthday !== undefined
+            ? new Date(updateProfileDto.birthday)
+            : undefined,
+        gender:
+          updateProfileDto.gender !== undefined
+            ? (updateProfileDto.gender as Gender)
             : undefined,
         bio:
           updateProfileDto.bio !== undefined

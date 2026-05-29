@@ -3,6 +3,7 @@ import { UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthModule } from './auth.module';
 import { AuthService } from './auth.service';
+import { RegisterGender } from './dto/register.dto';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -83,6 +84,10 @@ describe('AuthService', () => {
       id: 'user_1',
       email: 'new@example.com',
       username: 'newuser',
+      firstName: 'New',
+      lastName: 'User',
+      birthday: new Date('2000-01-01T00:00:00.000Z'),
+      gender: 'PREFER_NOT_TO_SAY',
       role: UserRole.USER,
       isAdultConfirmed: true,
       isEmailVerified: false,
@@ -91,8 +96,11 @@ describe('AuthService', () => {
     });
 
     const result = await authService.register({
+      firstName: 'New',
+      lastName: 'User',
+      birthday: '2000-01-01',
+      gender: RegisterGender.PREFER_NOT_TO_SAY,
       email: 'new@example.com',
-      username: 'newuser',
       password: 'super-secret-password',
       isAdultConfirmed: true,
       termsAccepted: true,

@@ -26,7 +26,7 @@ export class AuthEmailService {
 
   async sendVerificationEmail(payload: AuthEmailPayload) {
     const url = this.buildUrl('/verify-email', payload.token);
-    await this.sendAuthEmail({
+    return this.sendAuthEmail({
       to: payload.to,
       subject: 'Verify your Suzi Chat email',
       text: `Hi ${payload.username}, verify your Suzi Chat email here: ${url}`,
@@ -42,7 +42,7 @@ export class AuthEmailService {
 
   async sendPasswordResetEmail(payload: AuthEmailPayload) {
     const url = this.buildUrl('/reset-password', payload.token);
-    await this.sendAuthEmail({
+    return this.sendAuthEmail({
       to: payload.to,
       subject: 'Reset your Suzi Chat password',
       text: `Hi ${payload.username}, reset your Suzi Chat password here: ${url}`,
@@ -73,29 +73,37 @@ export class AuthEmailService {
     text: string;
     html: string;
     fallbackLog: string;
-  }) {
+  }): Promise<boolean> {
     if (!this.isConfigured) {
       this.logger.warn(`SMTP is not configured. ${fallbackLog}`);
-      return;
+      return false;
     }
 
-    const transport = nodemailer.createTransport({
-      host: this.config.mail.host,
-      port: this.config.mail.port,
-      secure: this.config.mail.secure,
-      auth: {
-        user: this.config.mail.user,
-        pass: this.config.mail.pass,
-      },
-    });
+    try {
+      const transport = nodemailer.createTransport({
+        host: this.config.mail.host,
+        port: this.config.mail.port,
+        secure: this.config.mail.secure,
+        auth: {
+          user: this.config.mail.user,
+          pass: this.config.mail.pass,
+        },
+      });
 
-    await transport.sendMail({
-      from: this.config.mail.from,
-      to,
-      subject,
-      text,
-      html,
-    });
+      await transport.sendMail({
+        from: this.config.mail.from,
+        to,
+        subject,
+        text,
+        html,
+      });
+      return true;
+    } catch (error) {
+      const details =
+        error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+      this.logger.error(`SMTP send failed. ${fallbackLog}. ${details}`);
+      return false;
+    }
   }
 
   private renderEmail({
