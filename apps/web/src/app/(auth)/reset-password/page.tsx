@@ -1,24 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   AuthCard,
   AuthField,
   AuthMessage,
   AuthTextLink,
-  AuthTextarea,
   PrimaryAuthButton,
   validatePassword,
 } from "@/components/auth/auth-ui";
 import { resetPassword } from "@/lib/auth-client";
 
-export default function ResetPasswordPage() {
-  const [token, setToken] = useState(() =>
-    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("token") ?? "",
-  );
+function ResetPasswordForm() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token")?.trim() ?? "";
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [errors, setErrors] = useState<{ token?: string; password?: string; confirm?: string }>({});
+  const [errors, setErrors] = useState<{ password?: string; confirm?: string }>(
+    {},
+  );
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
     "idle",
   );
@@ -26,8 +27,13 @@ export default function ResetPasswordPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!token) {
+      setStatus("error");
+      setMessage("Open the password reset link from your email to continue.");
+      return;
+    }
+
     const nextErrors = {
-      token: token.trim() ? "" : "Reset token is required.",
       password: validatePassword(newPassword) ? "" : "Password must be at least 8 characters.",
       confirm: newPassword === confirmPassword ? "" : "Passwords do not match.",
     };
@@ -61,7 +67,7 @@ export default function ResetPasswordPage() {
     <AuthCard
       eyebrow="Reset password"
       title="Choose a new password"
-      description="Use the secure token from your email and choose a new password for your account."
+      description="Open the secure link from your email, then choose a new password for your account."
       footer={
         <>
           Ready to sign in? <AuthTextLink href="/login">Back to login</AuthTextLink>
@@ -69,15 +75,12 @@ export default function ResetPasswordPage() {
       }
     >
       <form className="space-y-5" onSubmit={handleSubmit}>
-        <AuthTextarea
-          id="reset-token"
-          label="Reset token"
-          value={token}
-          onChange={(event) => setToken(event.target.value)}
-          placeholder="Paste the reset token"
-          rows={3}
-          error={errors.token}
-        />
+        {!token ? (
+          <AuthMessage tone="info">
+            This page needs the secure reset link from your email. Request a new
+            link if this page was opened directly.
+          </AuthMessage>
+        ) : null}
 
         <AuthField
           id="reset-password"
@@ -101,7 +104,7 @@ export default function ResetPasswordPage() {
           error={errors.confirm}
         />
 
-        <PrimaryAuthButton disabled={status === "loading"}>
+        <PrimaryAuthButton disabled={!token || status === "loading"}>
           {status === "loading" ? "Resetting..." : "Reset password"}
         </PrimaryAuthButton>
       </form>
@@ -114,5 +117,28 @@ export default function ResetPasswordPage() {
         </div>
       ) : null}
     </AuthCard>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthCard
+          eyebrow="Reset password"
+          title="Choose a new password"
+          description="Loading your secure reset link..."
+          footer={
+            <>
+              Ready to sign in? <AuthTextLink href="/login">Back to login</AuthTextLink>
+            </>
+          }
+        >
+          <AuthMessage tone="info">Preparing password reset.</AuthMessage>
+        </AuthCard>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

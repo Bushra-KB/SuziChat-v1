@@ -2,11 +2,20 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { gameMeta, gameTypeToId } from "@/components/app/games/game-meta";
 import { gameLobbyArtForId } from "@/lib/game-icons";
+import {
+  homeBtnPrimary,
+  homeBtnSecondary,
+  homePanelHeader,
+  homePanelIcon,
+  listL2,
+  listMeta,
+  panelTitle,
+} from "@/components/app/home-typography";
 import { HomeFriendsPanel } from "@/components/app/home-friends-panel";
-import { Panel } from "@/components/ui/suzi-primitives";
+import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { explorePeople, getFriendsSummary, type FriendSummaryUser } from "@/lib/friends-client";
 import { MQ_HOME_COMPACT } from "@/lib/breakpoints";
 import { useIsMobile } from "@/lib/use-is-mobile";
@@ -40,7 +49,6 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
   const [error, setError] = useState("");
   const [busyLobbyId, setBusyLobbyId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [allowSpectatorChatOnCreate, setAllowSpectatorChatOnCreate] = useState(true);
   const [inviteQuery, setInviteQuery] = useState("");
   const [inviteSuggestions, setInviteSuggestions] = useState<FriendSummaryUser[]>([]);
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -51,7 +59,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
   // entirely below that breakpoint so we don't fetch friends data unused.
   const { isMobile: belowXl } = useIsMobile(MQ_HOME_COMPACT);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -62,11 +70,11 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [game.type]);
 
   useEffect(() => {
     void refresh();
-  }, [game.type]);
+  }, [refresh]);
 
   useEffect(() => {
     const auth = getStoredAuthSession();
@@ -178,7 +186,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
       const payload = {
         gameType: game.type as ApiGameType,
         title: `${game.name} Public Lobby`,
-        settings: { allowSpectatorChat: allowSpectatorChatOnCreate },
+        settings: { allowSpectatorChat: true },
       };
       const socket = openGamesSocket(auth.accessToken);
       const lobby = socket.connected
@@ -316,7 +324,8 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
   const totalOpenTables = rows.filter(
     (lobby) => lobby.status === "EMPTY" || lobby.status === "WAITING" || lobby.status === "OPEN",
   ).length;
-  const myOwnedLobby = rows.find((lobby) => lobby.ownerId === me);
+  const myOwnedLobbyCount = rows.filter((lobby) => lobby.ownerId === me).length;
+  const hasReachedLobbyLimit = myOwnedLobbyCount >= 3;
 
   function seatName(seat: ApiGameLobby["seats"][number] | undefined) {
     return seat?.user?.displayName?.trim() || seat?.user?.username || "(empty)";
@@ -371,44 +380,58 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
         ) : null}
 
         {/* MAIN — Lobby tables */}
-        <Panel className="suzi-lobby-main flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
-          <div className="suzi-lobby-header flex shrink-0 flex-wrap items-center justify-between gap-2">
+        <Panel className="suzi-panel--home suzi-lobby-main suzi-game-lobby-panel flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
+          <div className={cx(homePanelHeader, "suzi-lobby-header flex shrink-0 flex-wrap items-center justify-between gap-3")}>
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <Link
                 href="/app"
-                className="suzi-secondary-btn shrink-0 px-2.5 py-1 text-[var(--fs-2xs)]"
+                className={cx(homeBtnSecondary, "shrink-0 px-2.5")}
+                style={{ height: "var(--btn-h-sm)" }}
               >
                 ← Back
               </Link>
-              <h1 className="min-w-0 flex-1 truncate text-[var(--fs-xl)] font-bold leading-tight tracking-tight text-white sm:flex-none">
-                {game.name} tables
-              </h1>
-              <span className="shrink-0 rounded-full border border-cyan-300/22 bg-[rgba(20,16,72,0.55)] px-2 py-0.5 text-[var(--fs-2xs)] text-cyan-100/82">
+              <span className={homePanelIcon}>
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.85"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M6 4h12l2 5v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9l2-5Z" />
+                  <path d="M4 9h16M9 13h6M8 17h2M14 17h2" />
+                </svg>
+              </span>
+              <div className="min-w-0 flex-1">
+                <h1 className={cx(panelTitle, "truncate")}>{game.name} Lobby</h1>
+                <p className={cx(listL2, "mt-0.5 truncate text-cyan-100/82")}>
+                  Pick a table, invite a friend, or create a new lobby.
+                </p>
+              </div>
+              <span className={cx(listMeta, "suzi-home-stat-pill shrink-0 px-2 py-1 font-semibold")}>
                 {totalActivePlayers} active · {totalOpenTables} open
               </span>
             </div>
-            <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-[var(--fs-2xs)] text-cyan-100/78">
-              <input
-                type="checkbox"
-                className="rounded border-cyan-400/40"
-                checked={allowSpectatorChatOnCreate}
-                disabled={creating || Boolean(myOwnedLobby)}
-                onChange={(e) => setAllowSpectatorChatOnCreate(e.target.checked)}
-              />
-              Watcher chat
-            </label>
             <button
               type="button"
-              disabled={creating || Boolean(myOwnedLobby)}
+              disabled={creating || hasReachedLobbyLimit}
               title={
-                myOwnedLobby
-                  ? `You already host "${myOwnedLobby.title}". Delete it to create a new lobby.`
+                hasReachedLobbyLimit
+                  ? `You already host ${myOwnedLobbyCount} ${game.name} lobbies. Delete one to create another.`
                   : undefined
               }
-              className="suzi-primary-btn suzi-lobby-create shrink-0 px-3 py-1 text-[var(--fs-2xs)] disabled:opacity-60"
+              className={cx(homeBtnPrimary, "suzi-lobby-create shrink-0 px-3 disabled:opacity-60")}
+              style={{ height: "var(--btn-h-sm)" }}
               onClick={() => void onCreateLobby()}
             >
-              {creating ? "Creating..." : myOwnedLobby ? "Lobby active" : "+ Create lobby"}
+              {creating
+                ? "Creating..."
+                : hasReachedLobbyLimit
+                  ? "3 lobbies active"
+                  : "+ Create lobby"}
             </button>
           </div>
           {error ? (
@@ -417,14 +440,15 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
             </p>
           ) : null}
 
-          <div className="suzi-thin-scroll mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
-            {loading ? <p className="text-[var(--fs-sm)] text-cyan-100/70">Loading lobbies...</p> : null}
+          <div className="suzi-game-lobby-body mt-3 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="suzi-game-lobby-scroll suzi-thin-scroll min-h-0 flex-1 overflow-y-auto p-2">
+            {loading ? <p className={cx(listL2, "text-slate-700")}>Loading lobbies...</p> : null}
             {!loading && rows.length === 0 ? (
-              <p className="rounded-[var(--panel-radius)] border border-cyan-300/20 bg-[rgba(20,16,72,0.4)] p-3 text-[var(--fs-sm)] text-cyan-100/78">
+              <p className="rounded-[var(--panel-radius)] border border-cyan-500/18 bg-slate-900/5 p-3 text-[var(--fs-sm)] font-medium text-slate-700">
                 No active lobbies for this game yet. Create the first table.
               </p>
             ) : null}
-            <div className="grid min-h-0 grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+            <div className="suzi-game-lobby-card-grid grid min-h-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {rows.map((lobby, index) => {
               const seatedMine = lobby.seats.find((seat) => seat.userId === me);
               const activeSession = lobby.sessions.find((row) => row.status === "ACTIVE");
@@ -443,7 +467,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
               return (
                 <div
                   key={lobby.id}
-                  className="suzi-lobby-card relative flex flex-col overflow-hidden rounded-[var(--panel-radius)] border border-fuchsia-300/28 bg-[radial-gradient(circle_at_50%_8%,rgba(255,32,121,0.18),transparent_42%),linear-gradient(180deg,rgba(91,26,151,0.5),rgba(44,12,114,0.82))] p-2 shadow-[0_0_18px_rgba(157,78,221,0.18),inset_0_1px_0_rgba(255,255,255,0.08)]"
+                  className="suzi-lobby-card relative flex flex-col overflow-hidden rounded-[var(--panel-radius)] border border-cyan-300/24 bg-[radial-gradient(circle_at_50%_8%,rgba(0,229,255,0.14),transparent_42%),linear-gradient(180deg,rgba(37,54,112,0.92),rgba(18,24,72,0.96))] p-2.5 shadow-[0_10px_22px_rgba(15,23,42,0.22),inset_0_1px_0_rgba(255,255,255,0.1)]"
                 >
                   <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent)] opacity-40" />
 
@@ -480,7 +504,8 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                     {activeSession ? (
                       <Link
                         href={`/app/games/${gameTypeToId(lobby.gameType)}/session/${activeSession.id}`}
-                        className="suzi-primary-btn flex-1 px-2 py-1 text-center text-[var(--fs-2xs)]"
+                        className={cx(homeBtnPrimary, "flex-1 px-2 text-center")}
+                        style={{ height: "var(--btn-h-sm)" }}
                       >
                         Open
                       </Link>
@@ -488,7 +513,8 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                       <button
                         type="button"
                         disabled={busyLobbyId === lobby.id}
-                        className="suzi-primary-btn flex-1 px-2 py-1 text-[var(--fs-2xs)] disabled:opacity-60"
+                        className={cx(homeBtnPrimary, "flex-1 px-2 disabled:opacity-60")}
+                        style={{ height: "var(--btn-h-sm)" }}
                         onClick={() => void onJoin(lobby.id, seatOffer.seatIndex)}
                       >
                         {seatOffer.label}
@@ -497,7 +523,8 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                       <button
                         type="button"
                         disabled={busyLobbyId === lobby.id}
-                        className="suzi-primary-btn flex-1 px-2 py-1 text-[var(--fs-2xs)] disabled:opacity-60"
+                        className={cx(homeBtnPrimary, "flex-1 px-2 disabled:opacity-60")}
+                        style={{ height: "var(--btn-h-sm)" }}
                         onClick={() => void onStart(lobby.id)}
                       >
                         Start
@@ -618,7 +645,8 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                       <div className="mt-1.5 flex items-center gap-1.5">
                         <button
                           type="button"
-                          className="suzi-secondary-btn px-2 py-1 text-[var(--fs-2xs)]"
+                          className={cx(homeBtnSecondary, "px-2")}
+                          style={{ height: "var(--btn-h-sm)" }}
                           onClick={() => {
                             setOpenInviteLobbyId(null);
                             setInviteQuery("");
@@ -635,7 +663,8 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                             await onInvite(lobby.id);
                             setOpenInviteLobbyId(null);
                           }}
-                          className="suzi-primary-btn ml-auto px-2 py-1 text-[var(--fs-2xs)] disabled:opacity-60"
+                          className={cx(homeBtnPrimary, "ml-auto px-2 disabled:opacity-60")}
+                          style={{ height: "var(--btn-h-sm)" }}
                         >
                           Send
                         </button>
@@ -646,6 +675,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
               );
             })}
             </div>
+          </div>
           </div>
         </Panel>
       </div>

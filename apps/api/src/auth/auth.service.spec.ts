@@ -1,12 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthEmailService } from './auth-email.service';
 import { AuthModule } from './auth.module';
 import { AuthService } from './auth.service';
 import { RegisterGender } from './dto/register.dto';
 
 describe('AuthService', () => {
   let authService: AuthService;
+  let authEmailService: AuthEmailService;
   const prismaMock = {
     user: {
       findUnique: jest.fn(),
@@ -33,6 +35,7 @@ describe('AuthService', () => {
       .compile();
 
     authService = module.get(AuthService);
+    authEmailService = module.get(AuthEmailService);
   });
 
   beforeEach(() => {
@@ -40,6 +43,10 @@ describe('AuthService', () => {
     prismaMock.user.findFirst.mockReset();
     prismaMock.user.create.mockReset();
     prismaMock.user.update.mockReset();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('hashes and verifies passwords with argon2', async () => {
@@ -197,17 +204,32 @@ describe('AuthService', () => {
   });
 
   it('returns a generic forgot-password response when no user exists', async () => {
+    jest.spyOn(authEmailService, 'isConfigured', 'get').mockReturnValue(true);
     prismaMock.user.findUnique.mockResolvedValueOnce(null);
 
     await expect(
       authService.forgotPassword('forgot@example.com'),
     ).resolves.toEqual({
       message:
-        'If an account exists for this email, a password reset flow will be sent.',
+        'If an account exists for this email, a password reset link will be sent.',
     });
   });
 
-  it('creates a password reset preview token for existing users', async () => {
+  it('rejects forgot-password requests when email delivery is not configured', async () => {
+    jest.spyOn(authEmailService, 'isConfigured', 'get').mockReturnValue(false);
+
+    await expect(
+      authService.forgotPassword('forgot@example.com'),
+    ).rejects.toThrow('Password reset email delivery is not configured.');
+    expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('creates a password reset token and emails existing users', async () => {
+    jest.spyOn(authEmailService, 'isConfigured', 'get').mockReturnValue(true);
+    const sendPasswordResetEmail = jest
+      .spyOn(authEmailService, 'sendPasswordResetEmail')
+      .mockResolvedValueOnce(true);
+
     prismaMock.user.findUnique.mockResolvedValueOnce({
       id: 'user_1',
       email: 'forgot@example.com',
@@ -217,14 +239,24 @@ describe('AuthService', () => {
 
     const result = await authService.forgotPassword('forgot@example.com');
 
-    expect(result.message).toContain('If an account exists');
-    expect(result.resetTokenExpiresAt).toEqual(expect.any(String));
+    expect(result).toEqual({
+      message:
+        'If an account exists for this email, a password reset link will be sent.',
+    });
+    expect(sendPasswordResetEmail).toHaveBeenCalledWith({
+      to: 'forgot@example.com',
+      username: 'forgotuser',
+      token: expect.any(String),
+    });
     const forgotPasswordUpdateCalls = prismaMock.user.update.mock
       .calls as Array<
       [
         {
           where: { id: string };
-          data: { passwordResetTokenHash: string };
+          data: {
+            passwordResetTokenHash: string;
+            passwordResetTokenExpiresAt: Date;
+          };
         },
       ]
     >;
@@ -233,6 +265,9 @@ describe('AuthService', () => {
     expect(forgotPasswordUpdateArgs.where.id).toBe('user_1');
     expect(forgotPasswordUpdateArgs.data.passwordResetTokenHash).toEqual(
       expect.any(String),
+    );
+    expect(forgotPasswordUpdateArgs.data.passwordResetTokenExpiresAt).toBeInstanceOf(
+      Date,
     );
   });
 

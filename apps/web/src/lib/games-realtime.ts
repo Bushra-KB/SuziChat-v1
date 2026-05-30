@@ -4,6 +4,13 @@ import type { Socket } from "socket.io-client";
 import type { ApiGameChatMessage, ApiGameLobby, ApiGameSession, ApiGameType } from "@/lib/games-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 
+export class GameSocketApplicationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GameSocketApplicationError";
+  }
+}
+
 export function openGamesSocket(accessToken: string) {
   return getRealtimeSocket(accessToken);
 }
@@ -145,16 +152,20 @@ export function postGameSessionAction(
 ): Promise<ApiGameSession> {
   return new Promise((resolve, reject) => {
     socket
-      .timeout(20_000)
+      .timeout(6_000)
       .emit(
         "game:session:action",
         { sessionId, action, ...(kind !== undefined ? { kind } : {}) },
-        (err: Error | null, response?: { ok?: boolean; session?: ApiGameSession }) => {
+        (err: Error | null, response?: { ok?: boolean; session?: ApiGameSession; error?: string }) => {
           if (err) {
             reject(err);
             return;
           }
           const res = response;
+          if (res?.error) {
+            reject(new GameSocketApplicationError(res.error));
+            return;
+          }
           if (res?.session) {
             resolve(res.session);
             return;

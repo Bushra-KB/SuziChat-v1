@@ -314,31 +314,78 @@ export function HomeFriendsPanel() {
       className="suzi-panel--home suzi-home-row1-panel flex min-h-0 w-full flex-col overflow-hidden p-[var(--panel-pad)]"
     >
       <div className={cx(homePanelHeader, "shrink-0 overflow-visible")}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-          <span className={homePanelIcon}>
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.9"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        <div className="suzi-friends-header-row flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex shrink-0 items-center gap-2.5">
+            <span className={homePanelIcon}>
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5H7a3 3 0 0 0-3 3V20" />
+                <circle cx="9" cy="8" r="3" />
+                <path d="M20 20v-1a2.8 2.8 0 0 0-2.1-2.7" />
+                <path d="M16.5 5.5a2.5 2.5 0 0 1 0 5" />
+              </svg>
+            </span>
+            <h2 className={panelTitle}>{t("friends.title")}</h2>
+          </div>
+          <div className="suzi-friends-search-inline relative hidden">
+            <span className="pointer-events-none absolute inset-y-0 left-3 inline-flex items-center text-cyan-100/60">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.85"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-3.2-3.2" />
+              </svg>
+            </span>
+
+            <input
+              className={cx(
+                homeSearchInput,
+                "h-[var(--btn-h-sm)] w-full rounded-[0.8rem] border py-1.5 pl-9 pr-10 focus:border-fuchsia-300/52 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/24",
+              )}
+              placeholder={t("friends.searchPlaceholder")}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+
+            <button
+              type="button"
+              aria-label={t("friends.searchAria")}
+              className="absolute inset-y-0 right-0 inline-flex w-9 items-center justify-center rounded-r-[0.8rem] border-l border-cyan-300/24 text-fuchsia-200/84 transition hover:text-fuchsia-100"
             >
-              <path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5H7a3 3 0 0 0-3 3V20" />
-              <circle cx="9" cy="8" r="3" />
-              <path d="M20 20v-1a2.8 2.8 0 0 0-2.1-2.7" />
-              <path d="M16.5 5.5a2.5 2.5 0 0 1 0 5" />
-            </svg>
-          </span>
-          <h2 className={panelTitle}>{t("friends.title")}</h2>
-        </div>
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-3.2-3.2" />
+              </svg>
+            </button>
+          </div>
         </div>
 
       <div className="mt-3 space-y-2.5">
-        <div className="relative">
+        <div className="suzi-friends-search-stacked relative">
           <span className="pointer-events-none absolute inset-y-0 left-3 inline-flex items-center text-cyan-100/60">
             <svg
               aria-hidden="true"
