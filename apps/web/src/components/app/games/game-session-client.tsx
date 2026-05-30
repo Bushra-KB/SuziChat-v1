@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { CheckersBoardView } from "@/components/app/games/checkers-board-view";
 import { ChessBoardView } from "@/components/app/games/chess-board-view";
@@ -9,6 +9,16 @@ import { DotsAndBoxesBoardView } from "@/components/app/games/dots-and-boxes-boa
 import { GameFrame } from "@/components/app/games/game-frame";
 import { gameMeta, gameTypeToId } from "@/components/app/games/game-meta";
 import { GomokuBoardView } from "@/components/app/games/gomoku-board-view";
+import {
+  homeBtnPrimary,
+  homeBtnSecondary,
+  homePanelHeader,
+  homePanelIcon,
+  listL2,
+  listMeta,
+  listSection,
+  panelTitle,
+} from "@/components/app/home-typography";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { formatMoveListForSession, getLastChessMoveSquares } from "@/lib/format-game-move";
@@ -26,6 +36,7 @@ import {
 import { parseGameLobbySettings } from "@/lib/game-lobby-settings";
 import { getGameSoundEnabled, playMoveSound, playYourTurnSound, setGameSoundEnabled } from "@/lib/game-sounds";
 import {
+  GameSocketApplicationError,
   joinSessionChannel,
   openGamesSocket,
   postGameLobbyStart,
@@ -39,6 +50,47 @@ function asArray(value: unknown): unknown[] {
 }
 
 const RECONNECT_HINT = "Moves and chat sync automatically as soon as the live link is restored.";
+const CHECKERS_MOVE_NOTICE_MESSAGES = new Set([
+  "Invalid from/to coordinates.",
+  "Checkers moves only on dark squares.",
+  "You must continue the capture with the same piece.",
+  "No piece on source square.",
+  "You can only move your own pieces.",
+  "Target square is occupied.",
+  "Illegal checkers move.",
+  "A capture is available and must be taken.",
+  "Capture move requires opponent piece in between.",
+  "It is not your turn.",
+]);
+
+function isCheckersMoveNotice(message: string) {
+  return CHECKERS_MOVE_NOTICE_MESSAGES.has(message);
+}
+
+function boardFitForStage(gameType: ApiGameSession["gameType"] | undefined, width: number, height: number) {
+  if (width <= 0 || height <= 0) {
+    return 0;
+  }
+
+  const safeHeight = height > 160 ? height : window.innerHeight * 0.58;
+  const fit = (max: number, reservedHeight: number, heightRatio = 1) =>
+    Math.floor(Math.max(240, Math.min(width, (safeHeight - reservedHeight) / heightRatio, max)));
+
+  switch (gameType) {
+    case "CHESS":
+      return fit(520, 28);
+    case "CHECKERS":
+      return fit(456, 30);
+    case "GOMOKU":
+      return fit(430, 72);
+    case "DOTS_AND_BOXES":
+      return fit(400, 86);
+    case "CONNECT4":
+      return fit(300, 138, 0.86);
+    default:
+      return fit(520, 40);
+  }
+}
 
 function WinnerCelebrationOverlay({
   winnerName,
@@ -117,7 +169,6 @@ export function GameSessionClient({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [socketReady, setSocketReady] = useState(false);
-  const [shakeKey, setShakeKey] = useState(0);
   const [soundOn, setSoundOn] = useState(false);
   const [chatMessages, setChatMessages] = useState<ApiGameChatMessage[]>([]);
   const [chatDraft, setChatDraft] = useState("");
@@ -126,13 +177,58 @@ export function GameSessionClient({
   const [allowSpectatorChat, setAllowSpectatorChat] = useState(true);
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [dismissedWinnerKey, setDismissedWinnerKey] = useState<string | null>(null);
+  const [checkersMoveNotice, setCheckersMoveNotice] = useState<{ id: number; message: string } | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const soundInitialized = useRef(false);
   const prevMovesLen = useRef(0);
   const prevTurnId = useRef<string | null>(null);
   const seatedRef = useRef(false);
+  const boardBodyRef = useRef<HTMLDivElement | null>(null);
+  const boardStageRef = useRef<HTMLDivElement | null>(null);
+  const [boardFitPx, setBoardFitPx] = useState(0);
 
   const auth = useMemo(() => getStoredAuthSession(), []);
+
+  const showCheckersMoveNotice = useCallback((message: string) => {
+    setError("");
+    setCheckersMoveNotice({ id: Date.now(), message });
+  }, []);
+
+  useEffect(() => {
+    const body = boardBodyRef.current;
+    if (!body || !session?.gameType) return;
+
+    const updateBoardFit = () => {
+      const rect = body.getBoundingClientRect();
+      const nextFit = boardFitForStage(session.gameType, rect.width, rect.height);
+      setBoardFitPx((prev) => (Math.abs(prev - nextFit) > 1 ? nextFit : prev));
+    };
+
+    updateBoardFit();
+    const observer = new ResizeObserver(updateBoardFit);
+    observer.observe(body);
+    window.addEventListener("resize", updateBoardFit);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateBoardFit);
+    };
+  }, [session?.gameType]);
+
+  useEffect(() => {
+    if (!checkersMoveNotice) return;
+    const timeout = window.setTimeout(() => {
+      setCheckersMoveNotice((current) => (
+        current?.id === checkersMoveNotice.id ? null : current
+      ));
+    }, 10_000);
+    return () => window.clearTimeout(timeout);
+  }, [checkersMoveNotice]);
+
+  useEffect(() => {
+    if (session?.gameType !== "CHECKERS") {
+      setCheckersMoveNotice(null);
+    }
+  }, [session?.gameType]);
 
   useEffect(() => {
     setSoundOn(getGameSoundEnabled());
@@ -284,6 +380,9 @@ export function GameSessionClient({
 
     setBusy(true);
     setError("");
+    if (session?.gameType === "CHECKERS") {
+      setCheckersMoveNotice(null);
+    }
     try {
       const socket = openGamesSocket(auth.accessToken);
       if (socket.connected) {
@@ -291,7 +390,10 @@ export function GameSessionClient({
           const next = await postGameSessionAction(socket, sessionId, payload, kind);
           setSession(next);
           return;
-        } catch {
+        } catch (socketError) {
+          if (socketError instanceof GameSocketApplicationError) {
+            throw socketError;
+          }
           /* fall back to HTTP */
         }
       }
@@ -299,11 +401,11 @@ export function GameSessionClient({
       setSession(next);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Action failed.";
-      setError(msg);
-      setShakeKey((k) => k + 1);
-      if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
-        navigator.vibrate(40);
+      if (session?.gameType === "CHECKERS" && isCheckersMoveNotice(msg)) {
+        showCheckersMoveNotice(msg);
+        return;
       }
+      setError(msg);
     } finally {
       setBusy(false);
     }
@@ -521,31 +623,45 @@ export function GameSessionClient({
           ? "Your turn"
           : `Waiting for ${turnDisplay}`
         : "Finished";
+  const boardStageStyle = useMemo(
+    () =>
+      boardFitPx > 0
+        ? ({ "--suzi-board-fit": `${boardFitPx}px` } as CSSProperties)
+        : undefined,
+    [boardFitPx],
+  );
 
   return (
     <section className="suzi-app-frame-fill suzi-game-session-page">
       <div className="suzi-game-session-shell h-full min-h-0">
         {!session ? (
-          <Panel className="p-6">
-            <p className="text-sm text-cyan-100/75">Loading session...</p>
-            {error ? <p className="mt-2 text-sm text-pink-100">{error}</p> : null}
+          <Panel className="suzi-panel--home p-[var(--panel-pad)]">
+            <p className={cx(listL2, "text-cyan-100/75")}>Loading session...</p>
+            {error ? <p className={cx(listL2, "mt-2 text-pink-100")}>{error}</p> : null}
           </Panel>
         ) : (
           <div className="suzi-game-session-layout grid h-full min-h-0 gap-[var(--col-gap)] xl:grid-cols-[clamp(14rem,17vw,18rem)_minmax(0,1fr)_clamp(15rem,19vw,20rem)]">
-            <Panel className="suzi-game-info-panel flex h-full min-h-0 flex-col overflow-hidden p-4">
-              <h3 className="text-[var(--fs-lg)] font-semibold text-white">Session Info</h3>
-              <div className="mt-3 grid gap-2 text-[var(--fs-xs)] text-cyan-100/72">
-                <p>Status: <span className="font-semibold text-white/90">{session.status}</span></p>
-                <p>Turn: <span className="font-semibold text-white/90">{session.turnUserId ? `${turnDisplay}` : "—"}</span></p>
-                <p>Winner: <span className="font-semibold text-white/90">{winnerDisplay}</span></p>
-                <p>
+            <Panel className="suzi-panel--home suzi-game-info-panel flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
+              <div className={cx(homePanelHeader, "flex shrink-0 items-center gap-2.5")}>
+                <span className={homePanelIcon}>
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19" />
+                  </svg>
+                </span>
+                <h3 className={panelTitle}>Session Info</h3>
+              </div>
+              <div className="mt-3 grid gap-1.5">
+                <p className={listL2}>Status: <span className="font-semibold text-white/90">{session.status}</span></p>
+                <p className={listL2}>Turn: <span className="font-semibold text-white/90">{session.turnUserId ? `${turnDisplay}` : "—"}</span></p>
+                <p className={listL2}>Winner: <span className="font-semibold text-white/90">{winnerDisplay}</span></p>
+                <p className={listL2}>
                   Watching:{" "}
                   <span className="font-semibold text-white/90">{watcherCount}</span>
                 </p>
               </div>
 
               {isLobbyOwner ? (
-                <label className="mt-3 flex cursor-pointer items-center gap-2 text-[var(--fs-2xs)] text-cyan-100/80">
+                <label className={cx(listMeta, "mt-3 flex cursor-pointer items-center gap-2 text-cyan-100/80")}>
                   <input
                     type="checkbox"
                     className="rounded border-cyan-400/40"
@@ -557,7 +673,7 @@ export function GameSessionClient({
                 </label>
               ) : null}
 
-              <label className="mt-4 flex cursor-pointer items-center gap-2 text-[var(--fs-2xs)] text-cyan-100/80">
+              <label className={cx(listMeta, "mt-3 flex cursor-pointer items-center gap-2 text-cyan-100/80")}>
                 <input
                   type="checkbox"
                   className="rounded border-cyan-400/40"
@@ -574,10 +690,11 @@ export function GameSessionClient({
                 Game sounds
               </label>
 
-              <div className="mt-4 space-y-2">
+              <div className="mt-4 grid gap-2">
                 <Link
                   href={`/app/games/${gameTypeToId(session.gameType)}`}
-                  className="suzi-secondary-btn block px-3 py-2 text-center text-[var(--fs-xs)]"
+                  className={cx(homeBtnSecondary, "suzi-game-side-btn suzi-game-side-btn--secondary px-3")}
+                  style={{ height: "var(--btn-h-sm)" }}
                 >
                   Back to lobby
                 </Link>
@@ -585,7 +702,7 @@ export function GameSessionClient({
                   <button
                     type="button"
                     onClick={() => void runAction({ type: "resign" }, "RESIGN")}
-                    className="w-full rounded-lg border border-pink-300/34 bg-pink-500/18 px-3 py-2 text-[var(--fs-xs)] font-semibold text-pink-100"
+                    className="suzi-game-side-btn suzi-game-side-btn--danger"
                   >
                     Resign
                   </button>
@@ -595,7 +712,8 @@ export function GameSessionClient({
                     type="button"
                     disabled={busy}
                     onClick={() => void startFromCurrentLobby(false)}
-                    className="suzi-primary-btn w-full px-3 py-2 text-[var(--fs-xs)] disabled:opacity-60"
+                    className={cx(homeBtnPrimary, "suzi-game-side-btn suzi-game-side-btn--primary w-full px-3 disabled:opacity-60")}
+                    style={{ height: "var(--btn-h-sm)" }}
                   >
                     Play again
                   </button>
@@ -605,7 +723,8 @@ export function GameSessionClient({
                     type="button"
                     disabled={busy}
                     onClick={() => void startFromCurrentLobby(true)}
-                    className="suzi-secondary-btn w-full px-3 py-2 text-[var(--fs-xs)] disabled:opacity-60"
+                    className={cx(homeBtnSecondary, "suzi-game-side-btn suzi-game-side-btn--secondary w-full px-3 disabled:opacity-60")}
+                    style={{ height: "var(--btn-h-sm)" }}
                   >
                     Restart game
                   </button>
@@ -615,19 +734,19 @@ export function GameSessionClient({
                     type="button"
                     disabled={busy}
                     onClick={() => void leaveCurrentTable()}
-                    className="w-full rounded-lg border border-amber-300/34 bg-amber-500/12 px-3 py-2 text-[var(--fs-xs)] font-semibold text-amber-100 disabled:opacity-60"
+                    className="suzi-game-side-btn suzi-game-side-btn--warning"
                   >
                     Leave table
                   </button>
                 ) : null}
               </div>
 
-              <div className="suzi-scrollbar mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                <p className="text-[0.65rem] font-medium uppercase tracking-wider text-cyan-100/50">
+              <div className="suzi-home-inset suzi-thin-scroll mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
+                <p className={cx(listSection, "text-cyan-100/66")}>
                   Moves
                 </p>
                 {session.moves.length === 0 ? (
-                  <p className="rounded-lg border border-cyan-300/18 bg-[rgba(21,14,66,0.45)] px-2.5 py-2 text-[var(--fs-2xs)] text-cyan-100/58">
+                  <p className={cx(listMeta, "rounded-lg border border-cyan-300/18 bg-[rgba(21,14,66,0.32)] px-2.5 py-2 text-cyan-100/68")}>
                     No moves yet.
                   </p>
                 ) : null}
@@ -638,10 +757,10 @@ export function GameSessionClient({
                   return (
                     <div
                       key={move.id}
-                      className="rounded-lg border border-cyan-300/20 bg-[rgba(21,14,66,0.6)] px-2.5 py-2 text-[var(--fs-2xs)] text-cyan-100/85"
+                      className="rounded-lg border border-cyan-300/20 bg-[rgba(21,14,66,0.38)] px-2.5 py-2"
                     >
-                      <p className="font-semibold text-cyan-50/95">{moveLines[idx] ?? `#${move.ply}`}</p>
-                      <p className="mt-0.5 text-[0.65rem] text-cyan-100/55">
+                      <p className={cx(listMeta, "font-semibold text-cyan-50/95")}>{moveLines[idx] ?? `#${move.ply}`}</p>
+                      <p className={cx(listMeta, "mt-0.5 text-cyan-100/62")}>
                         {move.kind}
                         {mover ? ` · ${mover}` : ""}
                       </p>
@@ -652,6 +771,7 @@ export function GameSessionClient({
             </Panel>
 
             <GameFrame
+              bodyRef={boardBodyRef}
               className="suzi-game-board-panel"
               title={
                 currentGameName
@@ -663,16 +783,18 @@ export function GameSessionClient({
               watcherCount={watcherCount}
             >
               <div
-                key={shakeKey}
+                ref={boardStageRef}
+                data-game-type={session.gameType}
+                style={boardStageStyle}
                 className={cx(
                   "suzi-game-board-stage",
+                  "relative",
                   session.gameType === "CHESS" ? "suzi-chess-session-wrap" : "h-full min-h-0",
-                  shakeKey > 0 ? "suzi-game-shake" : undefined,
                 )}
               >
                 {error ? (
                   <p
-                    className="mb-3 rounded-lg border border-pink-400/30 bg-pink-500/12 px-3 py-2 text-sm text-pink-100"
+                    className={cx(listL2, "mb-3 rounded-lg border border-pink-400/30 bg-pink-500/12 px-3 py-2 text-pink-100")}
                     role="alert"
                     aria-live="polite"
                   >
@@ -700,6 +822,9 @@ export function GameSessionClient({
                     active={session.status === "ACTIVE"}
                     spectator={spectator}
                     forcedFrom={checkersForcedFrom}
+                    moveNotice={checkersMoveNotice}
+                    onInvalidMove={showCheckersMoveNotice}
+                    onDismissMoveNotice={() => setCheckersMoveNotice(null)}
                     onMove={(from, to) => void runAction({ from, to })}
                   />
                 ) : null}
@@ -748,25 +873,33 @@ export function GameSessionClient({
               </div>
             </GameFrame>
 
-            <Panel className="suzi-game-chat-panel flex h-full min-h-0 flex-col overflow-hidden p-4">
-              <div className="flex shrink-0 items-center justify-between gap-2">
-                <h3 className="text-[var(--fs-lg)] font-semibold text-white">Game Chat</h3>
-                <span className={socketReady ? "text-[var(--fs-2xs)] text-emerald-100/80" : "text-[var(--fs-2xs)] text-amber-100/80"}>
+            <Panel className="suzi-panel--home suzi-game-chat-panel flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
+              <div className={cx(homePanelHeader, "flex shrink-0 items-center justify-between gap-2")}>
+                <div className="flex items-center gap-2.5">
+                  <span className={homePanelIcon}>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
+                    </svg>
+                  </span>
+                  <h3 className={panelTitle}>Game Chat</h3>
+                </div>
+                <span className={cx(listMeta, "inline-flex items-center gap-1.5", socketReady ? "text-emerald-100/80" : "text-amber-100/80")}>
+                  {socketReady ? <span className="suzi-live-dot" aria-hidden /> : null}
                   {socketReady ? "Live" : "Syncing"}
                 </span>
               </div>
               {spectator && !allowSpectatorChat ? (
-                <p className="mt-2 text-[var(--fs-2xs)] text-amber-100/85">
+                <p className={cx(listMeta, "mt-2 text-amber-100/85")}>
                   Watchers cannot chat in this game.
                 </p>
               ) : null}
 
               <div
                 ref={chatScrollRef}
-                className="suzi-thin-scroll mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto rounded-[var(--panel-radius)] bg-white p-2 shadow-[inset_0_2px_8px_rgba(7,4,28,0.22),inset_0_0_0_1px_rgba(0,0,0,0.04)]"
+                className="suzi-chat-log suzi-thin-scroll mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto rounded-[var(--panel-radius)] bg-white p-2 shadow-[inset_0_2px_8px_rgba(7,4,28,0.22),inset_0_0_0_1px_rgba(0,0,0,0.04)]"
               >
                 {chatMessages.length === 0 ? (
-                  <p className="px-1 py-2 text-center text-[var(--fs-2xs)] text-slate-500">
+                  <p className={cx(listMeta, "px-1 py-2 text-center text-slate-500")}>
                     No game chat yet.
                   </p>
                 ) : null}
@@ -776,7 +909,7 @@ export function GameSessionClient({
                   return (
                     <div
                       key={message.id}
-                      className={`rounded-lg border px-2.5 py-2 text-[var(--fs-2xs)] ${
+                      className={`rounded-lg border px-2.5 py-2 ${listMeta} ${
                         mine
                           ? "ml-4 border-fuchsia-200/90 bg-fuchsia-50/95"
                           : "mr-4 border-slate-200 bg-slate-50/95"
@@ -815,13 +948,15 @@ export function GameSessionClient({
                       : "Chat disabled for watchers"
                   }
                   disabled={!canChat}
-                  className="suzi-input h-9 min-w-0 flex-1 px-3 text-[var(--fs-xs)] disabled:opacity-55"
+                  className="suzi-input min-w-0 flex-1 px-3 disabled:opacity-55"
+                  style={{ height: "var(--btn-h-sm)" }}
                   maxLength={500}
                 />
                 <button
                   type="submit"
                   disabled={chatBusy || !chatDraft.trim() || !canChat}
-                  className="suzi-primary-btn h-9 px-3 text-[var(--fs-2xs)] disabled:opacity-60"
+                  className={cx(homeBtnPrimary, "suzi-game-chat-send px-3 disabled:opacity-60")}
+                  style={{ height: "var(--btn-h-sm)" }}
                 >
                   Send
                 </button>

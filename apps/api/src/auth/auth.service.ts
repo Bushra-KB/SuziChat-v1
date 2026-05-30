@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
@@ -240,18 +241,25 @@ export class AuthService {
 
   async forgotPassword(email: string) {
     const normalizedEmail = normalizeEmail(email ?? '');
+    const response = {
+      message:
+        'If an account exists for this email, a password reset link will be sent.',
+    };
 
     if (!normalizedEmail || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
       throw new BadRequestException('Email must be valid');
     }
 
+    if (!this.authEmail.isConfigured) {
+      throw new ServiceUnavailableException(
+        'Password reset email delivery is not configured.',
+      );
+    }
+
     const user = await this.findUserByEmail(normalizedEmail);
 
     if (!user) {
-      return {
-        message:
-          'If an account exists for this email, a password reset flow will be sent.',
-      };
+      return response;
     }
 
     const resetToken = randomBytes(32).toString('hex');
@@ -274,12 +282,13 @@ export class AuthService {
       token: resetToken,
     });
 
-    return {
-      message:
-        'If an account exists for this email, a password reset flow will be sent.',
-      resetTokenExpiresAt: expiresAt.toISOString(),
-      resetTokenPreview: resetSent ? undefined : resetToken,
-    };
+    if (!resetSent) {
+      throw new ServiceUnavailableException(
+        'Password reset email could not be sent. Please try again later.',
+      );
+    }
+
+    return response;
   }
 
   async resetPassword(token: string, newPassword: string) {

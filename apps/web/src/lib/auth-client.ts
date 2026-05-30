@@ -33,8 +33,6 @@ export type RegisterResponse = {
 
 export type ForgotPasswordResponse = {
   message: string;
-  resetTokenPreview?: string;
-  resetTokenExpiresAt?: string;
 };
 
 type ApiErrorPayload = {

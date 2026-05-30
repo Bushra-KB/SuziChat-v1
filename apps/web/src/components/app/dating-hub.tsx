@@ -12,7 +12,16 @@ import { DatingMatchToast } from "@/components/app/dating/dating-match-toast";
 import { DatingMatchesModal } from "@/components/app/dating/dating-matches-modal";
 import { DatingProfileModal, type DatingProfileDraft } from "@/components/app/dating/dating-profile-modal";
 import { filtersFromProfile } from "@/components/app/dating/dating-utils";
-import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
+import {
+  homeBtnPrimary,
+  homeBtnSecondary,
+  homePanelHeader,
+  homePanelIcon,
+  listL2,
+  listMeta,
+  panelTitle,
+} from "@/components/app/home-typography";
+import { Panel, SectionHeader, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import {
   type DatingDiscoverItem,
@@ -93,6 +102,7 @@ export function DatingHub() {
   const [chatDraft, setChatDraft] = useState("");
   const [peerTyping, setPeerTyping] = useState(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const collectionMenuRef = useRef<HTMLDivElement | null>(null);
   const fallbackDatingName = useMemo(() => {
     const session = getStoredAuthSession();
     const raw = session?.user.displayName || session?.user.username || "Your name";
@@ -300,6 +310,29 @@ export function DatingHub() {
       socket.off("dating:unmatch", onUnmatch);
     };
   }, [accessToken, chatMatchId, refreshMatches, refreshLikes]);
+
+  useEffect(() => {
+    if (!isCollectionOpen) return;
+
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (collectionMenuRef.current?.contains(target)) return;
+      setIsCollectionOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsCollectionOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePress);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePress);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isCollectionOpen]);
 
   const openProfileEditor = () => {
     const p = myProfile;
@@ -606,18 +639,51 @@ export function DatingHub() {
   };
 
   const datingCollectionSelect = (
-    <div className="relative">
+    <div ref={collectionMenuRef} className="relative">
       <button
         type="button"
-        className="suzi-dating-select min-w-40 rounded-full border border-fuchsia-300/24 bg-[rgba(16,18,38,0.92)] px-4 py-2.5 text-left text-sm font-semibold text-fuchsia-50 outline-none transition hover:border-fuchsia-200/50"
+        className={cx(
+          homeBtnSecondary,
+          "suzi-dating-select suzi-dating-collection-trigger text-left outline-none",
+        )}
         aria-haspopup="menu"
         aria-expanded={isCollectionOpen}
         onClick={() => setIsCollectionOpen((value) => !value)}
       >
-        Open list...
+        <span className="suzi-dating-collection-trigger__label">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="h-3.5 w-3.5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M8 6h13M8 12h13M8 18h13" />
+            <path d="M3 6h.01M3 12h.01M3 18h.01" />
+          </svg>
+          <span>Lists</span>
+        </span>
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className={cx(
+            "h-3.5 w-3.5 shrink-0 transition-transform",
+            isCollectionOpen && "rotate-180",
+          )}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
       </button>
       {isCollectionOpen ? (
-        <div className="suzi-dating-dropdown-menu absolute right-0 top-[calc(100%+0.45rem)] z-40 w-52 overflow-hidden rounded-[0.9rem] border border-fuchsia-300/24 bg-[rgba(22,12,60,0.98)] p-1.5 shadow-[0_18px_50px_rgba(12,8,36,0.55)] backdrop-blur">
+        <div className="suzi-dating-dropdown-menu absolute right-0 top-[calc(100%+0.45rem)] z-40 w-52 overflow-hidden rounded-[0.9rem] border border-cyan-300/24 bg-[rgba(24,34,92,0.98)] p-1.5 shadow-[0_18px_50px_rgba(12,8,36,0.55)] backdrop-blur">
           {[
             { value: "matches", label: `Matches (${matchCount})` },
             { value: "my-likes", label: `Likes Sent (${likesSentCount})` },
@@ -627,7 +693,7 @@ export function DatingHub() {
             <button
               key={item.value}
               type="button"
-              className="suzi-dating-dropdown-option w-full rounded-[0.65rem] px-3 py-2 text-left text-xs font-semibold text-fuchsia-50 transition hover:bg-fuchsia-400/18 hover:text-white"
+              className={cx(listMeta, "suzi-dating-dropdown-option w-full rounded-[0.65rem] px-3 py-2 text-left font-semibold text-cyan-50 transition hover:bg-cyan-400/18 hover:text-white")}
               onClick={() => {
                 setIsCollectionOpen(false);
                 openCollection(item.value);
@@ -673,39 +739,39 @@ export function DatingHub() {
           onApply={() => void applyFilters()}
         />
 
-        <Panel className="suzi-dating-main-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-fuchsia-300/24 p-[var(--panel-pad)] shadow-none [background:transparent]">
-          <div className="suzi-dating-header flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <Panel className="suzi-panel--home suzi-game-lobby-panel suzi-dating-main-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-[var(--panel-pad)]">
+          <div className={cx(homePanelHeader, "suzi-dating-header flex shrink-0 flex-wrap items-center justify-between gap-3")}>
             <div className="flex items-center gap-2.5">
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.8rem] border border-fuchsia-300/36 bg-[linear-gradient(160deg,rgba(157,78,221,0.72),rgba(255,32,121,0.34))] text-fuchsia-100/92 shadow-[0_0_12px_rgba(232,77,255,0.28)]">
+              <span className={homePanelIcon}>
                 <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="currentColor">
                   <path d="M12 21s-7-4.7-9.5-8c-2-2.7-.7-7 3-7 2 0 3.3 1 4.5 2.5C11.2 7 12.5 6 14.5 6c3.7 0 5 4.3 3 7C19 16.3 12 21 12 21Z" />
                 </svg>
               </span>
               <div>
-                <h2 className="text-[var(--fs-2xl)] font-bold tracking-tight text-white">Suzi Dating</h2>
-                <p className="text-[var(--fs-xs)] text-fuchsia-100/70">
+                <h2 className={panelTitle}>Suzi Dating</h2>
+                <p className={cx(listL2, "mt-1 text-cyan-100/78")}>
                   Browse profiles, show interest, match, and chat.
                 </p>
               </div>
             </div>
-            <div className="suzi-feed-header-actions flex flex-wrap items-center justify-end gap-3">
+            <div className="suzi-feed-header-actions flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
-                className="suzi-dating-filter-trigger rounded-full border border-fuchsia-300/24 bg-[rgba(16,18,38,0.82)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-fuchsia-50 transition hover:border-fuchsia-200/50"
+                className={cx(homeBtnSecondary, "suzi-dating-filter-trigger px-3")}
                 onClick={() => setShowMobileFilters(true)}
               >
                 Filters
               </button>
               {datingCollectionSelect}
-              <button type="button" onClick={openProfileEditor} className="suzi-primary-btn px-4 py-2.5 text-sm">
+              <button type="button" onClick={openProfileEditor} className={cx(homeBtnPrimary, "px-4")}>
                 {myProfile ? "Edit profile" : "Set up profile"}
               </button>
             </div>
           </div>
 
-          {error ? <p className="mt-3 shrink-0 text-sm text-rose-300/90">{error}</p> : null}
+          {error ? <p className={cx(listL2, "mt-3 shrink-0 rounded-lg border border-pink-400/26 bg-pink-500/12 px-3 py-2 text-pink-100")}>{error}</p> : null}
 
-          <div className="mt-3 flex min-h-0 flex-1 flex-col">
+          <div className="suzi-game-lobby-body suzi-dating-main-body mt-3 flex min-h-0 flex-1 flex-col overflow-hidden p-2">
             <DatingDiscoverDeck
               deck={deck}
               activeIndex={activeIndex}

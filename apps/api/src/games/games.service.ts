@@ -145,6 +145,8 @@ const LOBBY_SEATABLE: GameLobbyStatus[] = [
   GameLobbyStatus.OPEN,
 ];
 
+const MAX_ACTIVE_LOBBIES_PER_USER_PER_GAME = 3;
+
 function assertSeatPick(
   gameType: GameType,
   seats: LobbySeatRow[],
@@ -345,7 +347,7 @@ export class GamesService {
 
   async createLobby(ownerId: string, dto: CreateGameLobbyDto) {
     const catalog = catalogEntry(dto.gameType);
-    const existing = await this.prisma.gameLobby.findFirst({
+    const activeLobbyCount = await this.prisma.gameLobby.count({
       where: {
         ownerId,
         gameType: dto.gameType,
@@ -358,11 +360,10 @@ export class GamesService {
           ],
         },
       },
-      select: { id: true, title: true },
     });
-    if (existing) {
+    if (activeLobbyCount >= MAX_ACTIVE_LOBBIES_PER_USER_PER_GAME) {
       throw new BadRequestException(
-        `You already have an active ${catalog.name} lobby ("${existing.title}"). Delete it before creating another.`,
+        `You can host up to ${MAX_ACTIVE_LOBBIES_PER_USER_PER_GAME} active ${catalog.name} lobbies. Delete one before creating another.`,
       );
     }
     const maxSeats = Math.max(

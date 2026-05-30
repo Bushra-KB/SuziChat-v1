@@ -574,19 +574,93 @@ h5 {
   min-height: 0;
 }
 
+.suzi-dating-main-panel .suzi-home-panel-header {
+  margin-bottom: 0.35rem;
+}
+
+.suzi-dating-main-panel .suzi-home-panel-title {
+  font-size: var(--fs-lg);
+  line-height: 1.05;
+}
+
+.suzi-dating-main-panel .suzi-feed-header-actions :is(button, a) {
+  min-height: var(--btn-h-sm);
+  font-size: var(--fs-2xs);
+  line-height: 1;
+}
+
+.suzi-game-lobby-body.suzi-dating-main-body {
+  min-height: 0;
+  border-color: rgba(130, 200, 255, 0.34);
+  background:
+    linear-gradient(180deg, rgba(176, 208, 255, 0.1), rgba(255, 255, 255, 0.03)),
+    linear-gradient(165deg, rgba(64, 96, 180, 0.56), rgba(44, 68, 136, 0.5)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 12px 26px rgba(16, 36, 88, 0.18);
+  padding: 0.42rem !important;
+}
+
+.suzi-dating-main-body .suzi-dating-stage {
+  margin-top: 0;
+  border-color: transparent;
+  border-radius: calc(var(--panel-radius) - 0.35rem);
+  background: transparent !important;
+  box-shadow: none;
+}
+
+.suzi-dating-collection-trigger {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.42rem;
+  width: 6.7rem;
+  min-width: 0 !important;
+  height: var(--btn-h-sm);
+  border-radius: 999px !important;
+  padding: 0 0.55rem 0 0.62rem !important;
+  border-color: rgba(122, 211, 255, 0.44) !important;
+  background:
+    linear-gradient(180deg, rgba(80, 112, 190, 0.76), rgba(50, 70, 148, 0.78)) !important;
+  background-image:
+    linear-gradient(180deg, rgba(80, 112, 190, 0.76), rgba(50, 70, 148, 0.78)) !important;
+  background-position: 0 0 !important;
+  background-size: auto !important;
+  color: rgba(245, 250, 255, 0.98) !important;
+  font-size: var(--fs-2xs) !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 7px 16px rgba(5, 8, 28, 0.18) !important;
+}
+
+.suzi-dating-collection-trigger__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  min-width: 0;
+}
+
+.suzi-dating-collection-trigger__label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .suzi-dating-filter-trigger {
   display: none;
 }
 
 .suzi-dating-select {
   appearance: none;
-  background-color: rgba(16, 18, 38, 0.94) !important;
+  background-color: rgba(44, 56, 130, 0.62) !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f5d0fe' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
   background-position: right 0.75rem center !important;
   background-repeat: no-repeat !important;
   background-size: 1rem 1rem !important;
   color-scheme: dark;
-  color: rgb(250, 232, 255) !important;
+  color: rgb(245, 250, 255) !important;
   padding-right: 2.25rem !important;
 }
 
@@ -1143,33 +1217,6 @@ h5 {
   }
 }
 
-@keyframes suzi-game-shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-
-  15% {
-    transform: translateX(-8px);
-  }
-
-  30% {
-    transform: translateX(8px);
-  }
-
-  45% {
-    transform: translateX(-5px);
-  }
-
-  60% {
-    transform: translateX(5px);
-  }
-}
-
-.suzi-game-shake {
-  animation: suzi-game-shake 0.42s ease-in-out;
-}
-
 @keyframes suzi-game-winner-pop {
   0% {
     opacity: 0;
@@ -1319,11 +1366,270 @@ h5 {
   min-height: 0;
   align-items: center;
   justify-content: center;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .suzi-game-session-page .suzi-panel:has([data-testid="chess-board-root"]) > .min-h-0.flex-1 {
-  overflow: visible;
+  overflow: hidden;
+}
+
+.suzi-game-session-page .suzi-game-session-layout {
+  gap: clamp(0.65rem, 1vw, 0.9rem);
+}
+
+.suzi-game-session-page :is(.suzi-game-info-panel, .suzi-game-chat-panel, .suzi-game-board-panel) {
+  border-color: rgba(130, 200, 255, 0.34);
+  box-shadow:
+    0 12px 28px rgba(16, 36, 88, 0.24),
+    0 0 14px rgba(0, 229, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.13);
+}
+
+.suzi-game-session-page :is(.suzi-game-info-panel, .suzi-game-chat-panel, .suzi-game-board-panel) > .suzi-home-panel-header {
+  margin: calc(var(--panel-pad) * -1) calc(var(--panel-pad) * -1) 0.35rem;
+  padding: var(--panel-pad) var(--panel-pad) 0.38rem;
+  border-radius: var(--panel-radius) var(--panel-radius) 0 0;
+  border: 1px solid rgba(96, 165, 250, 0.12);
+  background: linear-gradient(180deg, rgba(20, 32, 92, 0.3), rgba(14, 24, 74, 0.2));
+}
+
+.suzi-game-session-page .suzi-game-info-panel,
+.suzi-game-session-page .suzi-game-chat-panel {
+  font-size: var(--fs-xs);
+}
+
+.suzi-game-session-page .suzi-game-board-panel > .min-h-0.flex-1 {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden !important;
+}
+
+.suzi-game-session-page .suzi-game-board-stage {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1 1 0%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  container-type: size;
+  --suzi-board-fit: min(100%, 34rem, calc(100dvh - 7.25rem));
+}
+
+@supports (width: 1cqw) {
+  .suzi-game-session-page .suzi-game-board-stage {
+    --suzi-board-fit: min(100cqw, calc(100cqh - 1.75rem), 34rem);
+  }
+}
+
+.suzi-game-session-page .suzi-game-board-stage[data-game-type="CONNECT4"] {
+  --suzi-board-fit: min(100%, 18rem, calc(100dvh - 7rem));
+}
+
+@supports (width: 1cqw) {
+  .suzi-game-session-page .suzi-game-board-stage[data-game-type="CONNECT4"] {
+    --suzi-board-fit: min(100cqw, calc(100cqh - 3.4rem), 18rem);
+  }
+}
+
+.suzi-game-session-page [data-testid="chess-board-root"],
+.suzi-game-session-page .suzi-game-board-stage > div.mx-auto {
+  flex: 0 0 auto;
+  width: var(--suzi-board-fit) !important;
+  max-width: var(--suzi-board-fit) !important;
+  max-height: 100%;
+}
+
+.suzi-game-session-page .suzi-game-board-stage > div.mx-auto {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.suzi-game-session-page .suzi-game-board-stage > div.mx-auto > div:first-child {
+  width: 100%;
+  max-height: calc(100% - 1.6rem);
+  min-height: 0;
+}
+
+.suzi-game-session-page .suzi-game-board-stage > div.mx-auto > p {
+  margin-top: 0.45rem !important;
+  flex-shrink: 0;
+  font-size: var(--fs-2xs) !important;
+  line-height: 1.15 !important;
+}
+
+.suzi-checkers-board-wrap {
+  position: relative;
+}
+
+.suzi-checkers-move-popup {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  z-index: 12;
+  width: min(24rem, calc(100% - 1rem));
+  min-width: min(17rem, calc(100% - 1rem));
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(251, 113, 133, 0.62);
+  border-radius: 1.1rem;
+  background:
+    linear-gradient(180deg, rgba(116, 24, 68, 0.97), rgba(54, 22, 82, 0.97));
+  padding: 0.85rem 0.95rem;
+  color: rgba(255, 235, 244, 0.98);
+  font-size: clamp(0.82rem, 1.8vw, 0.98rem);
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+  box-shadow:
+    0 18px 42px rgba(7, 8, 28, 0.48),
+    0 0 24px rgba(244, 63, 94, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  animation: suzi-checkers-move-popup 10s ease both;
+  pointer-events: auto;
+}
+
+.suzi-checkers-move-popup__button {
+  display: inline-flex;
+  min-width: 4.4rem;
+  height: 1.9rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.62rem;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: var(--fs-2xs);
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: background 0.15s ease, filter 0.15s ease;
+}
+
+.suzi-checkers-move-popup__button:hover {
+  background: rgba(255, 255, 255, 0.22);
+  filter: brightness(1.08);
+}
+
+@keyframes suzi-checkers-move-popup {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 0.35rem)) scale(0.96);
+  }
+
+  12%,
+  90% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 0.2rem)) scale(0.98);
+  }
+}
+
+.suzi-game-side-btn,
+.suzi-game-board-top-btn,
+.suzi-game-chat-send {
+  display: inline-flex;
+  height: var(--btn-h-sm);
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.72rem;
+  border: 1px solid;
+  padding-inline: 0.75rem;
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(7, 10, 30, 0.28);
+  box-shadow:
+    0 8px 18px rgba(5, 8, 28, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    filter 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.suzi-game-side-btn {
+  width: 100%;
+}
+
+.suzi-game-side-btn--primary,
+.suzi-game-chat-send {
+  border-color: rgba(244, 114, 182, 0.52) !important;
+  background:
+    linear-gradient(90deg, rgba(255, 45, 167, 0.96), rgba(206, 47, 255, 0.9)) !important;
+  color: #fff !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 10px 22px rgba(255, 45, 167, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+
+.suzi-game-side-btn--secondary,
+.suzi-game-board-top-btn {
+  border-color: rgba(130, 200, 255, 0.36) !important;
+  background:
+    linear-gradient(180deg, rgba(84, 112, 190, 0.58), rgba(44, 56, 130, 0.62)) !important;
+  color: rgba(245, 250, 255, 0.98) !important;
+}
+
+.suzi-game-side-btn--danger {
+  border-color: rgba(244, 114, 182, 0.46);
+  background:
+    linear-gradient(180deg, rgba(236, 72, 153, 0.34), rgba(126, 34, 92, 0.42));
+  color: rgba(255, 235, 244, 0.98);
+}
+
+.suzi-game-side-btn--warning {
+  border-color: rgba(251, 191, 36, 0.42);
+  background:
+    linear-gradient(180deg, rgba(245, 158, 11, 0.28), rgba(120, 74, 18, 0.4));
+  color: rgba(254, 243, 199, 0.98);
+}
+
+.suzi-game-board-pill,
+.suzi-game-live-pill {
+  min-height: var(--btn-h-sm);
+  box-shadow:
+    0 8px 18px rgba(5, 8, 28, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.suzi-live-dot {
+  display: inline-block;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18), 0 0 8px rgba(239, 68, 68, 0.72);
+}
+
+.suzi-game-side-btn:hover,
+.suzi-game-board-top-btn:hover,
+.suzi-game-chat-send:hover {
+  filter: brightness(1.1);
+  box-shadow:
+    0 10px 22px rgba(0, 229, 255, 0.13),
+    0 0 14px rgba(255, 45, 167, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.suzi-game-side-btn:disabled,
+.suzi-game-chat-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* —— Poker arcade (MSN-style 3D table) —— */
@@ -1883,8 +2189,7 @@ h5 {
   .index-reveal-card,
   .index-twinkle-star,
   .index-shooting-star,
-  .suzi-bottom-star,
-  .suzi-game-shake {
+  .suzi-bottom-star {
     animation: none !important;
     transform: none !important;
   }
@@ -2564,6 +2869,21 @@ h5 {
     width: 100%;
   }
 
+  .suzi-home-area-friends .suzi-friends-header-row {
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+  }
+
+  .suzi-home-area-friends .suzi-friends-search-inline {
+    display: block !important;
+    flex: 1 1 8rem;
+    min-width: 0;
+  }
+
+  .suzi-home-area-friends .suzi-friends-search-stacked {
+    display: none !important;
+  }
+
   .suzi-home-area-reels,
   .suzi-home-area-games,
   .suzi-home-area-dating {
@@ -2889,6 +3209,112 @@ h5 {
   gap: var(--col-gap);
   height: 100%;
   min-height: 0;
+}
+
+.suzi-panel.suzi-game-lobby-panel {
+  border-color: rgba(74, 132, 230, 0.36);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(0, 229, 255, 0.14), transparent 34%),
+    radial-gradient(circle at 90% 10%, rgba(255, 45, 167, 0.12), transparent 32%),
+    linear-gradient(165deg, rgba(18, 26, 68, 0.92), rgba(10, 14, 42, 0.94));
+  box-shadow:
+    0 18px 42px rgba(5, 8, 28, 0.36),
+    0 0 18px rgba(0, 229, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.11);
+}
+
+.suzi-game-lobby-body {
+  border-radius: var(--panel-radius);
+  border: 1px solid rgba(178, 218, 255, 0.62);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(112, 205, 255, 0.22), transparent 44%),
+    linear-gradient(180deg, rgba(226, 241, 255, 0.92), rgba(203, 224, 247, 0.86));
+  box-shadow:
+    inset 0 2px 8px rgba(7, 18, 48, 0.13),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.54);
+}
+
+.suzi-game-lobby-panel .suzi-lobby-card [data-section="header"] h3 {
+  font-size: var(--fs-xs) !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.01em;
+}
+
+.suzi-game-lobby-panel .suzi-lobby-card [data-section="header"] span,
+.suzi-game-lobby-panel .suzi-lobby-card [data-section="meta"] p,
+.suzi-game-lobby-panel .suzi-lobby-card [data-section="actions"] :is(a, button, span),
+.suzi-game-lobby-panel .suzi-lobby-card [data-section="invite"] :is(input, button, p) {
+  font-size: var(--fs-2xs) !important;
+  line-height: 1.05 !important;
+}
+
+.suzi-game-lobby-panel .suzi-lobby-card [data-section="meta"] p:first-child {
+  font-weight: 650;
+}
+
+.suzi-game-lobby-panel .suzi-lobby-card [data-section="actions"] :is(a, button, span) {
+  min-height: 1.45rem;
+}
+
+@media (min-width: 768px) {
+  .suzi-game-lobby-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(10.75rem, 12.25rem)) !important;
+    align-content: start;
+    justify-content: start;
+  }
+
+  .suzi-game-lobby-panel .suzi-lobby-card {
+    max-width: 12.25rem;
+    padding: 0.58rem !important;
+    border-radius: 0.9rem !important;
+  }
+
+  .suzi-game-lobby-panel .suzi-lobby-card [data-section="image"] {
+    aspect-ratio: 1.45 / 1;
+    margin-top: 0.2rem !important;
+    max-height: 6.1rem;
+  }
+
+  .suzi-game-lobby-panel .suzi-lobby-card [data-section="meta"] {
+    margin-top: 0.28rem !important;
+  }
+
+  .suzi-game-lobby-panel .suzi-lobby-card [data-section="actions"] {
+    margin-top: 0.42rem !important;
+    gap: 0.32rem !important;
+  }
+
+  .suzi-game-lobby-panel .suzi-lobby-card [data-section="actions"] > button[aria-label] {
+    height: 1.55rem !important;
+    width: 1.55rem !important;
+  }
+}
+
+.suzi-game-lobby-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(37, 99, 235, 0.56) rgba(180, 204, 235, 0.55);
+}
+
+.suzi-game-lobby-scroll::-webkit-scrollbar {
+  width: 0.65rem;
+  height: 0.65rem;
+}
+
+.suzi-game-lobby-scroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(180, 204, 235, 0.55);
+}
+
+.suzi-game-lobby-scroll::-webkit-scrollbar-thumb {
+  min-height: 2.5rem;
+  border: 2px solid rgba(232, 242, 255, 0.92);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.78), rgba(0, 188, 255, 0.66));
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.24);
+}
+
+.suzi-game-lobby-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(29, 78, 216, 0.9), rgba(0, 168, 232, 0.78));
 }
 
 @media (min-width: 1280px) {
@@ -5247,37 +5673,60 @@ h5 {
     width: 2.15rem !important;
   }
 
-  /* Game lobby on mobile: let the shell scroll the whole page. Internal
-   * locked scrollports were fragile on phones and could make the lobby feel
-   * like it never opened. */
+  /* Game lobby on mobile: lock the panel to the available screen height and
+   * keep lobby-card scrolling inside the lighter body. */
   .suzi-app-frame-fill.suzi-lobby-page {
-    height: auto !important;
-    min-height: 100% !important;
-    overflow: visible !important;
-    padding: 0 !important;
+    box-sizing: border-box;
+    flex: none !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding: calc(var(--m-top-safe) + 0.48rem) 0.42rem var(--m-bottom-safe) !important;
   }
   .suzi-lobby-page .suzi-lobby-grid {
-    height: auto !important;
+    height: 100% !important;
     min-height: 0 !important;
-    grid-template-rows: auto !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    row-gap: 0 !important;
   }
   .suzi-lobby-page .suzi-lobby-grid > .suzi-lobby-main {
-    height: auto !important;
+    height: 100% !important;
     min-height: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    overflow: visible !important;
+    overflow: hidden !important;
     border-radius: 1rem !important;
-    padding: 0.52rem !important;
+    padding: 0.58rem !important;
   }
-  .suzi-lobby-page .suzi-thin-scroll {
-    overflow-y: visible !important;
-    overflow-x: hidden !important;
-    max-height: none !important;
-    flex: 0 0 auto !important;
+  .suzi-lobby-page .suzi-game-lobby-body {
+    flex: 1 1 0% !important;
     min-height: 0 !important;
+  }
+  .suzi-lobby-page .suzi-game-lobby-scroll {
+    display: block !important;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
     padding-right: 0 !important;
+    scrollbar-width: thin !important;
     -webkit-overflow-scrolling: touch;
+  }
+  .suzi-lobby-page .suzi-game-lobby-scroll::-webkit-scrollbar {
+    display: block !important;
+    width: 0.55rem !important;
+    height: 0.55rem !important;
+  }
+  .suzi-lobby-page .suzi-game-lobby-scroll::-webkit-scrollbar-track {
+    display: block !important;
+    border-radius: 999px;
+    background: rgba(180, 204, 235, 0.56) !important;
+  }
+  .suzi-lobby-page .suzi-game-lobby-scroll::-webkit-scrollbar-thumb {
+    display: block !important;
+    border-radius: 999px;
+    border: 2px solid rgba(232, 242, 255, 0.95);
+    background: rgba(37, 99, 235, 0.72) !important;
   }
 
   /* Lobby header on mobile: stack create button on its own row so the
@@ -5292,14 +5741,6 @@ h5 {
   }
   .suzi-lobby-page .suzi-lobby-header h1 {
     font-size: var(--fs-md) !important;
-  }
-  .suzi-lobby-page .suzi-lobby-header label {
-    flex: 1 1 auto !important;
-    justify-content: center;
-    min-height: 2.05rem;
-    border-radius: 999px;
-    border: 1px solid rgba(86, 196, 255, 0.2);
-    background: rgba(20, 16, 72, 0.36);
   }
   .suzi-lobby-page .suzi-lobby-create {
     flex: 1 1 auto !important;
@@ -5418,7 +5859,7 @@ h5 {
   }
   .suzi-game-board-panel {
     order: 1;
-    overflow: visible !important;
+    overflow: hidden !important;
     padding: 0.52rem !important;
   }
   .suzi-game-info-panel {
@@ -5452,16 +5893,31 @@ h5 {
     gap: 0.35rem !important;
   }
   .suzi-game-board-panel > .min-h-0.flex-1 {
-    overflow: visible !important;
+    overflow: hidden !important;
     padding-top: 0.5rem !important;
   }
   .suzi-game-board-stage {
     min-height: 0 !important;
+    overflow: hidden !important;
+    --suzi-board-fit: min(calc(100vw - 1.8rem), 25rem, calc(100dvh - 9.5rem));
+  }
+  @supports (width: 1cqw) {
+    .suzi-game-board-stage {
+      --suzi-board-fit: min(100cqw, calc(100cqh - 1.8rem), 25rem);
+    }
+  }
+  .suzi-game-session-page .suzi-game-board-stage[data-game-type="CONNECT4"] {
+    --suzi-board-fit: min(calc(100vw - 2.4rem), 17rem, calc(100dvh - 10.5rem));
+  }
+  @supports (width: 1cqw) {
+    .suzi-game-session-page .suzi-game-board-stage[data-game-type="CONNECT4"] {
+      --suzi-board-fit: min(100cqw, calc(100cqh - 3.4rem), 17rem);
+    }
   }
   .suzi-game-session-page [data-testid="chess-board-root"],
   .suzi-game-session-page .suzi-game-board-stage > div.mx-auto {
-    width: 100% !important;
-    max-width: min(calc(100vw - 1.8rem), 25rem, 62dvh) !important;
+    width: var(--suzi-board-fit) !important;
+    max-width: var(--suzi-board-fit) !important;
   }
   .suzi-game-session-page [data-testid="chess-board-root"] p,
   .suzi-game-session-page .suzi-game-board-stage > div.mx-auto > p {
@@ -5470,8 +5926,8 @@ h5 {
     line-height: 1.25 !important;
   }
   .suzi-game-session-page .suzi-game-board-stage > div.h-full {
-    height: clamp(20rem, 56dvh, 29rem) !important;
-    min-height: 20rem !important;
+    height: min(62dvh, calc(100dvh - 9.5rem), 29rem) !important;
+    min-height: 0 !important;
   }
   .suzi-game-session-page .suzi-game-board-stage > div.h-full > div:first-child {
     margin-bottom: 0.5rem !important;
@@ -5606,7 +6062,8 @@ h5 {
     font-size: 0.68rem !important;
   }
 
-  .suzi-dating-header .suzi-primary-btn {
+  .suzi-dating-header .suzi-primary-btn,
+  .suzi-dating-header .suzi-home-btn-primary {
     padding: 0.58rem 0.72rem !important;
     font-size: 0.66rem !important;
     white-space: nowrap;

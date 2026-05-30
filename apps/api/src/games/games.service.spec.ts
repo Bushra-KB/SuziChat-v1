@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { GameType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -9,7 +13,7 @@ import { GamesService } from './games.service';
 describe('GamesService', () => {
   let service: GamesService;
   const prisma = {
-    gameLobby: { findUnique: jest.fn() },
+    gameLobby: { count: jest.fn(), findUnique: jest.fn() },
     gameSession: { findUnique: jest.fn() },
     gameEvent: { create: jest.fn() },
   };
@@ -50,6 +54,17 @@ describe('GamesService', () => {
     await expect(
       service.sendInvite('lobby1', 'outsider', 'target'),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('createLobby rejects when user already hosts three active lobbies for the game', async () => {
+    prisma.gameLobby.count.mockResolvedValue(3);
+
+    await expect(
+      service.createLobby('owner1', {
+        gameType: GameType.CHESS,
+        title: 'Chess Table',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('assertSessionSocketSubscription allows lobby owner', async () => {

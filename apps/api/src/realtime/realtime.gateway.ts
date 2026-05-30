@@ -696,15 +696,23 @@ export class RealtimeGateway
     const last = this.lastGameSocketActionAt.get(userId) ?? 0;
     if (now - last < this.gameSocketActionCooldownMs) {
       this.gamesMetrics.recordSocketRateLimited();
-      throw new WsException('Too many actions — wait a moment.');
+      return { ok: false, error: 'Too many actions — wait a moment.' };
     }
     this.lastGameSocketActionAt.set(userId, now);
-    const snapshot = await this.gamesService.postAction(sessionId, userId, {
-      payload: payload.action,
-      kind: payload.kind,
-    });
-    this.markUserActive(userId);
-    return { ok: true, session: snapshot };
+    try {
+      const snapshot = await this.gamesService.postAction(sessionId, userId, {
+        payload: payload.action,
+        kind: payload.kind,
+      });
+      this.markUserActive(userId);
+      return { ok: true, session: snapshot };
+    } catch (err) {
+      return {
+        ok: false,
+        error:
+          err instanceof Error ? err.message : 'Game action could not be sent.',
+      };
+    }
   }
 
   @SubscribeMessage('game:session:chat')
