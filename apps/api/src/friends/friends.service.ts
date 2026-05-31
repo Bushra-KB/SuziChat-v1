@@ -324,6 +324,7 @@ export class FriendsService {
           userId: targetUser.id,
           title: 'Friend request',
           body: `${sender?.displayName ?? sender?.username ?? 'Someone'} sent you a friend request`,
+          href: '/app/friends',
         },
       })
       .catch(() => undefined);

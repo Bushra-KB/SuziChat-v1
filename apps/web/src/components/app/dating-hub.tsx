@@ -89,6 +89,7 @@ export function DatingHub() {
   const [previewProfile, setPreviewProfile] = useState<
     (DatingProfilePayload & { interests: string[]; user: DatingDiscoverItem["user"] }) | null
   >(null);
+  const [showInboxModal, setShowInboxModal] = useState(false);
   const [showMatchesModal, setShowMatchesModal] = useState(false);
   const [showLikesModal, setShowLikesModal] = useState(false);
   const [showLikesSentModal, setShowLikesSentModal] = useState(false);
@@ -214,6 +215,9 @@ export function DatingHub() {
     const view = searchParams.get("view");
     if (panel === "matches") {
       setShowMatchesModal(true);
+    }
+    if (panel === "inbox") {
+      setShowInboxModal(true);
     }
     if (panel === "likes") {
       setShowLikesModal(true);
@@ -497,10 +501,11 @@ export function DatingHub() {
     }
   };
 
-  const openChat = async (row: DatingMatchRow) => {
+  const openChat = useCallback(async (row: DatingMatchRow) => {
     if (!accessToken) {
       return;
     }
+    setShowInboxModal(false);
     setShowMatchesModal(false);
     setMatchToast(null);
     setChatMatchId(row.id);
@@ -514,7 +519,19 @@ export function DatingHub() {
     } catch {
       setMessages([]);
     }
-  };
+  }, [accessToken]);
+
+  useEffect(() => {
+    const panel = searchParams.get("panel");
+    const matchId = searchParams.get("match");
+    if (panel !== "inbox" || !matchId || chatMatchId === matchId || matches.length === 0) {
+      return;
+    }
+    const match = matches.find((row) => row.id === matchId);
+    if (match) {
+      void openChat(match);
+    }
+  }, [chatMatchId, matches, openChat, searchParams]);
 
   const sendChat = async () => {
     if (!accessToken || !chatMatchId || !chatDraft.trim()) {
@@ -757,6 +774,27 @@ export function DatingHub() {
             <div className="suzi-feed-header-actions flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
+                className={cx(homeBtnSecondary, "px-3")}
+                onClick={() => setShowInboxModal(true)}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+                  </svg>
+                  Inbox
+                </span>
+              </button>
+              <button
+                type="button"
                 className={cx(homeBtnSecondary, "suzi-dating-filter-trigger px-3")}
                 onClick={() => setShowMobileFilters(true)}
               >
@@ -877,6 +915,21 @@ export function DatingHub() {
           matches={matches}
           onClose={() => {
             setShowMatchesModal(false);
+            router.replace("/app/dating");
+          }}
+          onChat={(row) => void openChat(row)}
+          onUnmatch={(id) => void unmatch(id)}
+        />
+      ) : null}
+
+      {showInboxModal ? (
+        <DatingMatchesModal
+          title="Dating Inbox"
+          copy="Open your Suzi Dating conversations and continue messaging."
+          emptyLabel="No dating conversations yet. Match with someone to start messaging."
+          matches={matches}
+          onClose={() => {
+            setShowInboxModal(false);
             router.replace("/app/dating");
           }}
           onChat={(row) => void openChat(row)}

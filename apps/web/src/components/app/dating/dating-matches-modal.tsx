@@ -4,11 +4,17 @@ import type { DatingMatchRow } from "@/lib/dating-client";
 import { peerDatingName, peerPhoto } from "@/components/app/dating/dating-utils";
 
 export function DatingMatchesModal({
+  title = "Matches",
+  copy,
+  emptyLabel = "No matches yet. Keep browsing and show interest!",
   matches,
   onClose,
   onChat,
   onUnmatch,
 }: {
+  title?: string;
+  copy?: string;
+  emptyLabel?: string;
   matches: DatingMatchRow[];
   onClose: () => void;
   onChat: (row: DatingMatchRow) => void;
@@ -18,14 +24,17 @@ export function DatingMatchesModal({
     <div className="suzi-mobile-modal-root fixed inset-0 z-[80] flex items-end justify-center bg-black/55 p-4 sm:items-center">
       <div className="suzi-mobile-modal-panel max-h-[85vh] w-full max-w-md overflow-y-auto rounded-[1.2rem] border border-white/12 bg-[rgba(14,16,34,0.98)] p-5 shadow-2xl">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-lg font-semibold text-white">Matches</p>
+          <div>
+            <p className="text-lg font-semibold text-white">{title}</p>
+            {copy ? <p className="mt-1 text-xs text-slate-400/88">{copy}</p> : null}
+          </div>
           <button type="button" className="text-slate-400 hover:text-white" onClick={onClose}>
             Close
           </button>
         </div>
         <div className="mt-4 space-y-3">
           {matches.length === 0 ? (
-            <p className="text-sm text-slate-400/88">No matches yet. Keep browsing and show interest!</p>
+            <p className="text-sm text-slate-400/88">{emptyLabel}</p>
           ) : null}
           {matches.map((m) => {
             const label = peerDatingName(m);

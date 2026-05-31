@@ -10,6 +10,7 @@ import { RoomJoinRequestStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ROOMS_CATALOG_CHANNEL } from '../realtime/realtime-channels';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
+import { RealtimeStateService } from '../realtime/realtime-state.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 
@@ -62,6 +63,7 @@ export class RoomsService implements OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtimeEvents: RealtimeEventsService,
+    private readonly realtimeState: RealtimeStateService,
   ) {
     this.cleanupTicker = setInterval(() => {
       void this.runScheduledRoomCleanup();
@@ -735,58 +737,70 @@ export class RoomsService implements OnModuleDestroy {
       throw new ForbiddenException('Join the room before inviting friends');
     }
 
-    const [room, friendship, blocked, targetMembership, targetBan, targetRequest] =
+    const [
+      room,
+      friendship,
+      blocked,
+      targetMembership,
+      targetBan,
+      targetRequest,
+      inviter,
+    ] =
       await Promise.all([
-      this.prisma.room.findUnique({
-        where: { id: access.roomId },
-        select: { slug: true, name: true, ownerId: true },
-      }),
-      this.prisma.friendship.findUnique({
-        where: {
-          userId_friendId: {
-            userId: fromUserId,
-            friendId: targetUserId,
+        this.prisma.room.findUnique({
+          where: { id: access.roomId },
+          select: { slug: true, name: true, ownerId: true },
+        }),
+        this.prisma.friendship.findUnique({
+          where: {
+            userId_friendId: {
+              userId: fromUserId,
+              friendId: targetUserId,
+            },
           },
-        },
-        select: { id: true },
-      }),
-      this.prisma.userBlock.findFirst({
-        where: {
-          OR: [
-            { blockerId: fromUserId, blockedId: targetUserId },
-            { blockerId: targetUserId, blockedId: fromUserId },
-          ],
-        },
-        select: { id: true },
-      }),
-      this.prisma.roomMembership.findUnique({
-        where: {
-          roomId_userId: {
-            roomId: access.roomId,
-            userId: targetUserId,
+          select: { id: true },
+        }),
+        this.prisma.userBlock.findFirst({
+          where: {
+            OR: [
+              { blockerId: fromUserId, blockedId: targetUserId },
+              { blockerId: targetUserId, blockedId: fromUserId },
+            ],
           },
-        },
-        select: { id: true },
-      }),
-      this.prisma.roomBan.findUnique({
-        where: {
-          roomId_userId: {
-            roomId: access.roomId,
-            userId: targetUserId,
+          select: { id: true },
+        }),
+        this.prisma.roomMembership.findUnique({
+          where: {
+            roomId_userId: {
+              roomId: access.roomId,
+              userId: targetUserId,
+            },
           },
-        },
-        select: { id: true },
-      }),
-      this.prisma.roomJoinRequest.findUnique({
-        where: {
-          roomId_userId: {
-            roomId: access.roomId,
-            userId: targetUserId,
+          select: { id: true },
+        }),
+        this.prisma.roomBan.findUnique({
+          where: {
+            roomId_userId: {
+              roomId: access.roomId,
+              userId: targetUserId,
+            },
           },
-        },
-        select: { status: true },
-      }),
-    ]);
+          select: { id: true },
+        }),
+        this.prisma.roomJoinRequest.findUnique({
+          where: {
+            roomId_userId: {
+              roomId: access.roomId,
+              userId: targetUserId,
+            },
+          },
+          select: { status: true },
+        }),
+        this.prisma.user.findUnique({
+          where: { id: fromUserId },
+          select: { username: true, displayName: true },
+        }),
+      ]);
 
     if (!room) {
       throw new NotFoundException('Room not found');
@@ -815,7 +829,27 @@ export class RoomsService implements OnModuleDestroy {
       deepLink: `/app/rooms/${room.slug}`,
       sentAt: new Date().toISOString(),
     };
+    const inviterName = inviter?.displayName?.trim() || inviter?.username || 'Someone';
+    await this.prisma.notification
+      .create({
+        data: {
+          userId: targetUserId,
+          title: 'Chatroom invite',
+          body: `${inviterName} invited you to ${room.name}.`,
+          href: payload.deepLink,
+        },
+      })
+      .catch(() => undefined);
     this.realtimeEvents.emitToUser(targetUserId, 'room:invite', payload);
+    this.realtimeEvents.emitToUser(targetUserId, 'notifications:update', {
+      reason: 'room_invite',
+    });
+    try {
+      const state = await this.realtimeState.buildUserState(targetUserId);
+      this.realtimeEvents.emitToUser(targetUserId, 'realtime:state', state);
+    } catch {
+      // Best-effort: do not fail the primary request if realtime state cannot be refreshed.
+    }
     return { ok: true };
   }
 
