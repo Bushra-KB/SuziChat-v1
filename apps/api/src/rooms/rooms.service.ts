@@ -844,8 +844,12 @@ export class RoomsService implements OnModuleDestroy {
     this.realtimeEvents.emitToUser(targetUserId, 'notifications:update', {
       reason: 'room_invite',
     });
-    const state = await this.realtimeState.buildUserState(targetUserId);
-    this.realtimeEvents.emitToUser(targetUserId, 'realtime:state', state);
+    try {
+      const state = await this.realtimeState.buildUserState(targetUserId);
+      this.realtimeEvents.emitToUser(targetUserId, 'realtime:state', state);
+    } catch {
+      // Best-effort: do not fail the primary request if realtime state cannot be refreshed.
+    }
     return { ok: true };
   }
 
