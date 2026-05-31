@@ -45,6 +45,7 @@ type HomeRoom = {
   onlineUsers: number;
   totalMembers: number;
   image: string;
+  hasCustomImage: boolean;
   category: string;
   privacy: string;
   action: "open" | "join" | "request" | "requested" | "blocked";
@@ -154,6 +155,7 @@ function apiRoomToHomeRoom(room: ApiRoom, myUserId?: string, fallbackSummary = "
       : actor?.action ??
         (privacy === "public" ? "join" : hasPendingRequest ? "requested" : "request");
 
+  const imageUrl = room.imageUrl?.trim();
   return {
     id: room.slug,
     name: room.name,
@@ -161,7 +163,8 @@ function apiRoomToHomeRoom(room: ApiRoom, myUserId?: string, fallbackSummary = "
     detail: undefined,
     onlineUsers: 0,
     totalMembers: room._count?.memberships ?? 0,
-    image: room.imageUrl?.trim() || DEFAULT_ROOM_COVER,
+    image: imageUrl || DEFAULT_ROOM_COVER,
+    hasCustomImage: Boolean(imageUrl),
     category: mapApiCategoryToHome(room.category),
     privacy: room.privacy,
     action,
@@ -657,7 +660,14 @@ export function HomeChatRoomsPanel({
                 }
           }
         >
-          <img src={room.image} alt={`${room.name} cover`} className="h-full w-full object-cover" />
+          <img
+            src={room.image}
+            alt={`${room.name} cover`}
+            className={cx(
+              "h-full w-full",
+              room.hasCustomImage ? "object-cover" : "bg-[#281a8a] object-contain p-1.5",
+            )}
+          />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,8,26,0.05),rgba(4,8,26,0.42))]" />
         </Link>
 

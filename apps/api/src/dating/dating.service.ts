@@ -6,6 +6,7 @@ import {
 import { DatingSwipeAction, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
+import { RealtimeStateService } from '../realtime/realtime-state.service';
 import type { CreateDatingMessageDto } from './dto/create-dating-message.dto';
 import type { DatingSwipeDto } from './dto/dating-swipe.dto';
 import type { UpsertDatingProfileDto } from './dto/upsert-dating-profile.dto';
@@ -78,7 +79,14 @@ export class DatingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtimeEvents: RealtimeEventsService,
+    private readonly realtimeState: RealtimeStateService,
   ) {}
+
+  private async emitNotificationState(userId: string, reason: string) {
+    this.realtimeEvents.emitToUser(userId, 'notifications:update', { reason });
+    const state = await this.realtimeState.buildUserState(userId);
+    this.realtimeEvents.emitToUser(userId, 'realtime:state', state);
+  }
 
   private async blockedUserIds(userId: string) {
     const [blockedByMe, blockedMe] = await Promise.all([
@@ -277,12 +285,11 @@ export class DatingService {
             userId,
             title: 'New dating match',
             body: `You matched with ${peerLabel}. Open Dating to say hi.`,
+            href: '/app/dating?panel=inbox',
           },
         })
         .catch(() => undefined);
-      this.realtimeEvents.emitToUser(userId, 'notifications:update', {
-        reason: 'dating_match',
-      });
+      await this.emitNotificationState(userId, 'dating_match');
     }
   }
 
@@ -939,6 +946,19 @@ export class DatingService {
     const socketPayload = { matchId, message };
     this.realtimeEvents.emitToUser(userId, 'dating:message', socketPayload);
     this.realtimeEvents.emitToUser(peerId, 'dating:message', socketPayload);
+    const senderName =
+      message.sender.displayName?.trim() || message.sender.username || 'Someone';
+    await this.prisma.notification
+      .create({
+        data: {
+          userId: peerId,
+          title: 'New dating message',
+          body: `${senderName}: ${message.body.slice(0, 120)}`,
+          href: `/app/dating?panel=inbox&match=${encodeURIComponent(matchId)}`,
+        },
+      })
+      .catch(() => undefined);
+    await this.emitNotificationState(peerId, 'dating_message');
 
     return { message };
   }

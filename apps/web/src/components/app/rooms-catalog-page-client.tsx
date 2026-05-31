@@ -191,66 +191,72 @@ export function RoomsCatalogPageClient() {
           <p className={listEmpty}>No rooms match this search.</p>
         ) : (
           <div className="grid gap-3 lg:grid-cols-2">
-            {filtered.map((room) => (
-              <article
-                key={room.id}
-                className="rounded-[1rem] border border-cyan-300/16 bg-[linear-gradient(160deg,rgba(29,17,88,0.72),rgba(17,12,58,0.6))] p-4"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[0.7rem] border border-cyan-300/20">
-                    <img
-                      src={room.imageUrl?.trim() || DEFAULT_ROOM_COVER}
-                      alt={`${room.name} cover`}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <Link
-                      href={`/app/rooms/${encodeURIComponent(room.slug)}`}
-                      className={listTitleLink}
-                    >
-                      {room.name}
-                    </Link>
-                    <div className={cx(listMeta, "mt-1 flex items-center gap-2")}>
-                      <span className="rounded-full border border-white/14 bg-white/8 px-2 py-0.5">
-                        {room.category}
-                      </span>
-                      <span>
-                        {room.privacy.toLowerCase() === "public" ? "🌐" : "🔒"} {formatPrivacyLabel(room.privacy)}
-                      </span>
+            {filtered.map((room) => {
+              const coverUrl = room.imageUrl?.trim();
+              return (
+                <article
+                  key={room.id}
+                  className="rounded-[1rem] border border-cyan-300/16 bg-[linear-gradient(160deg,rgba(29,17,88,0.72),rgba(17,12,58,0.6))] p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[0.7rem] border border-cyan-300/20 bg-[#281a8a]">
+                      <img
+                        src={coverUrl || DEFAULT_ROOM_COVER}
+                        alt={`${room.name} cover`}
+                        className={cx(
+                          "h-full w-full",
+                          coverUrl ? "object-cover" : "object-contain p-1.5",
+                        )}
+                      />
                     </div>
-                    <p className={cx(listSubtitle, "mt-1")}>{room.description ?? "No description"}</p>
+                    <div className="min-w-0">
+                      <Link
+                        href={`/app/rooms/${encodeURIComponent(room.slug)}`}
+                        className={listTitleLink}
+                      >
+                        {room.name}
+                      </Link>
+                      <div className={cx(listMeta, "mt-1 flex items-center gap-2")}>
+                        <span className="rounded-full border border-white/14 bg-white/8 px-2 py-0.5">
+                          {room.category}
+                        </span>
+                        <span>
+                          {room.privacy.toLowerCase() === "public" ? "🌐" : "🔒"} {formatPrivacyLabel(room.privacy)}
+                        </span>
+                      </div>
+                      <p className={cx(listSubtitle, "mt-1")}>{room.description ?? "No description"}</p>
+                    </div>
                   </div>
-                </div>
-                <div className={cx(listMeta, "mt-4 flex flex-wrap items-center gap-2")}>
-                  <span>Owner: @{room.owner.username}</span>
-                  <span>{room._count?.memberships ?? 0} members</span>
-                  <span>{onlineBySlug[room.slug] ?? 0} online</span>
-                </div>
-                <div className="mt-4 flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={actingSlug === room.slug || room.actor?.action === "requested"}
-                    onClick={() => void handleAction(room)}
-                    className="suzi-primary-btn px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {room.actor?.action === "open"
-                      ? "Open room"
-                      : room.actor?.action === "requested"
-                        ? "Requested"
-                        : room.actor?.action === "request"
-                          ? "Request access"
-                          : "Join room"}
-                  </button>
-                  <Link
-                    href={`/app/rooms/${encodeURIComponent(room.slug)}/edit`}
-                    className="suzi-secondary-btn px-3 py-2 text-xs"
-                  >
-                    Edit
-                  </Link>
-                </div>
-              </article>
-            ))}
+                  <div className={cx(listMeta, "mt-4 flex flex-wrap items-center gap-2")}>
+                    <span>Owner: @{room.owner.username}</span>
+                    <span>{room._count?.memberships ?? 0} members</span>
+                    <span>{onlineBySlug[room.slug] ?? 0} online</span>
+                  </div>
+                  <div className="mt-4 flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={actingSlug === room.slug || room.actor?.action === "requested"}
+                      onClick={() => void handleAction(room)}
+                      className="suzi-primary-btn px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {room.actor?.action === "open"
+                        ? "Open room"
+                        : room.actor?.action === "requested"
+                          ? "Requested"
+                          : room.actor?.action === "request"
+                            ? "Request access"
+                            : "Join room"}
+                    </button>
+                    <Link
+                      href={`/app/rooms/${encodeURIComponent(room.slug)}/edit`}
+                      className="suzi-secondary-btn px-3 py-2 text-xs"
+                    >
+                      Edit
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </Panel>
