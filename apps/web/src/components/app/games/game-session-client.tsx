@@ -186,6 +186,7 @@ export function GameSessionClient({
   const seatedRef = useRef(false);
   const boardBodyRef = useRef<HTMLDivElement | null>(null);
   const boardStageRef = useRef<HTMLDivElement | null>(null);
+  const currentLobbyRef = useRef<{ lobbyId: string; gameId: string } | null>(null);
   const [boardFitPx, setBoardFitPx] = useState(0);
 
   const auth = useMemo(() => getStoredAuthSession(), []);
@@ -249,6 +250,15 @@ export function GameSessionClient({
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    currentLobbyRef.current = session
+      ? {
+          lobbyId: session.lobbyId,
+          gameId: gameRouteId ?? gameTypeToId(session.gameType),
+        }
+      : null;
+  }, [gameRouteId, session]);
 
   useEffect(() => {
     if (!auth?.accessToken) return;
@@ -318,12 +328,18 @@ export function GameSessionClient({
         prev.some((row) => row.id === message.id) ? prev : [...prev, message]
       ));
     };
+    const onLobbyDeleted = (payload: { lobbyId?: string }) => {
+      const current = currentLobbyRef.current;
+      if (!current || payload?.lobbyId !== current.lobbyId) return;
+      window.location.href = `/app/games/${current.gameId}`;
+    };
     s.on("connect", onConnect);
     s.on("disconnect", onDisconnect);
     s.on("game:state", onState);
     s.on("game:session:sync", onSessionSync);
     s.on("game:session:presence", onPresence);
     s.on("game:chat", onChat);
+    s.on("game:lobby:deleted", onLobbyDeleted);
     if (s.connected) onConnect();
     return () => {
       s.off("connect", onConnect);
@@ -332,8 +348,9 @@ export function GameSessionClient({
       s.off("game:session:sync", onSessionSync);
       s.off("game:session:presence", onPresence);
       s.off("game:chat", onChat);
+      s.off("game:lobby:deleted", onLobbyDeleted);
     };
-  }, [auth?.accessToken, sessionId, refresh]);
+  }, [auth?.accessToken, refresh, sessionId]);
 
   useEffect(() => {
     chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight });
@@ -532,7 +549,11 @@ export function GameSessionClient({
     const confirmed =
       typeof window === "undefined"
         ? true
-        : window.confirm("Leave this table? If both players leave, the lobby will be deleted.");
+        : window.confirm(
+            isLobbyOwner
+              ? "Leave and delete this lobby? Since you created it, leaving removes the table for everyone."
+              : "Leave this table?",
+          );
     if (!confirmed) return;
     setBusy(true);
     setError("");

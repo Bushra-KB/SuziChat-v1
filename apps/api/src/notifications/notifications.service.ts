@@ -20,6 +20,7 @@ export class NotificationsService {
         id: true,
         title: true,
         body: true,
+        href: true,
         read: true,
         createdAt: true,
       },

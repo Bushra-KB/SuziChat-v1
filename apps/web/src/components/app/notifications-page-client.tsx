@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Chip, Panel, SectionHeader } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import {
@@ -14,6 +15,7 @@ import { useI18n } from "@/lib/i18n";
 
 export function NotificationsPageClient() {
   const { t } = useI18n();
+  const router = useRouter();
   const [items, setItems] = useState<ApiNotification[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -104,18 +106,24 @@ export function NotificationsPageClient() {
 
   async function handleOpen(item: ApiNotification) {
     const s = getStoredAuthSession();
-    if (!s || item.read) {
+    if (!s) {
       return;
     }
-    setItems((prev) =>
-      prev.map((entry) => (entry.id === item.id ? { ...entry, read: true } : entry)),
-    );
-    try {
-      await markNotificationRead(s.accessToken, item.id);
-    } catch {
+    if (!item.read) {
       setItems((prev) =>
-        prev.map((entry) => (entry.id === item.id ? { ...entry, read: false } : entry)),
+        prev.map((entry) => (entry.id === item.id ? { ...entry, read: true } : entry)),
       );
+      try {
+        await markNotificationRead(s.accessToken, item.id);
+      } catch {
+        setItems((prev) =>
+          prev.map((entry) => (entry.id === item.id ? { ...entry, read: false } : entry)),
+        );
+        return;
+      }
+    }
+    if (item.href) {
+      router.push(item.href);
     }
   }
 

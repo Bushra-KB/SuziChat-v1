@@ -41,7 +41,7 @@ import {
   subscribeGameLobbyListChannel,
 } from "@/lib/games-realtime";
 
-export function GameLobbyClient({ gameId }: { gameId: string }) {
+export function GameLobbyClient({ gameId, invitedLobbyId = "" }: { gameId: string; invitedLobbyId?: string }) {
   const game = gameMeta.find((entry) => entry.id === gameId) ?? gameMeta[0];
   const gameArt = gameLobbyArtForId(game.id);
   const [rows, setRows] = useState<ApiGameLobby[]>([]);
@@ -75,6 +75,18 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!invitedLobbyId || loading) return;
+    const target = rows.find((row) => row.id === invitedLobbyId);
+    if (!target) {
+      setError("This invite's lobby is no longer available. Pick another open table.");
+      return;
+    }
+    setError("");
+    const card = document.getElementById(`game-lobby-${invitedLobbyId}`);
+    card?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [invitedLobbyId, loading, rows]);
 
   useEffect(() => {
     const auth = getStoredAuthSession();
@@ -192,7 +204,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
       const lobby = socket.connected
         ? await postGameLobbyCreate(socket, payload)
         : await createGameLobby(auth.accessToken, payload);
-      setRows((prev) => [lobby, ...prev.filter((row) => row.id !== lobby.id)]);
+      setRows((prev) => [...prev.filter((row) => row.id !== lobby.id), lobby]);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Could not create lobby.");
     } finally {
@@ -269,12 +281,20 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
     }
   }
 
-  async function onLeave(lobbyId: string) {
+  async function onLeave(lobby: ApiGameLobby) {
     const auth = getStoredAuthSession();
     if (!auth?.accessToken) {
       setError("Login required.");
       return;
     }
+    if (lobby.ownerId === me) {
+      const confirmed =
+        typeof window === "undefined"
+          ? true
+          : window.confirm("Leave and delete this lobby? Since you created it, leaving removes the table for everyone.");
+      if (!confirmed) return;
+    }
+    const lobbyId = lobby.id;
     setBusyLobbyId(lobbyId);
     setError("");
     try {
@@ -467,7 +487,11 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
               return (
                 <div
                   key={lobby.id}
-                  className="suzi-lobby-card relative flex flex-col overflow-hidden rounded-[var(--panel-radius)] border border-cyan-300/24 bg-[radial-gradient(circle_at_50%_8%,rgba(0,229,255,0.14),transparent_42%),linear-gradient(180deg,rgba(37,54,112,0.92),rgba(18,24,72,0.96))] p-2.5 shadow-[0_10px_22px_rgba(15,23,42,0.22),inset_0_1px_0_rgba(255,255,255,0.1)]"
+                  id={`game-lobby-${lobby.id}`}
+                  className={cx(
+                    "suzi-lobby-card relative flex flex-col overflow-hidden rounded-[var(--panel-radius)] border border-cyan-300/24 bg-[radial-gradient(circle_at_50%_8%,rgba(0,229,255,0.14),transparent_42%),linear-gradient(180deg,rgba(37,54,112,0.92),rgba(18,24,72,0.96))] p-2.5 shadow-[0_10px_22px_rgba(15,23,42,0.22),inset_0_1px_0_rgba(255,255,255,0.1)]",
+                    invitedLobbyId === lobby.id && "ring-2 ring-fuchsia-300/80 ring-offset-2 ring-offset-cyan-950/40",
+                  )}
                 >
                   <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent)] opacity-40" />
 
@@ -571,7 +595,7 @@ export function GameLobbyClient({ gameId }: { gameId: string }) {
                         title="Leave table"
                         disabled={busyLobbyId === lobby.id}
                         className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-amber-300/35 bg-[rgba(62,39,13,0.52)] text-amber-100 transition hover:border-amber-300/65 hover:text-white disabled:opacity-60"
-                        onClick={() => void onLeave(lobby.id)}
+                        onClick={() => void onLeave(lobby)}
                       >
                         <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
