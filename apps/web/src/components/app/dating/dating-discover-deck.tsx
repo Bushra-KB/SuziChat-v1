@@ -198,7 +198,15 @@ export function DatingDiscoverDeck({
               {hasProfile ? "No profiles match these filters right now." : "Set up your profile to start discovering."}
             </p>
             {!hasProfile ? (
-              <button type="button" onClick={onOpenProfile} className="suzi-primary-btn px-4 py-2.5 text-sm">
+              <button
+                type="button"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenProfile();
+                }}
+                className="suzi-primary-btn px-4 py-2.5 text-sm"
+              >
                 Create profile
               </button>
             ) : (

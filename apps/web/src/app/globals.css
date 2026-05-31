@@ -39,9 +39,9 @@
   /* Layout box (mobile pill) vs hero display size (desktop overlay — does not affect panel flow). */
   --logo-w: clamp(6.8rem, 12vw, 10.2rem);
   --logo-h: clamp(2.15rem, 3.4vh + 0.7rem, 2.85rem);
-  --logo-display-w: clamp(19rem, 33vw, 27.5rem);
+  --logo-display-w: clamp(8.5rem, 12vw, 11rem);
   --logo-display-h: clamp(8.5rem, 14vh + 0.85rem, 12rem);
-  --logo-top-gap: 4px;
+  --logo-top-gap: 0px;
   --panel-radius: clamp(0.85rem, 1vw + 0.25rem, 1.35rem);
   --panel-pad: clamp(0.65rem, 0.7vw + 0.3rem, 1.1rem);
   --panel-pad-tight: clamp(0.55rem, 0.5vw + 0.25rem, 0.85rem);
@@ -304,7 +304,7 @@ html.suzi-app-frame-lock body {
     --shell-toolbar-btn: clamp(1.5rem, 1.6vh + 0.35rem, 1.7rem);
     --logo-h: clamp(1.95rem, 2.8vh + 0.55rem, 2.45rem);
     --logo-w: clamp(6.2rem, 10vw, 8.8rem);
-    --logo-display-w: clamp(16.5rem, 26vw, 22rem);
+    --logo-display-w: clamp(7.5rem, 10.5vw, 9.25rem);
     --logo-display-h: clamp(6.75rem, 11vh + 0.6rem, 9rem);
   }
 }
@@ -909,12 +909,13 @@ h5 {
   z-index: 350;
   display: none;
   width: var(--logo-display-w);
-  height: var(--logo-display-h);
+  aspect-ratio: 1038 / 531;
+  height: auto;
   margin-inline: auto;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
   justify-content: center;
-  align-items: flex-end;
+  align-items: center;
   line-height: 0;
   pointer-events: none;
   -webkit-tap-highlight-color: transparent;
@@ -929,12 +930,12 @@ h5 {
 
 .suzi-shell-logo-overlay__img {
   display: block;
-  height: 134%;
-  width: auto;
-  max-width: none;
+  height: 92%;
+  width: 92%;
+  max-width: 92%;
   flex-shrink: 0;
   object-fit: contain;
-  object-position: center bottom;
+  object-position: center;
   pointer-events: auto;
   filter: drop-shadow(0 0 12px rgba(232, 77, 255, 0.22))
     drop-shadow(0 6px 18px rgba(8, 6, 34, 0.32));
@@ -1630,6 +1631,12 @@ h5 {
 .suzi-game-chat-send:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.suzi-game-mobile-drawer-controls,
+.suzi-game-mobile-drawer-backdrop,
+.suzi-game-mobile-drawer-close {
+  display: none;
 }
 
 /* —— Poker arcade (MSN-style 3D table) —— */
@@ -2986,6 +2993,43 @@ h5 {
   }
 }
 
+.suzi-messages-page :is(.suzi-msg-inbox, .suzi-msg-thread, .suzi-msg-invite) {
+  border-color: rgba(130, 200, 255, 0.34);
+  box-shadow:
+    0 12px 28px rgba(16, 36, 88, 0.24),
+    0 0 14px rgba(0, 229, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.13);
+}
+
+.suzi-messages-page :is(.suzi-msg-inbox, .suzi-msg-invite) > .suzi-home-panel-header {
+  margin: calc(var(--panel-pad) * -1) calc(var(--panel-pad) * -1) 0.35rem;
+  padding: var(--panel-pad) var(--panel-pad) 0.42rem;
+  border-radius: var(--panel-radius) var(--panel-radius) 0 0;
+  border: 1px solid rgba(96, 165, 250, 0.12);
+  background: linear-gradient(180deg, rgba(20, 32, 92, 0.3), rgba(14, 24, 74, 0.2));
+}
+
+.suzi-messages-page .suzi-msg-thread > .suzi-home-panel-header {
+  border-radius: var(--panel-radius) var(--panel-radius) 0 0;
+  border: 1px solid rgba(96, 165, 250, 0.12);
+  border-bottom-color: rgba(100, 185, 255, 0.2);
+  background: linear-gradient(180deg, rgba(20, 32, 92, 0.32), rgba(14, 24, 74, 0.22));
+}
+
+.suzi-messages-page .suzi-msg-thread .suzi-chat-log {
+  border: 1px solid rgba(178, 218, 255, 0.52);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.85), transparent 44%),
+    linear-gradient(180deg, rgba(221, 239, 255, 0.98), rgba(196, 222, 250, 0.94));
+}
+
+.suzi-messages-page .suzi-msg-inbox .suzi-input,
+.suzi-messages-page .suzi-msg-invite .suzi-input {
+  height: var(--btn-h-md);
+  border-radius: 0.82rem;
+  font-size: var(--fs-xs);
+}
+
 /* CHAT ROOM — chat | members + options sidebar. */
 .suzi-room-grid {
   display: grid;
@@ -4021,6 +4065,89 @@ h5 {
   word-break: break-word;
 }
 
+.suzi-chat-bubble__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  margin-top: 0.48rem;
+}
+
+.suzi-dm-message-action {
+  display: inline-flex;
+  min-height: 1.55rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  background: rgba(255, 255, 255, 0.72);
+  padding-inline: 0.58rem;
+  color: rgb(30, 64, 175);
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.74);
+  transition: border-color 0.15s ease, filter 0.15s ease, transform 0.15s ease;
+}
+
+.suzi-dm-message-action:hover {
+  border-color: rgba(37, 99, 235, 0.3);
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+
+.suzi-dm-message-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
+.suzi-dm-message-action--primary {
+  border-color: rgba(244, 114, 182, 0.38);
+  background: linear-gradient(90deg, rgba(255, 45, 167, 0.95), rgba(206, 47, 255, 0.9));
+  color: #fff;
+}
+
+.suzi-dm-message-action--danger {
+  border-color: rgba(244, 63, 94, 0.24);
+  color: rgb(190, 24, 93);
+}
+
+.suzi-dm-edit-form {
+  margin-top: 0.42rem;
+}
+
+.suzi-dm-edit-textarea {
+  width: min(24rem, 100%);
+  min-height: 4.4rem;
+  resize: vertical;
+  border-radius: 0.72rem;
+  border: 1px solid rgba(244, 114, 182, 0.34);
+  background: rgba(255, 255, 255, 0.86);
+  padding: 0.55rem 0.62rem;
+  color: rgb(30, 41, 59);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  outline: none;
+  box-shadow:
+    inset 0 1px 3px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.suzi-dm-edit-textarea:focus {
+  border-color: rgba(244, 114, 182, 0.58);
+  box-shadow:
+    0 0 0 3px rgba(244, 114, 182, 0.15),
+    inset 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.suzi-dm-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.42rem;
+  margin-top: 0.45rem;
+}
+
 /* DM / room composer — subtle scrollbar on white textarea */
 .suzi-composer-textarea {
   scrollbar-width: thin;
@@ -4251,6 +4378,13 @@ h5 {
     --home-panel-pad: 0.36rem;
   }
 
+  .suzi-home-shell-frame .suzi-home-mobile-stack:not(.suzi-home-mobile-stack--focused)::after {
+    content: "";
+    display: block;
+    flex: 0 0 50px;
+    height: 50px;
+  }
+
   .suzi-home-shell-frame .suzi-home-mobile-page--focused {
     height: calc(
       100dvh - var(--m-top-safe) - var(--m-bottom-safe) -
@@ -4410,6 +4544,17 @@ h5 {
   .suzi-account-page-scroll {
     padding-inline: 0 !important;
     padding-top: 0.25rem !important;
+  }
+
+  .suzi-account-page .suzi-profile-page-inner {
+    padding-bottom: max(135px, 8.4375rem) !important;
+  }
+
+  .suzi-profile-page:not(.suzi-account-page) .suzi-profile-page-inner::after {
+    content: "";
+    display: block;
+    flex: 0 0 125px;
+    height: 125px;
   }
 
   .suzi-account-layout,
@@ -5835,40 +5980,134 @@ h5 {
     width: 2.1rem !important;
   }
 
-  /* Game session: board-first phone layout, with info/chat as compact panels. */
+  /* Game session: mobile board-first layout with info/chat as side drawers. */
   .suzi-app-frame-fill.suzi-game-session-page {
-    height: auto !important;
-    min-height: 100% !important;
-    overflow: visible !important;
-    padding: 0 !important;
+    --suzi-game-mobile-bottom-clearance: calc(var(--m-bottom-safe) + 2.45rem);
+    box-sizing: border-box;
+    flex: none !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding: calc(var(--m-top-safe) + 0.42rem) 0.42rem var(--suzi-game-mobile-bottom-clearance) !important;
   }
   .suzi-game-session-page .suzi-game-session-shell,
   .suzi-game-session-page .suzi-game-session-layout {
-    height: auto !important;
+    height: 100% !important;
     min-height: 0 !important;
   }
   .suzi-game-session-page .suzi-game-session-layout {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.55rem !important;
+    position: relative;
+    display: block !important;
+    gap: 0 !important;
   }
   .suzi-game-session-page .suzi-panel {
-    height: auto !important;
+    height: 100% !important;
     min-height: 0 !important;
     border-radius: 1rem !important;
   }
   .suzi-game-board-panel {
-    order: 1;
+    position: relative;
+    z-index: 1;
+    height: 100% !important;
     overflow: hidden !important;
     padding: 0.52rem !important;
   }
-  .suzi-game-info-panel {
-    order: 2;
+  .suzi-game-info-panel,
+  .suzi-game-chat-panel {
+    position: fixed !important;
+    top: calc(var(--m-top-safe) + 0.42rem);
+    bottom: var(--suzi-game-mobile-bottom-clearance);
+    z-index: 760;
+    width: min(86vw, 22rem);
+    height: auto !important;
+    max-height: calc(100dvh - var(--m-top-safe) - var(--suzi-game-mobile-bottom-clearance) - 0.42rem);
     padding: 0.62rem !important;
+    box-shadow:
+      0 24px 70px rgba(0, 0, 0, 0.52),
+      0 0 28px rgba(0, 229, 255, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+    opacity: 0.98;
+    transition: transform 230ms ease, opacity 180ms ease;
+  }
+  .suzi-game-info-panel {
+    left: 0.42rem;
+    transform: translateX(calc(-100% - 0.7rem));
   }
   .suzi-game-chat-panel {
-    order: 3;
-    padding: 0.62rem !important;
+    right: 0.42rem;
+    transform: translateX(calc(100% + 0.7rem));
+  }
+  .suzi-game-info-panel[data-drawer-open="true"],
+  .suzi-game-chat-panel[data-drawer-open="true"] {
+    transform: translateX(0);
+  }
+  .suzi-game-mobile-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 740;
+    display: block;
+    border: 0;
+    background: rgba(4, 7, 20, 0.42);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+  .suzi-game-mobile-drawer-controls {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 730;
+    display: block;
+  }
+  .suzi-game-mobile-drawer-tab {
+    pointer-events: auto;
+    position: fixed;
+    display: inline-flex;
+    min-width: 3.4rem;
+    height: 2rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(130, 200, 255, 0.42);
+    background:
+      radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.16), transparent 58%),
+      linear-gradient(180deg, rgba(54, 77, 166, 0.9), rgba(24, 31, 94, 0.92));
+    color: rgba(245, 250, 255, 0.98);
+    font-size: 0.68rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    box-shadow:
+      0 12px 28px rgba(3, 7, 30, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  }
+  .suzi-game-mobile-drawer-tab--info {
+    left: 0;
+    top: calc(var(--m-top-safe) + 5.1rem);
+    border-left: 0;
+    border-radius: 0 0.85rem 0.85rem 0;
+  }
+  .suzi-game-mobile-drawer-tab--chat {
+    right: 0;
+    top: calc(var(--m-top-safe) + 5.1rem);
+    border-right: 0;
+    border-radius: 0.85rem 0 0 0.85rem;
+  }
+  .suzi-game-mobile-drawer-tab[aria-expanded="true"] {
+    border-color: rgba(244, 114, 182, 0.52);
+    background:
+      radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.18), transparent 58%),
+      linear-gradient(90deg, rgba(255, 45, 167, 0.96), rgba(206, 47, 255, 0.9));
+  }
+  .suzi-game-mobile-drawer-close {
+    display: inline-flex;
+    height: 2rem;
+    width: 2rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.72rem;
+    border: 1px solid rgba(130, 200, 255, 0.24);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(245, 250, 255, 0.9);
   }
   .suzi-game-board-panel > div:first-child {
     padding-bottom: 0.42rem !important;
@@ -5894,12 +6133,12 @@ h5 {
   }
   .suzi-game-board-panel > .min-h-0.flex-1 {
     overflow: hidden !important;
-    padding-top: 0.5rem !important;
+    padding-top: 0.42rem !important;
   }
   .suzi-game-board-stage {
     min-height: 0 !important;
     overflow: hidden !important;
-    --suzi-board-fit: min(calc(100vw - 1.8rem), 25rem, calc(100dvh - 9.5rem));
+    --suzi-board-fit: min(calc(100vw - 1.8rem), 25rem, calc(100dvh - var(--m-top-safe) - var(--suzi-game-mobile-bottom-clearance) - 3.2rem));
   }
   @supports (width: 1cqw) {
     .suzi-game-board-stage {
@@ -5937,11 +6176,11 @@ h5 {
     line-height: 1.2 !important;
   }
   .suzi-game-chat-panel .suzi-thin-scroll {
-    max-height: 13rem !important;
+    max-height: none !important;
     overflow-y: auto !important;
   }
   .suzi-game-info-panel .suzi-scrollbar {
-    max-height: 12rem !important;
+    max-height: none !important;
     overflow-y: auto !important;
   }
   .suzi-game-info-panel h3,

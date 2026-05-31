@@ -23,6 +23,7 @@ import {
   assignRoomModerator,
   approveRoomJoinRequest,
   banRoomMember,
+  cancelRoomJoinRequest,
   deleteRoom,
   getRoom,
   getRoomAccess,
@@ -341,6 +342,9 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const authSnap = getStoredAuthSession();
   const myAvatarUrl = authSnap?.user.avatarUrl?.trim() || null;
   const canManageRoom = Boolean(access?.isOwner || access?.isModerator);
+  const hasRoomEntry = Boolean(
+    access && !access.isBlocked && (access.isOwner || access.isModerator || access.isMember),
+  );
   const canAssignModerators = Boolean(access?.isOwner);
   const onlineUserIds = useMemo(
     () => new Set(onlineUsers.map((user) => user.id)),
@@ -428,6 +432,20 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
       } else {
         await requestRoomAccess(s.accessToken, room.slug);
       }
+      await refresh();
+    } finally {
+      setActionBusyId(null);
+    }
+  }
+
+  async function handleCancelRoomJoinRequest() {
+    const s = getStoredAuthSession();
+    if (!s?.accessToken || !room) {
+      return;
+    }
+    setActionBusyId("cancel-request");
+    try {
+      await cancelRoomJoinRequest(s.accessToken, room.slug);
       await refresh();
     } finally {
       setActionBusyId(null);
@@ -706,26 +724,70 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
           </div>
         ) : null}
 
-        {!access?.canOpen && hasSession ? (
-          <div className="flex flex-1 items-center justify-center bg-[linear-gradient(180deg,rgba(20,16,60,0.6),rgba(14,12,42,0.6))] px-6">
-            <div className="max-w-md text-center">
-              <p className="text-[var(--fs-sm)] text-cyan-100/82">
+        {access && !hasRoomEntry && hasSession ? (
+          <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[linear-gradient(180deg,rgba(20,16,60,0.72),rgba(14,12,42,0.78))] px-4 py-6">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(0,229,255,0.12),transparent_38%),radial-gradient(circle_at_50%_90%,rgba(255,32,121,0.12),transparent_42%)]" />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="room-access-dialog-title"
+              className="relative w-full max-w-[24rem] rounded-[1.2rem] border border-cyan-300/28 bg-[linear-gradient(160deg,rgba(34,20,92,0.96),rgba(18,10,56,0.97))] p-5 text-center shadow-[0_24px_70px_rgba(4,5,22,0.56),inset_0_1px_0_rgba(255,255,255,0.11)] backdrop-blur-xl"
+            >
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/26 bg-cyan-300/10 text-cyan-100 shadow-[0_0_18px_rgba(0,229,255,0.16)]">
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={access?.hasPendingRequest ? "M12 6v6l4 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" : lockIconPath} />
+                </svg>
+              </div>
+              <h2 id="room-access-dialog-title" className="mt-4 text-[var(--fs-lg)] font-bold text-white">
                 {access?.isBlocked
-                  ? "You are blocked from this room."
+                  ? "Room access blocked"
                   : access?.hasPendingRequest
-                    ? "Your join request is pending approval."
-                    : "You are not a member of this room yet."}
+                    ? "Request pending"
+                    : access?.privacy?.toLowerCase() === "public"
+                      ? "Join the room first"
+                      : "Request room access"}
+              </h2>
+              <p className="mt-2 text-[var(--fs-sm)] leading-6 text-cyan-50/76">
+                {access?.isBlocked
+                  ? "You are blocked from this room and cannot open the conversation."
+                  : access?.hasPendingRequest
+                    ? "Your request needs to be approved before you can enter this room."
+                    : access?.privacy?.toLowerCase() === "public"
+                      ? "You must join the room first before you can read or send messages."
+                      : "This room requires approval. Send a join request to the room owner or moderators."}
               </p>
-              {!access?.isBlocked && !access?.hasPendingRequest ? (
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                {access?.isBlocked ? null : access?.hasPendingRequest ? (
+                  <button
+                    type="button"
+                    disabled={actionBusyId === "cancel-request"}
+                    onClick={() => void handleCancelRoomJoinRequest()}
+                    className="suzi-secondary-btn px-4 py-2 text-[var(--fs-sm)]"
+                  >
+                    {actionBusyId === "cancel-request" ? "Cancelling..." : "Cancel request"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={actionBusyId === "join"}
+                    onClick={() => void handleRoomJoinOrRequest()}
+                    className="suzi-primary-btn px-4 py-2 text-[var(--fs-sm)]"
+                  >
+                    {actionBusyId === "join"
+                      ? "Please wait..."
+                      : access?.privacy?.toLowerCase() === "public"
+                        ? "Join room"
+                        : "Request access"}
+                  </button>
+                )}
                 <button
                   type="button"
-                  disabled={actionBusyId === "join"}
-                  onClick={() => void handleRoomJoinOrRequest()}
-                  className="suzi-primary-btn mt-3 px-4 py-2 text-[var(--fs-sm)]"
+                  onClick={() => router.push("/app#chatrooms")}
+                  className="suzi-secondary-btn px-4 py-2 text-[var(--fs-sm)]"
                 >
-                  {access?.privacy?.toLowerCase() === "public" ? "Join room" : "Request access"}
+                  Back to rooms
                 </button>
-              ) : null}
+              </div>
             </div>
           </div>
         ) : (

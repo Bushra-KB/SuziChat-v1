@@ -9,20 +9,22 @@ export function AuthCard({
   description,
   children,
   footer,
+  className = "",
 }: {
   eyebrow: string;
   title: string;
   description: string;
   children: ReactNode;
   footer?: ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="rounded-[2rem] border border-white/14 bg-[linear-gradient(180deg,rgba(50,12,86,0.86),rgba(29,7,52,0.9))] p-5 shadow-[0_24px_80px_rgba(8,0,24,0.52),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl sm:p-7">
-      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.36em] text-cyan-100/70">{eyebrow}</p>
-      <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">{title}</h2>
-      <p className="mt-3 text-sm leading-6 text-white/68 sm:text-base">{description}</p>
-      <div className="mt-7">{children}</div>
-      {footer ? <div className="mt-6 text-sm text-blue-100/72">{footer}</div> : null}
+    <section className={`mx-auto w-full max-w-[34rem] rounded-[1.45rem] border border-white/14 bg-[linear-gradient(180deg,rgba(50,12,86,0.86),rgba(29,7,52,0.9))] p-4 shadow-[0_24px_80px_rgba(8,0,24,0.52),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl sm:rounded-[1.8rem] sm:p-6 ${className}`}>
+      <p className="text-[0.55rem] font-semibold uppercase tracking-[0.26em] text-cyan-100/70 sm:text-[0.62rem] sm:tracking-[0.32em]">{eyebrow}</p>
+      <h2 className="mt-3 text-[1.38rem] font-semibold leading-tight tracking-tight text-white sm:text-[2rem]">{title}</h2>
+      <p className="mt-2 text-[0.78rem] leading-5 text-white/68 sm:mt-2.5 sm:text-[0.9rem] sm:leading-6">{description}</p>
+      <div className="mt-5 sm:mt-7">{children}</div>
+      {footer ? <div className="mt-5 text-[0.78rem] text-blue-100/72 sm:mt-6 sm:text-[0.86rem]">{footer}</div> : null}
     </section>
   );
 }
@@ -37,10 +39,10 @@ export function AuthField({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-semibold text-white">{label}</span>
+      <span className="text-[0.76rem] font-semibold text-white sm:text-[0.82rem]">{label}</span>
       <input
         {...props}
-        className="mt-2 w-full rounded-[1rem] border border-white/10 bg-[#3b0a59]/82 px-4 py-3.5 text-white outline-none transition placeholder:text-white/36 focus:border-cyan-300/45 focus:bg-[#461066]/88"
+        className="mt-2 w-full rounded-[0.9rem] border border-white/10 bg-[#3b0a59]/82 px-4 py-2.5 text-[0.86rem] text-white outline-none transition placeholder:text-white/36 focus:border-cyan-300/45 focus:bg-[#461066]/88 sm:rounded-[1rem] sm:py-3 sm:text-[0.94rem]"
       />
       {error ? <span className="mt-2 block text-xs font-medium text-amber-100">{error}</span> : null}
     </label>
@@ -57,10 +59,10 @@ export function AuthTextarea({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-semibold text-white">{label}</span>
+      <span className="text-[0.76rem] font-semibold text-white sm:text-[0.82rem]">{label}</span>
       <textarea
         {...props}
-        className="mt-2 w-full rounded-[1rem] border border-white/10 bg-[#3b0a59]/82 px-4 py-3.5 text-white outline-none transition placeholder:text-white/36 focus:border-cyan-300/45 focus:bg-[#461066]/88"
+        className="mt-2 w-full rounded-[0.9rem] border border-white/10 bg-[#3b0a59]/82 px-4 py-2.5 text-[0.86rem] text-white outline-none transition placeholder:text-white/36 focus:border-cyan-300/45 focus:bg-[#461066]/88 sm:rounded-[1rem] sm:py-3 sm:text-[0.94rem]"
       />
       {error ? <span className="mt-2 block text-xs font-medium text-amber-100">{error}</span> : null}
     </label>
@@ -76,7 +78,7 @@ export function AuthMessage({
 }) {
   return (
     <div
-      className={`rounded-[1rem] border px-4 py-3 text-sm leading-6 ${
+      className={`rounded-[0.9rem] border px-4 py-2.5 text-[0.78rem] leading-5 sm:rounded-[1rem] sm:py-3 sm:text-[0.86rem] sm:leading-6 ${
         tone === "error"
           ? "border-amber-200/24 bg-amber-300/10 text-amber-50"
           : tone === "success"
@@ -100,7 +102,7 @@ export function PrimaryAuthButton({
     <button
       type="submit"
       disabled={disabled}
-      className="w-full rounded-[1rem] border border-cyan-300/20 bg-[linear-gradient(90deg,#7f10c9,#8744f6_52%,#3f89d3)] px-5 py-3.5 text-base font-semibold text-white shadow-[0_16px_36px_rgba(88,49,224,0.34)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+      className="w-full rounded-[0.95rem] border border-cyan-300/20 bg-[linear-gradient(90deg,#7f10c9,#8744f6_52%,#3f89d3)] px-5 py-2.5 text-[0.88rem] font-semibold text-white shadow-[0_16px_36px_rgba(88,49,224,0.34)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 sm:rounded-[1rem] sm:py-3 sm:text-[0.95rem]"
     >
       {children}
     </button>
@@ -109,7 +111,7 @@ export function PrimaryAuthButton({
 
 export function AuthDivider() {
   return (
-    <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.24em] text-white/44">
+    <div className="flex items-center gap-3 text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-white/44 sm:text-[0.7rem] sm:tracking-[0.22em]">
       <span className="h-px flex-1 bg-white/12" />
       or
       <span className="h-px flex-1 bg-white/12" />

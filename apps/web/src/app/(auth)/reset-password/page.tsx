@@ -74,7 +74,7 @@ function ResetPasswordForm() {
         </>
       }
     >
-      <form className="space-y-5" onSubmit={handleSubmit}>
+      <form className="space-y-4 sm:space-y-5" onSubmit={handleSubmit}>
         {!token ? (
           <AuthMessage tone="info">
             This page needs the secure reset link from your email. Request a new
@@ -110,7 +110,7 @@ function ResetPasswordForm() {
       </form>
 
       {message ? (
-        <div className="mt-5">
+        <div className="mt-4 sm:mt-5">
           <AuthMessage tone={status === "error" ? "error" : "success"}>
             {message}
           </AuthMessage>

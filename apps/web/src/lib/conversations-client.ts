@@ -51,6 +51,27 @@ export async function sendDirectMessage(accessToken: string, peerId: string, bod
   );
 }
 
+export async function updateDirectMessage(accessToken: string, messageId: string, body: string) {
+  return apiJson<DirectMessageRow>(
+    `/v1/conversations/messages/${encodeURIComponent(messageId)}`,
+    {
+      method: "PATCH",
+      accessToken,
+      body: JSON.stringify({ body }),
+    },
+  );
+}
+
+export async function deleteDirectMessage(accessToken: string, messageId: string) {
+  return apiJson<{ messageId: string; senderId: string; recipientId: string }>(
+    `/v1/conversations/messages/${encodeURIComponent(messageId)}`,
+    {
+      method: "DELETE",
+      accessToken,
+    },
+  );
+}
+
 export async function removeConversation(accessToken: string, peerId: string) {
   return apiJson<RemovedConversation>(`/v1/conversations/${encodeURIComponent(peerId)}`, {
     method: "DELETE",

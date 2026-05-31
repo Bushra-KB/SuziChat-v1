@@ -11,8 +11,8 @@ export function AuthSessionRedirect({ to }: { to: string }) {
     // If a user navigates from the locked app shell to auth routes,
     // ensure shell scroll locks are removed so auth uses a single page scrollbar.
     document.documentElement.classList.remove("suzi-app-frame-lock");
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
 
     let cancelled = false;
 

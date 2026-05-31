@@ -96,7 +96,7 @@ export function GoogleAuthButton({
 
   if (!clientId) {
     return (
-      <div className="rounded-[1rem] border border-white/10 bg-white/6 px-4 py-3 text-center text-sm text-white/62">
+      <div className="rounded-[0.9rem] border border-white/10 bg-white/6 px-4 py-2.5 text-center text-[0.78rem] leading-5 text-white/62 sm:rounded-[1rem] sm:py-3 sm:text-[0.86rem] sm:leading-6">
         Google sign-in is not configured yet.
       </div>
     );
