@@ -6,6 +6,9 @@ describe('DatingService', () => {
   const realtimeEvents = {
     emitToUser: jest.fn(),
   };
+  const realtimeState = {
+    buildUserState: jest.fn().mockResolvedValue({}),
+  };
 
   const prisma = {
     datingProfile: {
@@ -44,7 +47,11 @@ describe('DatingService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new DatingService(prisma as never, realtimeEvents as never);
+    service = new DatingService(
+      prisma as never,
+      realtimeEvents as never,
+      realtimeState as never,
+    );
   });
 
   it('discover requires a dating profile', async () => {
