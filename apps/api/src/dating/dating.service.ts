@@ -83,9 +83,13 @@ export class DatingService {
   ) {}
 
   private async emitNotificationState(userId: string, reason: string) {
-    this.realtimeEvents.emitToUser(userId, 'notifications:update', { reason });
-    const state = await this.realtimeState.buildUserState(userId);
-    this.realtimeEvents.emitToUser(userId, 'realtime:state', state);
+    try {
+      this.realtimeEvents.emitToUser(userId, 'notifications:update', { reason });
+      const state = await this.realtimeState.buildUserState(userId);
+      this.realtimeEvents.emitToUser(userId, 'realtime:state', state);
+    } catch {
+      // Best-effort: do not fail the primary request if realtime state cannot be refreshed.
+    }
   }
 
   private async blockedUserIds(userId: string) {
