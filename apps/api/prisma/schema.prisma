@@ -588,6 +588,7 @@ model Notification {
   user      User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
   title     String
   body      String
+  href      String?
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
 

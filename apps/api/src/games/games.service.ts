@@ -16,6 +16,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
+import { RealtimeStateService } from '../realtime/realtime-state.service';
 import { GamesMetricsService } from './games-metrics.service';
 import {
   applyChessAction,
@@ -189,6 +190,7 @@ export class GamesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtimeEvents: RealtimeEventsService,
+    private readonly realtimeState: RealtimeStateService,
     private readonly gamesMetrics: GamesMetricsService,
   ) {}
 
@@ -211,6 +213,27 @@ export class GamesService {
     );
   }
 
+  private emitLobbyDeleted(
+    lobbyId: string,
+    gameType: GameType,
+    sessionIds: string[] = [],
+  ) {
+    const payload = { lobbyId };
+    this.realtimeEvents.emitToChannel(
+      this.lobbyChannel(lobbyId),
+      'game:lobby:deleted',
+      payload,
+    );
+    for (const sessionId of sessionIds) {
+      this.realtimeEvents.emitToChannel(
+        this.sessionChannel(sessionId),
+        'game:lobby:deleted',
+        payload,
+      );
+    }
+    this.emitLobbyListRefresh(gameType);
+  }
+
   listCatalog() {
     return GAME_CATALOG;
   }
@@ -228,7 +251,7 @@ export class GamesService {
         },
         ...(gameType ? { gameType } : {}),
       },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
       include: {
         owner: {
           select: {
@@ -382,15 +405,28 @@ export class GamesService {
         maxSeats,
         isPrivate: Boolean(dto.isPrivate),
         settings: toJson(dto.settings ?? {}),
-        status: GameLobbyStatus.EMPTY,
+        status:
+          catalog.minPlayers > 1 ? GameLobbyStatus.WAITING : GameLobbyStatus.OPEN,
+        seats: {
+          create: Array.from({ length: maxSeats }, (_, seatIndex) => ({
+            seatIndex,
+            status:
+              seatIndex === 0 ? GameSeatStatus.OCCUPIED : GameSeatStatus.OPEN,
+            userId: seatIndex === 0 ? ownerId : null,
+            stackChips:
+              seatIndex === 0 && dto.gameType === GameType.POKER_HOLDEM
+                ? 2000
+                : 0,
+          })),
+        },
+        events: {
+          create: {
+            userId: ownerId,
+            type: GameEventType.SYSTEM,
+            payload: { message: 'created_lobby', seatIndex: 0 },
+          },
+        },
       },
-    });
-    await this.prisma.gameSeat.createMany({
-      data: Array.from({ length: maxSeats }, (_, seatIndex) => ({
-        lobbyId: lobby.id,
-        seatIndex,
-        status: GameSeatStatus.OPEN,
-      })),
     });
     const created = await this.getLobby(lobby.id);
     this.emitLobbyListRefresh(dto.gameType);
@@ -607,37 +643,38 @@ export class GamesService {
     const lobby = await this.prisma.gameLobby.findUnique({
       where: { id: lobbyId },
       include: {
-        sessions: {
-          where: {
-            status: {
-              in: [GameSessionStatus.WAITING, GameSessionStatus.ACTIVE],
-            },
-          },
-          select: { id: true },
-        },
+        sessions: { select: { id: true } },
       },
     });
     if (!lobby) throw new NotFoundException('Lobby not found.');
     if (lobby.ownerId !== userId) {
       throw new ForbiddenException('Only the lobby owner can delete it.');
     }
-    if (lobby.sessions.length > 0) {
-      throw new BadRequestException(
-        'Resign or finish the active session before deleting this lobby.',
-      );
-    }
     await this.prisma.gameLobby.delete({ where: { id: lobbyId } });
-    this.realtimeEvents.emitToChannel(
-      this.lobbyChannel(lobbyId),
-      'game:lobby:deleted',
-      { lobbyId },
+    this.emitLobbyDeleted(
+      lobbyId,
+      lobby.gameType,
+      lobby.sessions.map((session) => session.id),
     );
-    this.emitLobbyListRefresh(lobby.gameType);
     return { ok: true, lobbyId };
   }
 
   async leaveLobby(lobbyId: string, userId: string) {
     const lobby = await this.ensureLobbyAccess(lobbyId, userId);
+    if (lobby.ownerId === userId) {
+      const sessions = await this.prisma.gameSession.findMany({
+        where: { lobbyId },
+        select: { id: true },
+      });
+      await this.prisma.gameLobby.delete({ where: { id: lobbyId } });
+      this.emitLobbyDeleted(
+        lobbyId,
+        lobby.gameType,
+        sessions.map((session) => session.id),
+      );
+      return { ok: true, lobbyId, deleted: true };
+    }
+
     const seat = lobby.seats.find((row) => row.userId === userId);
     if (!seat) return this.getLobby(lobbyId);
     await this.prisma.gameSeat.update({
@@ -651,12 +688,7 @@ export class GamesService {
     const occupiedCount = remainingSeats.filter((row) => row.userId).length;
     if (occupiedCount === 0) {
       await this.prisma.gameLobby.delete({ where: { id: lobbyId } });
-      this.realtimeEvents.emitToChannel(
-        this.lobbyChannel(lobbyId),
-        'game:lobby:deleted',
-        { lobbyId },
-      );
-      this.emitLobbyListRefresh(lobby.gameType);
+      this.emitLobbyDeleted(lobbyId, lobby.gameType);
       return { ok: true, lobbyId, deleted: true };
     }
     await this.prisma.gameSession.updateMany({
@@ -1289,24 +1321,48 @@ export class GamesService {
         'Only owner or seated players can invite others.',
       );
     }
+    const deepLink = `/app/games/${gameTypeToRouteId(
+      lobby.gameType,
+    )}?lobby=${encodeURIComponent(lobbyId)}`;
+    const inviter = await this.prisma.user.findUnique({
+      where: { id: fromUserId },
+      select: { username: true, displayName: true },
+    });
+    const inviterName =
+      inviter?.displayName?.trim() || inviter?.username || 'Someone';
     const payload = {
       lobbyId,
       fromUserId,
       targetUserId,
       gameType: lobby.gameType,
       title: lobby.title,
-      deepLink: `/app/games/${gameTypeToRouteId(lobby.gameType)}`,
+      deepLink,
       sentAt: new Date().toISOString(),
     };
-    await this.prisma.gameEvent.create({
-      data: {
-        lobbyId,
-        userId: fromUserId,
-        type: GameEventType.INVITE,
-        payload,
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.gameEvent.create({
+        data: {
+          lobbyId,
+          userId: fromUserId,
+          type: GameEventType.INVITE,
+          payload,
+        },
+      }),
+      this.prisma.notification.create({
+        data: {
+          userId: targetUserId,
+          title: 'Game invite',
+          body: `${inviterName} invited you to ${lobby.title}.`,
+          href: deepLink,
+        },
+      }),
+    ]);
     this.realtimeEvents.emitToUser(targetUserId, 'game:invite', payload);
+    this.realtimeEvents.emitToUser(targetUserId, 'notifications:update', {
+      reason: 'game_invite',
+    });
+    const state = await this.realtimeState.buildUserState(targetUserId);
+    this.realtimeEvents.emitToUser(targetUserId, 'realtime:state', state);
     return { ok: true };
   }
 }

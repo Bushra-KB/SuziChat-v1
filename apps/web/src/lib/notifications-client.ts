@@ -4,6 +4,7 @@ export type ApiNotification = {
   id: string;
   title: string;
   body: string;
+  href?: string | null;
   read: boolean;
   createdAt: string;
 };

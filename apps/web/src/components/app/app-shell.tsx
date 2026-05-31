@@ -597,7 +597,7 @@ export function AppShell({
                       shellNotifications.slice(0, 4).map((item) => (
                         <Link
                           key={item.id}
-                          href="/app/notifications"
+                          href={item.href ?? "/app/notifications"}
                           onClick={() => {
                             void handleMarkNotificationRead(item.id);
                             setIsMobileNotificationsOpen(false);
@@ -1063,7 +1063,7 @@ export function AppShell({
                     shellNotifications.slice(0, 4).map((item) => (
                       <Link
                         key={item.id}
-                        href="/app/notifications"
+                        href={item.href ?? "/app/notifications"}
                         onClick={() => {
                           void handleMarkNotificationRead(item.id);
                           setIsNotificationsOpen(false);
