@@ -3,10 +3,12 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  OnModuleDestroy,
   UnauthorizedException,
 } from '@nestjs/common';
 import { RoomJoinRequestStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { ROOMS_CATALOG_CHANNEL } from '../realtime/realtime-channels';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
@@ -31,6 +33,8 @@ const DEFAULT_ROOM_CATEGORIES = [
 const MAX_OWNED_ROOMS_PER_USER = 5;
 const ROOM_ROLE_MEMBER = 'member';
 const ROOM_ROLE_MODERATOR = 'moderator';
+const ROOM_EMPTY_GRACE_MS = 5 * 60 * 1000;
+const CLEANUP_TICK_MS = 30 * 1000;
 
 type RoomListActorState = {
   isMember: boolean;
@@ -52,11 +56,80 @@ type RoomAccessState = {
 };
 
 @Injectable()
-export class RoomsService {
+export class RoomsService implements OnModuleDestroy {
+  private readonly cleanupTicker: ReturnType<typeof setInterval>;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtimeEvents: RealtimeEventsService,
-  ) {}
+  ) {
+    this.cleanupTicker = setInterval(() => {
+      void this.runScheduledRoomCleanup();
+    }, CLEANUP_TICK_MS);
+  }
+
+  onModuleDestroy() {
+    clearInterval(this.cleanupTicker);
+  }
+
+  private roomChannel(roomSlug: string) {
+    return `room:${roomSlug}`;
+  }
+
+  private roomStatsChannel(roomSlug: string) {
+    return `roomstats:${roomSlug}`;
+  }
+
+  async markRoomActive(slug: string) {
+    await this.prisma.room.updateMany({
+      where: { slug, deleteScheduledAt: { not: null } },
+      data: { emptySince: null, deleteScheduledAt: null },
+    });
+  }
+
+  async markRoomEmpty(slug: string) {
+    const now = new Date();
+    await this.prisma.room.updateMany({
+      where: { slug, deleteScheduledAt: null },
+      data: {
+        emptySince: now,
+        deleteScheduledAt: new Date(now.getTime() + ROOM_EMPTY_GRACE_MS),
+      },
+    });
+  }
+
+  async runScheduledRoomCleanup(now = new Date()) {
+    const rooms = await this.prisma.room.findMany({
+      where: { deleteScheduledAt: { lte: now } },
+      select: { id: true, slug: true },
+      take: 50,
+    });
+    if (!rooms.length) return { deleted: 0 };
+
+    let deletedCount = 0;
+    for (const room of rooms) {
+      const deleted = await this.prisma.room.deleteMany({
+        where: { id: room.id, deleteScheduledAt: { lte: now } },
+      });
+      if (deleted.count === 0) continue;
+      deletedCount += deleted.count;
+      this.realtimeEvents.emitToChannel(
+        this.roomChannel(room.slug),
+        'room:deleted',
+        { roomSlug: room.slug },
+      );
+      this.realtimeEvents.emitToChannel(
+        this.roomStatsChannel(room.slug),
+        'room:deleted',
+        { roomSlug: room.slug },
+      );
+      this.realtimeEvents.emitToChannel(ROOMS_CATALOG_CHANNEL, 'rooms:update', {
+        reason: 'auto_deleted',
+        roomSlug: room.slug,
+      });
+    }
+    return { deleted: deletedCount };
+  }
 
   async listCategories() {
     const managedCategories = await this.prisma.roomCategory.findMany({
