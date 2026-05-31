@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import {
   GameEventType,
@@ -147,6 +148,10 @@ const LOBBY_SEATABLE: GameLobbyStatus[] = [
 ];
 
 const MAX_ACTIVE_LOBBIES_PER_USER_PER_GAME = 3;
+const GAME_LOBBY_EMPTY_GRACE_MS = 60 * 1000;
+const GAME_SESSION_ABANDONED_GRACE_MS = 60 * 1000;
+const GAME_FINISHED_CLEANUP_GRACE_MS = 60 * 1000;
+const GAME_CLEANUP_TICK_MS = 30 * 1000;
 
 function assertSeatPick(
   gameType: GameType,
@@ -186,13 +191,23 @@ function assertSeatPick(
 }
 
 @Injectable()
-export class GamesService {
+export class GamesService implements OnModuleDestroy {
+  private readonly cleanupTicker: ReturnType<typeof setInterval>;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtimeEvents: RealtimeEventsService,
     private readonly realtimeState: RealtimeStateService,
     private readonly gamesMetrics: GamesMetricsService,
-  ) {}
+  ) {
+    this.cleanupTicker = setInterval(() => {
+      void this.runScheduledGameCleanup();
+    }, GAME_CLEANUP_TICK_MS);
+  }
+
+  onModuleDestroy() {
+    clearInterval(this.cleanupTicker);
+  }
 
   private lobbyChannel(lobbyId: string) {
     return `game:lobby:${lobbyId}`;
@@ -232,6 +247,214 @@ export class GamesService {
       );
     }
     this.emitLobbyListRefresh(gameType);
+  }
+
+  private emitSessionDeleted(sessionId: string, lobbyId: string) {
+    this.realtimeEvents.emitToChannel(
+      this.sessionChannel(sessionId),
+      'game:session:deleted',
+      { sessionId, lobbyId },
+    );
+  }
+
+  async getLobbyCleanupMeta(lobbyId: string) {
+    const lobby = await this.prisma.gameLobby.findUnique({
+      where: { id: lobbyId },
+      select: {
+        id: true,
+        gameType: true,
+        status: true,
+        ownerId: true,
+        seats: { select: { userId: true } },
+        sessions: {
+          where: { status: GameSessionStatus.ACTIVE },
+          select: { id: true },
+        },
+      },
+    });
+    if (!lobby) return null;
+    return {
+      ...lobby,
+      participantIds: [
+        ...new Set([
+          lobby.ownerId,
+          ...lobby.seats
+            .map((seat) => seat.userId)
+            .filter((id): id is string => Boolean(id)),
+        ]),
+      ],
+    };
+  }
+
+  async getOpenLobbyIdsForUser(userId: string) {
+    const lobbies = await this.prisma.gameLobby.findMany({
+      where: {
+        status: {
+          in: [
+            GameLobbyStatus.EMPTY,
+            GameLobbyStatus.WAITING,
+            GameLobbyStatus.OPEN,
+            GameLobbyStatus.IN_PROGRESS,
+          ],
+        },
+        OR: [{ ownerId: userId }, { seats: { some: { userId } } }],
+      },
+      select: { id: true },
+      take: 25,
+    });
+    return lobbies.map((lobby) => lobby.id);
+  }
+
+  async syncLobbyCleanupPresence(lobbyId: string, activeUserCount: number) {
+    if (activeUserCount > 0) {
+      await this.prisma.gameLobby.updateMany({
+        where: { id: lobbyId, deleteScheduledAt: { not: null } },
+        data: { emptySince: null, deleteScheduledAt: null },
+      });
+      return;
+    }
+
+    const lobby = await this.prisma.gameLobby.findUnique({
+      where: { id: lobbyId },
+      select: {
+        status: true,
+        sessions: {
+          where: { status: GameSessionStatus.ACTIVE },
+          select: { id: true },
+          take: 1,
+        },
+      },
+    });
+    if (!lobby || lobby.sessions.length > 0) return;
+    const now = new Date();
+    await this.prisma.gameLobby.updateMany({
+      where: { id: lobbyId, deleteScheduledAt: null },
+      data: {
+        emptySince: now,
+        deleteScheduledAt: new Date(now.getTime() + GAME_LOBBY_EMPTY_GRACE_MS),
+      },
+    });
+  }
+
+  async syncSessionCleanupPresence(
+    sessionId: string,
+    activeSeatedUserCount: number,
+    activeUserCount: number,
+  ) {
+    const session = await this.prisma.gameSession.findUnique({
+      where: { id: sessionId },
+      select: { status: true, cleanupScheduledAt: true },
+    });
+    if (!session) return;
+
+    if (session.status === GameSessionStatus.ACTIVE) {
+      if (activeSeatedUserCount > 0) {
+        await this.prisma.gameSession.updateMany({
+          where: { id: sessionId },
+          data: { abandonedAt: null, cleanupScheduledAt: null },
+        });
+        return;
+      }
+      const now = new Date();
+      await this.prisma.gameSession.updateMany({
+        where: {
+          id: sessionId,
+          status: GameSessionStatus.ACTIVE,
+          cleanupScheduledAt: null,
+        },
+        data: {
+          abandonedAt: now,
+          cleanupScheduledAt: new Date(
+            now.getTime() + GAME_SESSION_ABANDONED_GRACE_MS,
+          ),
+        },
+      });
+      return;
+    }
+
+    if (
+      (session.status === GameSessionStatus.FINISHED ||
+        session.status === GameSessionStatus.CANCELED) &&
+      activeUserCount === 0 &&
+      !session.cleanupScheduledAt
+    ) {
+      const now = new Date();
+      await this.prisma.gameSession.updateMany({
+        where: { id: sessionId, cleanupScheduledAt: null },
+        data: {
+          cleanupScheduledAt: new Date(
+            now.getTime() + GAME_FINISHED_CLEANUP_GRACE_MS,
+          ),
+        },
+      });
+    }
+  }
+
+  async runScheduledGameCleanup(now = new Date()) {
+    const sessions = await this.prisma.gameSession.findMany({
+      where: {
+        cleanupScheduledAt: { lte: now },
+        status: {
+          in: [
+            GameSessionStatus.ACTIVE,
+            GameSessionStatus.FINISHED,
+            GameSessionStatus.CANCELED,
+          ],
+        },
+      },
+      select: { id: true, lobbyId: true },
+      take: 50,
+    });
+
+    let deletedSessions = 0;
+    for (const session of sessions) {
+      const deleted = await this.prisma.gameSession.deleteMany({
+        where: { id: session.id, cleanupScheduledAt: { lte: now } },
+      });
+      if (deleted.count === 0) continue;
+      deletedSessions += deleted.count;
+      this.emitSessionDeleted(session.id, session.lobbyId);
+      await this.syncLobbyStatusFromSeats(session.lobbyId).catch(() => null);
+      const emptySince = new Date();
+      await this.prisma.gameLobby.updateMany({
+        where: {
+          id: session.lobbyId,
+          deleteScheduledAt: null,
+          sessions: { none: { status: GameSessionStatus.ACTIVE } },
+        },
+        data: {
+          emptySince,
+          deleteScheduledAt: new Date(
+            emptySince.getTime() + GAME_LOBBY_EMPTY_GRACE_MS,
+          ),
+        },
+      });
+    }
+
+    const lobbies = await this.prisma.gameLobby.findMany({
+      where: { deleteScheduledAt: { lte: now } },
+      select: {
+        id: true,
+        gameType: true,
+        sessions: { select: { id: true } },
+      },
+      take: 50,
+    });
+    let deletedLobbies = 0;
+    for (const lobby of lobbies) {
+      const deleted = await this.prisma.gameLobby.deleteMany({
+        where: { id: lobby.id, deleteScheduledAt: { lte: now } },
+      });
+      if (deleted.count === 0) continue;
+      deletedLobbies += deleted.count;
+      this.emitLobbyDeleted(
+        lobby.id,
+        lobby.gameType,
+        lobby.sessions.map((session) => session.id),
+      );
+    }
+
+    return { deletedSessions, deletedLobbies };
   }
 
   listCatalog() {
@@ -628,6 +851,10 @@ export class GamesService {
         payload: { message: 'joined_lobby', seatIndex: dto.seatIndex },
       },
     });
+    await this.prisma.gameLobby.updateMany({
+      where: { id: lobbyId },
+      data: { emptySince: null, deleteScheduledAt: null },
+    });
     await this.syncLobbyStatusFromSeats(lobbyId);
     const snapshot = await this.getLobby(lobbyId);
     this.realtimeEvents.emitToChannel(
@@ -824,11 +1051,17 @@ export class GamesService {
         state: toJson(state),
         turnUserId: pokerTurnUserId ?? seated[0]?.userId ?? null,
         startedAt: new Date(),
+        abandonedAt: null,
+        cleanupScheduledAt: null,
       },
     });
     await this.prisma.gameLobby.update({
       where: { id: lobbyId },
-      data: { status: GameLobbyStatus.IN_PROGRESS },
+      data: {
+        status: GameLobbyStatus.IN_PROGRESS,
+        emptySince: null,
+        deleteScheduledAt: null,
+      },
     });
     if (lobby.gameType === GameType.POKER_HOLDEM) {
       await this.createPokerHandStateRow(session.id, state);
@@ -1147,6 +1380,8 @@ export class GamesService {
           turnUserId: nextTurnUserId,
           winnerUserId: null,
           endedAt: null,
+          abandonedAt: null,
+          cleanupScheduledAt: null,
         },
       });
       await this.prisma.pokerHandState.update({
@@ -1229,6 +1464,8 @@ export class GamesService {
             : null,
         turnUserId: pokerHandComplete ? null : nextTurnUserId,
         endedAt: sessionFinished ? new Date() : null,
+        abandonedAt: null,
+        cleanupScheduledAt: null,
       },
     });
     const ply = await this.prisma.gameMove.count({ where: { sessionId } });

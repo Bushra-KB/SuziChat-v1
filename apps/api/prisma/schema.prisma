@@ -188,11 +188,14 @@ model GameLobby {
   seats       GameSeat[]
   sessions    GameSession[]
   events      GameEvent[]
+  emptySince  DateTime?
+  deleteScheduledAt DateTime?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
   @@index([gameType, status])
   @@index([ownerId, createdAt])
+  @@index([deleteScheduledAt])
 }
 
 model GameSeat {
@@ -225,6 +228,8 @@ model GameSession {
   winnerUser   User?             @relation("GameSessionWinnerUser", fields: [winnerUserId], references: [id], onDelete: SetNull)
   startedAt    DateTime?
   endedAt      DateTime?
+  abandonedAt  DateTime?
+  cleanupScheduledAt DateTime?
   moves        GameMove[]
   events       GameEvent[]
   pokerHand    PokerHandState?
@@ -234,6 +239,7 @@ model GameSession {
 
   @@index([lobbyId, createdAt])
   @@index([status, updatedAt])
+  @@index([cleanupScheduledAt])
 }
 
 model GameMove {
@@ -415,8 +421,12 @@ model Room {
   memberships RoomMembership[]
   joinRequests RoomJoinRequest[]
   bans        RoomBan[]
+  emptySince  DateTime?
+  deleteScheduledAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([deleteScheduledAt])
 }
 
 model RoomCategory {

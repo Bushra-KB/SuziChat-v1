@@ -26,6 +26,7 @@ type AuthSocket = Socket & {
   data: {
     userId?: string;
     gameSessionIds?: Set<string>;
+    gameLobbyIds?: Set<string>;
     roomSlugs?: Set<string>;
   };
 };
@@ -142,6 +143,11 @@ export class RealtimeGateway
 
   private async emitRoomStats(roomSlug: string, totalMembers?: number) {
     const onlineUsers = await this.getRoomOnlineUsers(roomSlug);
+    if (onlineUsers.length > 0) {
+      await this.roomsService.markRoomActive(roomSlug);
+    } else {
+      await this.roomsService.markRoomEmpty(roomSlug);
+    }
     const stats = {
       roomSlug,
       onlineUsers: onlineUsers.length,
@@ -213,6 +219,7 @@ export class RealtimeGateway
       this.realtimeEvents.setServer(this.server);
       const state = await this.realtimeState.buildUserState(payload.sub);
       client.emit('realtime:state', state);
+      void this.syncUserGameLobbyCleanup(payload.sub);
     } catch {
       client.emit('realtime:error', { message: 'Unauthorized' });
       client.disconnect();
@@ -230,6 +237,7 @@ export class RealtimeGateway
       for (const roomSlug of client.data.roomSlugs ?? []) {
         void this.emitRoomStats(roomSlug);
       }
+      void this.syncUserGameLobbyCleanup(userId, client.data.gameLobbyIds);
       const sessionIds = new Set<string>([
         ...(client.data.gameSessionIds ?? []),
         ...[...client.rooms]
@@ -249,13 +257,25 @@ export class RealtimeGateway
       const room = this.gameSessionChannel(sessionId);
       const sockets = await this.server.in(room).fetchSockets();
       const seatedIds = new Set(meta.seatedUserIds);
+      const activeUserIds = new Set<string>();
+      const activeSeatedUserIds = new Set<string>();
       const watchingUserIds = new Set<string>();
       for (const sock of sockets) {
         const uid = (sock.data as { userId?: string }).userId;
-        if (uid && !seatedIds.has(uid)) {
+        if (!uid) continue;
+        activeUserIds.add(uid);
+        if (seatedIds.has(uid)) {
+          activeSeatedUserIds.add(uid);
+        } else {
           watchingUserIds.add(uid);
         }
       }
+      await this.gamesService.syncSessionCleanupPresence(
+        sessionId,
+        activeSeatedUserIds.size,
+        activeUserIds.size,
+      );
+      await this.syncGameLobbyCleanup(meta.lobbyId);
       const payload = {
         sessionId,
         watcherCount: watchingUserIds.size,
@@ -268,6 +288,50 @@ export class RealtimeGateway
         `game:session:presence broadcast failed session=${sessionId}`,
       );
       return null;
+    }
+  }
+
+  private async channelUserIds(channel: string) {
+    const sockets = await this.server.in(channel).fetchSockets();
+    return [
+      ...new Set(
+        sockets
+          .map((socket) => (socket.data as { userId?: string }).userId)
+          .filter((userId): userId is string => Boolean(userId)),
+      ),
+    ];
+  }
+
+  private async syncGameLobbyCleanup(lobbyId: string) {
+    const meta = await this.gamesService.getLobbyCleanupMeta(lobbyId);
+    if (!meta) return;
+    const activeUserIds = new Set<string>(
+      await this.channelUserIds(this.gameLobbyChannel(lobbyId)),
+    );
+    for (const participantId of meta.participantIds) {
+      if (this.isUserOnline(participantId)) {
+        activeUserIds.add(participantId);
+      }
+    }
+    await this.gamesService.syncLobbyCleanupPresence(
+      lobbyId,
+      activeUserIds.size,
+    );
+  }
+
+  private async syncUserGameLobbyCleanup(
+    userId: string,
+    knownLobbyIds?: Set<string>,
+  ) {
+    const lobbyIds = new Set<string>(knownLobbyIds ?? []);
+    const userLobbyIds = await this.gamesService
+      .getOpenLobbyIdsForUser(userId)
+      .catch(() => []);
+    for (const lobbyId of userLobbyIds) {
+      lobbyIds.add(lobbyId);
+    }
+    for (const lobbyId of lobbyIds) {
+      await this.syncGameLobbyCleanup(lobbyId).catch(() => undefined);
     }
   }
 
@@ -343,6 +407,7 @@ export class RealtimeGateway
     await client.join(this.roomStatsChannel(roomSlug));
     client.data.roomSlugs ??= new Set<string>();
     client.data.roomSlugs.add(roomSlug);
+    this.markUserActive(userId);
     await this.emitRoomStats(roomSlug);
     return { ok: true };
   }
@@ -519,6 +584,7 @@ export class RealtimeGateway
       settings: payload.settings,
     });
     this.markUserActive(userId);
+    await this.syncGameLobbyCleanup(lobby.id);
     return { ok: true, lobby };
   }
 
@@ -537,6 +603,10 @@ export class RealtimeGateway
       await this.gamesService.recordRealtimeLobbyJoinAudit(lobbyId, userId);
       this.gamesMetrics.recordSocketLobbyJoin();
       await client.join(this.gameLobbyChannel(lobbyId));
+      client.data.gameLobbyIds ??= new Set<string>();
+      client.data.gameLobbyIds.add(lobbyId);
+      this.markUserActive(userId);
+      await this.syncGameLobbyCleanup(lobbyId);
       return { ok: true };
     } catch (err) {
       this.gamesMetrics.recordSocketLobbyJoinDenied();
@@ -666,6 +736,7 @@ export class RealtimeGateway
         client.data.gameSessionIds = new Set();
       }
       client.data.gameSessionIds.add(sessionId);
+      this.markUserActive(userId);
       const presence = await this.broadcastGameSessionPresence(sessionId);
       return { ok: true, presence };
     } catch (err) {

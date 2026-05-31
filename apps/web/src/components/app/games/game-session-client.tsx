@@ -333,6 +333,11 @@ export function GameSessionClient({
       if (!current || payload?.lobbyId !== current.lobbyId) return;
       window.location.href = `/app/games/${current.gameId}`;
     };
+    const onSessionDeleted = (payload: { sessionId?: string }) => {
+      if (payload?.sessionId !== sessionId) return;
+      const current = currentLobbyRef.current;
+      window.location.href = `/app/games/${current?.gameId ?? gameRouteId ?? "chess"}`;
+    };
     s.on("connect", onConnect);
     s.on("disconnect", onDisconnect);
     s.on("game:state", onState);
@@ -340,6 +345,7 @@ export function GameSessionClient({
     s.on("game:session:presence", onPresence);
     s.on("game:chat", onChat);
     s.on("game:lobby:deleted", onLobbyDeleted);
+    s.on("game:session:deleted", onSessionDeleted);
     if (s.connected) onConnect();
     return () => {
       s.off("connect", onConnect);
@@ -349,8 +355,9 @@ export function GameSessionClient({
       s.off("game:session:presence", onPresence);
       s.off("game:chat", onChat);
       s.off("game:lobby:deleted", onLobbyDeleted);
+      s.off("game:session:deleted", onSessionDeleted);
     };
-  }, [auth?.accessToken, refresh, sessionId]);
+  }, [auth?.accessToken, gameRouteId, refresh, sessionId]);
 
   useEffect(() => {
     chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight });
