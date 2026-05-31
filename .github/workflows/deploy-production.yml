@@ -80,4 +80,13 @@ jobs:
 
       - name: Verify public site
         run: |
-          curl -fsSI "https://$PROD_DOMAIN"
+          for attempt in {1..30}; do
+            if curl -fsSI "https://$PROD_DOMAIN"; then
+              exit 0
+            fi
+            echo "Site not ready yet, retrying... ($attempt/30)"
+            sleep 5
+          done
+
+          echo "Public site did not become ready in time"
+          exit 1
