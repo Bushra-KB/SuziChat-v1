@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { ChatLine } from "@/lib/v1-mock-data";
 import { cx } from "@/components/ui/suzi-primitives";
 import { formatFirstNameLastInitial, resolveChatSender } from "@/lib/chat-display";
@@ -19,7 +20,7 @@ export type LiveChatMessage = {
 
 type ChatMessageRowProps =
   | { variant: "mock"; message: ChatLine }
-  | { variant: "live"; message: LiveChatMessage };
+  | { variant: "live"; message: LiveChatMessage; actions?: ReactNode; bodyOverride?: ReactNode };
 
 function ChatBubble({
   mine,
@@ -29,6 +30,8 @@ function ChatBubble({
   timeLabel,
   body,
   profileAriaLabel,
+  actions,
+  bodyOverride,
 }: {
   mine: boolean;
   href: string;
@@ -37,6 +40,8 @@ function ChatBubble({
   timeLabel: string;
   body: string;
   profileAriaLabel: string;
+  actions?: ReactNode;
+  bodyOverride?: ReactNode;
 }) {
   return (
     <div className={cx("flex", mine ? "justify-end" : "justify-start")}>
@@ -74,7 +79,8 @@ function ChatBubble({
           </Link>
           <span className="suzi-chat-bubble__time">{timeLabel}</span>
         </div>
-        <p className="suzi-chat-bubble__body">{body}</p>
+        {bodyOverride ?? <p className="suzi-chat-bubble__body">{body}</p>}
+        {actions ? <div className="suzi-chat-bubble__actions">{actions}</div> : null}
       </article>
     </div>
   );
@@ -114,6 +120,8 @@ export function ChatMessageRow(props: ChatMessageRowProps) {
       timeLabel={live.timeLabel}
       body={live.body}
       profileAriaLabel={`${live.senderDisplayName} profile`}
+      actions={props.actions}
+      bodyOverride={props.bodyOverride}
     />
   );
 }

@@ -24,7 +24,7 @@ const shootingStars = [
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="suzi-hybrid-bg relative h-screen overflow-x-hidden overflow-y-auto text-white">
+    <main className="suzi-hybrid-bg relative min-h-[100dvh] overflow-clip text-white">
       <AuthSessionRedirect to="/app" />
       <div className="absolute inset-0 opacity-12 [background-image:radial-gradient(rgba(255,255,255,0.6)_0.7px,transparent_0.7px)] [background-size:28px_28px]" />
       <div className="absolute left-[-8%] top-[-6%] h-[34rem] w-[34rem] rounded-full bg-sky-300/14 blur-[150px]" />
@@ -59,24 +59,24 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         />
       ))}
 
-      <section className="relative mx-auto flex min-h-full w-full max-w-[1400px] flex-col px-4 py-6 sm:px-8 lg:px-12">
-        <div className="index-reveal-header flex items-center justify-between gap-4">
-          <Link href="/" className="inline-flex items-center gap-3.5">
-            <span className="relative block h-[2.8rem] w-[8.8rem] overflow-hidden sm:h-[3rem] sm:w-[9.8rem]">
+      <section className="relative mx-auto flex min-h-[100dvh] w-full max-w-[1400px] flex-col px-4 pb-[calc(env(safe-area-inset-bottom,0px)+3rem)] pt-5 sm:px-8 sm:pb-[calc(env(safe-area-inset-bottom,0px)+3.5rem)] sm:pt-6 lg:px-12">
+        <div className="index-reveal-header flex items-start justify-between gap-3">
+          <Link href="/" className="inline-flex min-w-0 items-center gap-3">
+            <span className="relative block h-[2.45rem] w-[4.8rem] shrink-0 overflow-hidden sm:h-[3rem] sm:w-[5.9rem]">
               <Image
                 src="/logo/logo.png"
                 alt="Suzi Chat logo"
-                width={1536}
-                height={1024}
+                width={1038}
+                height={531}
                 priority
-                className="absolute left-1/2 top-1/2 h-[214%] w-auto max-w-none -translate-x-1/2 -translate-y-[52%] drop-shadow-[0_0_16px_rgba(232,77,255,0.3)]"
+                className="absolute inset-0 h-full w-full object-contain object-left drop-shadow-[0_0_16px_rgba(232,77,255,0.3)]"
               />
             </span>
             <div>
-              <p className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              <p className="whitespace-nowrap text-[1.4rem] font-semibold leading-none tracking-tight text-white sm:text-[2rem]">
                 Suzi Chat
               </p>
-              <p className="mt-1 text-[0.68rem] uppercase tracking-[0.45em] text-white/45 sm:text-[0.72rem]">
+              <p className="mt-1 text-[0.5rem] uppercase tracking-[0.32em] text-white/45 sm:text-[0.62rem] sm:tracking-[0.4em]">
                 SOCIAL PLATFORM
               </p>
             </div>
@@ -84,14 +84,14 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
 
           <Link
             href="/"
-            className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-white/58 transition hover:text-white sm:text-xs"
+            className="shrink-0 text-right text-[0.56rem] font-semibold uppercase tracking-[0.2em] text-white/58 transition hover:text-white sm:text-[0.68rem] sm:tracking-[0.24em]"
           >
             Back to home
           </Link>
         </div>
 
-        <section className="relative mt-8 flex items-start justify-center pb-8 lg:mt-4">
-          <div className="index-reveal-card w-full max-w-[34rem]">
+        <section className="relative mt-7 flex flex-1 items-start justify-center pb-6 sm:mt-8 sm:pb-8 lg:mt-4">
+          <div className="index-reveal-card w-full max-w-[44rem]">
             {children}
           </div>
         </section>

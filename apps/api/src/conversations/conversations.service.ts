@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -124,12 +125,16 @@ export class ConversationsService {
 
   async sendMessage(userId: string, peerId: string, body: string) {
     await this.getPeer(userId, peerId);
+    const trimmedBody = body.trim();
+    if (!trimmedBody) {
+      throw new BadRequestException('Message body is required');
+    }
 
     return this.prisma.directMessage.create({
       data: {
         senderId: userId,
         recipientId: peerId,
-        body: body.trim(),
+        body: trimmedBody,
       },
       select: {
         id: true,
@@ -139,6 +144,54 @@ export class ConversationsService {
         recipient: { select: { id: true } },
       },
     });
+  }
+
+  async updateMessage(userId: string, messageId: string, body: string) {
+    const trimmedBody = body.trim();
+    if (!trimmedBody) {
+      throw new BadRequestException('Message body is required');
+    }
+
+    const message = await this.prisma.directMessage.findUnique({
+      where: { id: messageId },
+      select: { id: true, senderId: true },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+    if (message.senderId !== userId) {
+      throw new ForbiddenException('You can only edit messages you sent');
+    }
+
+    return this.prisma.directMessage.update({
+      where: { id: messageId },
+      data: { body: trimmedBody },
+      select: {
+        id: true,
+        body: true,
+        createdAt: true,
+        sender: { select: peerSelect },
+        recipient: { select: { id: true } },
+      },
+    });
+  }
+
+  async deleteMessage(userId: string, messageId: string) {
+    const message = await this.prisma.directMessage.findUnique({
+      where: { id: messageId },
+      select: { id: true, senderId: true, recipientId: true },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+    if (message.senderId !== userId) {
+      throw new ForbiddenException('You can only delete messages you sent');
+    }
+
+    await this.prisma.directMessage.delete({ where: { id: messageId } });
+    return message;
   }
 
   async removeConversation(userId: string, peerId: string) {

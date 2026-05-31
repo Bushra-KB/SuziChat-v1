@@ -105,7 +105,7 @@ export function LoginPanel({
           </>
         }
       >
-      <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+      <form className="space-y-4 sm:space-y-5" onSubmit={handleSubmit}>
         <AuthField
           id="login-email"
           label="Email or username"
@@ -135,7 +135,7 @@ export function LoginPanel({
         </PrimaryAuthButton>
       </form>
 
-      <div className="mt-5 space-y-5 text-center">
+      <div className="mt-5 space-y-4 text-center sm:space-y-5">
         <AuthDivider />
         <GoogleAuthButton
           mode="login"
@@ -145,13 +145,13 @@ export function LoginPanel({
       </div>
 
       {message ? (
-        <div className="mt-5">
+        <div className="mt-4 sm:mt-5">
           <AuthMessage tone={status === "error" ? "error" : "success"}>{message}</AuthMessage>
         </div>
       ) : null}
 
       {user ? (
-        <div className="mt-5 rounded-[1rem] border border-white/10 bg-white/6 px-4 py-4 text-sm text-blue-100/82 backdrop-blur-md">
+        <div className="mt-4 rounded-[0.9rem] border border-white/10 bg-white/6 px-4 py-3 text-[0.78rem] text-blue-100/82 backdrop-blur-md sm:mt-5 sm:rounded-[1rem] sm:text-[0.86rem]">
           Signed in as <span className="font-semibold text-white">{user.username}</span>
           .
         </div>

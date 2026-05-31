@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -9,11 +10,13 @@ import { PersonRow, ThreadRow } from "@/components/app/v1-blocks";
 import { Icon, Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import {
+  deleteDirectMessage,
   getConversationPeer,
   listConversationThreads,
   listDirectMessages,
   removeConversation,
   sendDirectMessage,
+  updateDirectMessage,
   type ConversationThread,
   type DirectMessageRow,
 } from "@/lib/conversations-client";
@@ -92,7 +95,11 @@ export function MessagesInbox() {
   const [hasSession, setHasSession] = useState(false);
   const [presenceById, setPresenceById] = useState<Record<string, Presence>>({});
   const [confirmRemovePeer, setConfirmRemovePeer] = useState<ConversationThread["peer"] | null>(null);
+  const [confirmDeleteMessage, setConfirmDeleteMessage] = useState<DirectMessageRow | null>(null);
   const [removingPeerId, setRemovingPeerId] = useState<string | null>(null);
+  const [messageActionId, setMessageActionId] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingBody, setEditingBody] = useState("");
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const typingHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingAtRef = useRef(0);
@@ -267,6 +274,24 @@ export function MessagesInbox() {
       });
       void loadThreads();
     };
+    const onDmMessageUpdated = (row: DirectMessageRow) => {
+      setMessages((prev) => {
+        const relevant =
+          row.sender.id === selectedPeerId || row.recipient.id === selectedPeerId;
+        if (!relevant) {
+          return prev;
+        }
+        return prev.map((message) => (message.id === row.id ? row : message));
+      });
+      void loadThreads();
+    };
+    const onDmMessageDeleted = (payload: { messageId?: string; senderId?: string; recipientId?: string }) => {
+      if (!payload?.messageId) {
+        return;
+      }
+      setMessages((prev) => prev.filter((message) => message.id !== payload.messageId));
+      void loadThreads();
+    };
     const onDmConversationRemoved = (payload: { peerId?: string }) => {
       if (!payload?.peerId) {
         return;
@@ -306,11 +331,15 @@ export function MessagesInbox() {
     };
 
     socket.on("dm:message", onDmMessage);
+    socket.on("dm:message:updated", onDmMessageUpdated);
+    socket.on("dm:message:deleted", onDmMessageDeleted);
     socket.on("dm:conversation:removed", onDmConversationRemoved);
     socket.on("dm:typing", onDmTyping);
     return () => {
       socket.off("connect", joinSelectedPeer);
       socket.off("dm:message", onDmMessage);
+      socket.off("dm:message:updated", onDmMessageUpdated);
+      socket.off("dm:message:deleted", onDmMessageDeleted);
       socket.off("dm:conversation:removed", onDmConversationRemoved);
       socket.off("dm:typing", onDmTyping);
     };
@@ -318,6 +347,9 @@ export function MessagesInbox() {
 
   useEffect(() => {
     setTypingName(null);
+    setEditingMessageId(null);
+    setEditingBody("");
+    setConfirmDeleteMessage(null);
     if (typingHideTimerRef.current) {
       clearTimeout(typingHideTimerRef.current);
       typingHideTimerRef.current = null;
@@ -504,6 +536,59 @@ export function MessagesInbox() {
     }
   }
 
+  function beginEditMessage(message: DirectMessageRow) {
+    setConfirmDeleteMessage(null);
+    setEditingMessageId(message.id);
+    setEditingBody(message.body);
+  }
+
+  async function handleUpdateMessage(message: DirectMessageRow) {
+    const s = getStoredAuthSession();
+    const nextBody = editingBody.trim();
+    if (!s || !nextBody || nextBody === message.body) {
+      setEditingMessageId(null);
+      setEditingBody("");
+      return;
+    }
+    setMessageActionId(message.id);
+    setError("");
+    try {
+      const updated = await updateDirectMessage(s.accessToken, message.id, nextBody);
+      setMessages((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
+      setEditingMessageId(null);
+      setEditingBody("");
+      await loadThreads();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Could not update message.");
+    } finally {
+      setMessageActionId(null);
+    }
+  }
+
+  async function handleDeleteMessage(message: DirectMessageRow) {
+    const s = getStoredAuthSession();
+    if (!s) {
+      setError("Not signed in.");
+      return;
+    }
+    setMessageActionId(message.id);
+    setError("");
+    try {
+      await deleteDirectMessage(s.accessToken, message.id);
+      setMessages((prev) => prev.filter((row) => row.id !== message.id));
+      setConfirmDeleteMessage(null);
+      if (editingMessageId === message.id) {
+        setEditingMessageId(null);
+        setEditingBody("");
+      }
+      await loadThreads();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Could not delete message.");
+    } finally {
+      setMessageActionId(null);
+    }
+  }
+
   async function handleRemoveConversation(peerId: string) {
     const s = getStoredAuthSession();
     if (!s) {
@@ -534,12 +619,12 @@ export function MessagesInbox() {
 
   return (
     <section
-      className={`suzi-app-frame-fill ${selectedPeerId ? "suzi-msg-with-active" : "suzi-msg-without-active"}`}
+      className={`suzi-app-frame-fill suzi-messages-page ${selectedPeerId ? "suzi-msg-with-active" : "suzi-msg-without-active"}`}
     >
       <div className="suzi-messages-grid">
         {/* INBOX — left rail */}
-        <Panel className="suzi-msg-inbox flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
-          <div className="shrink-0">
+        <Panel className="suzi-panel--home suzi-msg-inbox flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
+          <div className="suzi-home-panel-header shrink-0">
             <p className="text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.22em] text-cyan-100/65">Inbox</p>
             <h2 className="mt-1 text-[var(--fs-xl)] font-bold tracking-tight text-white">Direct messages</h2>
           </div>
@@ -557,7 +642,7 @@ export function MessagesInbox() {
           {error ? (
             <p className="mt-2 shrink-0 text-[var(--fs-xs)] text-amber-100">{error}</p>
           ) : null}
-          <div className="suzi-thin-scroll mt-3 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
+          <div className="suzi-game-lobby-scroll suzi-thin-scroll mt-3 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
             {loading ? (
               <p className="text-[var(--fs-sm)] text-[var(--text-muted)]">Loading conversations…</p>
             ) : visibleThreads.length === 0 ? (
@@ -581,8 +666,8 @@ export function MessagesInbox() {
         </Panel>
 
         {/* THREAD — center column */}
-        <Panel className="suzi-msg-thread flex h-full min-h-0 flex-col overflow-hidden p-0">
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/8 px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
+        <Panel className="suzi-panel--home suzi-msg-thread flex h-full min-h-0 flex-col overflow-hidden p-0">
+          <div className="suzi-home-panel-header flex shrink-0 items-center justify-between gap-3 border-b border-white/8 px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
             <div className="flex min-w-0 items-center gap-3">
               <Link
                 href="/app/messages"
@@ -594,9 +679,11 @@ export function MessagesInbox() {
               {activeThread ? (
                 <>
                   <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10">
-                    <img
+                    <Image
                       src={resolveUserAvatarUrl(activeThread.peer.avatarUrl)}
                       alt=""
+                      width={40}
+                      height={40}
                       className="h-full w-full object-cover"
                     />
                   </div>
@@ -631,10 +718,10 @@ export function MessagesInbox() {
               )}
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              <button type="button" aria-label="Voice call" className="suzi-icon-btn inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80">
+              <button type="button" aria-label="Voice call" className="suzi-game-board-top-btn px-0 inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80">
                 <Icon path="M5 3h3l2 5-2 1a11 11 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A18 18 0 0 1 3 5a2 2 0 0 1 2-2Z" className="h-4 w-4" />
               </button>
-              <button type="button" aria-label="Video call" className="suzi-icon-btn inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80">
+              <button type="button" aria-label="Video call" className="suzi-game-board-top-btn px-0 inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80">
                 <Icon path="M3 7a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm13 3 5-3v10l-5-3V10Z" className="h-4 w-4" />
               </button>
               <button
@@ -647,7 +734,7 @@ export function MessagesInbox() {
                     setConfirmRemovePeer(activeThread.peer);
                   }
                 }}
-                className="suzi-icon-btn inline-flex h-9 w-9 items-center justify-center rounded-xl text-pink-100/85 disabled:opacity-45"
+                className="suzi-game-board-top-btn px-0 inline-flex h-9 w-9 items-center justify-center rounded-xl text-pink-100/85 disabled:opacity-45"
               >
                 <Icon path="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" className="h-4 w-4" />
               </button>
@@ -655,7 +742,7 @@ export function MessagesInbox() {
           </div>
           <div
             ref={messagesScrollRef}
-            className="suzi-chat-log suzi-thin-scroll mx-[var(--panel-pad-tight)] my-[var(--panel-pad-tight)] flex-1 overflow-y-auto rounded-[var(--panel-radius)] bg-white px-[var(--panel-pad)] py-[var(--panel-pad)] shadow-[inset_0_2px_8px_rgba(7,4,28,0.22),inset_0_0_0_1px_rgba(0,0,0,0.04)]"
+            className="suzi-chat-log suzi-game-lobby-scroll suzi-thin-scroll mx-[var(--panel-pad-tight)] my-[var(--panel-pad-tight)] flex-1 overflow-y-auto rounded-[var(--panel-radius)] bg-white px-[var(--panel-pad)] py-[var(--panel-pad)] shadow-[inset_0_2px_8px_rgba(7,4,28,0.22),inset_0_0_0_1px_rgba(0,0,0,0.04)]"
           >
             {msgLoading ? (
               <p className="text-[var(--fs-sm)] text-[var(--text-muted)]">Loading messages…</p>
@@ -675,11 +762,79 @@ export function MessagesInbox() {
                   senderDisplayName: m.sender.displayName ?? m.sender.username,
                   senderAvatarUrl: mine ? myAvatarUrl : m.sender.avatarUrl?.trim() || null,
                 };
-                return <ChatMessageRow key={m.id} variant="live" message={live} />;
+                const canEditMessage = mine && !m.id.startsWith("optimistic-");
+                const isEditing = editingMessageId === m.id;
+                return (
+                  <ChatMessageRow
+                    key={m.id}
+                    variant="live"
+                    message={live}
+                    bodyOverride={
+                      isEditing ? (
+                        <form
+                          className="suzi-dm-edit-form"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void handleUpdateMessage(m);
+                          }}
+                        >
+                          <textarea
+                            value={editingBody}
+                            onChange={(event) => setEditingBody(event.target.value)}
+                            className="suzi-dm-edit-textarea"
+                            rows={3}
+                            autoFocus
+                          />
+                          <div className="suzi-dm-edit-actions">
+                            <button
+                              type="button"
+                              className="suzi-dm-message-action"
+                              disabled={messageActionId === m.id}
+                              onClick={() => {
+                                setEditingMessageId(null);
+                                setEditingBody("");
+                              }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="suzi-dm-message-action suzi-dm-message-action--primary"
+                              disabled={messageActionId === m.id || !editingBody.trim()}
+                            >
+                              {messageActionId === m.id ? "Saving..." : "Save"}
+                            </button>
+                          </div>
+                        </form>
+                      ) : undefined
+                    }
+                    actions={
+                      canEditMessage && !isEditing ? (
+                        <>
+                          <button
+                            type="button"
+                            className="suzi-dm-message-action"
+                            onClick={() => beginEditMessage(m)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="suzi-dm-message-action suzi-dm-message-action--danger"
+                            disabled={messageActionId === m.id}
+                            onClick={() => setConfirmDeleteMessage(m)}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      ) : undefined
+                    }
+                  />
+                );
               })
             )}
           </div>
-          <div className="shrink-0 border-t border-white/8 px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
+          <div className="suzi-room-composer-shell shrink-0 border-t border-cyan-300/20 px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
             {typingName ? (
               <p className="mb-2 text-[var(--fs-2xs)] font-medium text-cyan-100/85">
                 {typingName} is typing...
@@ -716,15 +871,15 @@ export function MessagesInbox() {
         </Panel>
 
         {/* QUICK INVITE — right rail */}
-        <Panel className="suzi-msg-invite flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
-          <div className="shrink-0">
+        <Panel className="suzi-panel--home suzi-msg-invite flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
+          <div className="suzi-home-panel-header shrink-0">
             <p className="text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.22em] text-cyan-100/65">Friends</p>
             <h2 className="mt-1 text-[var(--fs-xl)] font-bold tracking-tight text-white">Quick invite</h2>
           </div>
           <div className="mt-3 shrink-0">
             <input className="suzi-input text-[var(--fs-sm)]" placeholder="Search friends" readOnly disabled />
           </div>
-          <div className="suzi-thin-scroll mt-3 flex-1 space-y-2 overflow-y-auto pr-1">
+          <div className="suzi-game-lobby-scroll suzi-thin-scroll mt-3 flex-1 space-y-2 overflow-y-auto pr-1">
             {threads.slice(0, 12).map((thread) => (
               <PersonRow
                 key={thread.peer.id}
@@ -811,6 +966,69 @@ export function MessagesInbox() {
                 className="suzi-primary-btn px-4 py-2 text-[var(--fs-sm)] disabled:opacity-45"
               >
                 {removingPeerId === confirmRemovePeer.id ? "Deleting..." : "Delete for me"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {confirmDeleteMessage ? (
+        <div
+          className="suzi-account-modal-backdrop"
+          role="presentation"
+          onClick={() => {
+            if (!messageActionId) {
+              setConfirmDeleteMessage(null);
+            }
+          }}
+        >
+          <div
+            className="suzi-account-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-dm-message-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[var(--fs-2xs)] font-semibold uppercase tracking-[0.16em] text-cyan-100/66">
+                  Direct Message
+                </p>
+                <h3 id="delete-dm-message-title" className="mt-1 text-[var(--fs-lg)] font-semibold text-white">
+                  Delete this message?
+                </h3>
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                disabled={!!messageActionId}
+                onClick={() => setConfirmDeleteMessage(null)}
+                className="suzi-game-board-top-btn px-0 inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80 disabled:opacity-45"
+              >
+                <Icon path="M6 6l12 12M18 6 6 18" className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-3 text-[var(--fs-sm)] leading-6 text-cyan-100/82">
+              This permanently deletes the message you sent from this conversation.
+            </p>
+            <div className="mt-3 rounded-2xl border border-pink-200/18 bg-white/8 px-3 py-2 text-[var(--fs-sm)] leading-5 text-white/88">
+              {confirmDeleteMessage.body}
+            </div>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={!!messageActionId}
+                onClick={() => setConfirmDeleteMessage(null)}
+                className="suzi-game-board-top-btn disabled:opacity-45"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!!messageActionId}
+                onClick={() => void handleDeleteMessage(confirmDeleteMessage)}
+                className="suzi-game-side-btn suzi-game-side-btn--danger w-auto disabled:opacity-45"
+              >
+                {messageActionId === confirmDeleteMessage.id ? "Deleting..." : "Delete message"}
               </button>
             </div>
           </div>

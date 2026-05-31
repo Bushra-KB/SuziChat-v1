@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
         </>
       }
     >
-      <form className="space-y-5" onSubmit={handleSubmit}>
+      <form className="space-y-4 sm:space-y-5" onSubmit={handleSubmit}>
         <AuthField
           id="forgot-email"
           label="Account email"
@@ -71,7 +71,7 @@ export default function ForgotPasswordPage() {
       </form>
 
       {message ? (
-        <div className="mt-5">
+        <div className="mt-4 sm:mt-5">
           <AuthMessage tone={status === "error" ? "error" : "success"}>
             {message}
           </AuthMessage>

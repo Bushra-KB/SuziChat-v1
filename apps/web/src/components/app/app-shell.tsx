@@ -404,6 +404,8 @@ export function AppShell({
       setLiveState(payload);
     };
     socket.on("dm:message", refreshThreads);
+    socket.on("dm:message:updated", refreshThreads);
+    socket.on("dm:message:deleted", refreshThreads);
     socket.on("dm:conversation:removed", refreshThreads);
     socket.on("notifications:update", refreshNotifications);
     socket.on("realtime:state", onRealtimeState);
@@ -459,6 +461,8 @@ export function AppShell({
     });
     return () => {
       socket.off("dm:message", refreshThreads);
+      socket.off("dm:message:updated", refreshThreads);
+      socket.off("dm:message:deleted", refreshThreads);
       socket.off("dm:conversation:removed", refreshThreads);
       socket.off("notifications:update", refreshNotifications);
       socket.off("realtime:state", onRealtimeState);
@@ -517,8 +521,8 @@ export function AppShell({
         <Image
           src="/logo/logo.png"
           alt=""
-          width={1536}
-          height={1024}
+          width={1038}
+          height={531}
           priority
           className="suzi-shell-logo-overlay__img"
         />
@@ -543,10 +547,10 @@ export function AppShell({
               <Image
                 src="/logo/logo.png"
                 alt="SuziChat"
-                width={1536}
-                height={1024}
+                width={1038}
+                height={531}
                 priority
-                className="absolute left-1/2 top-1/2 h-[225%] w-auto max-w-none -translate-x-1/2 -translate-y-[53%] drop-shadow-[0_0_18px_rgba(232,77,255,0.38)]"
+                className="absolute inset-0 h-full w-full object-contain object-center drop-shadow-[0_0_18px_rgba(232,77,255,0.38)]"
               />
             </span>
           </Link>

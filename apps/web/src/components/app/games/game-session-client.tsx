@@ -178,6 +178,7 @@ export function GameSessionClient({
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [dismissedWinnerKey, setDismissedWinnerKey] = useState<string | null>(null);
   const [checkersMoveNotice, setCheckersMoveNotice] = useState<{ id: number; message: string } | null>(null);
+  const [mobileDrawer, setMobileDrawer] = useState<"info" | "chat" | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const soundInitialized = useRef(false);
   const prevMovesLen = useRef(0);
@@ -641,14 +642,60 @@ export function GameSessionClient({
           </Panel>
         ) : (
           <div className="suzi-game-session-layout grid h-full min-h-0 gap-[var(--col-gap)] xl:grid-cols-[clamp(14rem,17vw,18rem)_minmax(0,1fr)_clamp(15rem,19vw,20rem)]">
-            <Panel className="suzi-panel--home suzi-game-info-panel flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
-              <div className={cx(homePanelHeader, "flex shrink-0 items-center gap-2.5")}>
-                <span className={homePanelIcon}>
-                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19" />
+            {mobileDrawer ? (
+              <button
+                type="button"
+                className="suzi-game-mobile-drawer-backdrop"
+                aria-label="Close game drawer"
+                onClick={() => setMobileDrawer(null)}
+              />
+            ) : null}
+
+            <div className="suzi-game-mobile-drawer-controls" aria-label="Game panels">
+              <button
+                type="button"
+                className="suzi-game-mobile-drawer-tab suzi-game-mobile-drawer-tab--info"
+                onClick={() => setMobileDrawer((current) => (current === "info" ? null : "info"))}
+                aria-expanded={mobileDrawer === "info"}
+                aria-controls="game-session-info-panel"
+              >
+                Info
+              </button>
+              <button
+                type="button"
+                className="suzi-game-mobile-drawer-tab suzi-game-mobile-drawer-tab--chat"
+                onClick={() => setMobileDrawer((current) => (current === "chat" ? null : "chat"))}
+                aria-expanded={mobileDrawer === "chat"}
+                aria-controls="game-session-chat-panel"
+              >
+                Chat
+              </button>
+            </div>
+
+            <Panel
+              id="game-session-info-panel"
+              data-drawer-open={mobileDrawer === "info" ? "true" : "false"}
+              className="suzi-panel--home suzi-game-info-panel flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]"
+            >
+              <div className={cx(homePanelHeader, "flex shrink-0 items-center justify-between gap-2.5")}>
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className={homePanelIcon}>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19" />
+                    </svg>
+                  </span>
+                  <h3 className={panelTitle}>Session Info</h3>
+                </div>
+                <button
+                  type="button"
+                  className="suzi-game-mobile-drawer-close"
+                  onClick={() => setMobileDrawer(null)}
+                  aria-label="Close session info"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M6 6l12 12M18 6 6 18" />
                   </svg>
-                </span>
-                <h3 className={panelTitle}>Session Info</h3>
+                </button>
               </div>
               <div className="mt-3 grid gap-1.5">
                 <p className={listL2}>Status: <span className="font-semibold text-white/90">{session.status}</span></p>
@@ -873,7 +920,11 @@ export function GameSessionClient({
               </div>
             </GameFrame>
 
-            <Panel className="suzi-panel--home suzi-game-chat-panel flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]">
+            <Panel
+              id="game-session-chat-panel"
+              data-drawer-open={mobileDrawer === "chat" ? "true" : "false"}
+              className="suzi-panel--home suzi-game-chat-panel flex h-full min-h-0 flex-col overflow-hidden p-[var(--panel-pad)]"
+            >
               <div className={cx(homePanelHeader, "flex shrink-0 items-center justify-between gap-2")}>
                 <div className="flex items-center gap-2.5">
                   <span className={homePanelIcon}>
@@ -883,10 +934,22 @@ export function GameSessionClient({
                   </span>
                   <h3 className={panelTitle}>Game Chat</h3>
                 </div>
-                <span className={cx(listMeta, "inline-flex items-center gap-1.5", socketReady ? "text-emerald-100/80" : "text-amber-100/80")}>
-                  {socketReady ? <span className="suzi-live-dot" aria-hidden /> : null}
-                  {socketReady ? "Live" : "Syncing"}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className={cx(listMeta, "inline-flex items-center gap-1.5", socketReady ? "text-emerald-100/80" : "text-amber-100/80")}>
+                    {socketReady ? <span className="suzi-live-dot" aria-hidden /> : null}
+                    {socketReady ? "Live" : "Syncing"}
+                  </span>
+                  <button
+                    type="button"
+                    className="suzi-game-mobile-drawer-close"
+                    onClick={() => setMobileDrawer(null)}
+                    aria-label="Close game chat"
+                  >
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M6 6l12 12M18 6 6 18" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               {spectator && !allowSpectatorChat ? (
                 <p className={cx(listMeta, "mt-2 text-amber-100/85")}>

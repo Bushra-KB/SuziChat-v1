@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -43,6 +44,92 @@ export class ConversationsController {
     @Param('peerId') peerId: string,
   ) {
     return this.conversationsService.getPeer(user.id, peerId);
+  }
+
+  @Patch('messages/:messageId')
+  updateMessage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('messageId') messageId: string,
+    @Body() dto: SendDirectMessageDto,
+  ) {
+    return this.conversationsService
+      .updateMessage(user.id, messageId, dto.body)
+      .then((message) => {
+        this.realtimeEvents.emitToUser(
+          message.sender.id,
+          'dm:message:updated',
+          message,
+        );
+        this.realtimeEvents.emitToUser(
+          message.recipient.id,
+          'dm:message:updated',
+          message,
+        );
+        void Promise.all([
+          this.realtimeState.buildUserState(message.sender.id).then((state) => {
+            this.realtimeEvents.emitToUser(
+              message.sender.id,
+              'realtime:state',
+              state,
+            );
+          }),
+          this.realtimeState
+            .buildUserState(message.recipient.id)
+            .then((state) => {
+              this.realtimeEvents.emitToUser(
+                message.recipient.id,
+                'realtime:state',
+                state,
+              );
+            }),
+        ]);
+        return message;
+      });
+  }
+
+  @Delete('messages/:messageId')
+  deleteMessage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.conversationsService
+      .deleteMessage(user.id, messageId)
+      .then((message) => {
+        const payload = {
+          messageId: message.id,
+          senderId: message.senderId,
+          recipientId: message.recipientId,
+        };
+        this.realtimeEvents.emitToUser(
+          message.senderId,
+          'dm:message:deleted',
+          payload,
+        );
+        this.realtimeEvents.emitToUser(
+          message.recipientId,
+          'dm:message:deleted',
+          payload,
+        );
+        void Promise.all([
+          this.realtimeState.buildUserState(message.senderId).then((state) => {
+            this.realtimeEvents.emitToUser(
+              message.senderId,
+              'realtime:state',
+              state,
+            );
+          }),
+          this.realtimeState
+            .buildUserState(message.recipientId)
+            .then((state) => {
+              this.realtimeEvents.emitToUser(
+                message.recipientId,
+                'realtime:state',
+                state,
+              );
+            }),
+        ]);
+        return payload;
+      });
   }
 
   @Delete(':peerId')

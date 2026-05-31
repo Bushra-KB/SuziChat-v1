@@ -24,7 +24,7 @@ const shootingStars = [
 
 export default function Home() {
   return (
-    <main className="suzi-hybrid-bg relative min-h-screen overflow-hidden text-white">
+    <main className="suzi-hybrid-bg relative min-h-[100dvh] overflow-clip text-white">
       <AuthSessionRedirect to="/app" />
       <div className="absolute inset-0 opacity-12 [background-image:radial-gradient(rgba(255,255,255,0.6)_0.7px,transparent_0.7px)] [background-size:28px_28px]" />
       <div className="absolute left-[-8%] top-[-6%] h-[34rem] w-[34rem] rounded-full bg-sky-300/14 blur-[150px]" />
@@ -59,30 +59,30 @@ export default function Home() {
         />
       ))}
 
-      <section className="relative mx-auto flex min-h-screen max-w-[1400px] flex-col px-6 py-8 sm:px-8 lg:px-12">
-        <header className="index-reveal-header flex items-center justify-between gap-4">
-          <Link href="/" className="inline-flex items-center gap-3.5">
-            <span className="relative block h-[2.8rem] w-[8.8rem] overflow-hidden sm:h-[3rem] sm:w-[9.8rem]">
+      <section className="relative mx-auto flex min-h-[100dvh] w-full max-w-[1400px] flex-col px-5 pb-[calc(env(safe-area-inset-bottom,0px)+3rem)] pt-5 sm:px-8 sm:pb-[calc(env(safe-area-inset-bottom,0px)+3.5rem)] sm:pt-8 lg:px-12">
+        <header className="index-reveal-header flex items-start justify-between gap-3 sm:items-center sm:gap-4">
+          <Link href="/" className="inline-flex min-w-0 items-center gap-3 sm:gap-3.5">
+            <span className="relative block h-[2.45rem] w-[4.8rem] shrink-0 overflow-hidden sm:h-[3rem] sm:w-[5.9rem]">
               <Image
                 src="/logo/logo.png"
                 alt="Suzi Chat logo"
-                width={1536}
-                height={1024}
+                width={1038}
+                height={531}
                 priority
-                className="absolute left-1/2 top-1/2 h-[214%] w-auto max-w-none -translate-x-1/2 -translate-y-[52%] drop-shadow-[0_0_16px_rgba(232,77,255,0.3)]"
+                className="absolute inset-0 h-full w-full object-contain object-left drop-shadow-[0_0_16px_rgba(232,77,255,0.3)]"
               />
             </span>
             <div>
-              <p className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              <p className="whitespace-nowrap text-[1.4rem] font-semibold leading-none tracking-tight text-white sm:text-[2rem]">
                 Suzi Chat
               </p>
-              <p className="mt-1 text-[0.68rem] uppercase tracking-[0.45em] text-white/45 sm:text-[0.72rem]">
+              <p className="mt-1 text-[0.5rem] uppercase tracking-[0.32em] text-white/45 sm:text-[0.62rem] sm:tracking-[0.4em]">
                 SOCIAL PLATFORM
               </p>
             </div>
           </Link>
-          <div className="text-right text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-white/58 sm:text-xs">
-            <span>Need an account? </span>
+          <div className="shrink-0 text-right text-[0.56rem] font-semibold uppercase tracking-[0.2em] text-white/58 sm:text-[0.68rem] sm:tracking-[0.24em]">
+            <span className="hidden sm:inline">Need an account? </span>
             <Link href="/register" className="text-white transition hover:text-cyan-100">
               Sign up
             </Link>
@@ -93,26 +93,26 @@ export default function Home() {
           <div className="grid w-full gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,520px)] lg:items-center">
             <section className="index-reveal-hero flex min-h-[420px] items-end pb-4 max-lg:hidden">
               <div className="max-w-xl">
-                <div className="relative mb-6 h-[5.6rem] w-[16.8rem] overflow-hidden">
+                <div className="relative mb-6 h-[5.6rem] w-[10.95rem] overflow-hidden">
                   <Image
                     src="/logo/logo.png"
                     alt="Suzi Chat"
-                    width={1536}
-                    height={1024}
+                    width={1038}
+                    height={531}
                     priority
-                    className="absolute left-1/2 top-1/2 h-[190%] w-auto max-w-none -translate-x-1/2 -translate-y-[52%] drop-shadow-[0_0_20px_rgba(232,77,255,0.36)]"
+                    className="absolute inset-0 h-full w-full object-contain object-left drop-shadow-[0_0_20px_rgba(232,77,255,0.36)]"
                   />
                 </div>
-                <p className="text-sm font-semibold uppercase tracking-[0.5em] text-cyan-100/58">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.36em] text-cyan-100/58 sm:text-[0.78rem] sm:tracking-[0.42em]">
                   ENTER SUZI CHAT
                 </p>
-                <h1 className="mt-5 text-6xl font-semibold leading-[0.95] tracking-tight text-white">
+                <h1 className="mt-4 text-4xl font-semibold leading-[0.95] tracking-tight text-white xl:text-5xl">
                   Sign in to your
                   <span className="block bg-[linear-gradient(90deg,#ffffff_0%,#86dcff_40%,#56d8ad_76%)] bg-clip-text text-transparent">
                     social world
                   </span>
                 </h1>
-                <p className="mt-6 max-w-lg text-lg leading-8 text-white/70">
+                <p className="mt-4 max-w-lg text-[0.92rem] leading-6 text-white/70 xl:text-base xl:leading-7">
                   Continue your rooms, messages, friends, dating, and game
                   lobby activity from one account.
                 </p>

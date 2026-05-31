@@ -55,6 +55,11 @@ const GENDER_OPTIONS = [
   { value: "PREFER_NOT_TO_SAY", label: "Prefer not to say" },
 ] as const;
 
+const authSelectClass =
+  "w-full rounded-[0.9rem] border border-white/10 bg-[#3b0a59]/82 px-4 py-2.5 text-[0.86rem] text-white outline-none transition focus:border-cyan-300/45 focus:bg-[#461066]/88 sm:rounded-[1rem] sm:py-3 sm:text-[0.94rem]";
+const authLabelClass = "text-[0.76rem] font-semibold text-white sm:text-[0.82rem]";
+const authErrorClass = "mt-2 block text-xs font-medium text-amber-100";
+
 function daysInMonth(year: number, monthIndex: number) {
   return new Date(year, monthIndex + 1, 0).getDate();
 }
@@ -227,14 +232,15 @@ export default function RegisterPage() {
       eyebrow="Register"
       title="Create your account"
       description="Join Suzi Chat to explore rooms, direct messages, dating, snaps, reels, and social games in one place."
+      className="lg:!max-w-[44rem]"
       footer={
         <>
           Already have an account? <AuthTextLink href="/login">Sign in</AuthTextLink>
         </>
       }
     >
-      <form className="space-y-5" onSubmit={handleSubmit}>
-        <div className="grid gap-5 sm:grid-cols-2">
+      <form className="space-y-4 sm:space-y-5" onSubmit={handleSubmit}>
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
           <AuthField
             id="register-first-name"
             label="First name"
@@ -258,7 +264,7 @@ export default function RegisterPage() {
         </div>
 
         <div>
-          <p className="text-sm font-semibold text-white">Birthday</p>
+          <p className={authLabelClass}>Birthday</p>
           <div className="mt-2 grid gap-3 sm:grid-cols-3">
             <label className="block">
               <select
@@ -267,7 +273,7 @@ export default function RegisterPage() {
                   setBirthMonth(event.target.value);
                   setBirthDay("");
                 }}
-                className="w-full rounded-[1rem] border border-white/10 bg-[#3b0a59]/82 px-4 py-3.5 text-white outline-none transition focus:border-cyan-300/45 focus:bg-[#461066]/88"
+                className={authSelectClass}
               >
                 <option value="">Month</option>
                 {MONTHS.map((month, idx) => (
@@ -279,7 +285,7 @@ export default function RegisterPage() {
               <select
                 value={birthDay}
                 onChange={(event) => setBirthDay(event.target.value)}
-                className="w-full rounded-[1rem] border border-white/10 bg-[#3b0a59]/82 px-4 py-3.5 text-white outline-none transition focus:border-cyan-300/45 focus:bg-[#461066]/88"
+                className={authSelectClass}
               >
                 <option value="">Day</option>
                 {days.map((day) => (
@@ -294,7 +300,7 @@ export default function RegisterPage() {
                   setBirthYear(event.target.value);
                   setBirthDay("");
                 }}
-                className="w-full rounded-[1rem] border border-white/10 bg-[#3b0a59]/82 px-4 py-3.5 text-white outline-none transition focus:border-cyan-300/45 focus:bg-[#461066]/88"
+                className={authSelectClass}
               >
                 <option value="">Year</option>
                 {years.map((year) => (
@@ -303,15 +309,15 @@ export default function RegisterPage() {
               </select>
             </label>
           </div>
-          {errors.birthday ? <span className="mt-2 block text-xs font-medium text-amber-100">{errors.birthday}</span> : null}
+          {errors.birthday ? <span className={authErrorClass}>{errors.birthday}</span> : null}
         </div>
 
         <label className="block">
-          <span className="text-sm font-semibold text-white">Gender</span>
+          <span className={authLabelClass}>Gender</span>
           <select
             value={gender}
             onChange={(event) => setGender(event.target.value as typeof gender)}
-            className="mt-2 w-full rounded-[1rem] border border-white/10 bg-[#3b0a59]/82 px-4 py-3.5 text-white outline-none transition focus:border-cyan-300/45 focus:bg-[#461066]/88"
+            className={`mt-2 ${authSelectClass}`}
           >
             <option value="">Select your gender</option>
             {GENDER_OPTIONS.map((option) => (
@@ -320,7 +326,7 @@ export default function RegisterPage() {
               </option>
             ))}
           </select>
-          {errors.gender ? <span className="mt-2 block text-xs font-medium text-amber-100">{errors.gender}</span> : null}
+          {errors.gender ? <span className={authErrorClass}>{errors.gender}</span> : null}
         </label>
 
         <AuthField
@@ -344,14 +350,14 @@ export default function RegisterPage() {
           autoComplete="new-password"
           error={errors.password}
         />
-        <div className="rounded-[1rem] border border-white/10 bg-white/6 px-3 py-3">
+        <div className="rounded-[0.9rem] border border-white/10 bg-white/6 px-3 py-3 sm:rounded-[1rem]">
           <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/10">
             <div className={`h-full rounded-full transition-all ${passwordStrength.color}`} style={{ width: `${Math.min(password.length * 8, 100)}%` }} />
           </div>
-          <p className="text-xs text-blue-100/78">
+          <p className="text-[0.7rem] text-blue-100/78 sm:text-[0.76rem]">
             Password strength: <span className="font-semibold text-white">{passwordStrength.level}</span>
           </p>
-          <p className="mt-1 text-[11px] text-blue-100/62">
+          <p className="mt-1 text-[0.65rem] text-blue-100/62">
             Use at least 8 characters with uppercase, lowercase, number, and symbol.
           </p>
         </div>
@@ -367,7 +373,7 @@ export default function RegisterPage() {
           error={errors.confirmPassword}
         />
 
-        <div className="space-y-3">
+        <div className="space-y-2.5 sm:space-y-3">
           {[
             {
               checked: isAdultConfirmed,
@@ -399,7 +405,7 @@ export default function RegisterPage() {
               error: errors.privacy,
             },
           ].map((item) => (
-            <label key={item.key} className="block rounded-[1rem] border border-white/10 bg-white/6 px-4 py-3 text-sm leading-6 text-blue-100/82 backdrop-blur-md">
+            <label key={item.key} className="block rounded-[0.9rem] border border-white/10 bg-white/6 px-4 py-2.5 text-[0.76rem] leading-5 text-blue-100/82 backdrop-blur-md sm:rounded-[1rem] sm:py-3 sm:text-[0.84rem] sm:leading-6">
               <span className="flex items-start gap-3">
                 <input
                   type="checkbox"
@@ -409,7 +415,7 @@ export default function RegisterPage() {
                 />
                 <span>{item.content}</span>
               </span>
-              {item.error ? <span className="mt-2 block text-xs font-medium text-amber-100">{item.error}</span> : null}
+              {item.error ? <span className={authErrorClass}>{item.error}</span> : null}
             </label>
           ))}
         </div>
@@ -419,7 +425,7 @@ export default function RegisterPage() {
         </PrimaryAuthButton>
       </form>
 
-      <div className="mt-5 space-y-5 text-center">
+      <div className="mt-5 space-y-4 text-center sm:space-y-5">
         <AuthDivider />
         <GoogleAuthButton
           mode="signup"
@@ -429,7 +435,7 @@ export default function RegisterPage() {
       </div>
 
       {message ? (
-        <div className="mt-5">
+        <div className="mt-4 sm:mt-5">
           <AuthMessage tone={status === "error" ? "error" : "success"}>
             {message}
           </AuthMessage>
@@ -437,16 +443,16 @@ export default function RegisterPage() {
       ) : null}
 
       {user ? (
-        <div className="mt-5 rounded-[1.2rem] border border-white/10 bg-white/6 px-4 py-4 text-sm text-blue-100/82 backdrop-blur-md">
+        <div className="mt-4 rounded-[1rem] border border-white/10 bg-white/6 px-4 py-3 text-[0.78rem] text-blue-100/82 backdrop-blur-md sm:mt-5 sm:rounded-[1.2rem] sm:text-[0.86rem]">
           Account created for <span className="font-semibold text-white">{user.username}</span>
           .
         </div>
       ) : null}
 
       {verificationPreview ? (
-        <div className="mt-5 rounded-[1rem] border border-cyan-300/25 bg-cyan-400/10 px-4 py-4 text-sm text-blue-100/86 backdrop-blur-md">
-          <p className="text-xs uppercase tracking-[0.3em] text-cyan-100/72">Preview verification token</p>
-          <p className="mt-3 break-all rounded-[0.9rem] border border-white/10 bg-white/8 px-3 py-3 font-mono text-xs text-white/90">
+        <div className="mt-4 rounded-[0.9rem] border border-cyan-300/25 bg-cyan-400/10 px-4 py-3 text-[0.78rem] text-blue-100/86 backdrop-blur-md sm:mt-5 sm:rounded-[1rem] sm:text-[0.86rem]">
+          <p className="text-[0.68rem] uppercase tracking-[0.26em] text-cyan-100/72">Preview verification token</p>
+          <p className="mt-3 break-all rounded-[0.9rem] border border-white/10 bg-white/8 px-3 py-3 font-mono text-[0.7rem] text-white/90">
             {verificationPreview}
           </p>
           <div className="mt-4">
