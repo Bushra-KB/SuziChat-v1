@@ -1,4 +1,5 @@
 import { apiJson } from "@/lib/api-auth-request";
+import type { ChatAttachment, ChatMessageKind } from "@/lib/chat-attachments";
 
 export type ApiRoom = {
   id: string;
@@ -26,8 +27,10 @@ export type ApiRoom = {
 
 export type ApiRoomMessage = {
   id: string;
+  kind?: ChatMessageKind;
   body: string;
   createdAt: string;
+  attachments?: ChatAttachment[];
   sender: {
     id: string;
     username: string;
@@ -121,13 +124,18 @@ export async function listMyRoomMessages(accessToken: string, slug: string) {
   );
 }
 
-export async function postRoomMessage(accessToken: string, slug: string, body: string) {
+export async function postRoomMessage(
+  accessToken: string,
+  slug: string,
+  body: string,
+  attachments?: ChatAttachment[],
+) {
   return apiJson<ApiRoomMessage>(
     `/v1/rooms/${encodeURIComponent(slug)}/messages`,
     {
       method: "POST",
       accessToken,
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, attachments }),
     },
   );
 }

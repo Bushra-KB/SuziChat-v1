@@ -53,7 +53,7 @@ export class ConversationsController {
     @Body() dto: SendDirectMessageDto,
   ) {
     return this.conversationsService
-      .updateMessage(user.id, messageId, dto.body)
+      .updateMessage(user.id, messageId, dto.body ?? '')
       .then((message) => {
         this.realtimeEvents.emitToUser(
           message.sender.id,
@@ -159,7 +159,7 @@ export class ConversationsController {
     @Body() dto: SendDirectMessageDto,
   ) {
     return this.conversationsService
-      .sendMessage(user.id, peerId, dto.body)
+      .sendMessage(user.id, peerId, dto.body ?? '', dto.attachments)
       .then((message) => {
         this.realtimeEvents.emitToUser(
           message.sender.id,

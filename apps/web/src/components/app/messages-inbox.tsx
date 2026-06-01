@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer } from "@/components/app/chat-composer";
 import { ChatMessageRow, type LiveChatMessage } from "@/components/app/chat-message-row";
+import { useCall } from "@/components/app/calls/call-provider";
 import { PersonRow, ThreadRow } from "@/components/app/v1-blocks";
 import { Icon, Panel, cx } from "@/components/ui/suzi-primitives";
 import { getStoredAuthSession } from "@/lib/auth-client";
@@ -21,6 +22,11 @@ import {
   type DirectMessageRow,
 } from "@/lib/conversations-client";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
+import {
+  attachmentPreviewLabel,
+  toAttachmentPayload,
+  type ChatAttachment,
+} from "@/lib/chat-attachments";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 import { subscribeUserProfileUpdates } from "@/lib/realtime-feed";
 import { useIsMobile } from "@/lib/use-is-mobile";
@@ -94,6 +100,8 @@ export function MessagesInbox() {
   const [typingName, setTypingName] = useState<string | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
+  const [accessToken, setAccessToken] = useState("");
+  const { startCall } = useCall();
   const [presenceById, setPresenceById] = useState<Record<string, Presence>>({});
   const [confirmRemovePeer, setConfirmRemovePeer] = useState<ConversationThread["peer"] | null>(null);
   const [confirmDeleteMessage, setConfirmDeleteMessage] = useState<DirectMessageRow | null>(null);
@@ -121,6 +129,7 @@ export function MessagesInbox() {
     const s = getStoredAuthSession();
     setMeId(s?.user.id ?? null);
     setHasSession(!!s?.accessToken);
+    setAccessToken(s?.accessToken ?? "");
   }, []);
 
   useEffect(() => {
@@ -521,17 +530,26 @@ export function MessagesInbox() {
     });
   }, [draftPeer, selectedPeerId, threads, threadQuery]);
 
-  async function handleSend(text: string) {
+  async function handleSend(text: string, attachments: ChatAttachment[] = []) {
     const s = getStoredAuthSession();
     if (!s || !selectedPeerId) {
+      return;
+    }
+    if (!text.trim() && attachments.length === 0) {
       return;
     }
     setSending(true);
     const optimisticId = `optimistic-dm-${Date.now()}`;
     const optimistic: DirectMessageRow = {
       id: optimisticId,
+      kind: attachments.some((a) => a.kind === "VOICE")
+        ? "VOICE"
+        : attachments.length > 0
+          ? "FILE"
+          : "TEXT",
       body: text,
       createdAt: new Date().toISOString(),
+      attachments,
       sender: {
         id: s.user.id,
         username: s.user.username,
@@ -545,9 +563,10 @@ export function MessagesInbox() {
     try {
       const socket = getRealtimeSocket(s.accessToken);
       socket.emit("dm:typing", { peerId: selectedPeerId, typing: false });
+      const payloadAttachments = attachments.map(toAttachmentPayload);
       const row = await new Promise<DirectMessageRow>((resolve, reject) => {
         if (!socket.connected) {
-          void sendDirectMessage(s.accessToken, selectedPeerId, text)
+          void sendDirectMessage(s.accessToken, selectedPeerId, text, attachments)
             .then(resolve)
             .catch(reject);
           return;
@@ -555,7 +574,7 @@ export function MessagesInbox() {
 
         socket.emit(
           "dm:send",
-          { peerId: selectedPeerId, body: text },
+          { peerId: selectedPeerId, body: text, attachments: payloadAttachments },
           (ack: { ok?: boolean; message?: DirectMessageRow; error?: string }) => {
             if (ack?.ok && ack.message) {
               resolve(ack.message);
@@ -696,7 +715,10 @@ export function MessagesInbox() {
                 <ThreadRow
                   key={thread.peer.id}
                   person={peerToPerson(thread.peer)}
-                  preview={thread.lastMessage.body}
+                  preview={
+                    thread.lastMessage.body ||
+                    attachmentPreviewLabel(thread.lastMessage.kind ?? "TEXT")
+                  }
                   time={shortTime(thread.lastMessage.createdAt)}
                   unread={0}
                   href={`/app/messages?with=${encodeURIComponent(thread.peer.id)}`}
@@ -760,10 +782,38 @@ export function MessagesInbox() {
               )}
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              <button type="button" aria-label="Voice call" className="suzi-game-board-top-btn px-0 inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80">
+              <button
+                type="button"
+                aria-label="Voice call"
+                disabled={!activeThread}
+                onClick={() =>
+                  activeThread &&
+                  void startCall({
+                    context: "DM",
+                    targetKey: activeThread.peer.id,
+                    media: "AUDIO",
+                    peer: activeThread.peer,
+                  })
+                }
+                className="suzi-game-board-top-btn px-0 inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80 disabled:opacity-40"
+              >
                 <Icon path="M5 3h3l2 5-2 1a11 11 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A18 18 0 0 1 3 5a2 2 0 0 1 2-2Z" className="h-4 w-4" />
               </button>
-              <button type="button" aria-label="Video call" className="suzi-game-board-top-btn px-0 inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80">
+              <button
+                type="button"
+                aria-label="Video call"
+                disabled={!activeThread}
+                onClick={() =>
+                  activeThread &&
+                  void startCall({
+                    context: "DM",
+                    targetKey: activeThread.peer.id,
+                    media: "VIDEO",
+                    peer: activeThread.peer,
+                  })
+                }
+                className="suzi-game-board-top-btn px-0 inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80 disabled:opacity-40"
+              >
                 <Icon path="M3 7a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm13 3 5-3v10l-5-3V10Z" className="h-4 w-4" />
               </button>
               <button
@@ -803,6 +853,7 @@ export function MessagesInbox() {
                   senderUsername: m.sender.username,
                   senderDisplayName: m.sender.displayName ?? m.sender.username,
                   senderAvatarUrl: mine ? myAvatarUrl : m.sender.avatarUrl?.trim() || null,
+                  attachments: m.attachments,
                 };
                 const canEditMessage = mine && !m.id.startsWith("optimistic-");
                 const isEditing = editingMessageId === m.id;
@@ -884,6 +935,7 @@ export function MessagesInbox() {
             ) : null}
             <ChatComposer
               attachInputId="dm-chat-attachment"
+              accessToken={accessToken}
               placeholder="Write a direct message…"
               variant="onDark"
               disabled={!hasSession || !selectedPeerId || sending}

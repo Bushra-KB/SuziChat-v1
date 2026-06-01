@@ -9,15 +9,24 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
-import { GameType, MoveKind, PostKind } from '@prisma/client';
+import {
+  CallContext,
+  CallMedia,
+  CallStatus,
+  GameType,
+  MoveKind,
+  PostKind,
+} from '@prisma/client';
 import type { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
+import { CallService } from '../calls/call.service';
 import { DatingService } from '../dating/dating.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { GamesService } from '../games/games.service';
 import { PostsService } from '../posts/posts.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { GamesMetricsService } from '../games/games-metrics.service';
+import type { ChatAttachmentInput } from '../uploads/attachment-input';
 import {
   APP_REALTIME_CHANNEL,
   postsFeedChannel,
@@ -32,6 +41,7 @@ type AuthSocket = Socket & {
     gameSessionIds?: Set<string>;
     gameLobbyIds?: Set<string>;
     roomSlugs?: Set<string>;
+    callIds?: Set<string>;
   };
 };
 
@@ -71,6 +81,7 @@ export class RealtimeGateway
     private readonly realtimeState: RealtimeStateService,
     private readonly datingService: DatingService,
     private readonly gamesMetrics: GamesMetricsService,
+    private readonly callService: CallService,
   ) {
     this.presenceTicker = setInterval(() => {
       this.emitAllPresenceIfChanged();
@@ -127,6 +138,10 @@ export class RealtimeGateway
 
   private gameSessionChannel(sessionId: string) {
     return `game:session:${sessionId}`;
+  }
+
+  private callChannel(callId: string) {
+    return `call:${callId}`;
   }
 
   /** Subscribed by games hub / lobby pages for live lobby list refresh. */
@@ -255,6 +270,7 @@ export class RealtimeGateway
     if (!userId) {
       return;
     }
+    void this.cleanupSocketCalls(client);
     // Defer until socket.io updates room membership.
     setTimeout(() => {
       this.emitPresence(userId);
@@ -376,19 +392,29 @@ export class RealtimeGateway
   @SubscribeMessage('dm:send')
   async onDmSend(
     @ConnectedSocket() client: AuthSocket,
-    @MessageBody() payload: { peerId?: string; body?: string },
+    @MessageBody()
+    payload: {
+      peerId?: string;
+      body?: string;
+      attachments?: ChatAttachmentInput[];
+    },
   ) {
     const userId = this.getUserId(client);
     const peerId = payload?.peerId?.trim();
-    const body = payload?.body?.trim();
-    if (!peerId || !body) {
-      throw new WsException('peerId and body are required');
+    const body = payload?.body?.trim() ?? '';
+    const attachments = payload?.attachments ?? [];
+    if (!peerId) {
+      throw new WsException('peerId is required');
+    }
+    if (!body && attachments.length === 0) {
+      throw new WsException('A message needs text or an attachment');
     }
 
     const message = await this.conversationsService.sendMessage(
       userId,
       peerId,
       body,
+      attachments,
     );
     this.markUserActive(userId);
     this.server
@@ -476,16 +502,30 @@ export class RealtimeGateway
   @SubscribeMessage('room:send')
   async onRoomSend(
     @ConnectedSocket() client: AuthSocket,
-    @MessageBody() payload: { roomSlug?: string; body?: string },
+    @MessageBody()
+    payload: {
+      roomSlug?: string;
+      body?: string;
+      attachments?: ChatAttachmentInput[];
+    },
   ) {
     const userId = this.getUserId(client);
     const roomSlug = payload?.roomSlug?.trim();
-    const body = payload?.body?.trim();
-    if (!roomSlug || !body) {
-      throw new WsException('roomSlug and body are required');
+    const body = payload?.body?.trim() ?? '';
+    const attachments = payload?.attachments ?? [];
+    if (!roomSlug) {
+      throw new WsException('roomSlug is required');
+    }
+    if (!body && attachments.length === 0) {
+      throw new WsException('A message needs text or an attachment');
     }
 
-    const message = await this.roomsService.postMessage(roomSlug, userId, body);
+    const message = await this.roomsService.postMessage(
+      roomSlug,
+      userId,
+      body,
+      attachments,
+    );
     this.markUserActive(userId);
     this.server.to(this.roomChannel(roomSlug)).emit('room:message', {
       roomSlug,
@@ -913,5 +953,246 @@ export class RealtimeGateway
       onlineIds: watchIds.filter((id) => this.isUserOnline(id)),
       statuses,
     };
+  }
+
+  // --- WebRTC call signaling ------------------------------------------------
+
+  private trackCallSocket(client: AuthSocket, callId: string) {
+    client.data.callIds ??= new Set<string>();
+    client.data.callIds.add(callId);
+  }
+
+  private async callerSummary(calleeId: string, callerId: string) {
+    return this.conversationsService.getPeer(calleeId, callerId).catch(() => ({
+      id: callerId,
+      username: 'Someone',
+      displayName: null,
+      country: null,
+      avatarUrl: null,
+    }));
+  }
+
+  @SubscribeMessage('call:invite')
+  async onCallInvite(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody()
+    payload: { context?: 'DM' | 'DATING'; targetKey?: string; media?: 'AUDIO' | 'VIDEO' },
+  ) {
+    const userId = this.getUserId(client);
+    const targetKey = payload?.targetKey?.trim();
+    const context = payload?.context;
+    const media = payload?.media === 'VIDEO' ? CallMedia.VIDEO : CallMedia.AUDIO;
+    if (!targetKey || (context !== 'DM' && context !== 'DATING')) {
+      throw new WsException('context and targetKey are required');
+    }
+
+    let calleeId: string;
+    let contextKey: string;
+    if (context === 'DM') {
+      const peer = await this.callService.resolveDirectTarget(userId, targetKey);
+      calleeId = peer.id;
+      contextKey = [userId, calleeId].sort().join(':');
+    } else {
+      calleeId = await this.callService.resolveDatingTarget(userId, targetKey);
+      contextKey = targetKey;
+    }
+
+    const call = await this.callService.createDirectCall(
+      context === 'DM' ? CallContext.DM : CallContext.DATING,
+      contextKey,
+      userId,
+      calleeId,
+      media,
+    );
+    this.trackCallSocket(client, call.id);
+    await client.join(this.callChannel(call.id));
+    this.markUserActive(userId);
+
+    const from = await this.callerSummary(calleeId, userId);
+    if (!this.isUserOnline(calleeId)) {
+      await this.callService.endCall(call.id, CallStatus.MISSED);
+      await this.callService.notifyMissedCall(
+        call,
+        calleeId,
+        from.displayName?.trim() || from.username,
+      );
+      return { ok: false, error: 'User is offline', callId: call.id };
+    }
+
+    this.server.to(this.userRoom(calleeId)).emit('call:incoming', {
+      callId: call.id,
+      context,
+      contextKey,
+      media: payload?.media === 'VIDEO' ? 'VIDEO' : 'AUDIO',
+      from,
+    });
+    return { ok: true, callId: call.id };
+  }
+
+  @SubscribeMessage('call:accept')
+  async onCallAccept(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { callId?: string },
+  ) {
+    const userId = this.getUserId(client);
+    const callId = payload?.callId?.trim();
+    const call = callId ? this.callService.getCall(callId) : undefined;
+    if (!call || !callId) {
+      throw new WsException('Call not found');
+    }
+    if (!call.invitedIds.has(userId) && !call.participants.has(userId)) {
+      throw new WsException('You were not invited to this call');
+    }
+    this.callService.addParticipant(callId, userId);
+    await this.callService.markAccepted(callId);
+    this.trackCallSocket(client, callId);
+    await client.join(this.callChannel(callId));
+    this.markUserActive(userId);
+    this.server.to(this.userRoom(call.initiatorId)).emit('call:accepted', {
+      callId,
+      userId,
+    });
+    return { ok: true, callId };
+  }
+
+  @SubscribeMessage('call:decline')
+  async onCallDecline(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { callId?: string },
+  ) {
+    const userId = this.getUserId(client);
+    const callId = payload?.callId?.trim();
+    const call = callId ? this.callService.getCall(callId) : undefined;
+    if (!call || !callId) {
+      return { ok: true };
+    }
+    await this.callService.endCall(callId, CallStatus.DECLINED);
+    this.server
+      .to(this.callChannel(callId))
+      .to(this.userRoom(call.initiatorId))
+      .emit('call:declined', { callId, userId });
+    return { ok: true };
+  }
+
+  @SubscribeMessage('call:cancel')
+  async onCallCancel(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { callId?: string },
+  ) {
+    const userId = this.getUserId(client);
+    const callId = payload?.callId?.trim();
+    const call = callId ? this.callService.getCall(callId) : undefined;
+    if (!call || !callId) {
+      return { ok: true };
+    }
+    await this.callService.endCall(callId, CallStatus.CANCELED);
+    const from = await this.callerSummary(
+      [...call.invitedIds][0] ?? userId,
+      userId,
+    );
+    for (const calleeId of call.invitedIds) {
+      this.server.to(this.userRoom(calleeId)).emit('call:canceled', { callId });
+      await this.callService.notifyMissedCall(
+        call,
+        calleeId,
+        from.displayName?.trim() || from.username,
+      );
+    }
+    return { ok: true };
+  }
+
+  @SubscribeMessage('call:end')
+  async onCallEnd(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { callId?: string },
+  ) {
+    const userId = this.getUserId(client);
+    const callId = payload?.callId?.trim();
+    if (!callId) {
+      return { ok: true };
+    }
+    await client.leave(this.callChannel(callId));
+    client.data.callIds?.delete(callId);
+    const ended = await this.callService.leaveParticipant(callId, userId);
+    this.server.to(this.callChannel(callId)).emit('call:peer-left', {
+      callId,
+      userId,
+    });
+    if (ended) {
+      this.server.to(this.callChannel(callId)).emit('call:ended', { callId });
+    }
+    return { ok: true };
+  }
+
+  @SubscribeMessage('call:signal')
+  onCallSignal(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody()
+    payload: { callId?: string; toUserId?: string; data?: unknown },
+  ) {
+    const userId = this.getUserId(client);
+    const callId = payload?.callId?.trim();
+    const toUserId = payload?.toUserId?.trim();
+    if (!callId || !toUserId || payload?.data == null) {
+      throw new WsException('callId, toUserId and data are required');
+    }
+    if (!this.callService.isParticipant(callId, userId)) {
+      throw new WsException('You are not part of this call');
+    }
+    this.server.to(this.userRoom(toUserId)).emit('call:signal', {
+      callId,
+      fromUserId: userId,
+      data: payload.data,
+    });
+    return { ok: true };
+  }
+
+  @SubscribeMessage('call:room:join')
+  async onCallRoomJoin(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { roomSlug?: string },
+  ) {
+    const userId = this.getUserId(client);
+    const roomSlug = payload?.roomSlug?.trim();
+    if (!roomSlug) {
+      throw new WsException('roomSlug is required');
+    }
+    await this.callService.assertRoomCallAccess(userId, roomSlug);
+    let call = this.callService.findRoomCall(roomSlug);
+    if (!call) {
+      call = await this.callService.createRoomCall(roomSlug, userId);
+    } else {
+      this.callService.addParticipant(call.id, userId);
+    }
+    this.trackCallSocket(client, call.id);
+    await client.join(this.callChannel(call.id));
+    this.markUserActive(userId);
+    const peerIds = [...call.participants].filter((id) => id !== userId);
+    this.server.to(this.callChannel(call.id)).emit('call:room:participant-joined', {
+      callId: call.id,
+      roomSlug,
+      userId,
+    });
+    return { ok: true, callId: call.id, peerIds };
+  }
+
+  private async cleanupSocketCalls(client: AuthSocket) {
+    const userId = client.data.userId;
+    const callIds = client.data.callIds;
+    if (!userId || !callIds) {
+      return;
+    }
+    for (const callId of callIds) {
+      const ended = await this.callService
+        .leaveParticipant(callId, userId)
+        .catch(() => true);
+      this.server.to(this.callChannel(callId)).emit('call:peer-left', {
+        callId,
+        userId,
+      });
+      if (ended) {
+        this.server.to(this.callChannel(callId)).emit('call:ended', { callId });
+      }
+    }
   }
 }

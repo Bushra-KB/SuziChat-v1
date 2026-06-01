@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ChatAttachment } from "@/lib/chat-attachments";
 import { DatingBlockedModal } from "@/components/app/dating/dating-blocked-modal";
 import { DatingChatModal } from "@/components/app/dating/dating-chat-modal";
 import { DatingDiscoverDeck } from "@/components/app/dating/dating-discover-deck";
@@ -101,7 +102,6 @@ export function DatingHub() {
   const [chatMatchId, setChatMatchId] = useState<string | null>(null);
   const [chatPeer, setChatPeer] = useState<DatingMatchRow["peer"] | null>(null);
   const [messages, setMessages] = useState<DatingMessageRow[]>([]);
-  const [chatDraft, setChatDraft] = useState("");
   const [peerTyping, setPeerTyping] = useState(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const collectionMenuRef = useRef<HTMLDivElement | null>(null);
@@ -538,7 +538,6 @@ export function DatingHub() {
     setChatPeer(row.peer);
     setShowChatModal(true);
     setPeerTyping(false);
-    setChatDraft("");
     try {
       const { messages: rows } = await listDatingMessages(accessToken, row.id);
       setMessages(rows);
@@ -559,14 +558,13 @@ export function DatingHub() {
     }
   }, [chatMatchId, matches, openChat, searchParams]);
 
-  const sendChat = async () => {
-    if (!accessToken || !chatMatchId || !chatDraft.trim()) {
+  const sendChat = async (text: string, attachments: ChatAttachment[] = []) => {
+    const body = text.trim();
+    if (!accessToken || !chatMatchId || (!body && attachments.length === 0)) {
       return;
     }
-    const body = chatDraft.trim();
-    setChatDraft("");
     try {
-      const { message } = await sendDatingMessage(accessToken, chatMatchId, body);
+      const { message } = await sendDatingMessage(accessToken, chatMatchId, body, attachments);
       setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Send failed.");
@@ -581,11 +579,10 @@ export function DatingHub() {
   };
 
   const onChatInput = (value: string) => {
-    setChatDraft(value);
     if (typingTimerRef.current) {
       clearTimeout(typingTimerRef.current);
     }
-    emitTyping(true);
+    emitTyping(value.trim().length > 0);
     typingTimerRef.current = setTimeout(() => emitTyping(false), 1200);
   };
 
@@ -1012,12 +1009,12 @@ export function DatingHub() {
           peer={chatPeer}
           messages={messages}
           currentUserId={currentUserId}
-          chatDraft={chatDraft}
+          accessToken={accessToken}
           peerTyping={peerTyping}
           onClose={() => setShowChatModal(false)}
           onUnmatch={() => void unmatch(chatMatchId)}
-          onDraftChange={onChatInput}
-          onSend={() => void sendChat()}
+          onTyping={onChatInput}
+          onSend={(text, attachments) => void sendChat(text, attachments)}
         />
       ) : null}
 

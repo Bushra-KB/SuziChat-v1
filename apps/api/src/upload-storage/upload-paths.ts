@@ -1,7 +1,14 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const UPLOAD_SUBDIRS = ['avatars', 'snaps', 'reels', 'dating'] as const;
+const UPLOAD_SUBDIRS = [
+  'avatars',
+  'snaps',
+  'reels',
+  'dating',
+  'chat',
+  'voice',
+] as const;
 
 export type UploadSubdir = (typeof UPLOAD_SUBDIRS)[number];
 

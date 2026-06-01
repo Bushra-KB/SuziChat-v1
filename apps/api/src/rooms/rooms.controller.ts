@@ -128,7 +128,7 @@ export class RoomsController {
     @Body() dto: CreateRoomMessageDto,
   ) {
     return this.roomsService
-      .postMessage(slug, user.id, dto.body)
+      .postMessage(slug, user.id, dto.body ?? '', dto.attachments)
       .then((message) => {
         this.realtimeEvents.emitRoom(slug, 'room:message', {
           roomSlug: slug,

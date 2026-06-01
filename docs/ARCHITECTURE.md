@@ -225,6 +225,65 @@ Keep event naming explicit and small in scope.
 
 ---
 
+## WebRTC Calls and Chat Media (Phase 2)
+
+Phase 2 adds real-time audio/video calls, voice messages, and file attachments
+across DM, ChatRoom, and Dating chat surfaces.
+
+> Scope note: `PROJECT_SPEC.md` originally listed voice/video chat as out of V1.
+> Phase 2 intentionally expands that scope. Group video is still out of scope:
+> ChatRoom calls are audio-only with a small participant cap.
+
+### Chat media (voice messages + file attachments)
+
+- A shared `MessageAttachment` model is referenced by `DirectMessage`,
+  `RoomMessage`, and `DatingMessage` (exactly one foreign key set per row,
+  enforced in app code). Each message also carries a `MessageKind`
+  (`TEXT | VOICE | FILE | IMAGE | CALL`).
+- Uploads reuse the existing multer disk-storage pattern via a shared
+  `UploadsModule`:
+  - `POST /v1/uploads/chat-file` (images/docs/audio/video/zip, 25 MB cap,
+    executable/script extensions blocked)
+  - `POST /v1/uploads/voice` (audio, 10 MB / 5 min cap, returns `durationMs`)
+- Files are stored under `uploads/chat/` and `uploads/voice/` and served from
+  `/uploads`. Attachment metadata (mime, size, duration) is validated and
+  persisted; only internal `/api/uploads/...` URLs are accepted.
+
+### Calls: signaling and media
+
+- **Approach:** raw WebRTC. 1:1 (DM + Dating) is peer-to-peer; ChatRoom calls
+  use an audio-only mesh capped by `ROOM_CALL_MAX` (default 6). No SFU.
+- **Signaling** rides the existing Socket.IO gateway (`RealtimeGateway`),
+  reusing per-user `user:{id}` rooms and a `call:{callId}` room:
+  - `call:invite` / `call:incoming`, `call:accept` / `call:accepted`,
+    `call:decline` / `call:declined`, `call:cancel` / `call:canceled`,
+    `call:end` / `call:ended`, `call:peer-left`
+  - `call:signal` relays SDP/ICE between specific participants
+  - `call:room:join` / `call:room:participant-joined` for room mesh
+- **Access checks** reuse `ConversationsService.getPeer`,
+  `DatingService.assertMatchParticipant`, and `RoomsService.getRoomAccess`.
+- **CallSession** persists a lightweight record (context, participants, status,
+  timestamps) for history and missed-call notifications. Live media/signaling
+  state is kept in memory in `CallService`; media never flows through the API.
+
+### TURN/STUN infrastructure
+
+- `GET /v1/rtc/ice` issues ICE servers: static STUN plus short-lived TURN
+  credentials using the coturn REST scheme
+  (`username = "<expiry>:<userId>"`, `credential = base64(HMAC-SHA1(secret, username))`).
+- A `coturn` service runs alongside the stack (see `infra/docker/coturn/`).
+  Required env: `TURN_SECRET`, `TURN_URLS`, `TURN_REALM`, `TURN_EXTERNAL_IP`,
+  optional `STUN_URLS`, `TURN_TTL_SECONDS`. TURN runs over UDP/TCP on the host
+  (Caddy proxies TCP/WS only). V1 runs TURN without TLS; media stays encrypted
+  via DTLS-SRTP. Upgrade to `turns://` later by adding certs to `turnserver.conf`.
+
+### Browser permissions
+
+`main.ts` sets `Permissions-Policy: camera=(self), microphone=(self),
+display-capture=(self)` so `getUserMedia` works for calls and voice messages.
+
+---
+
 ## Database Architecture
 
 ### Database choice

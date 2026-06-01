@@ -7,6 +7,11 @@ import { DatingSwipeAction, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { RealtimeStateService } from '../realtime/realtime-state.service';
+import {
+  deriveMessageKind,
+  messageAttachmentSelect,
+  sanitizeChatAttachments,
+} from '../uploads/attachment-input';
 import type { CreateDatingMessageDto } from './dto/create-dating-message.dto';
 import type { DatingSwipeDto } from './dto/dating-swipe.dto';
 import type { UpsertDatingProfileDto } from './dto/upsert-dating-profile.dto';
@@ -18,6 +23,23 @@ const userCardSelect = {
   avatarUrl: true,
   country: true,
   bio: true,
+} as const;
+
+const datingMessageSelect = {
+  id: true,
+  kind: true,
+  body: true,
+  createdAt: true,
+  senderId: true,
+  attachments: { select: messageAttachmentSelect },
+  sender: {
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      avatarUrl: true,
+    },
+  },
 } as const;
 
 const datingProfileSelect = {
@@ -893,27 +915,16 @@ export class DatingService {
       where: { matchId },
       orderBy: { createdAt: 'desc' },
       take: limit,
-      select: {
-        id: true,
-        body: true,
-        createdAt: true,
-        senderId: true,
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-      },
+      select: datingMessageSelect,
     });
     return {
       messages: [...rows].reverse().map((m) => ({
         id: m.id,
+        kind: m.kind,
         body: m.body,
         createdAt: m.createdAt,
         senderId: m.senderId,
+        attachments: m.attachments,
         sender: m.sender,
       })),
     };
@@ -925,26 +936,24 @@ export class DatingService {
     dto: CreateDatingMessageDto,
   ) {
     const { peerId } = await this.assertMatchParticipant(userId, matchId);
+    const trimmedBody = (dto.body ?? '').trim();
+    const safeAttachments = sanitizeChatAttachments(dto.attachments);
+    if (!trimmedBody && safeAttachments.length === 0) {
+      throw new ForbiddenException(
+        'A message needs text or at least one attachment',
+      );
+    }
     const message = await this.prisma.datingMessage.create({
       data: {
         matchId,
         senderId: userId,
-        body: dto.body.trim(),
+        body: trimmedBody,
+        kind: deriveMessageKind(trimmedBody, safeAttachments),
+        attachments: safeAttachments.length
+          ? { create: safeAttachments }
+          : undefined,
       },
-      select: {
-        id: true,
-        body: true,
-        createdAt: true,
-        senderId: true,
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-      },
+      select: datingMessageSelect,
     });
 
     const socketPayload = { matchId, message };
@@ -952,12 +961,17 @@ export class DatingService {
     this.realtimeEvents.emitToUser(peerId, 'dating:message', socketPayload);
     const senderName =
       message.sender.displayName?.trim() || message.sender.username || 'Someone';
+    const preview = message.body.trim()
+      ? message.body.slice(0, 120)
+      : message.kind === 'VOICE'
+        ? 'sent a voice message'
+        : 'sent an attachment';
     await this.prisma.notification
       .create({
         data: {
           userId: peerId,
           title: 'New dating message',
-          body: `${senderName}: ${message.body.slice(0, 120)}`,
+          body: `${senderName}: ${preview}`,
           href: `/app/dating?panel=inbox&match=${encodeURIComponent(matchId)}`,
         },
       })

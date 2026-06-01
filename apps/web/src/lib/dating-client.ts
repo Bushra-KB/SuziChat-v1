@@ -1,5 +1,6 @@
 import { apiJson } from "@/lib/api-auth-request";
 import { uploadFormWithProgress } from "@/lib/api-upload";
+import type { ChatAttachment, ChatMessageKind } from "@/lib/chat-attachments";
 
 export type DatingSwipeAction = "LIKE" | "PASS";
 
@@ -64,9 +65,11 @@ export type DatingMatchRow = {
 
 export type DatingMessageRow = {
   id: string;
+  kind?: ChatMessageKind;
   body: string;
   createdAt: string;
   senderId: string;
+  attachments?: ChatAttachment[];
   sender: {
     id: string;
     username: string;
@@ -237,13 +240,18 @@ export async function listDatingMessages(accessToken: string, matchId: string, t
   );
 }
 
-export async function sendDatingMessage(accessToken: string, matchId: string, body: string) {
+export async function sendDatingMessage(
+  accessToken: string,
+  matchId: string,
+  body: string,
+  attachments?: ChatAttachment[],
+) {
   return apiJson<{ message: DatingMessageRow }>(
     `/v1/dating/matches/${encodeURIComponent(matchId)}/messages`,
     {
       method: "POST",
       accessToken,
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, attachments }),
     },
   );
 }

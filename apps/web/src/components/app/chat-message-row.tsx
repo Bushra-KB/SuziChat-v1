@@ -3,7 +3,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { ChatLine } from "@/lib/v1-mock-data";
 import { cx } from "@/components/ui/suzi-primitives";
+import { MessageAttachmentList } from "@/components/app/message-attachment";
 import { formatFirstNameLastInitial, resolveChatSender } from "@/lib/chat-display";
+import type { ChatAttachment } from "@/lib/chat-attachments";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { publicProfileHref } from "@/lib/profile-links";
 
@@ -16,6 +18,7 @@ export type LiveChatMessage = {
   senderUsername: string;
   senderDisplayName: string;
   senderAvatarUrl?: string | null;
+  attachments?: ChatAttachment[];
 };
 
 type ChatMessageRowProps =
@@ -32,6 +35,7 @@ function ChatBubble({
   profileAriaLabel,
   actions,
   bodyOverride,
+  attachments,
 }: {
   mine: boolean;
   href: string;
@@ -42,6 +46,7 @@ function ChatBubble({
   profileAriaLabel: string;
   actions?: ReactNode;
   bodyOverride?: ReactNode;
+  attachments?: ChatAttachment[];
 }) {
   return (
     <div className={cx("flex", mine ? "justify-end" : "justify-start")}>
@@ -79,7 +84,8 @@ function ChatBubble({
           </Link>
           <span className="suzi-chat-bubble__time">{timeLabel}</span>
         </div>
-        {bodyOverride ?? <p className="suzi-chat-bubble__body">{body}</p>}
+        {bodyOverride ?? (body ? <p className="suzi-chat-bubble__body">{body}</p> : null)}
+        <MessageAttachmentList attachments={attachments} mine={mine} />
         {actions ? <div className="suzi-chat-bubble__actions">{actions}</div> : null}
       </article>
     </div>
@@ -122,6 +128,7 @@ export function ChatMessageRow(props: ChatMessageRowProps) {
       profileAriaLabel={`${live.senderDisplayName} profile`}
       actions={props.actions}
       bodyOverride={props.bodyOverride}
+      attachments={live.attachments}
     />
   );
 }
