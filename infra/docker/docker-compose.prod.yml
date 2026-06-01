@@ -46,11 +46,30 @@ services:
       ARGON2_MEMORY_COST: ${ARGON2_MEMORY_COST:-65536}
       ARGON2_PARALLELISM: ${ARGON2_PARALLELISM:-1}
       CORS_ORIGINS: ${CORS_ORIGINS}
+      STUN_URLS: ${STUN_URLS:-stun:stun.l.google.com:19302}
+      TURN_URLS: ${TURN_URLS:-}
+      TURN_SECRET: ${TURN_SECRET:-}
+      TURN_REALM: ${TURN_REALM:-${SUZI_DOMAIN}}
+      TURN_TTL_SECONDS: ${TURN_TTL_SECONDS:-3600}
+      ROOM_CALL_MAX: ${ROOM_CALL_MAX:-6}
     volumes:
       - suzi_chat_api_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
+
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    # Host networking is the most reliable setup for TURN media relay.
+    network_mode: host
+    volumes:
+      - ../coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: >
+      -c /etc/coturn/turnserver.conf
+      --static-auth-secret=${TURN_SECRET}
+      --realm=${TURN_REALM:-${SUZI_DOMAIN}}
+      --external-ip=${TURN_EXTERNAL_IP}
 
   web:
     build:

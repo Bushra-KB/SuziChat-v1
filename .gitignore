@@ -25,6 +25,7 @@ Thumbs.db
 .vscode/
 .codex
 
-# local runtime data
-uploads/
+# local runtime data (uploaded media storage only — not the src/uploads module)
+/uploads/
+apps/api/uploads/
 tmp/

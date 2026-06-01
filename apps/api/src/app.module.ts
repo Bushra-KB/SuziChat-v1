@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
+import { CallsModule } from './calls/calls.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { DatingModule } from './dating/dating.module';
 import { FriendsModule } from './friends/friends.module';
@@ -16,6 +17,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PublicModule } from './public/public.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { RoomsModule } from './rooms/rooms.module';
+import { RtcModule } from './rtc/rtc.module';
+import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -41,6 +44,9 @@ import { UsersModule } from './users/users.module';
     PostsModule,
     NotificationsModule,
     DatingModule,
+    UploadsModule,
+    CallsModule,
+    RtcModule,
   ],
   controllers: [AppController],
   providers: [AppService],

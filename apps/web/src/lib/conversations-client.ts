@@ -1,4 +1,5 @@
 import { apiJson } from "@/lib/api-auth-request";
+import type { ChatAttachment, ChatMessageKind } from "@/lib/chat-attachments";
 
 export type PeerSummary = {
   id: string;
@@ -10,13 +11,21 @@ export type PeerSummary = {
 
 export type ConversationThread = {
   peer: PeerSummary;
-  lastMessage: { id: string; body: string; createdAt: string; senderId: string };
+  lastMessage: {
+    id: string;
+    kind?: ChatMessageKind;
+    body: string;
+    createdAt: string;
+    senderId: string;
+  };
 };
 
 export type DirectMessageRow = {
   id: string;
+  kind?: ChatMessageKind;
   body: string;
   createdAt: string;
+  attachments?: ChatAttachment[];
   sender: PeerSummary;
   recipient: { id: string };
 };
@@ -40,13 +49,18 @@ export async function listDirectMessages(accessToken: string, peerId: string) {
   );
 }
 
-export async function sendDirectMessage(accessToken: string, peerId: string, body: string) {
+export async function sendDirectMessage(
+  accessToken: string,
+  peerId: string,
+  body: string,
+  attachments?: ChatAttachment[],
+) {
   return apiJson<DirectMessageRow>(
     `/v1/conversations/${encodeURIComponent(peerId)}/messages`,
     {
       method: "POST",
       accessToken,
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, attachments }),
     },
   );
 }

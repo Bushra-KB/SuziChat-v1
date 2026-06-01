@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChatComposer } from "@/components/app/chat-composer";
 import { ChatMessageRow, type LiveChatMessage } from "@/components/app/chat-message-row";
+import { useCall } from "@/components/app/calls/call-provider";
 import { PersonRow } from "@/components/app/v1-blocks";
 import {
   homePanelHeader,
@@ -50,6 +51,7 @@ import {
   type ApiRoomPresenceUser,
 } from "@/lib/rooms-client";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
+import { toAttachmentPayload, type ChatAttachment } from "@/lib/chat-attachments";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 import { subscribeUserProfileUpdates } from "@/lib/realtime-feed";
 
@@ -134,6 +136,8 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const [typingName, setTypingName] = useState<string | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
+  const [accessToken, setAccessToken] = useState("");
+  const { startRoomCall, phase: callPhase } = useCall();
   const [access, setAccess] = useState<ApiRoomAccess | null>(null);
   const [management, setManagement] = useState<ApiRoomManagement | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -181,6 +185,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     const s = getStoredAuthSession();
     setMeId(s?.user.id ?? null);
     setHasSession(!!s?.accessToken);
+    setAccessToken(s?.accessToken ?? "");
   }, []);
 
   useEffect(() => {
@@ -404,17 +409,26 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         ? friendsIconPath
         : globeIconPath;
 
-  async function handleSend(body: string) {
+  async function handleSend(body: string, attachments: ChatAttachment[] = []) {
     const s = getStoredAuthSession();
     if (!s) {
+      return;
+    }
+    if (!body.trim() && attachments.length === 0) {
       return;
     }
     setSending(true);
     const optimisticId = `optimistic-${Date.now()}`;
     const optimisticMessage: ApiRoomMessage = {
       id: optimisticId,
+      kind: attachments.some((a) => a.kind === "VOICE")
+        ? "VOICE"
+        : attachments.length > 0
+          ? "FILE"
+          : "TEXT",
       body,
       createdAt: new Date().toISOString(),
+      attachments,
       sender: {
         id: s.user.id,
         username: s.user.username,
@@ -425,16 +439,17 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     try {
       const socket = getRealtimeSocket(s.accessToken);
       socket.emit("room:typing", { roomSlug, typing: false });
+      const payloadAttachments = attachments.map(toAttachmentPayload);
       const created = await new Promise<ApiRoomMessage>((resolve, reject) => {
         if (!socket.connected) {
-          void postRoomMessage(s.accessToken, roomSlug, body)
+          void postRoomMessage(s.accessToken, roomSlug, body, attachments)
             .then(resolve)
             .catch(reject);
           return;
         }
         socket.emit(
           "room:send",
-          { roomSlug, body },
+          { roomSlug, body, attachments: payloadAttachments },
           (ack: { ok?: boolean; message?: ApiRoomMessage; error?: string }) => {
             if (ack?.ok && ack.message) {
               resolve(ack.message);
@@ -719,6 +734,19 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
             <div className="suzi-room-chat-actions flex flex-wrap items-center gap-2">
               <button
                 type="button"
+                aria-label="Join audio call"
+                title="Join audio call"
+                disabled={!access?.canPost || callPhase !== "idle"}
+                onClick={() => void startRoomCall(roomSlug)}
+                className="suzi-room-action-btn suzi-room-action-btn--header inline-flex items-center gap-1.5 disabled:opacity-40"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                  <path d="M5 3h3l2 5-2 1a11 11 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A18 18 0 0 1 3 5a2 2 0 0 1 2-2Z" />
+                </svg>
+                Call
+              </button>
+              <button
+                type="button"
                 aria-label="Room members"
                 onClick={() => setMobileMembersOpen(true)}
                 className="suzi-m-icon-btn md:hidden"
@@ -841,6 +869,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 senderUsername: m.sender.username,
                 senderDisplayName: m.sender.displayName ?? m.sender.username,
                 senderAvatarUrl: mine ? myAvatarUrl : m.sender.avatarUrl?.trim() || null,
+                attachments: m.attachments,
               };
               return <ChatMessageRow key={m.id} variant="live" message={live} />;
             })}
@@ -853,6 +882,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
           ) : null}
           <ChatComposer
             attachInputId={`room-chat-attachment-${roomSlug}`}
+            accessToken={accessToken}
             placeholder="Write your message, invite a friend, or call out a game table"
             variant="onDark"
             rows={2}

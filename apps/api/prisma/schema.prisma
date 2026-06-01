@@ -30,6 +30,40 @@ enum PostKind {
   REEL
 }
 
+enum MessageKind {
+  TEXT
+  VOICE
+  FILE
+  IMAGE
+  CALL
+}
+
+enum AttachmentKind {
+  FILE
+  IMAGE
+  VOICE
+}
+
+enum CallContext {
+  DM
+  ROOM
+  DATING
+}
+
+enum CallMedia {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  RINGING
+  ONGOING
+  ENDED
+  MISSED
+  DECLINED
+  CANCELED
+}
+
 enum RoomJoinRequestStatus {
   PENDING
   APPROVED
@@ -172,6 +206,7 @@ model User {
   gameEvents               GameEvent[]
   pokerActions             PokerAction[]
   adminAuditLogs           AdminAuditLog[]
+  callSessionsStarted      CallSession[] @relation("CallSessionsStarted")
 }
 
 model GameLobby {
@@ -361,13 +396,15 @@ model DatingMatch {
 }
 
 model DatingMessage {
-  id        String      @id @default(cuid())
-  matchId   String
-  senderId  String
-  body      String
-  match     DatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  sender    User        @relation("DatingMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  createdAt DateTime    @default(now())
+  id          String      @id @default(cuid())
+  matchId     String
+  senderId    String
+  kind        MessageKind @default(TEXT)
+  body        String      @default("")
+  attachments MessageAttachment[]
+  match       DatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  sender      User        @relation("DatingMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
 
   @@index([matchId, createdAt])
 }
@@ -483,25 +520,29 @@ model RoomBan {
 }
 
 model RoomMessage {
-  id        String   @id @default(cuid())
-  roomId    String
-  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  senderId  String
-  sender    User     @relation("RoomMessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
-  body      String
-  createdAt DateTime @default(now())
+  id          String      @id @default(cuid())
+  roomId      String
+  room        Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId    String
+  sender      User        @relation("RoomMessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  kind        MessageKind @default(TEXT)
+  body        String      @default("")
+  attachments MessageAttachment[]
+  createdAt   DateTime    @default(now())
 
   @@index([roomId])
 }
 
 model DirectMessage {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   senderId    String
   recipientId String
-  sender      User     @relation("DmSent", fields: [senderId], references: [id], onDelete: Cascade)
-  recipient   User     @relation("DmRecv", fields: [recipientId], references: [id], onDelete: Cascade)
-  body        String
-  createdAt   DateTime @default(now())
+  sender      User        @relation("DmSent", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   User        @relation("DmRecv", fields: [recipientId], references: [id], onDelete: Cascade)
+  kind        MessageKind @default(TEXT)
+  body        String      @default("")
+  attachments MessageAttachment[]
+  createdAt   DateTime    @default(now())
 
   @@index([senderId, recipientId])
 }
@@ -603,4 +644,50 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, read])
+}
+
+// Shared attachment for chat messages across DM, room, and dating surfaces.
+// Exactly one of the message foreign keys is set per row (enforced in app code).
+model MessageAttachment {
+  id              String         @id @default(cuid())
+  kind            AttachmentKind
+  url             String
+  mimeType        String
+  sizeBytes       Int
+  fileName        String?
+  durationMs      Int?
+  width           Int?
+  height          Int?
+  directMessageId String?
+  directMessage   DirectMessage? @relation(fields: [directMessageId], references: [id], onDelete: Cascade)
+  roomMessageId   String?
+  roomMessage     RoomMessage?   @relation(fields: [roomMessageId], references: [id], onDelete: Cascade)
+  datingMessageId String?
+  datingMessage   DatingMessage? @relation(fields: [datingMessageId], references: [id], onDelete: Cascade)
+  createdAt       DateTime       @default(now())
+
+  @@index([directMessageId])
+  @@index([roomMessageId])
+  @@index([datingMessageId])
+}
+
+// Lightweight call record for history, missed-call notifications, and
+// "call in progress" indicators. Live signaling state is held in memory.
+model CallSession {
+  id             String      @id @default(cuid())
+  context        CallContext
+  // DM: sorted "userA:userB"; ROOM: room slug; DATING: match id.
+  contextKey     String
+  initiatorId    String
+  initiator      User        @relation("CallSessionsStarted", fields: [initiatorId], references: [id], onDelete: Cascade)
+  media          CallMedia   @default(AUDIO)
+  status         CallStatus  @default(RINGING)
+  participantIds String[]    @default([])
+  startedAt      DateTime?
+  endedAt        DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([context, contextKey, createdAt])
+  @@index([initiatorId, createdAt])
 }

@@ -23,7 +23,7 @@ async function bootstrap() {
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader(
       'Permissions-Policy',
-      'camera=(), microphone=(), geolocation=()',
+      'camera=(self), microphone=(self), display-capture=(self), geolocation=()',
     );
     if (process.env.NODE_ENV === 'production') {
       res.setHeader(

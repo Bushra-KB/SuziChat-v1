@@ -11,6 +11,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ROOMS_CATALOG_CHANNEL } from '../realtime/realtime-channels';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { RealtimeStateService } from '../realtime/realtime-state.service';
+import {
+  ChatAttachmentInput,
+  deriveMessageKind,
+  messageAttachmentSelect,
+  sanitizeChatAttachments,
+} from '../uploads/attachment-input';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 
@@ -20,6 +26,15 @@ const userPublicSelect = {
   username: true,
   displayName: true,
   avatarUrl: true,
+} as const;
+
+const roomMessageSelect = {
+  id: true,
+  kind: true,
+  body: true,
+  createdAt: true,
+  attachments: { select: messageAttachmentSelect },
+  sender: { select: userPublicSelect },
 } as const;
 
 const DEFAULT_ROOM_CATEGORIES = [
@@ -410,12 +425,7 @@ export class RoomsService implements OnModuleDestroy {
       where: { roomId: room.id },
       orderBy: { createdAt: 'desc' },
       take,
-      select: {
-        id: true,
-        body: true,
-        createdAt: true,
-        sender: { select: userPublicSelect },
-      },
+      select: roomMessageSelect,
     });
 
     return messages.reverse();
@@ -442,12 +452,7 @@ export class RoomsService implements OnModuleDestroy {
       },
       orderBy: { createdAt: 'desc' },
       take,
-      select: {
-        id: true,
-        body: true,
-        createdAt: true,
-        sender: { select: userPublicSelect },
-      },
+      select: roomMessageSelect,
     });
 
     return messages.reverse();
@@ -637,7 +642,12 @@ export class RoomsService implements OnModuleDestroy {
     return { status: 'left' as const };
   }
 
-  async postMessage(roomSlug: string, senderId: string, body: string) {
+  async postMessage(
+    roomSlug: string,
+    senderId: string,
+    body: string,
+    attachments?: ChatAttachmentInput[],
+  ) {
     const access = await this.resolveAccessState(roomSlug, senderId);
     if (access.isBlocked) {
       throw new ForbiddenException('You are blocked from this room');
@@ -655,18 +665,25 @@ export class RoomsService implements OnModuleDestroy {
       throw new UnauthorizedException();
     }
 
+    const trimmedBody = body.trim();
+    const safeAttachments = sanitizeChatAttachments(attachments);
+    if (!trimmedBody && safeAttachments.length === 0) {
+      throw new BadRequestException(
+        'A message needs text or at least one attachment',
+      );
+    }
+
     return this.prisma.roomMessage.create({
       data: {
         roomId: access.roomId,
         senderId,
-        body: body.trim(),
+        body: trimmedBody,
+        kind: deriveMessageKind(trimmedBody, safeAttachments),
+        attachments: safeAttachments.length
+          ? { create: safeAttachments }
+          : undefined,
       },
-      select: {
-        id: true,
-        body: true,
-        createdAt: true,
-        sender: { select: userPublicSelect },
-      },
+      select: roomMessageSelect,
     });
   }
 

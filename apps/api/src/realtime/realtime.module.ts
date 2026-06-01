@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { CallsModule } from '../calls/calls.module';
 import { DatingModule } from '../dating/dating.module';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { PostsModule } from '../posts/posts.module';
@@ -17,6 +18,7 @@ import { RealtimeGateway } from './realtime.gateway';
     GamesModule,
     RealtimeEventsModule,
     DatingModule,
+    CallsModule,
   ],
   providers: [RealtimeGateway],
   exports: [RealtimeGateway, RealtimeEventsModule],

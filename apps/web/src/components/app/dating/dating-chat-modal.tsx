@@ -1,35 +1,54 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { cx } from "@/components/ui/suzi-primitives";
+import { Icon, cx } from "@/components/ui/suzi-primitives";
+import { ChatComposer } from "@/components/app/chat-composer";
+import { MessageAttachmentList } from "@/components/app/message-attachment";
+import { useCall } from "@/components/app/calls/call-provider";
 import type { DatingMatchRow, DatingMessageRow } from "@/lib/dating-client";
+import type { ChatAttachment } from "@/lib/chat-attachments";
 import { peerDatingName } from "@/components/app/dating/dating-utils";
+
+const voiceCallIcon = "M5 3h3l2 5-2 1a11 11 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A18 18 0 0 1 3 5a2 2 0 0 1 2-2Z";
+const videoCallIcon = "M3 7a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm13 3 5-3v10l-5-3V10Z";
 
 export function DatingChatModal({
   matchId,
   peer,
   messages,
   currentUserId,
-  chatDraft,
+  accessToken,
   peerTyping,
   onClose,
   onUnmatch,
-  onDraftChange,
+  onTyping,
   onSend,
 }: {
   matchId: string;
   peer: DatingMatchRow["peer"];
   messages: DatingMessageRow[];
   currentUserId: string | null;
-  chatDraft: string;
+  accessToken: string;
   peerTyping: boolean;
   onClose: () => void;
   onUnmatch: () => void;
-  onDraftChange: (value: string) => void;
-  onSend: () => void;
+  onTyping: (value: string) => void;
+  onSend: (text: string, attachments: ChatAttachment[]) => void;
 }) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const peerName = peerDatingName({ id: matchId, createdAt: "", peer, lastMessage: null });
+  const { startCall } = useCall();
+
+  const callPeer = {
+    id: peer.user.id,
+    username: peer.user.username,
+    displayName: peer.user.displayName,
+    avatarUrl: peer.user.avatarUrl,
+  };
+
+  function startDatingCall(media: "AUDIO" | "VIDEO") {
+    void startCall({ context: "DATING", targetKey: matchId, media, peer: callPeer });
+  }
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,7 +62,23 @@ export function DatingChatModal({
             <p className="font-semibold text-white">{peerName}</p>
             <p className="text-[0.65rem] text-slate-400/88">Match chat · live</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Voice call"
+              onClick={() => startDatingCall("AUDIO")}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-300 hover:bg-white/10 hover:text-white"
+            >
+              <Icon path={voiceCallIcon} className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Video call"
+              onClick={() => startDatingCall("VIDEO")}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-300 hover:bg-white/10 hover:text-white"
+            >
+              <Icon path={videoCallIcon} className="h-4 w-4" />
+            </button>
             <button type="button" className="text-xs text-rose-300/90 hover:underline" onClick={onUnmatch}>
               Unmatch
             </button>
@@ -66,7 +101,8 @@ export function DatingChatModal({
                 <p className="text-[0.62rem] uppercase tracking-wide text-slate-300/80">
                   {msg.sender.displayName ?? msg.sender.username}
                 </p>
-                <p className="mt-1 whitespace-pre-wrap">{msg.body}</p>
+                {msg.body ? <p className="mt-1 whitespace-pre-wrap">{msg.body}</p> : null}
+                <MessageAttachmentList attachments={msg.attachments} mine={mine} />
               </div>
             );
           })}
@@ -74,23 +110,14 @@ export function DatingChatModal({
           <div ref={messagesEndRef} />
         </div>
         <div className="border-t border-white/10 p-3">
-          <div className="flex gap-2">
-            <input
-              className="suzi-input flex-1"
-              placeholder="Message…"
-              value={chatDraft}
-              onChange={(e) => onDraftChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  onSend();
-                }
-              }}
-            />
-            <button type="button" className="suzi-primary-btn px-4 py-2 text-sm" onClick={onSend}>
-              Send
-            </button>
-          </div>
+          <ChatComposer
+            attachInputId={`dating-chat-attachment-${matchId}`}
+            accessToken={accessToken}
+            placeholder="Message…"
+            variant="onDark"
+            onSend={onSend}
+            onTyping={onTyping}
+          />
         </div>
       </div>
     </div>
