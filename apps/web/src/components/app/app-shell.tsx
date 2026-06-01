@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { AuthSession } from "@/lib/auth-client";
+import { saveAuthSession, type AuthSession } from "@/lib/auth-client";
 import {
   listConversationThreads,
   type ConversationThread,
@@ -381,7 +381,7 @@ export function AppShell({
     return () => {
       cancelled = true;
     };
-  }, [session.accessToken]);
+  }, [session]);
 
   useEffect(() => {
     const socket = getRealtimeSocket(session.accessToken);
@@ -403,12 +403,59 @@ export function AppShell({
     }) => {
       setLiveState(payload);
     };
+    const onUserProfileUpdate = (payload: {
+      user?: {
+        id?: string;
+        username?: string;
+        displayName?: string | null;
+        avatarUrl?: string | null;
+        country?: string | null;
+      };
+    }) => {
+      const user = payload.user;
+      if (!user?.id) {
+        return;
+      }
+      setShellThreads((prev) =>
+        prev.map((thread) =>
+          thread.peer.id === user.id
+            ? {
+                ...thread,
+                peer: {
+                  ...thread.peer,
+                  username: user.username ?? thread.peer.username,
+                  displayName:
+                    "displayName" in user ? (user.displayName ?? null) : thread.peer.displayName,
+                  avatarUrl:
+                    "avatarUrl" in user ? (user.avatarUrl ?? null) : thread.peer.avatarUrl,
+                  country:
+                    "country" in user ? (user.country ?? null) : thread.peer.country,
+                },
+              }
+            : thread,
+        ),
+      );
+    };
+    const onSelfProfile = (payload: { profile?: AuthSession["user"] }) => {
+      if (!payload.profile) {
+        return;
+      }
+      saveAuthSession({
+        ...session,
+        user: {
+          ...session.user,
+          ...payload.profile,
+        },
+      });
+    };
     socket.on("dm:message", refreshThreads);
     socket.on("dm:message:updated", refreshThreads);
     socket.on("dm:message:deleted", refreshThreads);
     socket.on("dm:conversation:removed", refreshThreads);
     socket.on("notifications:update", refreshNotifications);
     socket.on("realtime:state", onRealtimeState);
+    socket.on("user:profile:update", onUserProfileUpdate);
+    socket.on("user:profile:self", onSelfProfile);
     socket.on("game:invite", (payload: {
       lobbyId?: string;
       fromUserId?: string;
@@ -466,10 +513,12 @@ export function AppShell({
       socket.off("dm:conversation:removed", refreshThreads);
       socket.off("notifications:update", refreshNotifications);
       socket.off("realtime:state", onRealtimeState);
+      socket.off("user:profile:update", onUserProfileUpdate);
+      socket.off("user:profile:self", onSelfProfile);
       socket.off("game:invite");
       socket.off("room:invite");
     };
-  }, [session.accessToken]);
+  }, [session]);
 
   useEffect(() => {
     const root = document.documentElement;

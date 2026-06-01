@@ -51,6 +51,7 @@ import {
 } from "@/lib/rooms-client";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { getRealtimeSocket } from "@/lib/realtime-client";
+import { subscribeUserProfileUpdates } from "@/lib/realtime-feed";
 
 function formatShortTime(iso: string) {
   try {
@@ -248,6 +249,40 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     socket.on("room:message", onRoomMessage);
     socket.on("room:presence", onRoomPresence);
     socket.on("room:typing", onRoomTyping);
+    const unsubProfile = subscribeUserProfileUpdates(s.accessToken, (payload) => {
+      const user = payload.user;
+      if (!user?.id) {
+        return;
+      }
+      const displayName = user.displayName ?? null;
+      setOnlineUsers((prev) =>
+        prev.map((row) =>
+          row.id === user.id
+            ? {
+                ...row,
+                username: user.username,
+                displayName,
+                avatarUrl: user.avatarUrl,
+              }
+            : row,
+        ),
+      );
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.sender.id === user.id
+            ? {
+                ...message,
+                sender: {
+                  ...message.sender,
+                  username: user.username,
+                  displayName,
+                  avatarUrl: user.avatarUrl,
+                },
+              }
+            : message,
+        ),
+      );
+    });
     return () => {
       if (socket.connected) {
         socket.emit("room:leave", { roomSlug });
@@ -258,6 +293,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
       socket.off("room:message", onRoomMessage);
       socket.off("room:presence", onRoomPresence);
       socket.off("room:typing", onRoomTyping);
+      unsubProfile();
     };
   }, [meId, roomSlug]);
 

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Server } from 'socket.io';
+import { APP_REALTIME_CHANNEL } from './realtime-channels';
 
 @Injectable()
 export class RealtimeEventsService {
@@ -19,5 +20,9 @@ export class RealtimeEventsService {
 
   emitToChannel(channel: string, event: string, payload: unknown) {
     this.server?.to(channel).emit(event, payload);
+  }
+
+  emitToApp(event: string, payload: unknown) {
+    this.server?.to(APP_REALTIME_CHANNEL).emit(event, payload);
   }
 }

@@ -52,12 +52,15 @@ import { validatePostMediaUrl } from "@/lib/post-media-url";
 import { apiPostToSnap } from "@/lib/post-ui-mappers";
 import { publicProfileHref, snapAuthorProfileHref } from "@/lib/profile-links";
 import { getRealtimeSocket } from "@/lib/realtime-client";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
+import { subscribePostsFeedChannel, subscribeUserProfileUpdates } from "@/lib/realtime-feed";
 import type { Snap } from "@/lib/v1-mock-data";
 
 type SnapComment = {
   id: string;
   authorId?: string;
   authorUsername?: string;
+  authorAvatarUrl?: string | null;
   author: string;
   text: string;
   time: string;
@@ -303,7 +306,7 @@ export function SnapsFeed() {
     setActiveIndex((previous) => advanceCarouselIndex(previous, step, displaySnaps.length));
   }, [displaySnaps.length]);
 
-  const refreshSnaps = () => {
+  const refreshSnaps = useCallback(() => {
     const session = getStoredAuthSession();
     const loader = session?.accessToken ? listMyPosts(session.accessToken, "SNAP", 40) : listPosts("SNAP", 40);
     void loader
@@ -319,7 +322,7 @@ export function SnapsFeed() {
     setIsCommentSheetOpen(false);
     setCommentSheetOffsetY(0);
     setCommentDraft("");
-  };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -339,6 +342,59 @@ export function SnapsFeed() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      return;
+    }
+    return subscribePostsFeedChannel(session.accessToken, "SNAP", () => {
+      refreshSnaps();
+    });
+  }, [refreshSnaps]);
+
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      return;
+    }
+    return subscribeUserProfileUpdates(session.accessToken, (payload) => {
+      const user = payload.user;
+      if (!user?.id) {
+        return;
+      }
+      const name = user.displayName?.trim() || user.username;
+      setDisplaySnaps((prev) =>
+        prev.map((snap) =>
+          snap.authorId === user.id
+            ? {
+                ...snap,
+                author: name,
+                authorUsername: user.username,
+                avatar: resolveUserAvatarUrl(user.avatarUrl),
+              }
+            : snap,
+        ),
+      );
+      setCommentsBySnap((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).map(([postId, comments]) => [
+            postId,
+            comments.map((comment) =>
+              comment.authorId === user.id
+                ? {
+                    ...comment,
+                    author: name,
+                    authorUsername: user.username,
+                    authorAvatarUrl: user.avatarUrl,
+                  }
+                : comment,
+            ),
+          ]),
+        ),
+      );
+    });
   }, []);
 
   useEffect(() => {
@@ -670,6 +726,7 @@ export function SnapsFeed() {
             id: row.id,
             authorId: row.user.id,
             authorUsername: row.user.username,
+            authorAvatarUrl: row.user.avatarUrl,
             author: row.user.displayName?.trim() || row.user.username,
             text: row.body,
             time: "now",
@@ -718,7 +775,11 @@ export function SnapsFeed() {
     };
     const onComment = (payload: {
       postId?: string;
-      comment?: { id?: string; body?: string; user?: { id?: string; username?: string; displayName?: string | null } };
+      comment?: {
+        id?: string;
+        body?: string;
+        user?: { id?: string; username?: string; displayName?: string | null; avatarUrl?: string | null };
+      };
     }) => {
       const postId = payload?.postId;
       const comment = payload?.comment;
@@ -740,6 +801,7 @@ export function SnapsFeed() {
           id: commentId,
           authorId: comment.user?.id,
           authorUsername: comment.user?.username,
+          authorAvatarUrl: comment.user?.avatarUrl,
           author,
           text: commentBody,
           time: "now",
@@ -831,6 +893,7 @@ export function SnapsFeed() {
               id: newId,
               authorId: created.comment.user.id,
               authorUsername: created.comment.user.username,
+              authorAvatarUrl: created.comment.user.avatarUrl,
               author: created.comment.user.displayName?.trim() || created.comment.user.username,
               text: created.comment.body,
               time: "now",
@@ -1296,20 +1359,30 @@ export function SnapsFeed() {
                                   className="rounded-[0.9rem] border border-cyan-300/16 bg-[rgba(10,12,34,0.55)] px-3 py-2"
                                 >
                                   <div className="flex items-center justify-between gap-2">
-                                    {comment.authorId || comment.authorUsername ? (
-                                      <Link
-                                        href={publicProfileHref(comment.authorUsername ?? "", {
-                                          userId: comment.authorId,
-                                        })}
-                                        onPointerDown={stopPointerPropagation}
-                                        onClick={stopClickPropagation}
-                                        className="suzi-feed-comment-author font-semibold text-cyan-50 transition hover:text-white"
-                                      >
-                                        {comment.author}
-                                      </Link>
-                                    ) : (
-                                      <p className="suzi-feed-comment-author font-semibold text-cyan-50">{comment.author}</p>
-                                    )}
+                                    <div className="flex min-w-0 items-center gap-2">
+                                      <Image
+                                        src={resolveUserAvatarUrl(comment.authorAvatarUrl)}
+                                        alt=""
+                                        width={24}
+                                        height={24}
+                                        unoptimized={Boolean(comment.authorAvatarUrl?.startsWith("http"))}
+                                        className="h-6 w-6 shrink-0 rounded-full border border-cyan-200/22 object-cover"
+                                      />
+                                      {comment.authorId || comment.authorUsername ? (
+                                        <Link
+                                          href={publicProfileHref(comment.authorUsername ?? "", {
+                                            userId: comment.authorId,
+                                          })}
+                                          onPointerDown={stopPointerPropagation}
+                                          onClick={stopClickPropagation}
+                                          className="suzi-feed-comment-author truncate font-semibold text-cyan-50 transition hover:text-white"
+                                        >
+                                          {comment.author}
+                                        </Link>
+                                      ) : (
+                                        <p className="suzi-feed-comment-author truncate font-semibold text-cyan-50">{comment.author}</p>
+                                      )}
+                                    </div>
                                     <span className="suzi-feed-comment-time font-medium text-cyan-100/62">
                                       {comment.time}
                                     </span>

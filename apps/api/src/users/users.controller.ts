@@ -18,6 +18,7 @@ import { diskStorage } from 'multer';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
+import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { ensureUploadSubdir } from '../upload-storage/upload-paths';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import {
@@ -33,7 +34,27 @@ import { UsersService } from './users.service';
 @Controller('v1/users')
 @UseGuards(AccessTokenGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly realtimeEvents: RealtimeEventsService,
+  ) {}
+
+  private emitProfileUpdate(profile: Awaited<ReturnType<UsersService['getMyProfile']>>) {
+    const payload = {
+      user: {
+        id: profile.id,
+        username: profile.username,
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarUrl,
+        country: profile.country,
+        updatedAt: profile.updatedAt,
+      },
+    };
+    this.realtimeEvents.emitToApp('user:profile:update', payload);
+    this.realtimeEvents.emitToUser(profile.id, 'user:profile:self', {
+      profile,
+    });
+  }
 
   @Get('me/profile')
   getMyProfile(@CurrentUser() user: AuthenticatedUser) {
@@ -58,11 +79,16 @@ export class UsersController {
   }
 
   @Patch('me/profile')
-  updateMyProfile(
+  async updateMyProfile(
     @CurrentUser() user: AuthenticatedUser,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
-    return this.usersService.updateMyProfile(user.id, updateProfileDto);
+    const profile = await this.usersService.updateMyProfile(
+      user.id,
+      updateProfileDto,
+    );
+    this.emitProfileUpdate(profile);
+    return profile;
   }
 
   @Post('me/profile/avatar')
@@ -107,6 +133,11 @@ export class UsersController {
       throw new BadRequestException('Image file is required.');
     }
     const avatarUrl = `/api/uploads/avatars/${file.filename}`;
-    return this.usersService.setAvatarFromUploadUrl(user.id, avatarUrl);
+    const profile = await this.usersService.setAvatarFromUploadUrl(
+      user.id,
+      avatarUrl,
+    );
+    this.emitProfileUpdate(profile);
+    return profile;
   }
 }

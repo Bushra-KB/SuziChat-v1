@@ -7,8 +7,59 @@ import { clearAuthSession, getStoredAuthSession, refresh, saveAuthSession } from
 let sharedSocket: Socket | null = null;
 let sharedToken: string | null = null;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+let activityStop: (() => void) | null = null;
 let missedHeartbeats = 0;
 let reconnectRefreshInFlight = false;
+let lastUserActivityAt = Date.now();
+
+const ACTIVE_WINDOW_MS = 60_000;
+const ACTIVITY_EMIT_THROTTLE_MS = 10_000;
+
+function isDocumentActive() {
+  if (typeof document === "undefined") {
+    return true;
+  }
+  return !document.hidden && Date.now() - lastUserActivityAt <= ACTIVE_WINDOW_MS;
+}
+
+function stopActivityTracking() {
+  activityStop?.();
+  activityStop = null;
+}
+
+function startActivityTracking(socket: Socket) {
+  stopActivityTracking();
+  let lastEmitAt = 0;
+  const emitActivity = (force = false) => {
+    lastUserActivityAt = Date.now();
+    if (!socket.connected) {
+      return;
+    }
+    const now = Date.now();
+    if (!force && now - lastEmitAt < ACTIVITY_EMIT_THROTTLE_MS) {
+      return;
+    }
+    lastEmitAt = now;
+    socket.emit("realtime:activity", { activeAt: lastUserActivityAt });
+  };
+  const onActivity = () => emitActivity(false);
+  const onVisibility = () => {
+    if (!document.hidden) {
+      emitActivity(true);
+    }
+  };
+  const events: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "focus"];
+  for (const event of events) {
+    window.addEventListener(event, onActivity, { passive: true });
+  }
+  document.addEventListener("visibilitychange", onVisibility);
+  activityStop = () => {
+    for (const event of events) {
+      window.removeEventListener(event, onActivity);
+    }
+    document.removeEventListener("visibilitychange", onVisibility);
+  };
+}
 
 function stopHeartbeat() {
   if (!heartbeatTimer) {
@@ -25,18 +76,22 @@ function startHeartbeat(socket: Socket) {
     if (!socket.connected) {
       return;
     }
-    socket.timeout(5000).emit("realtime:ping", (err: unknown) => {
-      if (err) {
-        missedHeartbeats += 1;
-        if (missedHeartbeats >= 2) {
-          socket.disconnect();
-          socket.connect();
-          missedHeartbeats = 0;
+    socket.timeout(5000).emit(
+      "realtime:ping",
+      { active: isDocumentActive(), activeAt: lastUserActivityAt },
+      (err: unknown) => {
+        if (err) {
+          missedHeartbeats += 1;
+          if (missedHeartbeats >= 2) {
+            socket.disconnect();
+            socket.connect();
+            missedHeartbeats = 0;
+          }
+          return;
         }
-        return;
-      }
-      missedHeartbeats = 0;
-    });
+        missedHeartbeats = 0;
+      },
+    );
   }, 25000);
 }
 
@@ -70,9 +125,12 @@ export function getRealtimeSocket(accessToken: string) {
   });
   sharedSocket.on("connect", () => {
     startHeartbeat(sharedSocket as Socket);
+    startActivityTracking(sharedSocket as Socket);
+    sharedSocket?.emit("realtime:activity", { activeAt: Date.now() });
   });
   sharedSocket.on("disconnect", () => {
     stopHeartbeat();
+    stopActivityTracking();
   });
   sharedSocket.on("connect_error", () => {
     if (reconnectRefreshInFlight) {
@@ -108,6 +166,7 @@ export function closeRealtimeSocket() {
     return;
   }
   stopHeartbeat();
+  stopActivityTracking();
   sharedSocket.disconnect();
   sharedSocket = null;
   sharedToken = null;

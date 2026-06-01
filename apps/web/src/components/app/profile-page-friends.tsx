@@ -20,6 +20,7 @@ import {
   type FriendsSummary,
 } from "@/lib/friends-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
+import { subscribeUserProfileUpdates } from "@/lib/realtime-feed";
 
 type Presence = "online" | "away" | "offline";
 
@@ -113,11 +114,17 @@ export function ProfilePageFriendsSection({
     };
     socket.on("friends:update", onFriendsUpdate);
     socket.on("presence:update", onPresenceUpdate);
+    const unsubProfile = subscribeUserProfileUpdates(accessToken, (payload) => {
+      if (payload.user?.id && friendIds.includes(payload.user.id)) {
+        void refresh().catch(() => {});
+      }
+    });
     return () => {
       socket.off("friends:update", onFriendsUpdate);
       socket.off("presence:update", onPresenceUpdate);
+      unsubProfile();
     };
-  }, [accessToken, friendIds.length, refresh]);
+  }, [accessToken, friendIds, refresh]);
 
   useEffect(() => {
     if (!accessToken || friendIds.length === 0) {
