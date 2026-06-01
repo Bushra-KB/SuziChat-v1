@@ -43,6 +43,7 @@ import {
 } from "@/lib/dating-client";
 import { blockPerson, listBlockedPeople, unblockPerson, type BlockedUserRow } from "@/lib/friends-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
+import { subscribeUserProfileUpdates } from "@/lib/realtime-feed";
 
 function discoverParamsFromFilters(filters: DatingFilters) {
   return {
@@ -307,11 +308,36 @@ export function DatingHub() {
     socket.on("dating:message", onMessage);
     socket.on("dating:typing", onTyping);
     socket.on("dating:unmatch", onUnmatch);
+    const unsubProfile = subscribeUserProfileUpdates(accessToken, (payload) => {
+      const user = payload.user;
+      if (!user?.id) {
+        return;
+      }
+      setDeck((prev) =>
+        prev.map((item) =>
+          item.userId === user.id
+            ? {
+                ...item,
+                user: {
+                  ...item.user,
+                  username: user.username,
+                  displayName: user.displayName,
+                  avatarUrl: user.avatarUrl,
+                  country: user.country ?? item.user.country,
+                },
+              }
+            : item,
+        ),
+      );
+      void refreshMatches(accessToken);
+      void refreshLikes(accessToken);
+    });
     return () => {
       socket.off("dating:match", onMatch);
       socket.off("dating:message", onMessage);
       socket.off("dating:typing", onTyping);
       socket.off("dating:unmatch", onUnmatch);
+      unsubProfile();
     };
   }, [accessToken, chatMatchId, refreshMatches, refreshLikes]);
 

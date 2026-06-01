@@ -5,6 +5,7 @@ import { getRealtimeSocket } from "@/lib/realtime-client";
 import {
   subscribePostsFeedChannel,
   subscribeRoomsCatalog,
+  subscribeUserProfileUpdates,
   type PostFeedKind,
 } from "@/lib/realtime-feed";
 
@@ -28,12 +29,14 @@ export function useMyProfileRealtime(
       subscribePostsFeedChannel(accessToken, kind, bump),
     );
     const unsubRooms = subscribeRoomsCatalog(accessToken, bump);
+    const unsubProfile = subscribeUserProfileUpdates(accessToken, bump);
     return () => {
       socket.off("friends:update", bump);
       for (const unsub of unsubs) {
         unsub();
       }
       unsubRooms();
+      unsubProfile();
     };
   }, [accessToken, onRefresh]);
 }
@@ -56,11 +59,17 @@ export function usePublicProfileRealtime(
     const unsubs = (["SNAP", "REEL"] as PostFeedKind[]).map((kind) =>
       subscribePostsFeedChannel(accessToken, kind, bump),
     );
+    const unsubProfile = subscribeUserProfileUpdates(accessToken, (payload) => {
+      if (!profileUserId || payload.user?.id === profileUserId) {
+        bump();
+      }
+    });
     return () => {
       socket.off("friends:update", bump);
       for (const unsub of unsubs) {
         unsub();
       }
+      unsubProfile();
     };
   }, [accessToken, profileUserId, onRefresh]);
 }
@@ -71,7 +80,6 @@ export function useUserPresence(accessToken: string | null, userId: string | nul
 
   useEffect(() => {
     if (!accessToken || !userId) {
-      setStatus("offline");
       return;
     }
     const socket = getRealtimeSocket(accessToken);

@@ -148,6 +148,7 @@ export function Avatar({
       alt={alt}
       width={size}
       height={size}
+      unoptimized={src.startsWith("http")}
       className={cx(
         "rounded-full border border-white/12 object-cover shadow-[0_0_18px_rgba(82,213,255,0.12)]",
         className,

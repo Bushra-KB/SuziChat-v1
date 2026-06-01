@@ -18,7 +18,11 @@ import { GamesService } from '../games/games.service';
 import { PostsService } from '../posts/posts.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { GamesMetricsService } from '../games/games-metrics.service';
-import { postsFeedChannel, ROOMS_CATALOG_CHANNEL } from './realtime-channels';
+import {
+  APP_REALTIME_CHANNEL,
+  postsFeedChannel,
+  ROOMS_CATALOG_CHANNEL,
+} from './realtime-channels';
 import { RealtimeEventsService } from './realtime-events.service';
 import { RealtimeStateService } from './realtime-state.service';
 
@@ -48,6 +52,9 @@ export class RealtimeGateway
     process.env.GAMES_SOCKET_ACTION_COOLDOWN_MS ?? 400,
   );
   private readonly activeAtByUserId = new Map<string, number>();
+  private readonly awayAfterMs = Number(
+    process.env.REALTIME_AWAY_AFTER_MS ?? 90_000,
+  );
   private readonly lastPresenceByUserId = new Map<
     string,
     'online' | 'away' | 'offline'
@@ -182,11 +189,27 @@ export class RealtimeGateway
   }
 
   private computePresenceStatus(userId: string): 'online' | 'away' | 'offline' {
-    return this.isUserOnline(userId) ? 'online' : 'offline';
+    if (!this.isUserOnline(userId)) {
+      return 'offline';
+    }
+    const activeAt = this.activeAtByUserId.get(userId) ?? 0;
+    return Date.now() - activeAt > this.awayAfterMs ? 'away' : 'online';
   }
 
-  private markUserActive(userId: string) {
-    this.activeAtByUserId.set(userId, Date.now());
+  private normalizeActivityAt(activeAt?: number) {
+    const now = Date.now();
+    if (typeof activeAt !== 'number' || !Number.isFinite(activeAt)) {
+      return now;
+    }
+    return Math.min(now, Math.max(0, activeAt));
+  }
+
+  private markUserActive(userId: string, activeAt = Date.now()) {
+    this.activeAtByUserId.set(userId, activeAt);
+    this.emitPresence(userId);
+  }
+
+  private touchUserPresence(userId: string) {
     this.emitPresence(userId);
   }
 
@@ -215,6 +238,7 @@ export class RealtimeGateway
       client.data.userId = payload.sub;
       await client.join(this.userRoom(payload.sub));
       await client.join(this.presenceChannel(payload.sub));
+      await client.join(APP_REALTIME_CHANNEL);
       this.markUserActive(payload.sub);
       this.realtimeEvents.setServer(this.server);
       const state = await this.realtimeState.buildUserState(payload.sub);
@@ -548,9 +572,33 @@ export class RealtimeGateway
   }
 
   @SubscribeMessage('realtime:ping')
-  onPing(@ConnectedSocket() client: AuthSocket) {
-    this.getUserId(client);
+  onPing(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload?: { active?: boolean; activeAt?: number },
+  ) {
+    const userId = this.getUserId(client);
+    if (payload?.active) {
+      this.markUserActive(
+        userId,
+        this.normalizeActivityAt(payload.activeAt),
+      );
+    } else {
+      this.touchUserPresence(userId);
+    }
     return { ok: true, ts: Date.now() };
+  }
+
+  @SubscribeMessage('realtime:activity')
+  onActivity(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload?: { activeAt?: number },
+  ) {
+    const userId = this.getUserId(client);
+    this.markUserActive(
+      userId,
+      this.normalizeActivityAt(payload?.activeAt),
+    );
+    return { ok: true };
   }
 
   @SubscribeMessage('game:lobbies:subscribe')

@@ -22,6 +22,7 @@ import {
 } from "@/lib/conversations-client";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { getRealtimeSocket } from "@/lib/realtime-client";
+import { subscribeUserProfileUpdates } from "@/lib/realtime-feed";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import type { Person } from "@/lib/v1-mock-data";
 
@@ -335,6 +336,46 @@ export function MessagesInbox() {
     socket.on("dm:message:deleted", onDmMessageDeleted);
     socket.on("dm:conversation:removed", onDmConversationRemoved);
     socket.on("dm:typing", onDmTyping);
+    const unsubProfile = subscribeUserProfileUpdates(s.accessToken, (payload) => {
+      const user = payload.user;
+      if (!user?.id) {
+        return;
+      }
+      const updatedUser = user;
+      function patchPeer<
+        T extends {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl?: string | null;
+          country?: string | null;
+        },
+      >(peer: T): T {
+        if (peer.id !== updatedUser.id) {
+          return peer;
+        }
+        return {
+          ...peer,
+          username: updatedUser.username,
+          displayName: updatedUser.displayName ?? null,
+          avatarUrl: updatedUser.avatarUrl,
+          country: updatedUser.country ?? peer.country ?? null,
+        };
+      }
+      setThreads((prev) =>
+        prev.map((thread) => ({
+          ...thread,
+          peer: patchPeer(thread.peer),
+        })),
+      );
+      setDraftPeer((prev) => (prev ? patchPeer(prev) : prev));
+      setMessages((prev) =>
+        prev.map((message) => ({
+          ...message,
+          sender: patchPeer(message.sender),
+        })),
+      );
+    });
     return () => {
       socket.off("connect", joinSelectedPeer);
       socket.off("dm:message", onDmMessage);
@@ -342,6 +383,7 @@ export function MessagesInbox() {
       socket.off("dm:message:deleted", onDmMessageDeleted);
       socket.off("dm:conversation:removed", onDmConversationRemoved);
       socket.off("dm:typing", onDmTyping);
+      unsubProfile();
     };
   }, [draftPeer, loadThreads, selectedPeerId, threads]);
 

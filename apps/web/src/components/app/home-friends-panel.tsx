@@ -42,6 +42,7 @@ import {
   panelTitle,
 } from "@/components/app/home-typography";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
+import { subscribeUserProfileUpdates } from "@/lib/realtime-feed";
 import { useI18n } from "@/lib/i18n";
 
 type Presence = "online" | "away" | "offline";
@@ -146,9 +147,13 @@ export function HomeFriendsPanel() {
     };
     socket.on("friends:update", onFriendsUpdate);
     socket.on("presence:update", onPresenceUpdate);
+    const unsubProfile = subscribeUserProfileUpdates(s.accessToken, () => {
+      void refresh().catch(() => {});
+    });
     return () => {
       socket.off("friends:update", onFriendsUpdate);
       socket.off("presence:update", onPresenceUpdate);
+      unsubProfile();
     };
   }, [refresh]);
 

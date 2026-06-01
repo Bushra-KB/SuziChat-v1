@@ -4,6 +4,14 @@ import type { Socket } from "socket.io-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 
 export type PostFeedKind = "REEL" | "SNAP";
+export type RealtimeUserProfile = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  country?: string | null;
+  updatedAt?: string;
+};
 
 export function subscribePostsFeedChannel(
   accessToken: string,
@@ -71,6 +79,17 @@ export function subscribeRoomsCatalog(
   return () => {
     socket.off("connect", subscribe);
     socket.off("rooms:update", onUpdate);
+  };
+}
+
+export function subscribeUserProfileUpdates(
+  accessToken: string,
+  onUpdate: (payload: { user?: RealtimeUserProfile }) => void,
+): () => void {
+  const socket = getRealtimeSocket(accessToken);
+  socket.on("user:profile:update", onUpdate);
+  return () => {
+    socket.off("user:profile:update", onUpdate);
   };
 }
 

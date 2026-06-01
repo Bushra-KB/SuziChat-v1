@@ -17,7 +17,8 @@ import {
 } from "@/components/app/home-typography";
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { listMyPosts, listPosts } from "@/lib/posts-client";
-import { subscribePostsFeedChannel, watchPostsEngagement } from "@/lib/realtime-feed";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
+import { subscribePostsFeedChannel, subscribeUserProfileUpdates, watchPostsEngagement } from "@/lib/realtime-feed";
 import { apiPostToReel } from "@/lib/post-ui-mappers";
 import { useI18n } from "@/lib/i18n";
 import type { Reel } from "@/lib/v1-mock-data";
@@ -89,7 +90,7 @@ export function HomeReelsPanel() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial async feed hydration
     void loadCatalog()
       .catch(() => {
         if (!cancelled) {
@@ -116,6 +117,25 @@ export function HomeReelsPanel() {
     const unsubFeed = subscribePostsFeedChannel(session.accessToken, "REEL", () => {
       void loadCatalog().catch(() => {});
     });
+    const unsubProfile = subscribeUserProfileUpdates(session.accessToken, (payload) => {
+      const user = payload.user;
+      if (!user?.id) {
+        return;
+      }
+      setCatalog((prev) =>
+        prev.map((reel) =>
+          reel.authorId === user.id
+            ? {
+                ...reel,
+                author: user.displayName?.trim() || user.username,
+                authorUsername: user.username,
+                handle: `@${user.username}`,
+                avatar: resolveUserAvatarUrl(user.avatarUrl),
+              }
+            : reel,
+        ),
+      );
+    });
     const unsubEngagement = watchPostsEngagement(session.accessToken, catalog.map((row) => row.id), (payload) => {
       if (!payload.postId) {
         return;
@@ -135,6 +155,7 @@ export function HomeReelsPanel() {
     });
     return () => {
       unsubFeed();
+      unsubProfile();
       unsubEngagement();
     };
   }, [catalogIdsKey, loadCatalog]);

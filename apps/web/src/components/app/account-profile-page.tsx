@@ -16,6 +16,7 @@ import { ProfilePageShell } from "@/components/app/profile-page-shell";
 import { Icon, Panel, cx } from "@/components/ui/suzi-primitives";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import { useI18n } from "@/lib/i18n";
+import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { loadProfilePrefs, saveProfilePrefs } from "@/lib/profile-prefs-storage";
 import { useMyProfileRealtime } from "@/lib/use-profile-realtime";
 import {
@@ -35,8 +36,6 @@ import { getFriendsSummary, type FriendsSummary } from "@/lib/friends-client";
 import { listMyAuthoredPosts } from "@/lib/posts-client";
 import type { ApiRoom } from "@/lib/rooms-client";
 import { listRoomsForMe } from "@/lib/rooms-client";
-
-const DEFAULT_AVATAR = "/ppic/ppic1.jpeg";
 
 const COUNTRY_OPTIONS = [
   "",
@@ -279,10 +278,7 @@ function profileToForm(p: UserProfile) {
 
 function resolveAvatarSrc(profile: UserProfile | null, session: AuthSession | null): string {
   const u = profile?.avatarUrl?.trim() || session?.user.avatarUrl?.trim();
-  if (!u) {
-    return DEFAULT_AVATAR;
-  }
-  return u;
+  return resolveUserAvatarUrl(u);
 }
 
 const QUICK_DEFAULTS = [

@@ -41,6 +41,7 @@ export type ApiPostComment = {
     id: string;
     username: string;
     displayName: string | null;
+    avatarUrl?: string | null;
   };
 };
 

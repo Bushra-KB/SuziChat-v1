@@ -44,6 +44,7 @@ import {
   postGameSessionAction,
   postGameSessionChat,
 } from "@/lib/games-realtime";
+import { subscribeUserProfileUpdates } from "@/lib/realtime-feed";
 
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
@@ -346,6 +347,9 @@ export function GameSessionClient({
     s.on("game:chat", onChat);
     s.on("game:lobby:deleted", onLobbyDeleted);
     s.on("game:session:deleted", onSessionDeleted);
+    const unsubProfile = subscribeUserProfileUpdates(auth.accessToken, () => {
+      void refresh();
+    });
     if (s.connected) onConnect();
     return () => {
       s.off("connect", onConnect);
@@ -356,6 +360,7 @@ export function GameSessionClient({
       s.off("game:chat", onChat);
       s.off("game:lobby:deleted", onLobbyDeleted);
       s.off("game:session:deleted", onSessionDeleted);
+      unsubProfile();
     };
   }, [auth?.accessToken, gameRouteId, refresh, sessionId]);
 
