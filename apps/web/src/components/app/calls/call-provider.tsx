@@ -13,6 +13,7 @@ import {
 import { getStoredAuthSession } from "@/lib/auth-client";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 import { getIceServers } from "@/lib/rtc-client";
+import { CallSoundManager } from "@/lib/call-sounds";
 import {
   acceptCall,
   cancelCall,
@@ -40,7 +41,7 @@ type StartDirectArgs = {
 };
 
 type ActiveCall = {
-  callId: string;
+  callId?: string;
   context: "DM" | "DATING" | "ROOM";
   media: CallMedia;
   role: "caller" | "callee";
@@ -81,8 +82,15 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const engineRef = useRef<CallEngine | null>(null);
   const activeRef = useRef<ActiveCall | null>(null);
   const pendingSignals = useRef<Array<{ fromUserId: string; data: CallSignal }>>([]);
+  const soundsRef = useRef<CallSoundManager | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const teardown = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    soundsRef.current?.stopAll();
     engineRef.current?.close();
     engineRef.current = null;
     activeRef.current = null;
@@ -96,6 +104,30 @@ export function CallProvider({ children }: { children: ReactNode }) {
     setCamEnabled(true);
     setPhase("idle");
   }, []);
+
+  const sounds = useCallback(() => {
+    soundsRef.current ??= new CallSoundManager();
+    return soundsRef.current;
+  }, []);
+
+  const closeAfterNotice = useCallback(
+    (message: string, playBusyTone = false) => {
+      setError(message);
+      sounds().stop("ringback");
+      sounds().stop("ringtone");
+      if (playBusyTone) {
+        sounds().play("busy", { volume: 0.75 });
+      }
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+      closeTimerRef.current = setTimeout(() => {
+        closeTimerRef.current = null;
+        teardown();
+      }, 2200);
+    },
+    [sounds, teardown],
+  );
 
   const createEngine = useCallback(
     async (callId: string, media: CallMedia) => {
@@ -141,17 +173,37 @@ export function CallProvider({ children }: { children: ReactNode }) {
       }
       setBusy(true);
       setError(null);
+      const pendingCall: ActiveCall = {
+        context: args.context,
+        media: args.media,
+        role: "caller",
+        peer: args.peer,
+      };
+      activeRef.current = pendingCall;
+      setActive(pendingCall);
+      setPhase("outgoing");
+      sounds().play("ringback", { loop: true, volume: 0.55 });
       const session = getStoredAuthSession();
       const token = session?.accessToken ?? "";
       const socket = getRealtimeSocket(token);
       try {
-        const { callId } = await inviteCall(socket, {
+        const invite = await inviteCall(socket, {
           context: args.context,
           targetKey: args.targetKey,
           media: args.media,
         });
+        if (!invite.ok) {
+          const message =
+            invite.reason === "busy"
+              ? invite.busyContext === "ROOM"
+                ? "User is in a group call."
+                : "User is already in a call."
+              : "Not available.";
+          closeAfterNotice(message, true);
+          return;
+        }
         const call: ActiveCall = {
-          callId,
+          callId: invite.callId,
           context: args.context,
           media: args.media,
           role: "caller",
@@ -159,22 +211,13 @@ export function CallProvider({ children }: { children: ReactNode }) {
         };
         activeRef.current = call;
         setActive(call);
-        setPhase("outgoing");
-        try {
-          await createEngine(callId, args.media);
-        } catch (mediaErr) {
-          // Invite already sent; cancel it so the callee stops ringing.
-          cancelCall(socket, callId);
-          throw mediaErr;
-        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not start the call.");
-        teardown();
+        closeAfterNotice(err instanceof Error ? err.message : "Could not start the call.", true);
       } finally {
         setBusy(false);
       }
     },
-    [busy, createEngine, phase, teardown],
+    [busy, closeAfterNotice, phase, sounds],
   );
 
   const startRoomCall = useCallback(
@@ -224,6 +267,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     const token = session?.accessToken ?? "";
     const socket = getRealtimeSocket(token);
     try {
+      sounds().stop("ringtone");
       await acceptCall(socket, incoming.callId);
       const call: ActiveCall = {
         callId: incoming.callId,
@@ -244,7 +288,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     } finally {
       setBusy(false);
     }
-  }, [createEngine, incoming, teardown]);
+  }, [createEngine, incoming, sounds, teardown]);
 
   const declineIncoming = useCallback(() => {
     if (!incoming) {
@@ -252,14 +296,19 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
     const session = getStoredAuthSession();
     const socket = getRealtimeSocket(session?.accessToken ?? "");
+    sounds().stop("ringtone");
     declineCall(socket, incoming.callId);
     setIncoming(null);
     setPhase("idle");
-  }, [incoming]);
+  }, [incoming, sounds]);
 
   const hangUp = useCallback(() => {
     const call = activeRef.current;
     if (!call) {
+      teardown();
+      return;
+    }
+    if (!call.callId) {
       teardown();
       return;
     }
@@ -305,6 +354,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       }
       setIncoming(payload);
       setPhase("incoming");
+      sounds().play("ringtone", { loop: true, volume: 0.75 });
     };
 
     const onAccepted = (payload: { callId: string; userId: string }) => {
@@ -312,20 +362,32 @@ export function CallProvider({ children }: { children: ReactNode }) {
       if (!call || call.callId !== payload.callId || call.role !== "caller") {
         return;
       }
-      setPhase("active");
-      // Caller is the offerer for the 1:1 connection.
-      void engineRef.current?.connect(payload.userId, true);
+      sounds().stop("ringback");
+      void (async () => {
+        try {
+          const engine = await createEngine(payload.callId, call.media);
+          setPhase("active");
+          // Caller is the offerer for the 1:1 connection.
+          await engine.connect(payload.userId, true);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Could not start media.");
+          const session = getStoredAuthSession();
+          const socket = getRealtimeSocket(session?.accessToken ?? "");
+          cancelCall(socket, payload.callId);
+          teardown();
+        }
+      })();
     };
 
     const onDeclined = (payload: { callId: string }) => {
       if (activeRef.current?.callId === payload.callId) {
-        setError("Call declined.");
-        teardown();
+        closeAfterNotice("Call declined.", true);
       }
     };
 
     const onCanceled = (payload: { callId: string }) => {
       if (incoming?.callId === payload.callId) {
+        sounds().stop("ringtone");
         setIncoming(null);
         setPhase("idle");
       }
@@ -333,6 +395,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
     const onEnded = (payload: { callId: string }) => {
       if (activeRef.current?.callId === payload.callId) {
+        sounds().play("ended", { volume: 0.45 });
         teardown();
       }
     };
@@ -389,13 +452,16 @@ export function CallProvider({ children }: { children: ReactNode }) {
       socket.off("call:signal", onSignal);
       socket.off("call:room:participant-joined", onRoomParticipantJoined);
     };
-  }, [incoming, phase, teardown]);
+  }, [closeAfterNotice, createEngine, incoming, phase, sounds, teardown]);
 
   // End the call cleanly if the tab closes.
   useEffect(() => {
     const onUnload = () => {
       const call = activeRef.current;
       if (!call) {
+        return;
+      }
+      if (!call.callId) {
         return;
       }
       const session = getStoredAuthSession();

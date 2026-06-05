@@ -846,6 +846,7 @@ export function MessagesInbox() {
               messages.map((m) => {
                 const mine = meId !== null && m.sender.id === meId;
                 const live: LiveChatMessage = {
+                  kind: m.kind,
                   body: m.body,
                   timeLabel: shortTime(m.createdAt),
                   isMine: mine,

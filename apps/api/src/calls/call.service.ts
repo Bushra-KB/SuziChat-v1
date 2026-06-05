@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
-import { CallContext, CallMedia, CallStatus } from '@prisma/client';
+import { CallContext, CallMedia, CallStatus, MessageKind } from '@prisma/client';
 import { ConversationsService } from '../conversations/conversations.service';
 import { DatingService } from '../dating/dating.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,6 +11,7 @@ export interface ActiveCall {
   contextKey: string;
   media: CallMedia;
   initiatorId: string;
+  calleeId?: string;
   participants: Set<string>;
   invitedIds: Set<string>;
   status: CallStatus;
@@ -18,6 +19,59 @@ export interface ActiveCall {
 }
 
 const ROOM_CALL_MAX = Number(process.env.ROOM_CALL_MAX ?? 6);
+
+const callUserSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  avatarUrl: true,
+} as const;
+
+const directCallMessageSelect = {
+  id: true,
+  kind: true,
+  body: true,
+  createdAt: true,
+  attachments: { select: { id: true } },
+  sender: { select: { ...callUserSelect, country: true } },
+  recipient: { select: { id: true } },
+} as const;
+
+const roomCallMessageSelect = {
+  id: true,
+  kind: true,
+  body: true,
+  createdAt: true,
+  attachments: { select: { id: true } },
+  sender: { select: callUserSelect },
+} as const;
+
+const datingCallMessageSelect = {
+  id: true,
+  kind: true,
+  body: true,
+  createdAt: true,
+  senderId: true,
+  attachments: { select: { id: true } },
+  sender: { select: callUserSelect },
+} as const;
+
+export type CallEventMessage =
+  | {
+      context: 'DM';
+      message: Awaited<ReturnType<CallService['createDirectCallMessage']>>;
+    }
+  | {
+      context: 'DATING';
+      matchId: string;
+      audienceIds: string[];
+      message: Awaited<ReturnType<CallService['createDatingCallMessage']>>;
+    }
+  | {
+      context: 'ROOM';
+      roomSlug: string;
+      message: Awaited<ReturnType<CallService['createRoomCallMessage']>>;
+    };
 
 /**
  * Holds the live registry of in-progress WebRTC calls and persists a lightweight
@@ -92,6 +146,7 @@ export class CallService {
       contextKey,
       media,
       initiatorId,
+      calleeId,
       participants: new Set([initiatorId]),
       invitedIds: new Set([calleeId]),
       status: CallStatus.RINGING,
@@ -99,6 +154,19 @@ export class CallService {
     };
     this.calls.set(call.id, call);
     return call;
+  }
+
+  getUserActiveCall(userId: string): ActiveCall | undefined {
+    for (const call of this.calls.values()) {
+      if (call.participants.has(userId) || call.invitedIds.has(userId)) {
+        return call;
+      }
+    }
+    return undefined;
+  }
+
+  isUserBusy(userId: string) {
+    return Boolean(this.getUserActiveCall(userId));
   }
 
   async createRoomCall(
@@ -182,7 +250,10 @@ export class CallService {
         ? call.participants.size === 0
         : call.participants.size <= 1;
     if (shouldEnd) {
-      await this.endCall(callId, CallStatus.ENDED);
+      await this.endCall(
+        callId,
+        call.accepted ? CallStatus.ENDED : CallStatus.MISSED,
+      );
       return true;
     }
     return false;
@@ -193,6 +264,142 @@ export class CallService {
     this.calls.delete(callId);
     await this.persistStatus(callId, status, { endedAt: true });
     return call;
+  }
+
+  async createCallEventMessage(
+    call: ActiveCall,
+    status: CallStatus,
+    actorId = call.initiatorId,
+  ): Promise<CallEventMessage | null> {
+    const body = await this.callEventBody(call, status);
+    if (call.context === CallContext.DM) {
+      const calleeId = call.calleeId ?? [...call.invitedIds][0];
+      if (!calleeId) return null;
+      return {
+        context: CallContext.DM,
+        message: await this.createDirectCallMessage(
+          call.initiatorId,
+          calleeId,
+          body,
+        ),
+      };
+    }
+    if (call.context === CallContext.DATING) {
+      const audienceIds = await this.resolveDatingAudienceIds(call.contextKey);
+      return {
+        context: CallContext.DATING,
+        matchId: call.contextKey,
+        audienceIds,
+        message: await this.createDatingCallMessage(
+          call.contextKey,
+          actorId,
+          body,
+        ),
+      };
+    }
+    return {
+      context: CallContext.ROOM,
+      roomSlug: call.contextKey,
+      message: await this.createRoomCallMessage(call.contextKey, actorId, body),
+    };
+  }
+
+  async createDirectCallMessage(
+    senderId: string,
+    recipientId: string,
+    body: string,
+  ) {
+    return this.prisma.directMessage.create({
+      data: {
+        senderId,
+        recipientId,
+        kind: MessageKind.CALL,
+        body,
+      },
+      select: directCallMessageSelect,
+    });
+  }
+
+  async createDatingCallMessage(matchId: string, senderId: string, body: string) {
+    return this.prisma.datingMessage.create({
+      data: {
+        matchId,
+        senderId,
+        kind: MessageKind.CALL,
+        body,
+      },
+      select: datingCallMessageSelect,
+    });
+  }
+
+  async createRoomCallMessage(roomSlug: string, senderId: string, body: string) {
+    const room = await this.prisma.room.findUnique({
+      where: { slug: roomSlug },
+      select: { id: true },
+    });
+    if (!room) {
+      throw new ForbiddenException('Room not found');
+    }
+    return this.prisma.roomMessage.create({
+      data: {
+        roomId: room.id,
+        senderId,
+        kind: MessageKind.CALL,
+        body,
+      },
+      select: roomCallMessageSelect,
+    });
+  }
+
+  private async callEventBody(call: ActiveCall, status: CallStatus) {
+    const media = call.media === CallMedia.VIDEO ? 'Video' : 'Audio';
+    const isRoom = call.context === CallContext.ROOM;
+    switch (status) {
+      case CallStatus.UNAVAILABLE:
+        return `${media} call unavailable`;
+      case CallStatus.BUSY:
+        return `${media} call busy`;
+      case CallStatus.MISSED:
+        return `Missed ${media.toLowerCase()} call`;
+      case CallStatus.DECLINED:
+        return `${media} call declined`;
+      case CallStatus.CANCELED:
+        return `${media} call canceled`;
+      case CallStatus.ENDED: {
+        const duration = await this.callDurationLabel(call.id);
+        return isRoom
+          ? `Room audio call ended${duration ? ` • ${duration}` : ''}`
+          : `${media} call ended${duration ? ` • ${duration}` : ''}`;
+      }
+      default:
+        return `${media} call`;
+    }
+  }
+
+  private async callDurationLabel(callId: string) {
+    const row = await this.prisma.callSession
+      .findUnique({
+        where: { id: callId },
+        select: { startedAt: true, endedAt: true },
+      })
+      .catch(() => null);
+    if (!row?.startedAt) return '';
+    const endedAt = row.endedAt ?? new Date();
+    const totalSeconds = Math.max(
+      0,
+      Math.round((endedAt.getTime() - row.startedAt.getTime()) / 1000),
+    );
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = `${totalSeconds % 60}`.padStart(2, '0');
+    return `${minutes}:${seconds}`;
+  }
+
+  private async resolveDatingAudienceIds(matchId: string) {
+    const match = await this.prisma.datingMatch.findUnique({
+      where: { id: matchId },
+      select: { userAId: true, userBId: true },
+    });
+    return match ? [match.userAId, match.userBId] : [];
   }
 
   /** Sends an in-app missed-call notification to the callee. */

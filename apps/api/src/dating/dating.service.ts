@@ -855,6 +855,7 @@ export class DatingService {
           take: 1,
           select: {
             id: true,
+            kind: true,
             body: true,
             createdAt: true,
             senderId: true,
@@ -874,6 +875,7 @@ export class DatingService {
           lastMessage: last
             ? {
                 id: last.id,
+                kind: last.kind,
                 body: last.body,
                 createdAt: last.createdAt,
                 senderId: last.senderId,
