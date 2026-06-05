@@ -21,6 +21,16 @@ export type IncomingCallPayload = {
   from: CallPeer;
 };
 
+export type InviteCallResponse =
+  | { ok: true; callId: string }
+  | {
+      ok: false;
+      callId?: string;
+      reason?: "unavailable" | "busy";
+      busyContext?: CallContext;
+      error?: string;
+    };
+
 function emitWithAck<T>(
   socket: Socket,
   event: string,
@@ -49,7 +59,19 @@ export function inviteCall(
   socket: Socket,
   payload: { context: "DM" | "DATING"; targetKey: string; media: CallMedia },
 ) {
-  return emitWithAck<{ ok: boolean; callId: string }>(socket, "call:invite", payload);
+  return new Promise<InviteCallResponse>((resolve, reject) => {
+    socket.timeout(20_000).emit(
+      "call:invite",
+      payload,
+      (err: Error | null, response?: InviteCallResponse) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(response ?? { ok: false, error: "Call request failed." });
+      },
+    );
+  });
 }
 
 export function acceptCall(socket: Socket, callId: string) {

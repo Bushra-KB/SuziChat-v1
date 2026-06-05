@@ -5,11 +5,12 @@ import type { ChatLine } from "@/lib/v1-mock-data";
 import { cx } from "@/components/ui/suzi-primitives";
 import { MessageAttachmentList } from "@/components/app/message-attachment";
 import { formatFirstNameLastInitial, resolveChatSender } from "@/lib/chat-display";
-import type { ChatAttachment } from "@/lib/chat-attachments";
+import type { ChatAttachment, ChatMessageKind } from "@/lib/chat-attachments";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { publicProfileHref } from "@/lib/profile-links";
 
 export type LiveChatMessage = {
+  kind?: ChatMessageKind;
   body: string;
   timeLabel: string;
   isMine: boolean;
@@ -112,6 +113,16 @@ export function ChatMessageRow(props: ChatMessageRowProps) {
   }
 
   const { message: live } = props;
+  if (live.kind === "CALL") {
+    return (
+      <div className="flex justify-center py-1.5">
+        <div className="rounded-full border border-cyan-300/20 bg-white/[0.07] px-3 py-1.5 text-center text-xs font-medium text-slate-300">
+          {live.body || "Call event"}
+        </div>
+      </div>
+    );
+  }
+
   const mine = live.isMine;
   const href = publicProfileHref(live.senderUsername, {
     userId: live.senderId,

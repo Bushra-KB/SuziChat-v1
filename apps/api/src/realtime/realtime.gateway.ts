@@ -19,7 +19,7 @@ import {
 } from '@prisma/client';
 import type { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
-import { CallService } from '../calls/call.service';
+import { CallService, type CallEventMessage } from '../calls/call.service';
 import { DatingService } from '../dating/dating.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { GamesService } from '../games/games.service';
@@ -972,6 +972,32 @@ export class RealtimeGateway
     }));
   }
 
+  private emitCallEventMessage(event: CallEventMessage | null) {
+    if (!event) {
+      return;
+    }
+    if ('recipient' in event.message) {
+      this.server
+        .to(this.userRoom(event.message.sender.id))
+        .to(this.userRoom(event.message.recipient.id))
+        .emit('dm:message', event.message);
+      return;
+    }
+    if ('matchId' in event) {
+      const payload = { matchId: event.matchId, message: event.message };
+      for (const userId of event.audienceIds) {
+        this.server.to(this.userRoom(userId)).emit('dating:message', payload);
+      }
+      return;
+    }
+    if ('roomSlug' in event) {
+      this.server.to(this.roomChannel(event.roomSlug)).emit('room:message', {
+        roomSlug: event.roomSlug,
+        message: event.message,
+      });
+    }
+  }
+
   @SubscribeMessage('call:invite')
   async onCallInvite(
     @ConnectedSocket() client: AuthSocket,
@@ -997,6 +1023,10 @@ export class RealtimeGateway
       contextKey = targetKey;
     }
 
+    if (this.callService.isUserBusy(userId)) {
+      return { ok: false, reason: 'busy', error: 'You are already in a call' };
+    }
+    const calleeBusy = this.callService.getUserActiveCall(calleeId);
     const call = await this.callService.createDirectCall(
       context === 'DM' ? CallContext.DM : CallContext.DATING,
       contextKey,
@@ -1010,13 +1040,41 @@ export class RealtimeGateway
 
     const from = await this.callerSummary(calleeId, userId);
     if (!this.isUserOnline(calleeId)) {
-      await this.callService.endCall(call.id, CallStatus.MISSED);
+      await this.callService.endCall(call.id, CallStatus.UNAVAILABLE);
+      this.emitCallEventMessage(
+        await this.callService.createCallEventMessage(
+          call,
+          CallStatus.UNAVAILABLE,
+          userId,
+        ),
+      );
       await this.callService.notifyMissedCall(
         call,
         calleeId,
         from.displayName?.trim() || from.username,
       );
-      return { ok: false, error: 'User is offline', callId: call.id };
+      return {
+        ok: false,
+        reason: 'unavailable',
+        error: 'User is not available',
+        callId: call.id,
+      };
+    }
+    if (calleeBusy) {
+      await this.callService.endCall(call.id, CallStatus.BUSY);
+      this.emitCallEventMessage(
+        await this.callService.createCallEventMessage(call, CallStatus.BUSY, userId),
+      );
+      return {
+        ok: false,
+        reason: 'busy',
+        busyContext: calleeBusy.context,
+        error:
+          calleeBusy.context === CallContext.ROOM
+            ? 'User is in a group call'
+            : 'User is already in a call',
+        callId: call.id,
+      };
     }
 
     this.server.to(this.userRoom(calleeId)).emit('call:incoming', {
@@ -1067,6 +1125,13 @@ export class RealtimeGateway
       return { ok: true };
     }
     await this.callService.endCall(callId, CallStatus.DECLINED);
+    this.emitCallEventMessage(
+      await this.callService.createCallEventMessage(
+        call,
+        CallStatus.DECLINED,
+        userId,
+      ),
+    );
     this.server
       .to(this.callChannel(callId))
       .to(this.userRoom(call.initiatorId))
@@ -1086,6 +1151,13 @@ export class RealtimeGateway
       return { ok: true };
     }
     await this.callService.endCall(callId, CallStatus.CANCELED);
+    this.emitCallEventMessage(
+      await this.callService.createCallEventMessage(
+        call,
+        CallStatus.CANCELED,
+        userId,
+      ),
+    );
     const from = await this.callerSummary(
       [...call.invitedIds][0] ?? userId,
       userId,
@@ -1111,6 +1183,7 @@ export class RealtimeGateway
     if (!callId) {
       return { ok: true };
     }
+    const call = this.callService.getCall(callId);
     await client.leave(this.callChannel(callId));
     client.data.callIds?.delete(callId);
     const ended = await this.callService.leaveParticipant(callId, userId);
@@ -1119,6 +1192,12 @@ export class RealtimeGateway
       userId,
     });
     if (ended) {
+      if (call) {
+        const status = call.accepted ? CallStatus.ENDED : CallStatus.MISSED;
+        this.emitCallEventMessage(
+          await this.callService.createCallEventMessage(call, status, userId),
+        );
+      }
       this.server.to(this.callChannel(callId)).emit('call:ended', { callId });
     }
     return { ok: true };
@@ -1159,6 +1238,16 @@ export class RealtimeGateway
     }
     await this.callService.assertRoomCallAccess(userId, roomSlug);
     let call = this.callService.findRoomCall(roomSlug);
+    const activeCall = this.callService.getUserActiveCall(userId);
+    if (activeCall && activeCall.id !== call?.id) {
+      return {
+        ok: false,
+        reason: 'busy',
+        error: activeCall.context === CallContext.ROOM
+          ? 'You are already in a group call'
+          : 'You are already in a call',
+      };
+    }
     if (!call) {
       call = await this.callService.createRoomCall(roomSlug, userId);
     } else {
@@ -1183,6 +1272,7 @@ export class RealtimeGateway
       return;
     }
     for (const callId of callIds) {
+      const call = this.callService.getCall(callId);
       const ended = await this.callService
         .leaveParticipant(callId, userId)
         .catch(() => true);
@@ -1191,6 +1281,12 @@ export class RealtimeGateway
         userId,
       });
       if (ended) {
+        if (call) {
+          const status = call.accepted ? CallStatus.ENDED : CallStatus.MISSED;
+          this.emitCallEventMessage(
+            await this.callService.createCallEventMessage(call, status, userId),
+          );
+        }
         this.server.to(this.callChannel(callId)).emit('call:ended', { callId });
       }
     }

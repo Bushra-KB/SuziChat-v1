@@ -862,6 +862,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
             {messages.map((m) => {
               const mine = meId !== null && m.sender.id === meId;
               const live: LiveChatMessage = {
+                kind: m.kind,
                 body: m.body,
                 timeLabel: formatShortTime(m.createdAt),
                 isMine: mine,

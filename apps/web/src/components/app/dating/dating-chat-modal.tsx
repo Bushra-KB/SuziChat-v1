@@ -90,6 +90,15 @@ export function DatingChatModal({
         <div className="min-h-[220px] flex-1 space-y-2 overflow-y-auto p-4">
           {messages.map((msg) => {
             const mine = currentUserId != null && msg.senderId === currentUserId;
+            if (msg.kind === "CALL") {
+              return (
+                <div key={msg.id} className="flex justify-center py-1.5">
+                  <div className="rounded-full border border-cyan-300/20 bg-white/[0.07] px-3 py-1.5 text-center text-xs font-medium text-slate-300">
+                    {msg.body || "Call event"}
+                  </div>
+                </div>
+              );
+            }
             return (
               <div
                 key={msg.id}

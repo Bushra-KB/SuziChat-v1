@@ -57,6 +57,7 @@ export type DatingMatchRow = {
   };
   lastMessage: {
     id: string;
+    kind?: ChatMessageKind;
     body: string;
     createdAt: string;
     senderId: string;

@@ -23,7 +23,7 @@ export function RoomCallBar({
 }) {
   const entries = Object.entries(remoteStreams);
   return (
-    <div className="fixed bottom-4 left-1/2 z-[105] flex -translate-x-1/2 items-center gap-3 rounded-full border border-cyan-300/25 bg-[rgba(12,16,38,0.96)] px-4 py-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.45)] backdrop-blur-md">
+    <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] left-1/2 z-[210] flex -translate-x-1/2 items-center gap-3 rounded-full border border-cyan-300/25 bg-[rgba(12,16,38,0.96)] px-4 py-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.45)] backdrop-blur-md sm:bottom-4">
       {entries.map(([peerId, stream]) => (
         <StreamAudio key={peerId} stream={stream} />
       ))}

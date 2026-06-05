@@ -83,7 +83,7 @@ export function CallOverlay({
   const showVideoStage = isVideo && phase === "active" && remoteEntries.length > 0;
 
   return (
-    <div className="fixed inset-0 z-[110] flex flex-col bg-[rgba(8,9,22,0.97)]">
+    <div className="fixed inset-0 z-[220] flex flex-col bg-[rgba(8,9,22,0.97)] pb-[calc(env(safe-area-inset-bottom)+1rem)]">
       <div className="flex items-center justify-between px-5 py-4">
         <div className="text-white">
           <p className="text-sm font-semibold">{headline}</p>
@@ -154,7 +154,7 @@ export function CallOverlay({
         <p className="px-5 pb-2 text-center text-sm text-rose-300">{error}</p>
       ) : null}
 
-      <div className="flex items-center justify-center gap-5 pb-9 pt-3">
+      <div className="flex items-center justify-center gap-5 px-5 pb-6 pt-3 sm:pb-9">
         <button
           type="button"
           onClick={onToggleMic}
