@@ -115,9 +115,12 @@ export function ChatMessageRow(props: ChatMessageRowProps) {
   const { message: live } = props;
   if (live.kind === "CALL") {
     return (
-      <div className="flex justify-center py-1.5">
-        <div className="rounded-full border border-cyan-300/20 bg-white/[0.07] px-3 py-1.5 text-center text-xs font-medium text-slate-300">
-          {live.body || "Call event"}
+      <div className="flex justify-center py-2">
+        <div className="inline-flex max-w-[92%] items-center gap-2 rounded-2xl border border-cyan-300/40 bg-[linear-gradient(135deg,rgba(13,19,47,0.96),rgba(74,28,112,0.94))] px-4 py-2 text-center text-[0.78rem] font-semibold text-white shadow-[0_10px_24px_rgba(10,15,35,0.24)] ring-1 ring-white/10">
+          <span className="rounded-full bg-cyan-300/18 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.16em] text-cyan-100">
+            Call
+          </span>
+          <span className="leading-snug">{live.body || "Call event"}</span>
         </div>
       </div>
     );
