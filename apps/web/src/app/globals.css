@@ -4849,6 +4849,7 @@ h5 {
   }
 
   [data-suzi-app-frame].suzi-mobile-overlay-open .suzi-mobile-modal-root,
+  [data-suzi-app-frame].suzi-mobile-overlay-open .suzi-call-overlay-root,
   [data-suzi-app-frame].suzi-mobile-overlay-open .suzi-room-members--open,
   [data-suzi-app-frame].suzi-mobile-overlay-open .suzi-m-sheet[data-open="true"],
   [data-suzi-app-frame].suzi-mobile-overlay-open .suzi-account-modal-backdrop {
@@ -4856,6 +4857,7 @@ h5 {
   }
 
   [data-suzi-app-frame]:has(
+    .suzi-call-overlay-root,
     .suzi-mobile-modal-root,
     .suzi-room-members--open,
     .suzi-m-sheet[data-open="true"],

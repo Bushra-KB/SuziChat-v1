@@ -245,6 +245,7 @@ export function AppShell({
     if (typeof document === "undefined") return;
 
     const selectors = [
+      ".suzi-call-overlay-root",
       ".suzi-mobile-modal-root",
       ".suzi-room-members--open",
       ".suzi-m-sheet[data-open='true']",
