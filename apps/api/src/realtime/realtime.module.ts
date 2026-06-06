@@ -5,6 +5,7 @@ import { DatingModule } from '../dating/dating.module';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { PostsModule } from '../posts/posts.module';
 import { RoomsModule } from '../rooms/rooms.module';
+import { RoomLiveModule } from '../room-live/room-live.module';
 import { GamesModule } from '../games/games.module';
 import { RealtimeEventsModule } from './realtime-events.module';
 import { RealtimeGateway } from './realtime.gateway';
@@ -19,6 +20,7 @@ import { RealtimeGateway } from './realtime.gateway';
     RealtimeEventsModule,
     DatingModule,
     CallsModule,
+    RoomLiveModule,
   ],
   providers: [RealtimeGateway],
   exports: [RealtimeGateway, RealtimeEventsModule],

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { ChatComposer } from "@/components/app/chat-composer";
 import { ChatMessageRow, type LiveChatMessage } from "@/components/app/chat-message-row";
 import { useCall } from "@/components/app/calls/call-provider";
+import { RoomLivePanel } from "@/components/app/room-live/room-live-panel";
 import { PersonRow } from "@/components/app/v1-blocks";
 import {
   homePanelHeader,
@@ -54,6 +55,15 @@ import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { toAttachmentPayload, type ChatAttachment } from "@/lib/chat-attachments";
 import { getRealtimeSocket } from "@/lib/realtime-client";
 import { subscribeUserProfileUpdates } from "@/lib/realtime-feed";
+import {
+  endRoomLive,
+  getRoomLiveStatus,
+  joinRoomLive,
+  leaveRoomLive,
+  startRoomLive,
+  type RoomLiveSession,
+  type RoomLiveToken,
+} from "@/lib/room-live-client";
 
 function formatShortTime(iso: string) {
   try {
@@ -138,6 +148,9 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const [hasSession, setHasSession] = useState(false);
   const [accessToken, setAccessToken] = useState("");
   const { startRoomCall, phase: callPhase } = useCall();
+  const [roomLive, setRoomLive] = useState<RoomLiveSession | null>(null);
+  const [roomLiveToken, setRoomLiveToken] = useState<RoomLiveToken | null>(null);
+  const [roomLiveError, setRoomLiveError] = useState("");
   const [access, setAccess] = useState<ApiRoomAccess | null>(null);
   const [management, setManagement] = useState<ApiRoomManagement | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -197,6 +210,9 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
     const socket = getRealtimeSocket(s.accessToken);
     const joinRoom = () => {
       socket.emit("room:join", { roomSlug });
+      void getRoomLiveStatus(socket, roomSlug)
+        .then((response) => setRoomLive(response.live))
+        .catch(() => undefined);
     };
     const onConnect = () => setSocketReady(true);
     const onDisconnect = () => setSocketReady(false);
@@ -250,10 +266,34 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         setTypingName(null);
       }, 2000);
     };
+    const onRoomLiveStarted = (payload: { roomSlug?: string; live?: RoomLiveSession }) => {
+      if (payload.roomSlug === roomSlug && payload.live) {
+        setRoomLive(payload.live);
+      }
+    };
+    const onRoomLiveEnded = (payload: { roomSlug?: string; liveId?: string }) => {
+      if (payload.roomSlug !== roomSlug) return;
+      setRoomLive((prev) => (prev?.id === payload.liveId ? null : prev));
+      setRoomLiveToken(null);
+    };
+    const onRoomLiveViewerCount = (payload: {
+      roomSlug?: string;
+      liveId?: string;
+      viewerCount?: number;
+    }) => {
+      if (payload.roomSlug !== roomSlug || !payload.liveId) return;
+      setRoomLive((prev) => {
+        if (!prev || prev.id !== payload.liveId) return prev;
+        return { ...prev, viewerCount: payload.viewerCount ?? prev.viewerCount };
+      });
+    };
 
     socket.on("room:message", onRoomMessage);
     socket.on("room:presence", onRoomPresence);
     socket.on("room:typing", onRoomTyping);
+    socket.on("room:live:started", onRoomLiveStarted);
+    socket.on("room:live:ended", onRoomLiveEnded);
+    socket.on("room:live:viewer-count", onRoomLiveViewerCount);
     const unsubProfile = subscribeUserProfileUpdates(s.accessToken, (payload) => {
       const user = payload.user;
       if (!user?.id) {
@@ -298,6 +338,9 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
       socket.off("room:message", onRoomMessage);
       socket.off("room:presence", onRoomPresence);
       socket.off("room:typing", onRoomTyping);
+      socket.off("room:live:started", onRoomLiveStarted);
+      socket.off("room:live:ended", onRoomLiveEnded);
+      socket.off("room:live:viewer-count", onRoomLiveViewerCount);
       unsubProfile();
     };
   }, [meId, roomSlug]);
@@ -383,6 +426,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const authSnap = getStoredAuthSession();
   const myAvatarUrl = authSnap?.user.avatarUrl?.trim() || null;
   const canManageRoom = Boolean(access?.isOwner || access?.isModerator);
+  const canHostLive = canManageRoom && Boolean(access?.canPost);
   const hasRoomEntry = Boolean(
     access && !access.isBlocked && (access.isOwner || access.isModerator || access.isMember),
   );
@@ -394,6 +438,62 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
   const roomImageUrl = room?.imageUrl?.trim() || DEFAULT_ROOM_IMAGE;
   const roomModerators = room?.moderators?.map((row) => row.user) ?? [];
   const totalRoomMembers = (room?._count?.memberships ?? 0) + (room ? 1 : 0);
+  const roomLiveIsHost = Boolean(roomLiveToken?.role === "host");
+
+  async function handleStartLive() {
+    setRoomLiveError("");
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      setRoomLiveError("Log in to go live.");
+      return;
+    }
+    const socket = getRealtimeSocket(session.accessToken);
+    try {
+      const response = await startRoomLive(socket, roomSlug);
+      setRoomLive(response.live);
+      setRoomLiveToken(response.token);
+    } catch (err) {
+      setRoomLiveError(err instanceof Error ? err.message : "Could not start live.");
+    }
+  }
+
+  async function handleWatchLive() {
+    setRoomLiveError("");
+    const session = getStoredAuthSession();
+    if (!session?.accessToken) {
+      setRoomLiveError("Log in to watch live.");
+      return;
+    }
+    const socket = getRealtimeSocket(session.accessToken);
+    try {
+      const response = await joinRoomLive(socket, roomSlug);
+      setRoomLive(response.live);
+      setRoomLiveToken(response.token);
+    } catch (err) {
+      setRoomLiveError(err instanceof Error ? err.message : "Could not join live.");
+    }
+  }
+
+  function handleLeaveLive() {
+    if (roomLiveToken?.role === "host") {
+      handleEndLive();
+      return;
+    }
+    const session = getStoredAuthSession();
+    if (session?.accessToken && roomLive?.id) {
+      leaveRoomLive(getRealtimeSocket(session.accessToken), roomLive.id);
+    }
+    setRoomLiveToken(null);
+  }
+
+  function handleEndLive() {
+    const session = getStoredAuthSession();
+    if (session?.accessToken) {
+      endRoomLive(getRealtimeSocket(session.accessToken), roomSlug);
+    }
+    setRoomLiveToken(null);
+  }
+
   const editCategoryOptions = useMemo(() => {
     const values = new Set(
       [...editCategories, editCategory]
@@ -728,10 +828,40 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(110,255,178,0.7)]" />
                       {socketReady ? "live" : "reconnecting"}
                     </span>
+                    {roomLive ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/18 px-2 py-0.5 text-rose-100">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-300" />
+                        Live now · {roomLive.viewerCount}
+                      </span>
+                    ) : null}
                   </p>
                 </div>
               </div>
             <div className="suzi-room-chat-actions flex flex-wrap items-center gap-2">
+              {roomLive ? (
+                <button
+                  type="button"
+                  aria-label="Watch room live"
+                  title="Watch room live"
+                  disabled={!access?.canPost || Boolean(roomLiveToken)}
+                  onClick={() => void handleWatchLive()}
+                  className="suzi-room-action-btn suzi-room-action-btn--header inline-flex items-center gap-1.5 bg-rose-500/20 text-rose-50 disabled:opacity-40"
+                >
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-rose-300" />
+                  {roomLiveToken ? "Watching" : "Watch live"}
+                </button>
+              ) : canHostLive ? (
+                <button
+                  type="button"
+                  aria-label="Go live"
+                  title="Go live"
+                  onClick={() => void handleStartLive()}
+                  className="suzi-room-action-btn suzi-room-action-btn--header inline-flex items-center gap-1.5 bg-rose-500/18 text-rose-50"
+                >
+                  <span className="h-2 w-2 rounded-full bg-rose-300" />
+                  Go live
+                </button>
+              ) : null}
               <button
                 type="button"
                 aria-label="Join audio call"
@@ -878,6 +1008,11 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
         )}
 
         <div className="suzi-room-composer-shell shrink-0 border-t border-cyan-300/20 bg-[linear-gradient(155deg,rgba(30,19,88,0.84),rgba(17,12,60,0.78))] px-[var(--panel-pad)] py-[var(--panel-pad-tight)]">
+          {roomLiveError ? (
+            <p className="mb-2 rounded-xl border border-rose-300/30 bg-rose-500/12 px-3 py-2 text-xs font-semibold text-rose-100">
+              {roomLiveError}
+            </p>
+          ) : null}
           {typingName ? (
             <p className="mb-2 text-xs font-medium text-cyan-100/85">{typingName} is typing...</p>
           ) : null}
@@ -912,6 +1047,16 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
           />
         </div>
       </Panel>
+
+      {roomLive && roomLiveToken ? (
+        <RoomLivePanel
+          live={roomLive}
+          token={roomLiveToken}
+          canEnd={roomLiveIsHost || canManageRoom}
+          onEnd={handleEndLive}
+          onLeave={handleLeaveLive}
+        />
+      ) : null}
 
       {mobileMembersOpen ? (
         <div
