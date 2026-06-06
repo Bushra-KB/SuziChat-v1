@@ -18,6 +18,12 @@
     reverse_proxy api:4000
   }
 
+  @livekit path /livekit*
+  handle @livekit {
+    uri strip_prefix /livekit
+    reverse_proxy livekit:7880
+  }
+
   handle {
     reverse_proxy web:3000
   }

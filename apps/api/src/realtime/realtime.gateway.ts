@@ -25,6 +25,7 @@ import { ConversationsService } from '../conversations/conversations.service';
 import { GamesService } from '../games/games.service';
 import { PostsService } from '../posts/posts.service';
 import { RoomsService } from '../rooms/rooms.service';
+import { RoomLiveService } from '../room-live/room-live.service';
 import { GamesMetricsService } from '../games/games-metrics.service';
 import type { ChatAttachmentInput } from '../uploads/attachment-input';
 import {
@@ -42,6 +43,7 @@ type AuthSocket = Socket & {
     gameLobbyIds?: Set<string>;
     roomSlugs?: Set<string>;
     callIds?: Set<string>;
+    liveSessions?: Map<string, { roomSlug: string; role: 'host' | 'viewer' }>;
   };
 };
 
@@ -82,6 +84,7 @@ export class RealtimeGateway
     private readonly datingService: DatingService,
     private readonly gamesMetrics: GamesMetricsService,
     private readonly callService: CallService,
+    private readonly roomLiveService: RoomLiveService,
   ) {
     this.presenceTicker = setInterval(() => {
       this.emitAllPresenceIfChanged();
@@ -271,6 +274,7 @@ export class RealtimeGateway
       return;
     }
     void this.cleanupSocketCalls(client);
+    void this.cleanupSocketLiveSessions(client);
     // Defer until socket.io updates room membership.
     setTimeout(() => {
       this.emitPresence(userId);
@@ -533,6 +537,146 @@ export class RealtimeGateway
     });
 
     return { ok: true, message };
+  }
+
+  private roomLivePayload(
+    session: NonNullable<Awaited<ReturnType<RoomLiveService['getActiveForRoom']>>>,
+  ) {
+    return {
+      id: session.id,
+      roomSlug: session.room.slug,
+      roomName: session.room.name,
+      host: session.host,
+      startedAt: session.startedAt,
+      viewerCount: this.roomLiveService.getViewerCount(session.id),
+    };
+  }
+
+  private trackRoomLiveSocket(
+    client: AuthSocket,
+    sessionId: string,
+    roomSlug: string,
+    role: 'host' | 'viewer',
+  ) {
+    client.data.liveSessions ??= new Map();
+    client.data.liveSessions.set(sessionId, { roomSlug, role });
+  }
+
+  @SubscribeMessage('room:live:status')
+  async onRoomLiveStatus(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { roomSlug?: string },
+  ) {
+    const userId = this.getUserId(client);
+    const roomSlug = payload?.roomSlug?.trim();
+    if (!roomSlug) {
+      throw new WsException('roomSlug is required');
+    }
+    const access = await this.roomsService.getRoomAccess(roomSlug, userId);
+    if (!access.canOpen || !access.isMember) {
+      throw new WsException('Join the room before watching live');
+    }
+    const session = await this.roomLiveService.getActiveForRoom(roomSlug);
+    return {
+      ok: true,
+      live: session ? this.roomLivePayload(session) : null,
+    };
+  }
+
+  @SubscribeMessage('room:live:start')
+  async onRoomLiveStart(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { roomSlug?: string },
+  ) {
+    const userId = this.getUserId(client);
+    const roomSlug = payload?.roomSlug?.trim();
+    if (!roomSlug) {
+      throw new WsException('roomSlug is required');
+    }
+    const { session, message, token } = await this.roomLiveService.start(
+      roomSlug,
+      userId,
+    );
+    this.trackRoomLiveSocket(client, session.id, roomSlug, 'host');
+    this.markUserActive(userId);
+    this.server.to(this.roomChannel(roomSlug)).emit('room:message', {
+      roomSlug,
+      message,
+    });
+    this.server.to(this.roomChannel(roomSlug)).emit('room:live:started', {
+      roomSlug,
+      live: this.roomLivePayload(session),
+    });
+    return { ok: true, live: this.roomLivePayload(session), token };
+  }
+
+  @SubscribeMessage('room:live:join')
+  async onRoomLiveJoin(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { roomSlug?: string },
+  ) {
+    const userId = this.getUserId(client);
+    const roomSlug = payload?.roomSlug?.trim();
+    if (!roomSlug) {
+      throw new WsException('roomSlug is required');
+    }
+    const { session, token } = await this.roomLiveService.join(roomSlug, userId);
+    this.trackRoomLiveSocket(client, session.id, roomSlug, 'viewer');
+    this.markUserActive(userId);
+    this.server.to(this.roomChannel(roomSlug)).emit('room:live:viewer-count', {
+      roomSlug,
+      liveId: session.id,
+      viewerCount: this.roomLiveService.getViewerCount(session.id),
+    });
+    return { ok: true, live: this.roomLivePayload(session), token };
+  }
+
+  @SubscribeMessage('room:live:leave')
+  onRoomLiveLeave(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { liveId?: string },
+  ) {
+    const userId = this.getUserId(client);
+    const liveId = payload?.liveId?.trim();
+    const tracked = liveId ? client.data.liveSessions?.get(liveId) : undefined;
+    if (!liveId || !tracked) {
+      return { ok: true };
+    }
+    client.data.liveSessions?.delete(liveId);
+    const viewerCount = this.roomLiveService.removeViewer(liveId, userId);
+    this.server.to(this.roomChannel(tracked.roomSlug)).emit('room:live:viewer-count', {
+      roomSlug: tracked.roomSlug,
+      liveId,
+      viewerCount,
+    });
+    return { ok: true };
+  }
+
+  @SubscribeMessage('room:live:end')
+  async onRoomLiveEnd(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: { roomSlug?: string },
+  ) {
+    const userId = this.getUserId(client);
+    const roomSlug = payload?.roomSlug?.trim();
+    if (!roomSlug) {
+      throw new WsException('roomSlug is required');
+    }
+    const ended = await this.roomLiveService.end(roomSlug, userId);
+    if (!ended) {
+      return { ok: true };
+    }
+    client.data.liveSessions?.delete(ended.session.id);
+    this.server.to(this.roomChannel(roomSlug)).emit('room:message', {
+      roomSlug,
+      message: ended.message,
+    });
+    this.server.to(this.roomChannel(roomSlug)).emit('room:live:ended', {
+      roomSlug,
+      liveId: ended.session.id,
+      endedAt: ended.session.endedAt,
+    });
+    return { ok: true };
   }
 
   @SubscribeMessage('dm:typing')
@@ -1289,6 +1433,39 @@ export class RealtimeGateway
         }
         this.server.to(this.callChannel(callId)).emit('call:ended', { callId });
       }
+    }
+  }
+
+  private async cleanupSocketLiveSessions(client: AuthSocket) {
+    const userId = client.data.userId;
+    const liveSessions = client.data.liveSessions;
+    if (!userId || !liveSessions) {
+      return;
+    }
+    for (const [liveId, tracked] of liveSessions) {
+      if (tracked.role === 'host') {
+        const ended = await this.roomLiveService
+          .end(tracked.roomSlug, userId)
+          .catch(() => null);
+        if (ended) {
+          this.server.to(this.roomChannel(tracked.roomSlug)).emit('room:message', {
+            roomSlug: tracked.roomSlug,
+            message: ended.message,
+          });
+          this.server.to(this.roomChannel(tracked.roomSlug)).emit('room:live:ended', {
+            roomSlug: tracked.roomSlug,
+            liveId: ended.session.id,
+            endedAt: ended.session.endedAt,
+          });
+        }
+        continue;
+      }
+      const viewerCount = this.roomLiveService.removeViewer(liveId, userId);
+      this.server.to(this.roomChannel(tracked.roomSlug)).emit('room:live:viewer-count', {
+        roomSlug: tracked.roomSlug,
+        liveId,
+        viewerCount,
+      });
     }
   }
 }

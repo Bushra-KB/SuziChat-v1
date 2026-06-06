@@ -91,6 +91,27 @@ rsync -avz --delete \
 - Rebuild and restart stack
 - Restore database backup if a migration was destructive
 
+## ChatRoom Live Broadcast
+
+ChatRoom Live uses LiveKit as an SFU. Set these values in
+`infra/docker/.env.prod` before enabling live broadcasts:
+
+```bash
+LIVEKIT_URL=wss://suzichat.com/livekit
+LIVEKIT_API_KEY=<strong-random-key>
+LIVEKIT_API_SECRET=<strong-random-secret>
+LIVEKIT_NODE_IP=<server-public-ip>
+```
+
+The LiveKit API key/secret must match the `livekit` service and the API
+container. Keep them secret like JWT secrets.
+
+Open these inbound ports in both the server firewall and cloud firewall:
+
+- `443/tcp` for Caddy-proxied LiveKit signaling at `/livekit`
+- `7881/tcp` for LiveKit TCP media fallback
+- `7882/udp` for LiveKit UDP media
+
 ## 8) Security checklist
 
 - Never commit real `.env` files

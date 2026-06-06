@@ -266,6 +266,25 @@ across DM, ChatRoom, and Dating chat surfaces.
   timestamps) for history and missed-call notifications. Live media/signaling
   state is kept in memory in `CallService`; media never flows through the API.
 
+### ChatRoom Live broadcast
+
+- **Approach:** LiveKit SFU. Room owners and moderators can publish one
+  audio/video stream; room members subscribe as viewers. This is intentionally
+  separate from the room audio mesh call so broadcast live does not turn into a
+  video group call.
+- **Authorization/token flow:** Socket.IO events in `RealtimeGateway` validate
+  room access and call `RoomLiveService`, which creates a `RoomLiveSession` and
+  mints scoped LiveKit tokens:
+  - `room:live:start` creates the live session and returns a publish token.
+  - `room:live:join` returns a subscribe token for room members.
+  - `room:live:end` ends the live session and emits room updates.
+- **Persistence:** `RoomLiveSession` records host, room, LiveKit room name,
+  status, and timestamps. Start/end events are also emitted as room chat
+  messages.
+- **Infrastructure:** the `livekit` Docker service handles SFU media. Caddy
+  proxies signaling at `/livekit`; LiveKit media ports must be reachable
+  directly by clients.
+
 ### TURN/STUN infrastructure
 
 - `GET /v1/rtc/ice` issues ICE servers: static STUN plus short-lived TURN

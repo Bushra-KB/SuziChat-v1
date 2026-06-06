@@ -52,6 +52,9 @@ services:
       TURN_REALM: ${TURN_REALM:-${SUZI_DOMAIN}}
       TURN_TTL_SECONDS: ${TURN_TTL_SECONDS:-3600}
       ROOM_CALL_MAX: ${ROOM_CALL_MAX:-6}
+      LIVEKIT_URL: ${LIVEKIT_URL:-wss://${SUZI_DOMAIN}/livekit}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
     volumes:
       - suzi_chat_api_uploads:/app/uploads
     depends_on:
@@ -70,6 +73,19 @@ services:
       --static-auth-secret=${TURN_SECRET}
       --realm=${TURN_REALM:-${SUZI_DOMAIN}}
       --external-ip=${TURN_EXTERNAL_IP}
+
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:-suzi_livekit_dev}: ${LIVEKIT_API_SECRET:-replace-with-livekit-secret}"
+    command: >
+      --dev
+      --bind 0.0.0.0
+      --node-ip=${LIVEKIT_NODE_IP:-${TURN_EXTERNAL_IP}}
+    ports:
+      - "7881:7881/tcp"
+      - "7882:7882/udp"
 
   web:
     build:
@@ -103,6 +119,7 @@ services:
     depends_on:
       - web
       - api
+      - livekit
 
 volumes:
   suzi_chat_postgres_data:
