@@ -434,12 +434,12 @@ export function GameSessionClient({
     const onLobbyDeleted = (payload: { lobbyId?: string }) => {
       const current = currentLobbyRef.current;
       if (!current || payload?.lobbyId !== current.lobbyId) return;
-      window.location.href = `/app/games/${current.gameId}`;
+      router.replace(`/app/games/${current.gameId}`);
     };
     const onSessionDeleted = (payload: { sessionId?: string }) => {
       if (payload?.sessionId !== sessionId) return;
       const current = currentLobbyRef.current;
-      window.location.href = `/app/games/${current?.gameId ?? gameRouteId ?? "chess"}`;
+      router.replace(`/app/games/${current?.gameId ?? gameRouteId ?? "chess"}`);
     };
     s.on("connect", onConnect);
     s.on("disconnect", onDisconnect);
@@ -689,7 +689,7 @@ export function GameSessionClient({
     setError("");
     try {
       await leaveGameLobby(auth.accessToken, session.lobbyId);
-      window.location.href = `/app/games/${gameTypeToId(session.gameType)}`;
+      router.push(`/app/games/${gameTypeToId(session.gameType)}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Could not leave table.");
     } finally {

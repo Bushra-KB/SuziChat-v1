@@ -2,9 +2,11 @@ import { join } from 'path';
 
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdminModule } from './admin/admin.module';
+import { HttpExceptionFilter } from './common/http-exception.filter';
 import { AuthModule } from './auth/auth.module';
 import { CallsModule } from './calls/calls.module';
 import { ConversationsModule } from './conversations/conversations.module';
@@ -49,6 +51,12 @@ import { UsersModule } from './users/users.module';
     RtcModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
+  ],
 })
 export class AppModule {}

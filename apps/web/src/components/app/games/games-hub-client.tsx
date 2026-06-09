@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { gameMeta, gameTypeToId } from "@/components/app/games/game-meta";
 import { Panel, SectionHeader } from "@/components/ui/suzi-primitives";
@@ -12,6 +13,7 @@ import { openGamesSocket, subscribeGameLobbyListChannel } from "@/lib/games-real
 import { useI18n } from "@/lib/i18n";
 
 export function GamesHubClient() {
+  const router = useRouter();
   const { t } = useI18n();
   const [lobbies, setLobbies] = useState<ApiGameLobby[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +69,7 @@ export function GamesHubClient() {
         gameType,
         title: `${gameName} ${t("games.quickTable")}`,
       });
-      window.location.href = `/app/games/${gameTypeToId(lobby.gameType)}`;
+      router.push(`/app/games/${gameTypeToId(lobby.gameType)}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t("games.createError"));
     } finally {

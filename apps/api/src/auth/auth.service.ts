@@ -71,6 +71,10 @@ function buildVerificationToken() {
   return randomBytes(32).toString('hex');
 }
 
+function canExposeAuthTokenPreview() {
+  return process.env.NODE_ENV !== 'production';
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -156,7 +160,8 @@ export class AuthService {
         'Account created. Please check your email to verify your account before signing in.',
       requiresEmailVerification: true,
       emailVerificationTokenExpiresAt: verificationExpiresAt.toISOString(),
-      emailVerificationTokenPreview: verificationSent ? undefined : verificationToken,
+      emailVerificationTokenPreview:
+        !verificationSent && canExposeAuthTokenPreview() ? verificationToken : undefined,
       user,
     };
   }
@@ -422,7 +427,8 @@ export class AuthService {
       message:
         'If an unverified account exists for this email, a verification link will be sent.',
       emailVerificationTokenExpiresAt: verificationExpiresAt.toISOString(),
-      emailVerificationTokenPreview: verificationSent ? undefined : verificationToken,
+      emailVerificationTokenPreview:
+        !verificationSent && canExposeAuthTokenPreview() ? verificationToken : undefined,
     };
   }
 

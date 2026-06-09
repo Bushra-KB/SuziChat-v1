@@ -14,9 +14,6 @@ async function bootstrap() {
     bodyParser: false,
   });
   ensureUploadDirs();
-  app.use('/uploads', express.static(uploadsRoot()));
-  app.use(json({ limit: '15mb' }));
-  app.use(urlencoded({ limit: '15mb', extended: true }));
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
@@ -33,6 +30,9 @@ async function bootstrap() {
     }
     next();
   });
+  app.use('/uploads', express.static(uploadsRoot()));
+  app.use(json({ limit: '15mb' }));
+  app.use(urlencoded({ limit: '15mb', extended: true }));
   app.enableShutdownHooks();
   const fallbackOrigins =
     process.env.NODE_ENV === 'production'

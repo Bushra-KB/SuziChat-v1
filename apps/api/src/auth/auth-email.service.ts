@@ -24,6 +24,10 @@ export class AuthEmailService {
     );
   }
 
+  private get canLogSensitiveLinks() {
+    return process.env.NODE_ENV !== 'production';
+  }
+
   async sendVerificationEmail(payload: AuthEmailPayload) {
     const url = this.buildUrl('/verify-email', payload.token);
     return this.sendAuthEmail({
@@ -75,7 +79,11 @@ export class AuthEmailService {
     fallbackLog: string;
   }): Promise<boolean> {
     if (!this.isConfigured) {
-      this.logger.warn(`SMTP is not configured. ${fallbackLog}`);
+      this.logger.warn(
+        this.canLogSensitiveLinks
+          ? `SMTP is not configured. ${fallbackLog}`
+          : `SMTP is not configured for ${to}. Auth email was not sent.`,
+      );
       return false;
     }
 
@@ -101,7 +109,11 @@ export class AuthEmailService {
     } catch (error) {
       const details =
         error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-      this.logger.error(`SMTP send failed. ${fallbackLog}. ${details}`);
+      this.logger.error(
+        this.canLogSensitiveLinks
+          ? `SMTP send failed. ${fallbackLog}. ${details}`
+          : `SMTP send failed for ${to}. ${details}`,
+      );
       return false;
     }
   }

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { gameMeta, gameTypeToId } from "@/components/app/games/game-meta";
 import { gameLobbyArtForId } from "@/lib/game-icons";
@@ -42,6 +43,7 @@ import {
 } from "@/lib/games-realtime";
 
 export function GameLobbyClient({ gameId, invitedLobbyId = "" }: { gameId: string; invitedLobbyId?: string }) {
+  const router = useRouter();
   const game = gameMeta.find((entry) => entry.id === gameId) ?? gameMeta[0];
   const gameArt = gameLobbyArtForId(game.id);
   const [rows, setRows] = useState<ApiGameLobby[]>([]);
@@ -244,7 +246,7 @@ export function GameLobbyClient({ gameId, invitedLobbyId = "" }: { gameId: strin
       const session = socket.connected
         ? await postGameLobbyStart(socket, lobbyId)
         : await startGameSession(auth.accessToken, lobbyId);
-      window.location.href = `/app/games/${gameTypeToId(session.gameType)}/session/${session.id}`;
+      router.push(`/app/games/${gameTypeToId(session.gameType)}/session/${session.id}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Could not start session.");
     } finally {

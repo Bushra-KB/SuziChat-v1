@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   listEmpty,
@@ -30,6 +31,7 @@ function formatPrivacyLabel(privacy: string) {
 }
 
 export function RoomsCatalogPageClient() {
+  const router = useRouter();
   const [rooms, setRooms] = useState<ApiRoom[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -109,7 +111,7 @@ export function RoomsCatalogPageClient() {
     }
     const action = room.actor?.action ?? (room.privacy.toLowerCase() === "public" ? "join" : "request");
     if (action === "open") {
-      window.location.href = `/app/rooms/${encodeURIComponent(room.slug)}`;
+      router.push(`/app/rooms/${encodeURIComponent(room.slug)}`);
       return;
     }
     if (action === "requested") {
