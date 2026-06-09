@@ -7,6 +7,7 @@ import { Test } from '@nestjs/testing';
 import { GameType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
+import { RealtimeStateService } from '../realtime/realtime-state.service';
 import { GamesMetricsService } from './games-metrics.service';
 import { GamesService } from './games.service';
 
@@ -18,6 +19,7 @@ describe('GamesService', () => {
     gameEvent: { create: jest.fn() },
   };
   const realtime = { emitToUser: jest.fn(), emitToChannel: jest.fn() };
+  const realtimeState = {};
   const metrics = {
     recordSessionActionOk: jest.fn(),
     recordSessionActionFailed: jest.fn(),
@@ -36,10 +38,15 @@ describe('GamesService', () => {
         GamesService,
         { provide: PrismaService, useValue: prisma },
         { provide: RealtimeEventsService, useValue: realtime },
+        { provide: RealtimeStateService, useValue: realtimeState },
         { provide: GamesMetricsService, useValue: metrics },
       ],
     }).compile();
     service = moduleRef.get(GamesService);
+  });
+
+  afterEach(() => {
+    service.onModuleDestroy();
   });
 
   it('sendInvite rejects users who are neither owner nor seated', async () => {

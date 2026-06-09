@@ -795,7 +795,7 @@ export function MessagesInbox() {
                     peer: activeThread.peer,
                   })
                 }
-                className="suzi-game-board-top-btn px-0 inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80 disabled:opacity-40"
+                className="suzi-chat-header-action suzi-chat-header-action--audio disabled:opacity-40"
               >
                 <Icon path="M5 3h3l2 5-2 1a11 11 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A18 18 0 0 1 3 5a2 2 0 0 1 2-2Z" className="h-4 w-4" />
               </button>
@@ -812,7 +812,7 @@ export function MessagesInbox() {
                     peer: activeThread.peer,
                   })
                 }
-                className="suzi-game-board-top-btn px-0 inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/80 disabled:opacity-40"
+                className="suzi-chat-header-action suzi-chat-header-action--video disabled:opacity-40"
               >
                 <Icon path="M3 7a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm13 3 5-3v10l-5-3V10Z" className="h-4 w-4" />
               </button>
@@ -826,7 +826,7 @@ export function MessagesInbox() {
                     setConfirmRemovePeer(activeThread.peer);
                   }
                 }}
-                className="suzi-game-board-top-btn px-0 inline-flex h-9 w-9 items-center justify-center rounded-xl text-pink-100/85 disabled:opacity-45"
+                className="suzi-chat-header-action suzi-chat-header-action--delete disabled:opacity-45"
               >
                 <Icon path="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" className="h-4 w-4" />
               </button>
