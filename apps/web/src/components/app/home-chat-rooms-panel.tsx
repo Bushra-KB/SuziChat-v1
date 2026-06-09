@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel, cx } from "@/components/ui/suzi-primitives";
@@ -189,6 +190,7 @@ export function HomeChatRoomsPanel({
 }: {
   variant?: "default" | "dashboard";
 }) {
+  const router = useRouter();
   const { t } = useI18n();
   const [activeCategory, setActiveCategory] = useState("All");
   const [query, setQuery] = useState("");
@@ -476,7 +478,7 @@ export function HomeChatRoomsPanel({
       return;
     }
     if (room.action === "open") {
-      window.location.href = `/app/rooms/${encodeURIComponent(room.id)}`;
+      router.push(`/app/rooms/${encodeURIComponent(room.id)}`);
       return;
     }
     if (room.action === "blocked" || room.action === "requested") {

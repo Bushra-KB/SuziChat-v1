@@ -19,7 +19,11 @@ import {
 } from '@prisma/client';
 import type { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
-import { CallService, type CallEventMessage } from '../calls/call.service';
+import {
+  CallService,
+  type ActiveCall,
+  type CallEventMessage,
+} from '../calls/call.service';
 import { DatingService } from '../dating/dating.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { GamesService } from '../games/games.service';
@@ -47,9 +51,47 @@ type AuthSocket = Socket & {
   };
 };
 
+function getRealtimeAllowedOrigins() {
+  const fallbackOrigins =
+    process.env.NODE_ENV === 'production'
+      ? ''
+      : 'http://localhost:3000,http://127.0.0.1:3000';
+  return (process.env.CORS_ORIGINS ?? fallbackOrigins)
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+function realtimeCorsOrigin(
+  origin: string | undefined,
+  callback: (err: Error | null, allow?: boolean) => void,
+) {
+  if (!origin) {
+    callback(null, true);
+    return;
+  }
+
+  const allowlist = getRealtimeAllowedOrigins();
+  if (allowlist.length === 0 && process.env.NODE_ENV === 'production') {
+    callback(
+      new Error(
+        'Realtime CORS blocked: CORS_ORIGINS is empty. Set allowed origins explicitly.',
+      ),
+    );
+    return;
+  }
+
+  if (allowlist.length === 0 || allowlist.includes(origin)) {
+    callback(null, true);
+    return;
+  }
+
+  callback(new Error(`Realtime CORS blocked for origin: ${origin}`));
+}
+
 @WebSocketGateway({
   cors: {
-    origin: true,
+    origin: realtimeCorsOrigin,
     credentials: false,
   },
 })
@@ -145,6 +187,15 @@ export class RealtimeGateway
 
   private callChannel(callId: string) {
     return `call:${callId}`;
+  }
+
+  private canAccessCall(call: ActiveCall, userId: string) {
+    return (
+      call.initiatorId === userId ||
+      call.calleeId === userId ||
+      call.participants.has(userId) ||
+      call.invitedIds.has(userId)
+    );
   }
 
   /** Subscribed by games hub / lobby pages for live lobby list refresh. */
@@ -1041,9 +1092,10 @@ export class RealtimeGateway
   private toWsException(err: unknown): WsException {
     if (err instanceof WsException) return err;
     if (err instanceof HttpException) return new WsException(err.message);
-    return new WsException(
-      err instanceof Error ? err.message : 'Request failed',
+    this.logger.error(
+      err instanceof Error ? `${err.name}: ${err.message}` : String(err),
     );
+    return new WsException('Request failed');
   }
 
   @SubscribeMessage('dating:typing')
@@ -1268,6 +1320,9 @@ export class RealtimeGateway
     if (!call || !callId) {
       return { ok: true };
     }
+    if (!call.invitedIds.has(userId)) {
+      throw new WsException('You were not invited to this call');
+    }
     await this.callService.endCall(callId, CallStatus.DECLINED);
     this.emitCallEventMessage(
       await this.callService.createCallEventMessage(
@@ -1293,6 +1348,9 @@ export class RealtimeGateway
     const call = callId ? this.callService.getCall(callId) : undefined;
     if (!call || !callId) {
       return { ok: true };
+    }
+    if (call.initiatorId !== userId) {
+      throw new WsException('Only the call initiator can cancel this call');
     }
     await this.callService.endCall(callId, CallStatus.CANCELED);
     this.emitCallEventMessage(
@@ -1328,6 +1386,9 @@ export class RealtimeGateway
       return { ok: true };
     }
     const call = this.callService.getCall(callId);
+    if (call && !this.canAccessCall(call, userId)) {
+      throw new WsException('You are not part of this call');
+    }
     await client.leave(this.callChannel(callId));
     client.data.callIds?.delete(callId);
     const ended = await this.callService.leaveParticipant(callId, userId);
@@ -1361,6 +1422,10 @@ export class RealtimeGateway
     }
     if (!this.callService.isParticipant(callId, userId)) {
       throw new WsException('You are not part of this call');
+    }
+    const call = this.callService.getCall(callId);
+    if (!call || !this.canAccessCall(call, toUserId)) {
+      throw new WsException('Signal recipient is not part of this call');
     }
     this.server.to(this.userRoom(toUserId)).emit('call:signal', {
       callId,

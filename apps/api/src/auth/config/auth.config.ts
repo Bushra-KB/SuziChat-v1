@@ -9,7 +9,10 @@ function requireEnv(name: string, fallback?: string) {
 }
 
 export default registerAs('auth', () => ({
-  appBaseUrl: process.env.APP_BASE_URL?.trim() || 'http://localhost:3000',
+  appBaseUrl: requireEnv(
+    'APP_BASE_URL',
+    process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:3000',
+  ),
   accessTokenSecret: requireEnv('JWT_ACCESS_SECRET'),
   refreshTokenSecret: requireEnv('JWT_REFRESH_SECRET'),
   accessTokenTtl: process.env.JWT_ACCESS_TTL ?? '15m',
