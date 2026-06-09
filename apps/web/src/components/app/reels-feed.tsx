@@ -75,6 +75,17 @@ const REEL_MAX_FILE_BYTES = 600 * 1024 * 1024;
 const VIDEO_FILE_ACCEPT =
   "video/*,.mp4,.m4v,.mov,.webm,.mkv,.avi,.3gp,.mpeg,.mpg,.ogv,video/quicktime";
 
+const REELS_FEED_TAKE = 100;
+
+type FullscreenDocument = Document & {
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void> | void;
+};
+
+type FullscreenStageElement = HTMLDivElement & {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+};
+
 function isProbablyVideoFile(file: File): boolean {
   const t = (file.type ?? "").toLowerCase();
   if (t.startsWith("video/")) {
@@ -111,6 +122,18 @@ function formatCompact(value: number) {
   }
 
   return String(value);
+}
+
+function getFullscreenElement() {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const fullscreenDocument = document as FullscreenDocument;
+  return fullscreenDocument.fullscreenElement ?? fullscreenDocument.webkitFullscreenElement ?? null;
+}
+
+function isFullscreenElementWithinStage(stageEl: HTMLElement | null, fullscreenEl: Element | null) {
+  return Boolean(stageEl && fullscreenEl && (fullscreenEl === stageEl || stageEl.contains(fullscreenEl)));
 }
 
 function HeartIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
@@ -269,7 +292,8 @@ export function ReelsFeed() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [createError, setCreateError] = useState("");
   const [dragOverCreate, setDragOverCreate] = useState(false);
-  const [isFullscreenCard, setIsFullscreenCard] = useState(false);
+  const [isNativeFullscreenCard, setIsNativeFullscreenCard] = useState(false);
+  const [isFullscreenFallback, setIsFullscreenFallback] = useState(false);
   const createFileInputRef = useRef<HTMLInputElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [activeCurrentTime, setActiveCurrentTime] = useState(0);
@@ -287,6 +311,7 @@ export function ReelsFeed() {
   const appliedFocusIdRef = useRef<string | null>(null);
   const activeReel = displayReels[activeIndex] ?? null;
   const activeComments = activeReel ? commentsByReel[activeReel.id] ?? [] : [];
+  const isFullscreenCard = isNativeFullscreenCard || isFullscreenFallback;
 
   const discoveryItems = useMemo<PostsDiscoveryItem[]>(
     () =>
@@ -340,7 +365,9 @@ export function ReelsFeed() {
 
   const refreshReels = useCallback(() => {
     const session = getStoredAuthSession();
-    const loader = session?.accessToken ? listMyPosts(session.accessToken, "REEL", 40) : listPosts("REEL", 40);
+    const loader = session?.accessToken
+      ? listMyPosts(session.accessToken, "REEL", REELS_FEED_TAKE)
+      : listPosts("REEL", REELS_FEED_TAKE);
     void loader
       .then((rows) => {
         const mapped = rows.map(apiPostToReel);
@@ -362,7 +389,9 @@ export function ReelsFeed() {
   useEffect(() => {
     let cancelled = false;
     const session = getStoredAuthSession();
-    const loader = session?.accessToken ? listMyPosts(session.accessToken, "REEL", 40) : listPosts("REEL", 40);
+    const loader = session?.accessToken
+      ? listMyPosts(session.accessToken, "REEL", REELS_FEED_TAKE)
+      : listPosts("REEL", REELS_FEED_TAKE);
     void loader
       .then((rows) => {
         if (cancelled) {
@@ -650,20 +679,44 @@ export function ReelsFeed() {
       if (typeof document === "undefined") {
         return;
       }
-      const fullscreenEl = document.fullscreenElement;
+      const fullscreenEl = getFullscreenElement();
       const stageEl = stageRef.current;
-      if (!fullscreenEl) {
-        setIsFullscreenCard(false);
-        return;
+      const isStageFullscreen = isFullscreenElementWithinStage(stageEl, fullscreenEl);
+      setIsNativeFullscreenCard(isStageFullscreen);
+      if (isStageFullscreen) {
+        setIsFullscreenFallback(false);
       }
-      setIsFullscreenCard(Boolean(stageEl && (fullscreenEl === stageEl || stageEl.contains(fullscreenEl))));
     };
     document.addEventListener("fullscreenchange", onFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
     onFullscreenChange();
     return () => {
       document.removeEventListener("fullscreenchange", onFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
     };
   }, [activeIndex, displayReels.length]);
+
+  useEffect(() => {
+    if (!isFullscreenFallback || typeof document === "undefined") {
+      return;
+    }
+    const { documentElement, body } = document;
+    const previousDocumentOverflow = documentElement.style.overflow;
+    const previousBodyOverflow = body.style.overflow;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsFullscreenFallback(false);
+      }
+    };
+    documentElement.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      documentElement.style.overflow = previousDocumentOverflow;
+      body.style.overflow = previousBodyOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isFullscreenFallback]);
 
   useEffect(() => {
     const video = activeVideoRef.current;
@@ -814,14 +867,36 @@ export function ReelsFeed() {
     if (!stageEl || typeof document === "undefined") {
       return;
     }
-    const fullscreenEl = document.fullscreenElement;
-    if (fullscreenEl && (fullscreenEl === stageEl || stageEl.contains(fullscreenEl))) {
-      void document.exitFullscreen?.().catch(() => {});
+    const fullscreenDocument = document as FullscreenDocument;
+    const fullscreenEl = getFullscreenElement();
+    if (isFullscreenFallback) {
+      setIsFullscreenFallback(false);
       return;
     }
-    if (stageEl.requestFullscreen) {
-      void stageEl.requestFullscreen().catch(() => {});
+    if (isFullscreenElementWithinStage(stageEl, fullscreenEl)) {
+      const exitFullscreen = fullscreenDocument.exitFullscreen ?? fullscreenDocument.webkitExitFullscreen;
+      const exitResult = exitFullscreen?.call(fullscreenDocument);
+      if (exitResult && typeof exitResult.catch === "function") {
+        exitResult.catch(() => setIsNativeFullscreenCard(false));
+      } else if (!exitFullscreen) {
+        setIsNativeFullscreenCard(false);
+      }
+      return;
     }
+    const fullscreenStage = stageEl as FullscreenStageElement;
+    const requestFullscreen = fullscreenStage.requestFullscreen ?? fullscreenStage.webkitRequestFullscreen;
+    if (!requestFullscreen) {
+      setIsFullscreenFallback(true);
+      return;
+    }
+    const requestResult = requestFullscreen.call(fullscreenStage);
+    if (requestResult && typeof requestResult.then === "function") {
+      requestResult.catch(() => {
+        setIsFullscreenFallback(true);
+      });
+      return;
+    }
+    setIsNativeFullscreenCard(true);
   };
 
   const handleActiveLoadedMetadata = () => {
@@ -1237,6 +1312,7 @@ export function ReelsFeed() {
             isFullscreenCard
               ? "suzi-feed-stage-fullscreen mt-0 h-full min-h-0 w-full max-w-none rounded-none bg-black"
               : "suzi-feed-stage mt-1 flex-1 rounded-[var(--panel-radius)] bg-transparent [perspective:1200px]",
+            isFullscreenFallback ? "suzi-feed-stage-fullscreen--fallback" : "",
           )}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}

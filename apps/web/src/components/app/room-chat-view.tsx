@@ -868,7 +868,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 title="Join audio call"
                 disabled={!access?.canPost || callPhase !== "idle"}
                 onClick={() => void startRoomCall(roomSlug)}
-                className="suzi-room-action-btn suzi-room-action-btn--header inline-flex items-center gap-1.5 disabled:opacity-40"
+                className="suzi-chat-header-action suzi-chat-header-action--audio gap-1.5 px-3 disabled:opacity-40"
               >
                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
                   <path d="M5 3h3l2 5-2 1a11 11 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A18 18 0 0 1 3 5a2 2 0 0 1 2-2Z" />
@@ -1200,7 +1200,7 @@ export function RoomChatView({ roomSlug }: { roomSlug: string }) {
                 onClick={() => {
                   setShowDeleteRoomModal(true);
                 }}
-                className="suzi-room-action-btn suzi-room-action-btn--danger"
+                className="suzi-room-action-btn suzi-room-action-btn--danger suzi-room-action-btn--delete"
               >
                 Delete room…
               </button>

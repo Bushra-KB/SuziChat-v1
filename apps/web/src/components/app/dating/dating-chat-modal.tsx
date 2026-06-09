@@ -67,7 +67,7 @@ export function DatingChatModal({
               type="button"
               aria-label="Voice call"
               onClick={() => startDatingCall("AUDIO")}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-300 hover:bg-white/10 hover:text-white"
+              className="suzi-chat-header-action suzi-chat-header-action--audio"
             >
               <Icon path={voiceCallIcon} className="h-4 w-4" />
             </button>
@@ -75,11 +75,11 @@ export function DatingChatModal({
               type="button"
               aria-label="Video call"
               onClick={() => startDatingCall("VIDEO")}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-300 hover:bg-white/10 hover:text-white"
+              className="suzi-chat-header-action suzi-chat-header-action--video"
             >
               <Icon path={videoCallIcon} className="h-4 w-4" />
             </button>
-            <button type="button" className="text-xs text-rose-300/90 hover:underline" onClick={onUnmatch}>
+            <button type="button" className="suzi-chat-header-action suzi-chat-header-action--delete px-3" onClick={onUnmatch}>
               Unmatch
             </button>
             <button type="button" className="text-slate-400 hover:text-white" onClick={onClose}>
@@ -93,11 +93,11 @@ export function DatingChatModal({
             if (msg.kind === "CALL") {
               return (
                 <div key={msg.id} className="flex justify-center py-2">
-                  <div className="inline-flex max-w-[92%] items-center gap-2 rounded-2xl border border-cyan-300/40 bg-[linear-gradient(135deg,rgba(13,19,47,0.96),rgba(74,28,112,0.94))] px-4 py-2 text-center text-[0.78rem] font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.28)] ring-1 ring-white/10">
-                    <span className="rounded-full bg-cyan-300/18 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.16em] text-cyan-100">
+                  <div className="suzi-chat-call-event">
+                    <span className="suzi-chat-call-event__label">
                       Call
                     </span>
-                    <span className="leading-snug">{msg.body || "Call event"}</span>
+                    <span className="suzi-chat-call-event__body">{msg.body || "Call event"}</span>
                   </div>
                 </div>
               );

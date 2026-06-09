@@ -15,6 +15,9 @@ const authorSelect = {
   avatarUrl: true,
 } as const;
 
+const POST_FEED_MAX_TAKE = 100;
+const POST_FEED_CANDIDATE_TAKE = 300;
+
 @Injectable()
 export class PostsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -53,6 +56,66 @@ export class PostsService {
         },
       },
     } as const;
+  }
+
+  private clampFeedTake(take: number) {
+    return Math.min(POST_FEED_MAX_TAKE, Math.max(1, take));
+  }
+
+  private postFeedScore(post: {
+    createdAt: Date;
+    _count: { likes: number; comments: number; views: number };
+  }) {
+    const ageHours = Math.max(
+      0,
+      (Date.now() - post.createdAt.getTime()) / (60 * 60 * 1000),
+    );
+    const recency = 120 / (1 + ageHours / 18);
+    const views = Math.log10(post._count.views + 1) * 34;
+    const likes = Math.log10(post._count.likes + 1) * 46;
+    return recency + views + likes;
+  }
+
+  private async rankedFeed(where: Prisma.PostWhereInput, take: number) {
+    const limit = this.clampFeedTake(take);
+    const candidateTake = Math.min(
+      POST_FEED_CANDIDATE_TAKE,
+      Math.max(limit * 3, limit),
+    );
+    const select = this.postSelect();
+    const [recent, topViewed, topLiked] = await Promise.all([
+      this.prisma.post.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: candidateTake,
+        select,
+      }),
+      this.prisma.post.findMany({
+        where,
+        orderBy: [{ views: { _count: 'desc' } }, { createdAt: 'desc' }],
+        take: candidateTake,
+        select,
+      }),
+      this.prisma.post.findMany({
+        where,
+        orderBy: [{ likes: { _count: 'desc' } }, { createdAt: 'desc' }],
+        take: candidateTake,
+        select,
+      }),
+    ]);
+
+    const merged = new Map<string, (typeof recent)[number]>();
+    for (const post of [...recent, ...topViewed, ...topLiked]) {
+      merged.set(post.id, post);
+    }
+
+    return [...merged.values()]
+      .sort((a, b) => {
+        const byScore = this.postFeedScore(b) - this.postFeedScore(a);
+        if (byScore !== 0) return byScore;
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      })
+      .slice(0, limit);
   }
 
   async assertCanViewPost(postId: string, viewerId?: string) {
@@ -95,15 +158,13 @@ export class PostsService {
   }
 
   async listPosts(kind: PostKind, take = 40) {
-    return this.prisma.post.findMany({
-      where: {
+    return this.rankedFeed(
+      {
         kind,
         visibility: { equals: 'Public', mode: 'insensitive' },
       },
-      orderBy: { createdAt: 'desc' },
       take,
-      select: this.postSelect(),
-    });
+    );
   }
 
   async listPostsForUser(userId: string, kind: PostKind, take = 40) {
@@ -114,8 +175,8 @@ export class PostsService {
         { authorId: fid },
       ],
     }));
-    return this.prisma.post.findMany({
-      where: {
+    return this.rankedFeed(
+      {
         kind,
         OR: [
           { visibility: { equals: 'Public', mode: 'insensitive' } },
@@ -123,10 +184,8 @@ export class PostsService {
           ...friendFilter,
         ],
       },
-      orderBy: { createdAt: 'desc' },
       take,
-      select: this.postSelect(),
-    });
+    );
   }
 
   async listAuthoredPosts(authorId: string, kind: PostKind, take = 40) {

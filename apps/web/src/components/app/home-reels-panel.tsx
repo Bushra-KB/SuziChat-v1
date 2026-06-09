@@ -74,7 +74,7 @@ function getViews(reel: Reel) {
   return reel.views ?? reel.likes + reel.comments * 4;
 }
 
-const MAX_REELS = 6;
+const MAX_REELS = 100;
 
 export function HomeReelsPanel() {
   const { t } = useI18n();
@@ -83,7 +83,9 @@ export function HomeReelsPanel() {
 
   const loadCatalog = useCallback(async () => {
     const session = getStoredAuthSession();
-    const loader = session?.accessToken ? listMyPosts(session.accessToken, "REEL", 24) : listPosts("REEL", 24);
+    const loader = session?.accessToken
+      ? listMyPosts(session.accessToken, "REEL", MAX_REELS)
+      : listPosts("REEL", MAX_REELS);
     const rows = await loader;
     setCatalog(rows.map(apiPostToReel));
   }, []);
@@ -167,8 +169,7 @@ export function HomeReelsPanel() {
     if (!loading && catalog.length === 0) {
       return [{ kind: "empty" as const, key: "reel-empty" }];
     }
-    const ranked = [...catalog].sort((left, right) => getViews(right) - getViews(left));
-    return ranked.slice(0, MAX_REELS).map((reel) => ({ kind: "reel" as const, reel, key: reel.id }));
+    return catalog.slice(0, MAX_REELS).map((reel) => ({ kind: "reel" as const, reel, key: reel.id }));
   }, [catalog, loading]);
 
   return (

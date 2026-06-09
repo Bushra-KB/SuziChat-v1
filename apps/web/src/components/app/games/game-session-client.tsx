@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CheckersBoardView } from "@/components/app/games/checkers-board-view";
 import { ChessBoardView } from "@/components/app/games/chess-board-view";
 import { Connect4BoardView } from "@/components/app/games/connect4-board-view";
@@ -37,6 +38,7 @@ import { parseGameLobbySettings } from "@/lib/game-lobby-settings";
 import { getGameSoundEnabled, playMoveSound, playYourTurnSound, setGameSoundEnabled } from "@/lib/game-sounds";
 import {
   GameSocketApplicationError,
+  joinLobbyChannel,
   joinSessionChannel,
   openGamesSocket,
   postGameLobbyStart,
@@ -159,6 +161,74 @@ function WinnerCelebrationOverlay({
   );
 }
 
+function GameRestartConfirmPopup({
+  gameName,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  gameName: string;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[360] flex items-center justify-center bg-[rgba(4,7,20,0.76)] p-4 backdrop-blur-md"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Restart ${gameName}`}
+    >
+      <div className="relative w-full max-w-md overflow-hidden rounded-[1.35rem] border border-cyan-200/28 bg-[linear-gradient(160deg,rgba(31,22,94,0.98),rgba(16,14,48,0.98)_55%,rgba(6,10,28,0.99))] p-5 text-white shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.2),transparent_34%),radial-gradient(circle_at_12%_18%,rgba(168,85,247,0.22),transparent_32%)]" />
+        <div className="relative z-10">
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cyan-200/34 bg-cyan-300/14 text-cyan-100 shadow-[0_0_22px_rgba(34,211,238,0.22)]">
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                <path d="M21 3v6h-6" />
+              </svg>
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-lg font-black tracking-tight text-white sm:text-xl">
+                Restart game?
+              </h2>
+              <p className="mt-2 text-sm font-medium leading-6 text-cyan-50/78">
+                This will reset {gameName} from the beginning for every player at the table in realtime.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-[0.95rem] border border-white/12 bg-white/8 px-3.5 py-3 text-xs font-semibold leading-5 text-cyan-50/74">
+            No one needs to refresh or leave the lobby. Both boards will move to a fresh game session.
+          </div>
+
+          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={busy}
+              className={cx(homeBtnSecondary, "justify-center px-4 disabled:opacity-60")}
+              style={{ height: "var(--btn-h-sm)" }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={busy}
+              className={cx(homeBtnPrimary, "justify-center px-4 disabled:opacity-60")}
+              style={{ height: "var(--btn-h-sm)" }}
+            >
+              {busy ? "Restarting..." : "Restart game"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function GameSessionClient({
   sessionId,
   gameRouteId,
@@ -166,6 +236,7 @@ export function GameSessionClient({
   sessionId: string;
   gameRouteId?: string;
 }) {
+  const router = useRouter();
   const [session, setSession] = useState<ApiGameSession | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -180,6 +251,7 @@ export function GameSessionClient({
   const [dismissedWinnerKey, setDismissedWinnerKey] = useState<string | null>(null);
   const [checkersMoveNotice, setCheckersMoveNotice] = useState<{ id: number; message: string } | null>(null);
   const [mobileDrawer, setMobileDrawer] = useState<"info" | "chat" | null>(null);
+  const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const soundInitialized = useRef(false);
   const prevMovesLen = useRef(0);
@@ -191,6 +263,28 @@ export function GameSessionClient({
   const [boardFitPx, setBoardFitPx] = useState(0);
 
   const auth = useMemo(() => getStoredAuthSession(), []);
+
+  const resetTransientGameUi = useCallback(() => {
+    setError("");
+    setCheckersMoveNotice(null);
+    setDismissedWinnerKey(null);
+    setMobileDrawer(null);
+    soundInitialized.current = false;
+    prevMovesLen.current = 0;
+    prevTurnId.current = null;
+  }, []);
+
+  const openSessionRoute = useCallback(
+    (next: ApiGameSession) => {
+      resetTransientGameUi();
+      setSession(next);
+      const href = `/app/games/${gameTypeToId(next.gameType)}/session/${next.id}`;
+      if (next.id !== sessionId) {
+        router.replace(href);
+      }
+    },
+    [resetTransientGameUi, router, sessionId],
+  );
 
   const showCheckersMoveNotice = useCallback((message: string) => {
     setError("");
@@ -329,6 +423,14 @@ export function GameSessionClient({
         prev.some((row) => row.id === message.id) ? prev : [...prev, message]
       ));
     };
+    const onSessionStarted = (payload: { sessionId?: string; lobbyId?: string }) => {
+      const current = currentLobbyRef.current;
+      if (!current || !payload?.sessionId || payload.lobbyId !== current.lobbyId) return;
+      if (payload.sessionId === sessionId) return;
+      resetTransientGameUi();
+      setBusy(false);
+      router.replace(`/app/games/${current.gameId}/session/${payload.sessionId}`);
+    };
     const onLobbyDeleted = (payload: { lobbyId?: string }) => {
       const current = currentLobbyRef.current;
       if (!current || payload?.lobbyId !== current.lobbyId) return;
@@ -345,6 +447,7 @@ export function GameSessionClient({
     s.on("game:session:sync", onSessionSync);
     s.on("game:session:presence", onPresence);
     s.on("game:chat", onChat);
+    s.on("game:session:started", onSessionStarted);
     s.on("game:lobby:deleted", onLobbyDeleted);
     s.on("game:session:deleted", onSessionDeleted);
     const unsubProfile = subscribeUserProfileUpdates(auth.accessToken, () => {
@@ -358,11 +461,23 @@ export function GameSessionClient({
       s.off("game:session:sync", onSessionSync);
       s.off("game:session:presence", onPresence);
       s.off("game:chat", onChat);
+      s.off("game:session:started", onSessionStarted);
       s.off("game:lobby:deleted", onLobbyDeleted);
       s.off("game:session:deleted", onSessionDeleted);
       unsubProfile();
     };
-  }, [auth?.accessToken, gameRouteId, refresh, sessionId]);
+  }, [auth?.accessToken, gameRouteId, refresh, resetTransientGameUi, router, sessionId]);
+
+  useEffect(() => {
+    if (!auth?.accessToken || !session?.lobbyId) return;
+    const s = openGamesSocket(auth.accessToken);
+    const joinCurrentLobby = () => joinLobbyChannel(s, session.lobbyId);
+    s.on("connect", joinCurrentLobby);
+    if (s.connected) joinCurrentLobby();
+    return () => {
+      s.off("connect", joinCurrentLobby);
+    };
+  }, [auth?.accessToken, session?.lobbyId]);
 
   useEffect(() => {
     chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight });
@@ -534,13 +649,7 @@ export function GameSessionClient({
 
   async function startFromCurrentLobby(restart: boolean) {
     if (!auth?.accessToken || !session?.lobbyId) return;
-    if (restart && session.status === "ACTIVE") {
-      const confirmed =
-        typeof window === "undefined"
-          ? true
-          : window.confirm("Restart this game from the beginning?");
-      if (!confirmed) return;
-    }
+    setShowRestartConfirm(false);
     setBusy(true);
     setError("");
     try {
@@ -548,12 +657,21 @@ export function GameSessionClient({
       const next = socket.connected
         ? await postGameLobbyStart(socket, session.lobbyId, {}, restart)
         : await startGameSession(auth.accessToken, session.lobbyId, {}, restart);
-      window.location.href = `/app/games/${gameTypeToId(next.gameType)}/session/${next.id}`;
+      openSessionRoute(next);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : restart ? "Could not restart game." : "Could not replay game.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function requestRestartGame() {
+    if (!session) return;
+    if (session.status === "ACTIVE") {
+      setShowRestartConfirm(true);
+      return;
+    }
+    void startFromCurrentLobby(true);
   }
 
   async function leaveCurrentTable() {
@@ -802,7 +920,7 @@ export function GameSessionClient({
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => void startFromCurrentLobby(true)}
+                    onClick={requestRestartGame}
                     className={cx(homeBtnSecondary, "suzi-game-side-btn suzi-game-side-btn--secondary w-full px-3 disabled:opacity-60")}
                     style={{ height: "var(--btn-h-sm)" }}
                   >
@@ -1066,6 +1184,14 @@ export function GameSessionClient({
           winnerName={winnerDisplay}
           gameName={currentGameName}
           onClose={() => setDismissedWinnerKey(winnerCelebrationKey)}
+        />
+      ) : null}
+      {showRestartConfirm ? (
+        <GameRestartConfirmPopup
+          gameName={currentGameName}
+          busy={busy}
+          onCancel={() => setShowRestartConfirm(false)}
+          onConfirm={() => void startFromCurrentLobby(true)}
         />
       ) : null}
     </section>

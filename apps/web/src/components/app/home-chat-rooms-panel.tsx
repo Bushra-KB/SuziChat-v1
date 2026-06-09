@@ -11,7 +11,6 @@ import {
   cancelRoomJoinRequest,
   createRoom,
   joinRoom,
-  leaveRoom,
   listRoomCategories,
   listRooms,
   listRoomsForMe,
@@ -569,40 +568,6 @@ export function HomeChatRoomsPanel({
     }
   }
 
-  async function handleLeaveRoom(room: HomeRoom) {
-    const session = getStoredAuthSession();
-    if (!session?.accessToken) {
-      return;
-    }
-    if (room.isOwner) {
-      return;
-    }
-    setActingRoomId(room.id);
-    try {
-      await leaveRoom(session.accessToken, room.id);
-      setSourceRooms((prev) =>
-        prev.map((row) => {
-          if (row.id !== room.id) {
-            return row;
-          }
-          return {
-            ...row,
-            isMember: false,
-            isOwner: false,
-            hasPendingRequest: false,
-            totalMembers: Math.max(0, row.totalMembers - 1),
-            action: nextGuestAction({
-              privacy: row.privacy,
-              hasPendingRequest: false,
-            }),
-          };
-        }),
-      );
-    } finally {
-      setActingRoomId(null);
-    }
-  }
-
   function primaryActionLabel(room: HomeRoom) {
     if (room.action === "open") {
       return t("common.open");
@@ -633,7 +598,6 @@ export function HomeChatRoomsPanel({
 
   function renderRoomRow(room: HomeRoom, index: number) {
     const busy = actingRoomId === room.id;
-    const showLeave = room.isMember && !room.isOwner && !room.isBlocked;
     const showCancelRequest = room.hasPendingRequest && !room.isMember && !room.isBlocked;
 
     return (
@@ -706,18 +670,6 @@ export function HomeChatRoomsPanel({
               style={{ height: "var(--btn-h-sm)" }}
             >
               {t("common.cancel")}
-            </button>
-          ) : null}
-
-          {showLeave ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void handleLeaveRoom(room)}
-              className={cx(homeBtnSecondary, "px-2.5")}
-              style={{ height: "var(--btn-h-sm)" }}
-            >
-              {t("rooms.leave")}
             </button>
           ) : null}
 

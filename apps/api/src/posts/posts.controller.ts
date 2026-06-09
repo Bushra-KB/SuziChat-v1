@@ -59,7 +59,7 @@ export class PostsController {
     const n = take ? Number.parseInt(take, 10) : 40;
     return this.postsService.listPosts(
       kind,
-      Number.isFinite(n) ? Math.min(80, Math.max(1, n)) : 40,
+      Number.isFinite(n) ? Math.min(100, Math.max(1, n)) : 40,
     );
   }
 
@@ -74,7 +74,7 @@ export class PostsController {
     return this.postsService.listPostsForUser(
       user.id,
       kind,
-      Number.isFinite(n) ? Math.min(80, Math.max(1, n)) : 40,
+      Number.isFinite(n) ? Math.min(100, Math.max(1, n)) : 40,
     );
   }
 
@@ -89,7 +89,7 @@ export class PostsController {
     return this.postsService.listAuthoredPosts(
       user.id,
       kind,
-      Number.isFinite(n) ? Math.min(80, Math.max(1, n)) : 40,
+      Number.isFinite(n) ? Math.min(100, Math.max(1, n)) : 40,
     );
   }
 
@@ -106,7 +106,7 @@ export class PostsController {
       user.id,
       userId,
       kind,
-      Number.isFinite(n) ? Math.min(80, Math.max(1, n)) : 40,
+      Number.isFinite(n) ? Math.min(100, Math.max(1, n)) : 40,
     );
   }
 

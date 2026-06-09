@@ -988,7 +988,7 @@ export class GamesService implements OnModuleDestroy {
         seats: true,
         sessions: {
           where: { status: GameSessionStatus.ACTIVE },
-          take: 1,
+          select: { id: true },
         },
       },
     });
@@ -1006,6 +1006,10 @@ export class GamesService implements OnModuleDestroy {
         'Only lobby owner can restart an active session.',
       );
     }
+    const replacedSessionIds =
+      hasActiveSession && dto.restart
+        ? lobby.sessions.map((session) => session.id)
+        : [];
     if (hasActiveSession && dto.restart) {
       await this.prisma.gameSession.updateMany({
         where: { lobbyId, status: GameSessionStatus.ACTIVE },
@@ -1067,11 +1071,25 @@ export class GamesService implements OnModuleDestroy {
       await this.createPokerHandStateRow(session.id, state);
       await this.syncPokerSeatStacks(lobbyId, state);
     }
+    const startedPayload = {
+      sessionId: session.id,
+      lobbyId,
+      gameType: lobby.gameType,
+      restart: Boolean(dto.restart),
+      replacedSessionIds,
+    };
     this.realtimeEvents.emitToChannel(
       this.lobbyChannel(lobbyId),
       'game:session:started',
-      { sessionId: session.id, lobbyId },
+      startedPayload,
     );
+    for (const replacedSessionId of replacedSessionIds) {
+      this.realtimeEvents.emitToChannel(
+        this.sessionChannel(replacedSessionId),
+        'game:session:started',
+        startedPayload,
+      );
+    }
     this.emitLobbyListRefresh(lobby.gameType);
     const started = await this.fetchSessionSnapshot(session.id);
     this.emitSessionState(started);
