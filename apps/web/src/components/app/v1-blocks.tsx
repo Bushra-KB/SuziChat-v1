@@ -52,7 +52,7 @@ export function PersonRow({
 
 export function RoomDirectoryCard({
   room,
-  href = `/app/rooms/${room.id}`,
+  href = `/app/rooms/view?r=${encodeURIComponent(room.id)}`,
 }: {
   room: Room;
   href?: string;

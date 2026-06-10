@@ -111,7 +111,7 @@ export function RoomsCatalogPageClient() {
     }
     const action = room.actor?.action ?? (room.privacy.toLowerCase() === "public" ? "join" : "request");
     if (action === "open") {
-      router.push(`/app/rooms/${encodeURIComponent(room.slug)}`);
+      router.push(`/app/rooms/view?r=${encodeURIComponent(room.slug)}`);
       return;
     }
     if (action === "requested") {
@@ -213,7 +213,7 @@ export function RoomsCatalogPageClient() {
                     </div>
                     <div className="min-w-0">
                       <Link
-                        href={`/app/rooms/${encodeURIComponent(room.slug)}`}
+                        href={`/app/rooms/view?r=${encodeURIComponent(room.slug)}`}
                         className={listTitleLink}
                       >
                         {room.name}

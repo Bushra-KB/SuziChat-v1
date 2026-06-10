@@ -864,7 +864,7 @@ export function HomeFriendsPanel() {
                 DM
               </Link>
               <Link
-                href={`/app/profile/u/${encodeURIComponent(profileUser.id)}`}
+                href={`/app/profile/view?uid=${encodeURIComponent(profileUser.id)}`}
                 className={cx(listActionBtn, "border-fuchsia-300/30 bg-fuchsia-500/16 px-3 py-1.5 text-pink-100")}
                 onClick={() => setProfileUser(null)}
               >

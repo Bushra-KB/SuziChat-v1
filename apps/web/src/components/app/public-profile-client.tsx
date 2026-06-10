@@ -646,7 +646,7 @@ export function PublicProfileClient(props: { username?: string; userId?: string 
                 return (
                   <Link
                     key={room.id}
-                    href={`/app/rooms/${encodeURIComponent(room.slug)}`}
+                    href={`/app/rooms/view?r=${encodeURIComponent(room.slug)}`}
                     className="suzi-public-room-card group"
                   >
                     <span className="suzi-public-room-thumb">

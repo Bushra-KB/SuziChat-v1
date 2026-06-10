@@ -278,7 +278,7 @@ export function GameSessionClient({
     (next: ApiGameSession) => {
       resetTransientGameUi();
       setSession(next);
-      const href = `/app/games/${gameTypeToId(next.gameType)}/session/${next.id}`;
+      const href = `/app/games/${gameTypeToId(next.gameType)}/session?s=${encodeURIComponent(next.id)}`;
       if (next.id !== sessionId) {
         router.replace(href);
       }
@@ -429,7 +429,7 @@ export function GameSessionClient({
       if (payload.sessionId === sessionId) return;
       resetTransientGameUi();
       setBusy(false);
-      router.replace(`/app/games/${current.gameId}/session/${payload.sessionId}`);
+      router.replace(`/app/games/${current.gameId}/session?s=${encodeURIComponent(payload.sessionId)}`);
     };
     const onLobbyDeleted = (payload: { lobbyId?: string }) => {
       const current = currentLobbyRef.current;

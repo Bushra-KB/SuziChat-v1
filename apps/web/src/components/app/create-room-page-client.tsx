@@ -34,7 +34,7 @@ export function CreateRoomPageClient() {
         category: category.trim(),
         privacy,
       });
-      router.push(`/app/rooms/${encodeURIComponent(room.slug)}`);
+      router.push(`/app/rooms/view?r=${encodeURIComponent(room.slug)}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Could not create room.");
     } finally {

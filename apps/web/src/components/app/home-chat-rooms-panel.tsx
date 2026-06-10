@@ -478,7 +478,7 @@ export function HomeChatRoomsPanel({
       return;
     }
     if (room.action === "open") {
-      router.push(`/app/rooms/${encodeURIComponent(room.id)}`);
+      router.push(`/app/rooms/view?r=${encodeURIComponent(room.id)}`);
       return;
     }
     if (room.action === "blocked" || room.action === "requested") {
@@ -612,7 +612,7 @@ export function HomeChatRoomsPanel({
         )}
       >
         <Link
-          href={`/app/rooms/${room.id}`}
+          href={`/app/rooms/view?r=${encodeURIComponent(room.id)}`}
           className={cx(
             "relative shrink-0 overflow-hidden rounded-[0.7rem] border border-cyan-300/24",
             variant === "dashboard" && "suzi-home-chat-room-thumb",
@@ -639,7 +639,7 @@ export function HomeChatRoomsPanel({
 
         <div className="min-w-0 flex-1">
           <Link
-            href={`/app/rooms/${room.id}`}
+            href={`/app/rooms/view?r=${encodeURIComponent(room.id)}`}
             className={cx(listTitleLinkCyan, "block truncate")}
           >
             {room.name}

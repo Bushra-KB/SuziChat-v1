@@ -32,7 +32,7 @@ export function resolveChatSender(senderId: string): {
     return {
       fullName: person.name,
       avatar: person.avatar,
-      profileHref: `/app/profile/${encodeURIComponent(slug)}`,
+      profileHref: `/app/profile/view?u=${encodeURIComponent(slug)}`,
     };
   }
 

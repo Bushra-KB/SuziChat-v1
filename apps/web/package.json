@@ -5,11 +5,18 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:mobile": "cross-env BUILD_TARGET=mobile NEXT_PUBLIC_API_BASE_URL=https://suzichat.com/api next build",
     "start": "next start",
     "lint": "eslint",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "cap:sync": "cross-env BUILD_TARGET=mobile NEXT_PUBLIC_API_BASE_URL=https://suzichat.com/api next build && cap sync",
+    "cap:android": "cap open android",
+    "cap:ios": "cap open ios"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/ios": "^8.4.0",
     "chess.js": "^1.4.0",
     "livekit-client": "^2.19.1",
     "next": "16.1.6",
@@ -20,11 +27,13 @@
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.0",
     "@playwright/test": "^1.49.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "eslint-plugin-import": "^2.32.0",
