@@ -66,10 +66,15 @@ export function RoomLivePanel({
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const roomRef = useRef<Room | null>(null);
   const localTracksRef = useRef<LocalTrack[]>([]);
+  const localVideoTrackRef = useRef<LocalTrack | null>(null);
+  const remoteVideoTrackRef = useRef<RemoteTrack | null>(null);
+  const remoteAudioTrackRef = useRef<RemoteTrack | null>(null);
   const localVideoRef = useRef<HTMLDivElement | null>(null);
   const remoteVideoRef = useRef<HTMLDivElement | null>(null);
   const remoteAudioRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
+  // Bumped whenever a track is (un)published so the mount effect re-runs.
+  const [trackTick, setTrackTick] = useState(0);
 
   const isHost = token.role === "host";
 
@@ -85,27 +90,28 @@ export function RoomLivePanel({
     const room = new Room({ adaptiveStream: true, dynacast: true });
     roomRef.current = room;
 
+    // Record the subscribed track and let the mount effect attach it to the
+    // container for the current view mode. Attaching here directly would break
+    // on mode switches, because the DOM node it was attached to is replaced.
     const attachTrack = (track: RemoteTrack) => {
-      const element = track.attach();
-      element.autoplay = true;
-      if (element instanceof HTMLVideoElement) {
-        element.playsInline = true;
-      }
-      element.className = track.kind === "video" ? "h-full w-full object-contain" : "hidden";
-      const target = track.kind === "video" ? remoteVideoRef.current : remoteAudioRef.current;
       if (track.kind === "video") {
-        target?.replaceChildren(element);
+        remoteVideoTrackRef.current = track;
         setHasRemoteVideo(true);
-        return;
+      } else {
+        remoteAudioTrackRef.current = track;
       }
-      target?.appendChild(element);
+      setTrackTick((tick) => tick + 1);
     };
 
     const detachTrack = (track: RemoteTrack) => {
       track.detach().forEach((element) => element.remove());
       if (track.kind === "video") {
+        remoteVideoTrackRef.current = null;
         setHasRemoteVideo(false);
+      } else {
+        remoteAudioTrackRef.current = null;
       }
+      setTrackTick((tick) => tick + 1);
     };
     const onParticipantConnected = () => pushActivity("Someone joined the live.");
     const onParticipantDisconnected = () => pushActivity("Someone left the live.");
@@ -129,16 +135,10 @@ export function RoomLivePanel({
           for (const track of tracks) {
             await room.localParticipant.publishTrack(track);
             if (track.kind === "video") {
-              const element = track.attach();
-              element.muted = true;
-              element.autoplay = true;
-              if (element instanceof HTMLVideoElement) {
-                element.playsInline = true;
-              }
-              element.className = "h-full w-full object-cover";
-              localVideoRef.current?.replaceChildren(element);
+              localVideoTrackRef.current = track;
             }
           }
+          setTrackTick((tick) => tick + 1);
           setStatus("You are live");
           pushActivity("You started the live.");
           return;
@@ -163,10 +163,53 @@ export function RoomLivePanel({
         track.stop();
       });
       localTracksRef.current = [];
+      localVideoTrackRef.current = null;
+      remoteVideoTrackRef.current = null;
+      remoteAudioTrackRef.current = null;
       room.disconnect();
       roomRef.current = null;
     };
   }, [pushActivity, token]);
+
+  // Attach known tracks to the containers for the current view mode. Runs on
+  // every mode change and whenever a track is (un)published, so switching
+  // docked/fullscreen/minimized re-binds the video to the freshly rendered DOM
+  // node instead of relying on a one-time attach that re-renders discard.
+  useEffect(() => {
+    const localTrack = localVideoTrackRef.current;
+    if (localTrack && localVideoRef.current) {
+      localTrack.detach().forEach((element) => element.remove());
+      const element = localTrack.attach();
+      element.muted = true;
+      element.autoplay = true;
+      if (element instanceof HTMLVideoElement) {
+        element.playsInline = true;
+      }
+      element.className = "h-full w-full object-cover";
+      localVideoRef.current.replaceChildren(element);
+    }
+
+    const remoteVideoTrack = remoteVideoTrackRef.current;
+    if (remoteVideoTrack && remoteVideoRef.current) {
+      remoteVideoTrack.detach().forEach((element) => element.remove());
+      const element = remoteVideoTrack.attach();
+      element.autoplay = true;
+      if (element instanceof HTMLVideoElement) {
+        element.playsInline = true;
+      }
+      element.className = "h-full w-full object-contain";
+      remoteVideoRef.current.replaceChildren(element);
+    }
+
+    const remoteAudioTrack = remoteAudioTrackRef.current;
+    if (remoteAudioTrack && remoteAudioRef.current) {
+      remoteAudioTrack.detach().forEach((element) => element.remove());
+      const element = remoteAudioTrack.attach();
+      element.autoplay = true;
+      element.className = "hidden";
+      remoteAudioRef.current.replaceChildren(element);
+    }
+  }, [mode, trackTick]);
 
   // Keep the card on-screen when the viewport resizes. Until the user drags,
   // `pos` stays null and the card sits in the bottom-right corner via CSS.
