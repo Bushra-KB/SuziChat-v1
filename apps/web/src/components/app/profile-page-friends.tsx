@@ -199,7 +199,7 @@ export function ProfilePageFriendsSection({
                   </div>
                   <div className="min-w-0 flex-1">
                     <Link
-                      href={`/app/profile/u/${encodeURIComponent(friend.id)}`}
+                      href={`/app/profile/view?uid=${encodeURIComponent(friend.id)}`}
                       className={cx(listTitleLink, "block truncate")}
                     >
                       {displayName(friend)}

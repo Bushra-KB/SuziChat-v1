@@ -246,7 +246,7 @@ export function GameLobbyClient({ gameId, invitedLobbyId = "" }: { gameId: strin
       const session = socket.connected
         ? await postGameLobbyStart(socket, lobbyId)
         : await startGameSession(auth.accessToken, lobbyId);
-      router.push(`/app/games/${gameTypeToId(session.gameType)}/session/${session.id}`);
+      router.push(`/app/games/${gameTypeToId(session.gameType)}/session?s=${encodeURIComponent(session.id)}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Could not start session.");
     } finally {
@@ -529,7 +529,7 @@ export function GameLobbyClient({ gameId, invitedLobbyId = "" }: { gameId: strin
                   <div data-section="actions" className="relative z-10 mt-2 flex shrink-0 items-center justify-center gap-1.5">
                     {activeSession ? (
                       <Link
-                        href={`/app/games/${gameTypeToId(lobby.gameType)}/session/${activeSession.id}`}
+                        href={`/app/games/${gameTypeToId(lobby.gameType)}/session?s=${encodeURIComponent(activeSession.id)}`}
                         className={cx(homeBtnPrimary, "flex-1 px-2 text-center")}
                         style={{ height: "var(--btn-h-sm)" }}
                       >

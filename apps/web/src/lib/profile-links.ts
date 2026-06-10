@@ -6,13 +6,13 @@
 export function publicProfileHref(username: string, opts?: { userId?: string }): string {
   const id = opts?.userId?.trim();
   if (id) {
-    return `/app/profile/u/${encodeURIComponent(id)}`;
+    return `/app/profile/view?uid=${encodeURIComponent(id)}`;
   }
   const u = username.trim();
   if (!u) {
     return "/app";
   }
-  return `/app/profile/${encodeURIComponent(u)}`;
+  return `/app/profile/view?u=${encodeURIComponent(u)}`;
 }
 
 /** Resolve profile URL from reel UI model (API-backed reels include `authorId` / `authorUsername`). */

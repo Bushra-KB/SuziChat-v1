@@ -66,7 +66,7 @@ export function EditRoomPageClient({ roomSlug }: { roomSlug: string }) {
         privacy,
       });
       setRoom(updated);
-      router.push(`/app/rooms/${encodeURIComponent(updated.slug)}`);
+      router.push(`/app/rooms/view?r=${encodeURIComponent(updated.slug)}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Could not save room.");
     } finally {
@@ -140,7 +140,7 @@ export function EditRoomPageClient({ roomSlug }: { roomSlug: string }) {
             </button>
             <button
               type="button"
-              onClick={() => router.push(`/app/rooms/${encodeURIComponent(roomSlug)}`)}
+              onClick={() => router.push(`/app/rooms/view?r=${encodeURIComponent(roomSlug)}`)}
               className="suzi-secondary-btn px-5 py-3 text-sm"
             >
               Cancel

@@ -1,0 +1,6 @@
+/build/*
+!/build/.npmkeep
+
+# Capacitor web bundle & generated config — regenerate with `cap sync`
+/src/main/assets/public
+/src/main/assets/capacitor.config.json
