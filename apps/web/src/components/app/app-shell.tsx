@@ -864,6 +864,15 @@ export function AppShell({
                   );
                 })}
               </nav>
+              <Link
+                href="/app/delete-account"
+                className="mx-3 mb-1 flex w-[calc(100%-1.5rem)] items-center gap-3 rounded-[0.95rem] px-3 text-sm text-pink-100 suzi-tap-row hover:bg-pink-400/12 hover:text-white"
+              >
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-pink-400/14">
+                  <Icon path="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" className="h-4.5 w-4.5" />
+                </span>
+                <span className="font-medium">Delete account</span>
+              </Link>
               <button
                 type="button"
                 onClick={onLogout}
@@ -1229,6 +1238,14 @@ export function AppShell({
                   <span>{t("shell.inbox")}</span>
                 </Link>
                 <div className="my-1 h-px bg-[var(--border-soft)]" />
+                <Link
+                  href="/app/delete-account"
+                  onClick={() => setIsAccountOpen(false)}
+                  className={shellDropdownItem}
+                >
+                  <Icon path="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" className={shellDropdownIcon} />
+                  <span>Delete account</span>
+                </Link>
                 <button
                   type="button"
                   onClick={onLogout}

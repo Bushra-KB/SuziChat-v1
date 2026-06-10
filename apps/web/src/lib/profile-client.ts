@@ -55,3 +55,10 @@ export function updateMyProfile(
     body: JSON.stringify(payload),
   });
 }
+
+/** Permanently deletes the signed-in user's account and all associated data. */
+export function deleteMyAccount(accessToken: string) {
+  return request<{ ok: true }>("/v1/users/me", accessToken, {
+    method: "DELETE",
+  });
+}

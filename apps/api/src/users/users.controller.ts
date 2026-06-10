@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -139,5 +140,11 @@ export class UsersController {
     );
     this.emitProfileUpdate(profile);
     return profile;
+  }
+
+  /** Permanently deletes the authenticated user's account and all their data. */
+  @Delete('me')
+  deleteMyAccount(@CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.deleteMyAccount(user.id);
   }
 }
