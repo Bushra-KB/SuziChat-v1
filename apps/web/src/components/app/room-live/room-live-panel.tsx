@@ -87,7 +87,11 @@ export function RoomLivePanel({
   // subscribed tracks are never torn down or re-prompted.
   useEffect(() => {
     let cancelled = false;
-    const room = new Room({ adaptiveStream: true, dynacast: true });
+    // adaptiveStream/dynacast scale the subscribed quality to the video
+    // element's size and only publish the layers in demand. In the small docked
+    // view that drops the high layer, so maximizing a watched stream showed
+    // black. Disable them so viewers always receive the full stream at any size.
+    const room = new Room({ adaptiveStream: false, dynacast: false });
     roomRef.current = room;
 
     // Record the subscribed track and let the mount effect attach it to the
@@ -176,39 +180,31 @@ export function RoomLivePanel({
   // docked/fullscreen/minimized re-binds the video to the freshly rendered DOM
   // node instead of relying on a one-time attach that re-renders discard.
   useEffect(() => {
-    const localTrack = localVideoTrackRef.current;
-    if (localTrack && localVideoRef.current) {
-      localTrack.detach().forEach((element) => element.remove());
-      const element = localTrack.attach();
-      element.muted = true;
+    // Reuse the already-attached media element and just move it into the current
+    // mode's container (appendChild moves a node without interrupting playback),
+    // falling back to a fresh attach the first time.
+    const bind = (
+      track: LocalTrack | RemoteTrack | null,
+      container: HTMLDivElement | null,
+      className: string,
+      muted: boolean,
+    ) => {
+      if (!track || !container) return;
+      const element = track.attachedElements[0] ?? track.attach();
+      if (muted) element.muted = true;
       element.autoplay = true;
       if (element instanceof HTMLVideoElement) {
         element.playsInline = true;
       }
-      element.className = "h-full w-full object-cover";
-      localVideoRef.current.replaceChildren(element);
-    }
-
-    const remoteVideoTrack = remoteVideoTrackRef.current;
-    if (remoteVideoTrack && remoteVideoRef.current) {
-      remoteVideoTrack.detach().forEach((element) => element.remove());
-      const element = remoteVideoTrack.attach();
-      element.autoplay = true;
-      if (element instanceof HTMLVideoElement) {
-        element.playsInline = true;
+      element.className = className;
+      if (element.parentElement !== container) {
+        container.appendChild(element);
       }
-      element.className = "h-full w-full object-contain";
-      remoteVideoRef.current.replaceChildren(element);
-    }
+    };
 
-    const remoteAudioTrack = remoteAudioTrackRef.current;
-    if (remoteAudioTrack && remoteAudioRef.current) {
-      remoteAudioTrack.detach().forEach((element) => element.remove());
-      const element = remoteAudioTrack.attach();
-      element.autoplay = true;
-      element.className = "hidden";
-      remoteAudioRef.current.replaceChildren(element);
-    }
+    bind(localVideoTrackRef.current, localVideoRef.current, "h-full w-full object-cover", true);
+    bind(remoteVideoTrackRef.current, remoteVideoRef.current, "h-full w-full object-contain", false);
+    bind(remoteAudioTrackRef.current, remoteAudioRef.current, "hidden", false);
   }, [mode, trackTick]);
 
   // Keep the card on-screen when the viewport resizes. Until the user drags,
