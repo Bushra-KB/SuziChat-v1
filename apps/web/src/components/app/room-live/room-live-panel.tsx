@@ -200,6 +200,10 @@ export function RoomLivePanel({
       if (element.parentElement !== container) {
         container.appendChild(element);
       }
+      // Moving a <video> in the DOM can pause it in some browsers; resume.
+      if (element instanceof HTMLVideoElement) {
+        void element.play().catch(() => undefined);
+      }
     };
 
     bind(localVideoTrackRef.current, localVideoRef.current, "h-full w-full object-cover", true);
@@ -481,18 +485,15 @@ export function RoomLivePanel({
           onClick={mode === "docked" ? expandFromVideo : undefined}
         >
           <div ref={remoteAudioRef} />
-          {isHost ? (
-            <div ref={localVideoRef} className="h-full w-full" />
-          ) : (
-            <div className="relative h-full w-full overflow-hidden bg-black">
-              <div ref={remoteVideoRef} className="absolute inset-0" />
-              {!hasRemoteVideo ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/[0.04] text-sm text-slate-300">
-                  Waiting for host video…
-                </div>
-              ) : null}
+          {/* Host and viewer share the same flat container shape — the viewer
+              previously wrapped the video in an absolutely-positioned layer,
+              which painted black inside the fullscreen card's CSS transform. */}
+          <div ref={isHost ? localVideoRef : remoteVideoRef} className="h-full w-full" />
+          {!isHost && !hasRemoteVideo ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/[0.04] text-sm text-slate-300">
+              Waiting for host video…
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </>
