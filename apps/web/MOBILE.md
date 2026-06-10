@@ -67,14 +67,16 @@ The native app's web origin is **not** `suzichat.com` — it is `https://localho
 gateway at `suzichat.com` must allow these origins, or login, data, and realtime
 (chat/calls/live) will fail.
 
-Add to the API's allowed origins (e.g. `CORS_ORIGINS`) and the Socket.IO CORS config:
+**This is config-only — no code change.** Both the REST API and the Socket.IO gateway
+read the same `CORS_ORIGINS` env var (comma-separated allowlist). On the server that
+hosts `suzichat.com`, append the two Capacitor origins to `CORS_ORIGINS` (in
+`infra/docker/.env.prod`) and restart/redeploy the API:
 
 ```
-https://localhost
-capacitor://localhost
+CORS_ORIGINS=https://suzichat.com,https://localhost,capacitor://localhost
 ```
 
-This is a backend/deploy change on the server that hosts `suzichat.com`.
+(Keep the existing `https://suzichat.com` web origin in the list.)
 
 ## 6. Permissions (already configured)
 
