@@ -65,6 +65,20 @@ export class UsersService {
     return user;
   }
 
+  async deleteMyAccount(userId: string) {
+    // Removes the account and cascades to all of the user's data via the
+    // Prisma relation onDelete rules (messages, posts, dating, games, rooms, …).
+    await this.prisma.user
+      .delete({ where: { id: userId } })
+      .catch((error: { code?: string }) => {
+        // Already deleted — treat as success (idempotent).
+        if (error?.code !== 'P2025') {
+          throw error;
+        }
+      });
+    return { ok: true as const };
+  }
+
   async updateMyProfile(userId: string, updateProfileDto: UpdateProfileDto) {
     const current = await this.prisma.user.findUnique({
       where: { id: userId },
