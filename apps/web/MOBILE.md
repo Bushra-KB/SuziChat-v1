@@ -87,17 +87,27 @@ CORS_ORIGINS=https://suzichat.com,https://localhost,capacitor://localhost
 
 These cover voice/video calls, going live, voice messages, and media uploads.
 
-## 7. App icons & splash screen (TODO — apply your branding)
+## 7. App icons & splash screen
 
-The projects currently use Capacitor's default icons. To generate branded assets,
-drop a 1024×1024 PNG at `apps/web/assets/icon.png` (and optional `splash.png`) and run:
+Branded icons are already generated and committed (no more Capacitor placeholder):
+- **iOS:** opaque 1024×1024 `AppIcon-512@2x.png` (no alpha — required by Apple).
+- **Android:** legacy + round `ic_launcher` mipmaps, adaptive `ic_launcher_foreground`,
+  and a brand-colored adaptive background (`#160B39`).
+
+Source artwork lives in `apps/web/assets/` (`icon-only.png`, `icon-foreground.png`,
+`icon-background.png`, `splash.png`, `splash-dark.png`) — the brand violet background
+with the Suzi Chat logo.
+
+To regenerate after changing the artwork (do this on macOS/Linux, where the
+`@capacitor/assets` `sharp` dependency builds cleanly — it fails on Windows):
 
 ```bash
 pnpm --filter web add -D @capacitor/assets
-pnpm --filter web exec capacitor-assets generate --iconBackgroundColor "#160b39"
+pnpm --filter web exec capacitor-assets generate
 ```
 
-Then re-run `pnpm --filter web cap:sync`.
+Then re-run `pnpm --filter web cap:sync`. To swap in fully custom artwork, replace the
+files in `apps/web/assets/` first.
 
 ## 8. Changing the bundle id
 

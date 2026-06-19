@@ -27,6 +27,7 @@
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.4.0",
     "@playwright/test": "^1.49.0",
     "@tailwindcss/postcss": "^4",
