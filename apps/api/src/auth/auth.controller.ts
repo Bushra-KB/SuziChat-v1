@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { AppleAuthDto } from './dto/apple-auth.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
@@ -29,6 +30,11 @@ export class AuthController {
   @Post('google')
   google(@Body() googleAuthDto: GoogleAuthDto) {
     return this.authService.googleAuth(googleAuthDto);
+  }
+
+  @Post('apple')
+  apple(@Body() appleAuthDto: AppleAuthDto) {
+    return this.authService.appleAuth(appleAuthDto);
   }
 
   @Post('refresh')

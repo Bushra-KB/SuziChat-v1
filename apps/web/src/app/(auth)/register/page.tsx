@@ -12,8 +12,13 @@ import {
   validateEmail,
   validatePassword,
 } from "@/components/auth/auth-ui";
+import {
+  AppleAuthButton,
+  type AppleCredential,
+} from "@/components/auth/apple-auth-button";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import {
+  loginWithApple,
   loginWithGoogle,
   register,
   saveAuthSession,
@@ -137,11 +142,14 @@ export default function RegisterPage() {
     setVerificationPreview("");
 
     try {
+      const isoBirthday = birthdayIsoValue();
       const response = await register({
         firstName,
         lastName,
-        birthday: birthdayIsoValue(),
-        gender: gender || "PREFER_NOT_TO_SAY",
+        // Optional fields are omitted entirely when blank so the API treats them
+        // as not provided (App Store Guideline 5.1.1).
+        birthday: isoBirthday || undefined,
+        gender: gender || undefined,
         email,
         password,
         isAdultConfirmed,
@@ -159,11 +167,12 @@ export default function RegisterPage() {
   }
 
   function validateForm(): RegisterErrors {
+    // Birthday is optional (App Store Guideline 5.1.1). Only validate the value
+    // when the user has actually filled in all three dropdowns. Age is gated by
+    // the required "I confirm that I am 18+" checkbox below.
     const birthday = birthdayIsoValue();
     let birthdayError = "";
-    if (!birthday) {
-      birthdayError = "Birthday is required.";
-    } else {
+    if (birthday) {
       const birthDate = new Date(`${birthday}T00:00:00.000Z`);
       const now = new Date();
       const minAdultDate = new Date(
@@ -182,7 +191,8 @@ export default function RegisterPage() {
       firstName: firstName.trim() ? "" : "First name is required.",
       lastName: lastName.trim() ? "" : "Last name is required.",
       birthday: birthdayError,
-      gender: gender ? "" : "Gender is required.",
+      // Gender is optional (App Store Guideline 5.1.1).
+      gender: "",
       email: validateEmail(email) ? "" : "Enter a valid email address.",
       password: validatePassword(password) ? "" : "Password must be at least 8 characters.",
       confirmPassword: password === confirmPassword ? "" : "Passwords do not match.",
@@ -227,6 +237,43 @@ export default function RegisterPage() {
     [isAdultConfirmed, privacyAccepted, router, termsAccepted],
   );
 
+  const handleAppleCredential = useCallback(
+    async (credential: AppleCredential) => {
+      const nextErrors = {
+        adult: isAdultConfirmed ? "" : "Confirm that you are 18+.",
+        terms: termsAccepted ? "" : "Accept the terms to continue.",
+        privacy: privacyAccepted ? "" : "Accept the privacy policy to continue.",
+      };
+      setErrors(nextErrors);
+      if (Object.values(nextErrors).some(Boolean)) {
+        setStatus("error");
+        setMessage("Accept the age, terms, and privacy confirmations before Apple signup.");
+        return;
+      }
+      setStatus("loading");
+      setMessage("");
+      try {
+        const session = await loginWithApple({
+          identityToken: credential.identityToken,
+          firstName: credential.firstName,
+          lastName: credential.lastName,
+          isAdultConfirmed,
+          termsAccepted,
+          privacyAccepted,
+        });
+        saveAuthSession(session);
+        setUser(session.user);
+        setStatus("success");
+        setMessage("Account created with Apple.");
+        router.push(session.user.role === "ADMIN" ? "/app/admin" : "/app");
+      } catch (error) {
+        setStatus("error");
+        setMessage(error instanceof Error ? error.message : "Apple signup failed.");
+      }
+    },
+    [isAdultConfirmed, privacyAccepted, router, termsAccepted],
+  );
+
   return (
     <AuthCard
       eyebrow="Register"
@@ -264,7 +311,7 @@ export default function RegisterPage() {
         </div>
 
         <div>
-          <p className={authLabelClass}>Birthday</p>
+          <p className={authLabelClass}>Birthday <span className="font-normal text-blue-100/55">(optional)</span></p>
           <div className="mt-2 grid gap-3 sm:grid-cols-3">
             <label className="block">
               <select
@@ -313,13 +360,13 @@ export default function RegisterPage() {
         </div>
 
         <label className="block">
-          <span className={authLabelClass}>Gender</span>
+          <span className={authLabelClass}>Gender <span className="font-normal text-blue-100/55">(optional)</span></span>
           <select
             value={gender}
             onChange={(event) => setGender(event.target.value as typeof gender)}
             className={`mt-2 ${authSelectClass}`}
           >
-            <option value="">Select your gender</option>
+            <option value="">Prefer not to say</option>
             {GENDER_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -427,11 +474,22 @@ export default function RegisterPage() {
 
       <div className="mt-5 space-y-4 text-center sm:space-y-5">
         <AuthDivider />
-        <GoogleAuthButton
-          mode="signup"
-          disabled={status === "loading"}
-          onCredential={handleGoogleCredential}
-        />
+        <div className="flex flex-col items-center gap-3">
+          <GoogleAuthButton
+            mode="signup"
+            disabled={status === "loading"}
+            onCredential={handleGoogleCredential}
+          />
+          <AppleAuthButton
+            mode="signup"
+            disabled={status === "loading"}
+            onCredential={handleAppleCredential}
+            onError={(msg) => {
+              setStatus("error");
+              setMessage(msg);
+            }}
+          />
+        </div>
       </div>
 
       {message ? (

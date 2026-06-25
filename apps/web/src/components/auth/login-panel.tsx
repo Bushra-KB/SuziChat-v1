@@ -10,9 +10,14 @@ import {
   AuthTextLink,
   PrimaryAuthButton,
 } from "@/components/auth/auth-ui";
+import {
+  AppleAuthButton,
+  type AppleCredential,
+} from "@/components/auth/apple-auth-button";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import {
   login,
+  loginWithApple,
   loginWithGoogle,
   saveAuthSession,
   type AuthUser,
@@ -93,6 +98,29 @@ export function LoginPanel({
     [router],
   );
 
+  const handleAppleCredential = useCallback(
+    async (credential: AppleCredential) => {
+      setStatus("loading");
+      setMessage("");
+      try {
+        const session = await loginWithApple({
+          identityToken: credential.identityToken,
+          firstName: credential.firstName,
+          lastName: credential.lastName,
+        });
+        saveAuthSession(session);
+        setUser(session.user);
+        setStatus("success");
+        setMessage("Signed in with Apple.");
+        router.push(session.user.role === "ADMIN" ? "/app/admin" : "/app");
+      } catch (error) {
+        setStatus("error");
+        setMessage(error instanceof Error ? error.message : "Apple sign-in failed.");
+      }
+    },
+    [router],
+  );
+
   return (
     <div className={className}>
       <AuthCard
@@ -137,11 +165,22 @@ export function LoginPanel({
 
       <div className="mt-5 space-y-4 text-center sm:space-y-5">
         <AuthDivider />
-        <GoogleAuthButton
-          mode="login"
-          disabled={status === "loading"}
-          onCredential={handleGoogleCredential}
-        />
+        <div className="flex flex-col items-center gap-3">
+          <GoogleAuthButton
+            mode="login"
+            disabled={status === "loading"}
+            onCredential={handleGoogleCredential}
+          />
+          <AppleAuthButton
+            mode="login"
+            disabled={status === "loading"}
+            onCredential={handleAppleCredential}
+            onError={(msg) => {
+              setStatus("error");
+              setMessage(msg);
+            }}
+          />
+        </div>
       </div>
 
       {message ? (

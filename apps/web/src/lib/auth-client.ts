@@ -115,8 +115,9 @@ export function clearAuthSession() {
 export async function register(payload: {
   firstName: string;
   lastName: string;
-  birthday: string;
-  gender: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY";
+  // Optional per App Store Guideline 5.1.1 — omitted when the user leaves blank.
+  birthday?: string;
+  gender?: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY";
   email: string;
   password: string;
   isAdultConfirmed: boolean;
@@ -146,6 +147,20 @@ export async function loginWithGoogle(payload: {
   privacyAccepted?: boolean;
 }) {
   return request<AuthSession>("/v1/auth/google", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function loginWithApple(payload: {
+  identityToken: string;
+  firstName?: string;
+  lastName?: string;
+  isAdultConfirmed?: boolean;
+  termsAccepted?: boolean;
+  privacyAccepted?: boolean;
+}) {
+  return request<AuthSession>("/v1/auth/apple", {
     method: "POST",
     body: JSON.stringify(payload),
   });
