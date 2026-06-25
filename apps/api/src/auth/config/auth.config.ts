@@ -26,6 +26,19 @@ export default registerAs('auth', () => ({
     10,
   ),
   googleClientId: process.env.GOOGLE_CLIENT_ID?.trim() || '',
+  // Allowed audiences for "Sign in with Apple" identity tokens. The native
+  // iOS flow issues tokens for the app bundle id (e.g. com.suzichat.app); the
+  // web flow issues tokens for the Apple Service ID (e.g. com.suzichat.web).
+  // Provide both as a comma-separated list in APPLE_CLIENT_IDS, or set the
+  // single APPLE_CLIENT_ID. Defaults to the Capacitor bundle id.
+  appleClientIds: (
+    process.env.APPLE_CLIENT_IDS?.trim() ||
+    process.env.APPLE_CLIENT_ID?.trim() ||
+    'com.suzichat.app'
+  )
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean),
   mail: {
     from:
       process.env.MAIL_FROM?.trim() ||

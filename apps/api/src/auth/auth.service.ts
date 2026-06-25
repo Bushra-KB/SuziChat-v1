@@ -13,10 +13,12 @@ import type { JwtSignOptions, JwtVerifyOptions } from '@nestjs/jwt';
 import { Gender, UserRole } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { OAuth2Client } from 'google-auth-library';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthEmailService } from './auth-email.service';
 import authConfig from './config/auth.config';
 import { RegisterGender } from './dto/register.dto';
+import type { AppleAuthDto } from './dto/apple-auth.dto';
 import type { GoogleAuthDto } from './dto/google-auth.dto';
 import type { LoginDto } from './dto/login.dto';
 import type { RegisterDto } from './dto/register.dto';
@@ -75,6 +77,28 @@ function canExposeAuthTokenPreview() {
   return process.env.NODE_ENV !== 'production';
 }
 
+const APPLE_ISSUER = 'https://appleid.apple.com';
+
+// Apple's public keys for verifying Sign in with Apple identity tokens. The
+// remote JWK set is fetched on first use and cached/rotated by `jose`.
+let appleJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+function getAppleJwks() {
+  if (!appleJwks) {
+    appleJwks = createRemoteJWKSet(
+      new URL('https://appleid.apple.com/auth/keys'),
+    );
+  }
+  return appleJwks;
+}
+
+// Apple may withhold the email on a returning sign-in (and "Hide My Email"
+// users have no reachable inbox), so derive a stable, unique placeholder from
+// the Apple subject when no email is present at account-creation time.
+function appleFallbackEmail(appleId: string) {
+  const sanitized = appleId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  return `apple-${sanitized}@no-reply.suzichat.app`;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -100,8 +124,12 @@ export class AuthService {
   async register(registerDto: RegisterDto) {
     const firstName = normalizeName(registerDto.firstName ?? '');
     const lastName = normalizeName(registerDto.lastName ?? '');
-    const birthday = new Date(registerDto.birthday ?? '');
-    const gender = registerDto.gender as RegisterGender;
+    // Birthday is optional (App Store 5.1.1(v)). Only build a Date when provided.
+    const birthday = registerDto.birthday
+      ? new Date(registerDto.birthday)
+      : null;
+    // Gender is optional (App Store 5.1.1(v)); default to PREFER_NOT_TO_SAY.
+    const gender = registerDto.gender ?? RegisterGender.PREFER_NOT_TO_SAY;
     const email = normalizeEmail(registerDto.email ?? '');
     const password = registerDto.password ?? '';
     const usernameBase = `${firstName}${lastName}` || email.split('@')[0];
@@ -161,7 +189,9 @@ export class AuthService {
       requiresEmailVerification: true,
       emailVerificationTokenExpiresAt: verificationExpiresAt.toISOString(),
       emailVerificationTokenPreview:
-        !verificationSent && canExposeAuthTokenPreview() ? verificationToken : undefined,
+        !verificationSent && canExposeAuthTokenPreview()
+          ? verificationToken
+          : undefined,
       user,
     };
   }
@@ -428,7 +458,9 @@ export class AuthService {
         'If an unverified account exists for this email, a verification link will be sent.',
       emailVerificationTokenExpiresAt: verificationExpiresAt.toISOString(),
       emailVerificationTokenPreview:
-        !verificationSent && canExposeAuthTokenPreview() ? verificationToken : undefined,
+        !verificationSent && canExposeAuthTokenPreview()
+          ? verificationToken
+          : undefined,
     };
   }
 
@@ -525,6 +557,120 @@ export class AuthService {
         googleId,
         passwordHash,
         isAdultConfirmed: true,
+        isEmailVerified: true,
+        termsAcceptedAt: now,
+        privacyAcceptedAt: now,
+      },
+      select: publicUserSelect,
+    });
+
+    return this.issueAuthResponse(user);
+  }
+
+  async appleAuth(appleAuthDto: AppleAuthDto) {
+    const identityToken = appleAuthDto.identityToken?.trim();
+
+    if (!identityToken) {
+      throw new BadRequestException('Apple identity token is required');
+    }
+
+    if (!this.config.appleClientIds.length) {
+      throw new BadRequestException('Apple sign-in is not configured');
+    }
+
+    let payload: Record<string, unknown>;
+    try {
+      const verified = await jwtVerify(identityToken, getAppleJwks(), {
+        issuer: APPLE_ISSUER,
+        audience: this.config.appleClientIds,
+      });
+      payload = verified.payload as Record<string, unknown>;
+    } catch {
+      throw new UnauthorizedException('Apple identity token is invalid');
+    }
+
+    const appleId = typeof payload.sub === 'string' ? payload.sub : '';
+    if (!appleId) {
+      throw new UnauthorizedException(
+        'Apple account is missing a subject identifier',
+      );
+    }
+
+    const email = normalizeEmail(
+      typeof payload.email === 'string' ? payload.email : '',
+    );
+    const firstName = normalizeName(appleAuthDto.firstName ?? '');
+    const lastName = normalizeName(appleAuthDto.lastName ?? '');
+    const fullName = `${firstName} ${lastName}`.trim();
+
+    // 1. Returning Apple user — matched by the stable Apple subject id.
+    const existingAppleUser = await this.prisma.user.findUnique({
+      where: { appleId },
+      select: publicUserSelect,
+    });
+
+    if (existingAppleUser) {
+      return this.issueAuthResponse(existingAppleUser);
+    }
+
+    // 2. Existing account with the same email — link Apple to it.
+    if (email) {
+      const existingEmailUser = await this.prisma.user.findUnique({
+        where: { email },
+        select: {
+          ...publicUserSelect,
+          appleId: true,
+        },
+      });
+
+      if (existingEmailUser) {
+        const linkedUser = await this.prisma.user.update({
+          where: { id: existingEmailUser.id },
+          data: {
+            appleId,
+            isEmailVerified: true,
+            emailVerificationTokenHash: null,
+            emailVerificationTokenExpiresAt: null,
+            displayName: existingEmailUser.displayName || fullName || null,
+            firstName: existingEmailUser.firstName || firstName || null,
+            lastName: existingEmailUser.lastName || lastName || null,
+          },
+          select: publicUserSelect,
+        });
+        return this.issueAuthResponse(linkedUser);
+      }
+    }
+
+    // 3. New account — require the same consents as email/Google sign-up.
+    if (
+      !appleAuthDto.isAdultConfirmed ||
+      !appleAuthDto.termsAccepted ||
+      !appleAuthDto.privacyAccepted
+    ) {
+      throw new BadRequestException(
+        'Create account with Apple requires age, terms, and privacy acceptance',
+      );
+    }
+
+    const resolvedEmail = email || appleFallbackEmail(appleId);
+    const username = await this.buildUniqueUsername(
+      fullName || resolvedEmail.split('@')[0] || 'suziuser',
+    );
+    const passwordHash = await this.hashPassword(
+      randomBytes(32).toString('hex'),
+    );
+    const now = new Date();
+    const user = await this.prisma.user.create({
+      data: {
+        email: resolvedEmail,
+        username,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        displayName: fullName || null,
+        appleId,
+        passwordHash,
+        isAdultConfirmed: true,
+        // Apple has already verified the user's identity/email.
         isEmailVerified: true,
         termsAcceptedAt: now,
         privacyAcceptedAt: now,
@@ -667,7 +813,7 @@ export class AuthService {
   private validateRegistrationInput(input: {
     firstName: string;
     lastName: string;
-    birthday: Date;
+    birthday: Date | null;
     gender: RegisterGender;
     email: string;
     password: string;
@@ -675,7 +821,12 @@ export class AuthService {
     termsAccepted: boolean;
     privacyAccepted: boolean;
   }) {
-    if (!input.firstName || !input.lastName || !input.email || !input.password) {
+    if (
+      !input.firstName ||
+      !input.lastName ||
+      !input.email ||
+      !input.password
+    ) {
       throw new BadRequestException(
         'First name, last name, email, and password are required',
       );
@@ -689,20 +840,25 @@ export class AuthService {
       throw new BadRequestException('Last name is too long');
     }
 
-    if (Number.isNaN(input.birthday.getTime())) {
-      throw new BadRequestException('Birthday must be valid');
+    // Birthday is optional (App Store 5.1.1(v)). When supplied it must be valid
+    // and, because Suzi Chat is an adults-only platform, indicate an adult.
+    if (input.birthday !== null) {
+      if (Number.isNaN(input.birthday.getTime())) {
+        throw new BadRequestException('Birthday must be valid');
+      }
+
+      const now = new Date();
+      const minAdultDate = new Date(
+        now.getFullYear() - 18,
+        now.getMonth(),
+        now.getDate(),
+      );
+      if (input.birthday > minAdultDate) {
+        throw new BadRequestException('You must be at least 18 years old');
+      }
     }
 
-    const now = new Date();
-    const minAdultDate = new Date(
-      now.getFullYear() - 18,
-      now.getMonth(),
-      now.getDate(),
-    );
-    if (input.birthday > minAdultDate) {
-      throw new BadRequestException('You must be at least 18 years old');
-    }
-
+    // Gender is optional (App Store 5.1.1(v)); only validate when supplied.
     if (!Object.values(RegisterGender).includes(input.gender)) {
       throw new BadRequestException('Gender must be valid');
     }

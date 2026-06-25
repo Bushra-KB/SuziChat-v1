@@ -1,6 +1,6 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
-import nodemailer from 'nodemailer';
+import nodemailer, { type Transporter } from 'nodemailer';
 import authConfig from './config/auth.config';
 
 type AuthEmailPayload = {
@@ -10,18 +10,50 @@ type AuthEmailPayload = {
 };
 
 @Injectable()
-export class AuthEmailService {
+export class AuthEmailService implements OnModuleInit {
   private readonly logger = new Logger(AuthEmailService.name);
+  private transporter: Transporter | null = null;
 
   constructor(
     @Inject(authConfig.KEY)
     private readonly config: ConfigType<typeof authConfig>,
   ) {}
 
+  onModuleInit() {
+    // Surface a misconfigured mailer at boot instead of silently failing on the
+    // first signup. A missing SMTP setup in production means verification
+    // emails never send and accounts can never be verified (App Store 2.1/2.1a).
+    if (!this.isConfigured) {
+      const message =
+        'SMTP is not configured (SMTP_HOST, SMTP_USER, SMTP_PASS). ' +
+        'Verification and password-reset emails will NOT be delivered.';
+      if (process.env.NODE_ENV === 'production') {
+        this.logger.error(message);
+      } else {
+        this.logger.warn(`${message} Tokens are logged for local testing.`);
+      }
+    }
+  }
+
   get isConfigured() {
     return Boolean(
       this.config.mail.host && this.config.mail.user && this.config.mail.pass,
     );
+  }
+
+  private getTransporter(): Transporter {
+    if (!this.transporter) {
+      this.transporter = nodemailer.createTransport({
+        host: this.config.mail.host,
+        port: this.config.mail.port,
+        secure: this.config.mail.secure,
+        auth: {
+          user: this.config.mail.user,
+          pass: this.config.mail.pass,
+        },
+      });
+    }
+    return this.transporter;
   }
 
   private get canLogSensitiveLinks() {
@@ -88,17 +120,7 @@ export class AuthEmailService {
     }
 
     try {
-      const transport = nodemailer.createTransport({
-        host: this.config.mail.host,
-        port: this.config.mail.port,
-        secure: this.config.mail.secure,
-        auth: {
-          user: this.config.mail.user,
-          pass: this.config.mail.pass,
-        },
-      });
-
-      await transport.sendMail({
+      await this.getTransporter().sendMail({
         from: this.config.mail.from,
         to,
         subject,
@@ -108,7 +130,9 @@ export class AuthEmailService {
       return true;
     } catch (error) {
       const details =
-        error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+        error instanceof Error
+          ? `${error.name}: ${error.message}`
+          : String(error);
       this.logger.error(
         this.canLogSensitiveLinks
           ? `SMTP send failed. ${fallbackLog}. ${details}`
