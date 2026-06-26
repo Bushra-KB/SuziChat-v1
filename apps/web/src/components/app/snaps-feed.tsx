@@ -48,7 +48,7 @@ import {
   trackPostView,
   uploadSnapImage,
 } from "@/lib/posts-client";
-import { validatePostMediaUrl } from "@/lib/post-media-url";
+import { resolvePostMediaUrl, validatePostMediaUrl } from "@/lib/post-media-url";
 import { apiPostToSnap } from "@/lib/post-ui-mappers";
 import { publicProfileHref, snapAuthorProfileHref } from "@/lib/profile-links";
 import { getRealtimeSocket } from "@/lib/realtime-client";
@@ -1489,7 +1489,7 @@ export function SnapsFeed() {
                 )}
               >
                 {createMediaUrl ? (
-                  <img src={createMediaUrl} alt="Snap preview" className="max-h-48 rounded-[0.8rem] object-cover" />
+                  <img src={resolvePostMediaUrl(createMediaUrl)} alt="Snap preview" className="max-h-48 rounded-[0.8rem] object-cover" />
                 ) : (
                   <>
                     <p className="text-sm font-semibold text-cyan-50">Browse, drag & drop, or paste URL</p>
