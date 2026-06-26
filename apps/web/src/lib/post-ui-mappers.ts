@@ -1,6 +1,7 @@
 import type { ApiPost } from "@/lib/posts-client";
 import type { Reel, Snap } from "@/lib/v1-mock-data";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
+import { resolvePostMediaUrl } from "@/lib/post-media-url";
 
 const SNAP_TONES = [
   "",
@@ -42,7 +43,7 @@ export function apiPostToSnap(p: ApiPost): Snap {
     likes: p._count?.likes ?? 0,
     comments: p._count?.comments ?? 0,
     tone,
-    image: p.mediaUrl,
+    image: resolvePostMediaUrl(p.mediaUrl),
     createdAt: p.createdAt,
   };
 }
@@ -65,7 +66,7 @@ export function apiPostToReel(p: ApiPost): Reel {
     views: p._count?.views ?? 0,
     likes: p._count?.likes ?? 0,
     comments: p._count?.comments ?? 0,
-    video: p.mediaUrl,
+    video: resolvePostMediaUrl(p.mediaUrl),
     tone,
     createdAt: p.createdAt,
   };

@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from "@/lib/api-base-url";
+
 const MAX_POST_MEDIA_URL_LENGTH = 12_000;
 
 export function isDataMediaUrl(url: string) {
@@ -25,8 +27,17 @@ export function resolvePostMediaUrl(mediaUrl: string): string {
   if (isHttpMediaUrl(value) || isDataMediaUrl(value) || value.startsWith("blob:")) {
     return value;
   }
+  // Root-relative uploaded media such as "/api/uploads/reels/<file>". On the web
+  // this resolves against the site origin, but inside the native Capacitor
+  // webview the document origin is capacitor://localhost, so the file would 404
+  // (reels show a blank frame stuck at 00:00). Build an absolute URL against the
+  // configured API base instead. The stored path carries an "/api" prefix that
+  // the API serves under "/uploads", and getApiBaseUrl() already targets "/api"
+  // in production, so strip the leading "/api" before appending to the base.
   if (value.startsWith("/")) {
-    return value;
+    const base = getApiBaseUrl().replace(/\/+$/, "");
+    const path = value.replace(/^\/api(?=\/)/, "");
+    return `${base}${path}`;
   }
   return value;
 }

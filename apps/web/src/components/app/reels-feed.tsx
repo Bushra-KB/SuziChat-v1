@@ -49,7 +49,7 @@ import {
   trackPostView,
   uploadReelVideo,
 } from "@/lib/posts-client";
-import { validatePostMediaUrl } from "@/lib/post-media-url";
+import { resolvePostMediaUrl, validatePostMediaUrl } from "@/lib/post-media-url";
 import { apiPostToReel } from "@/lib/post-ui-mappers";
 import { publicProfileHref, reelAuthorProfileHref } from "@/lib/profile-links";
 import { getRealtimeSocket } from "@/lib/realtime-client";
@@ -1779,7 +1779,7 @@ export function ReelsFeed() {
               >
                 {createMediaUrl ? (
                   <video
-                    src={createMediaUrl}
+                    src={resolvePostMediaUrl(createMediaUrl)}
                     className="max-h-48 w-full max-w-md rounded-[0.8rem] object-contain"
                     controls
                     muted
