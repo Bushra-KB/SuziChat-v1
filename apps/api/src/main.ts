@@ -30,7 +30,17 @@ async function bootstrap() {
     }
     next();
   });
-  app.use('/uploads', express.static(uploadsRoot()));
+  // Uploaded media filenames are unique per file, so the bytes at a given URL
+  // never change. Cache aggressively so reels/snaps/avatars are not re-fetched
+  // on every visit (big win for feed load time). express.static keeps byte-range
+  // support, which iOS requires for video playback.
+  app.use(
+    '/uploads',
+    express.static(uploadsRoot(), {
+      maxAge: '365d',
+      immutable: true,
+    }),
+  );
   app.use(json({ limit: '15mb' }));
   app.use(urlencoded({ limit: '15mb', extended: true }));
   app.enableShutdownHooks();

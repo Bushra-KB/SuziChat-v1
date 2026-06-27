@@ -75,7 +75,9 @@ const REEL_MAX_FILE_BYTES = 600 * 1024 * 1024;
 const VIDEO_FILE_ACCEPT =
   "video/*,.mp4,.m4v,.mov,.webm,.mkv,.avi,.3gp,.mpeg,.mpg,.ogv,video/quicktime";
 
-const REELS_FEED_TAKE = 100;
+// The carousel only shows the active card plus a couple of neighbours, so a
+// smaller initial page loads noticeably faster. More can be paginated later.
+const REELS_FEED_TAKE = 30;
 
 type FullscreenDocument = Document & {
   webkitFullscreenElement?: Element | null;
@@ -275,6 +277,7 @@ function formatAuthorLink(author: string, handle: string) {
 export function ReelsFeed() {
   const searchParams = useSearchParams();
   const [displayReels, setDisplayReels] = useState<Reel[]>([]);
+  const [isLoadingReels, setIsLoadingReels] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [autoScrollMode, setAutoScrollMode] = useState(true);
   const [likedByReel, setLikedByReel] = useState<Record<string, boolean>>({});
@@ -406,7 +409,12 @@ export function ReelsFeed() {
         setActiveDuration(0);
         setIsActivePlaying(true);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingReels(false);
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -1322,6 +1330,18 @@ export function ReelsFeed() {
           style={{ touchAction: "none", transformStyle: "preserve-3d" }}
         >
             <div className="suzi-feed-carousel-root" style={{ transformStyle: "preserve-3d" }}>
+              {isLoadingReels && displayReels.length === 0 ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-cyan-100/80">
+                  <span className="h-9 w-9 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-200" />
+                  <span className="text-xs font-medium tracking-wide">Loading reels…</span>
+                </div>
+              ) : null}
+              {!isLoadingReels && displayReels.length === 0 ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-6 text-center text-cyan-100/70">
+                  <span className="text-sm font-semibold text-cyan-50">No reels yet</span>
+                  <span className="text-xs">Be the first to share one.</span>
+                </div>
+              ) : null}
               {displayReels.map((reel, index) => {
                 const offset = getCircularOffset(index, activeIndex, displayReels.length);
                 const layer = getFeedCarouselLayer(offset);
@@ -1392,14 +1412,18 @@ export function ReelsFeed() {
                           aria-label={`${reel.title} active reel`}
                         />
                       ) : (
+                        // Neighbour cards are decorative (heavily dimmed behind
+                        // the active card). Do NOT autoplay or loop them — five
+                        // simultaneous decoders is what makes the active reel
+                        // stutter on mobile. Only the immediate neighbours warm
+                        // their metadata so a swipe starts quickly; far cards
+                        // load nothing until they become active.
                         <video
                           src={reel.video}
                           className="h-full w-full bg-[rgba(6,9,28,0.3)] object-contain"
-                          autoPlay
                           muted
-                          loop
                           playsInline
-                          preload="metadata"
+                          preload={Math.abs(offset) <= 1 ? "metadata" : "none"}
                           aria-label={`${reel.title} reel preview`}
                         />
                       )}

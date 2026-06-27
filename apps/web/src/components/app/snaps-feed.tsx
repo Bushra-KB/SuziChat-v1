@@ -184,6 +184,8 @@ function SnapHeroMedia({
             "suzi-feed-card-media absolute inset-0 h-full w-full bg-[rgba(6,9,28,0.35)]",
             objectClass,
           )}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
           draggable={false}
         />
       );
@@ -207,6 +209,8 @@ function SnapHeroMedia({
         src={src}
         alt={alt}
         className={cx("suzi-feed-card-media absolute inset-0 h-full w-full bg-[rgba(6,9,28,0.35)]", objectClass)}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
         draggable={false}
       />
     );
@@ -227,6 +231,7 @@ function SnapHeroMedia({
 export function SnapsFeed() {
   const searchParams = useSearchParams();
   const [displaySnaps, setDisplaySnaps] = useState<Snap[]>([]);
+  const [isLoadingSnaps, setIsLoadingSnaps] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [autoScrollMode, setAutoScrollMode] = useState(true);
   const [advanceProgress, setAdvanceProgress] = useState(0);
@@ -338,7 +343,12 @@ export function SnapsFeed() {
         setActiveIndex(0);
         setLikedBySnap({});
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingSnaps(false);
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -1101,6 +1111,18 @@ export function SnapsFeed() {
           style={{ touchAction: "none", transformStyle: "preserve-3d" }}
         >
           <div className="suzi-feed-carousel-root" style={{ transformStyle: "preserve-3d" }}>
+            {isLoadingSnaps && displaySnaps.length === 0 ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-cyan-100/80">
+                <span className="h-9 w-9 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-200" />
+                <span className="text-xs font-medium tracking-wide">Loading snaps…</span>
+              </div>
+            ) : null}
+            {!isLoadingSnaps && displaySnaps.length === 0 ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-6 text-center text-cyan-100/70">
+                <span className="text-sm font-semibold text-cyan-50">No snaps yet</span>
+                <span className="text-xs">Be the first to share one.</span>
+              </div>
+            ) : null}
             {displaySnaps.map((snap, index) => {
               const offset = getCircularOffset(index, activeIndex, displaySnaps.length);
               const layer = getFeedCarouselLayer(offset);
