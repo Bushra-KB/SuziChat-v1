@@ -38,6 +38,7 @@ import {
   shellDropdownRowTitle,
 } from "@/components/app/home-typography";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
+import { AdBanner } from "@/components/ads/ad-banner";
 
 const shellDropdownPanel = "suzi-shell-dropdown rounded-[0.85rem] p-1.5";
 
@@ -1312,7 +1313,11 @@ export function AppShell({
               "suzi-feed-shell-frame",
           )}
         >
+          {/* Global top/bottom banners (Ticket A1). shrink-0 so they never eat
+              the page's flexible middle; render nothing until ads are enabled. */}
+          <AdBanner slot="top" className="shrink-0 py-0.5" />
           {children}
+          <AdBanner slot="bottom" className="mt-auto shrink-0 py-0.5" />
         </div>
 
         <footer
