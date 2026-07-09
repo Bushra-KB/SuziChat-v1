@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ExoClickProvider } from "@/components/ads/exoclick-provider";
 
 export const metadata: Metadata = {
   title: "Suzi Chat",
@@ -21,6 +22,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
         <ThemeProvider>{children}</ThemeProvider>
+        <ExoClickProvider />
       </body>
     </html>
   );
