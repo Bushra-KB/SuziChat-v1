@@ -11,6 +11,10 @@ export const metadata: Metadata = {
     shortcut: "/icon.png",
     apple: "/icon.png",
   },
+  // ExoClick site-ownership verification for suzichat.com.
+  other: {
+    "6a97888e-site-verification": "2777a086c02ef9e817d4daadc2f953b3",
+  },
 };
 
 export default function RootLayout({
