@@ -2,8 +2,8 @@
 
 import { useCallback, useRef, useState } from "react";
 import { cx } from "@/components/ui/suzi-primitives";
-import type { DatingDiscoverItem } from "@/lib/dating-client";
-import { cardImageUrl, cardImageUrls, datingDisplayName, getCircularOffset, getLayerForOffset } from "@/components/app/dating/dating-utils";
+import { AdCard } from "@/components/ads/ad-card";
+import { cardImageUrl, cardImageUrls, datingDisplayName, getCircularOffset, getLayerForOffset, type DatingDeckItem } from "@/components/app/dating/dating-utils";
 
 type DragState = {
   pointerId: number | null;
@@ -36,7 +36,7 @@ export function DatingDiscoverDeck({
   onRefresh,
   onOpenProfile,
 }: {
-  deck: DatingDiscoverItem[];
+  deck: DatingDeckItem[];
   activeIndex: number;
   hasProfile: boolean;
   busy: boolean;
@@ -61,7 +61,8 @@ export function DatingDiscoverDeck({
     dragging: false,
     didMove: false,
   });
-  const activeCard = deck[activeIndex] ?? null;
+  const activeItem = deck[activeIndex] ?? null;
+  const activeCard = activeItem?.type === "profile" ? activeItem.item : null;
 
   const setCardPhotoIndex = useCallback((userId: string, index: number, total: number) => {
     if (total <= 1) return;
@@ -222,12 +223,39 @@ export function DatingDiscoverDeck({
           </div>
         ) : (
           <>
-            {deck.map((item, index) => {
+            {deck.map((entry, index) => {
               const offset = getCircularOffset(index, activeIndex, deck.length);
               const layer = getLayerForOffset(offset);
               if (!layer) {
                 return null;
               }
+              if (entry.type === "ad") {
+                return (
+                  <div
+                    key={entry.key}
+                    className="pointer-events-none absolute inset-0 flex items-center justify-center [transform-style:preserve-3d]"
+                  >
+                    <article
+                      className={cx(
+                        "relative aspect-[9/16] overflow-hidden rounded-[1.45rem] border transition-all duration-500 ease-out",
+                        layer.isActive
+                          ? "pointer-events-auto h-[92%] max-h-[44rem] w-auto max-w-[86vw] border-fuchsia-200/80 shadow-[0_0_60px_rgba(232,77,255,0.36)] sm:max-w-[26rem]"
+                          : "h-[84%] max-h-[39rem] w-auto max-w-[78vw] border-fuchsia-300/14 brightness-[0.54] saturate-[0.8] sm:max-w-[23rem]",
+                      )}
+                      style={{
+                        transform: layer.transform,
+                        opacity: layer.opacity,
+                        zIndex: layer.zIndex,
+                        transformStyle: "preserve-3d",
+                        willChange: "transform, opacity",
+                      }}
+                    >
+                      <AdCard slot="feed-dating" className="h-full w-full rounded-[1.45rem] border-0" />
+                    </article>
+                  </div>
+                );
+              }
+              const item = entry.item;
               const photos = cardImageUrls(item);
               const fallbackImg = cardImageUrl(item);
               const activePhotoIndex = Math.min(
