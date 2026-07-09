@@ -73,6 +73,34 @@ export function getLayerForOffset(offset: number): DeckLayer | null {
   };
 }
 
+// Ticket A6 — a dating deck slide is either a real profile or an interleaved ad.
+export type DatingDeckItem =
+  | { type: "profile"; key: string; item: DatingDiscoverItem }
+  | { type: "ad"; key: string };
+
+const DATING_AD_INTERVAL = 20;
+
+// Interleave an ad slide after every 20 profiles (never a trailing ad). Ads are
+// only inserted when withAds is true, so a disabled/unconfigured ad zone leaves
+// the deck 1:1 with the profiles — no blank slides.
+export function buildDatingDeckItems(
+  profiles: DatingDiscoverItem[],
+  withAds: boolean,
+): DatingDeckItem[] {
+  const items: DatingDeckItem[] = [];
+  profiles.forEach((item, index) => {
+    items.push({ type: "profile", key: item.userId, item });
+    if (
+      withAds &&
+      (index + 1) % DATING_AD_INTERVAL === 0 &&
+      index < profiles.length - 1
+    ) {
+      items.push({ type: "ad", key: `dating-ad-${index}` });
+    }
+  });
+  return items;
+}
+
 export function filtersFromProfile(profile: {
   minAgePref: number;
   maxAgePref: number;

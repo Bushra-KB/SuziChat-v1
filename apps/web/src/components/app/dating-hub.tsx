@@ -12,7 +12,8 @@ import { DatingLikesModal } from "@/components/app/dating/dating-likes-modal";
 import { DatingMatchToast } from "@/components/app/dating/dating-match-toast";
 import { DatingMatchesModal } from "@/components/app/dating/dating-matches-modal";
 import { DatingProfileModal, type DatingProfileDraft } from "@/components/app/dating/dating-profile-modal";
-import { filtersFromProfile } from "@/components/app/dating/dating-utils";
+import { buildDatingDeckItems, filtersFromProfile } from "@/components/app/dating/dating-utils";
+import { isAdSlotActive } from "@/lib/ads-config";
 import {
   homeBtnPrimary,
   homeBtnSecondary,
@@ -440,14 +441,21 @@ export function DatingHub() {
     }
   };
 
+  // Deck rendered/navigated by the carousel = profiles + interleaved ad slides.
+  // Data mutations stay on `deck` (profiles), keyed by userId.
+  const deckWithAds = useMemo(
+    () => buildDatingDeckItems(deck, isAdSlotActive("feed-dating")),
+    [deck],
+  );
+
   const rotateBy = useCallback(
     (step: number) => {
-      if (deck.length === 0) {
+      if (deckWithAds.length === 0) {
         return;
       }
-      setActiveIndex((i) => (i + step + deck.length) % deck.length);
+      setActiveIndex((i) => (i + step + deckWithAds.length) % deckWithAds.length);
     },
-    [deck.length],
+    [deckWithAds.length],
   );
 
   const runSwipe = async (targetUserId: string, action: "LIKE" | "PASS") => {
@@ -834,7 +842,7 @@ export function DatingHub() {
 
           <div className="suzi-game-lobby-body suzi-dating-main-body mt-3 flex min-h-0 flex-1 flex-col overflow-hidden p-2">
             <DatingDiscoverDeck
-              deck={deck}
+              deck={deckWithAds}
               activeIndex={activeIndex}
               hasProfile={Boolean(myProfile)}
               busy={busy}
