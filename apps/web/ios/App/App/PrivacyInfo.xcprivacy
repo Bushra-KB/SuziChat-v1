@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Apple privacy manifest (Ticket B1).
+
+	  Tracking decision: Suzi Chat serves NON-personalized ExoClick ads and does
+	  NOT use the advertising identifier (IDFA) or cross-app tracking, so
+	  NSPrivacyTracking is false and there are no tracking domains. If the ad
+	  strategy later switches to personalized/IDFA ads, set NSPrivacyTracking to
+	  true, list the ExoClick/magsrv ad domains under NSPrivacyTrackingDomains,
+	  and implement the ATT prompt (Ticket B2).
+
+	  Required-reason APIs: the app bundles Capacitor, which reads/writes
+	  UserDefaults for its own state. Third-party CocoaPods ship their own
+	  PrivacyInfo.xcprivacy. If Xcode/App Store upload validation flags an
+	  additional required-reason API, add it here with the reason code Apple
+	  names in the validation message.
+	-->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<!-- CA92.1: access data stored by this app only. -->
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
