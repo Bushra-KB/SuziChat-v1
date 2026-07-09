@@ -55,6 +55,8 @@ import { getRealtimeSocket } from "@/lib/realtime-client";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { subscribePostsFeedChannel, subscribeUserProfileUpdates } from "@/lib/realtime-feed";
 import type { Snap } from "@/lib/v1-mock-data";
+import { AdCard } from "@/components/ads/ad-card";
+import { isAdSlotActive } from "@/lib/ads-config";
 
 type SnapComment = {
   id: string;
@@ -159,6 +161,34 @@ function formatAuthorLine(author: string) {
 const AUTO_ADVANCE_MS = 12_000;
 const SNAP_MAX_FILE_BYTES = 15 * 1024 * 1024;
 
+// Ticket A5 — an ad slide after every 20 snaps.
+const SNAPS_AD_INTERVAL = 20;
+
+type SnapCarouselItem =
+  | { type: "snap"; key: string; snap: Snap }
+  | { type: "ad"; key: string };
+
+// Interleave an ad slide after every SNAPS_AD_INTERVAL snaps (never a trailing
+// ad). Ads are only inserted when the snaps ad slot is active, so a disabled or
+// unconfigured ad zone leaves the carousel exactly as before — no blank slides.
+function buildSnapCarouselItems(
+  snaps: Snap[],
+  withAds: boolean,
+): SnapCarouselItem[] {
+  const items: SnapCarouselItem[] = [];
+  snaps.forEach((snap, index) => {
+    items.push({ type: "snap", key: snap.id, snap });
+    if (
+      withAds &&
+      (index + 1) % SNAPS_AD_INTERVAL === 0 &&
+      index < snaps.length - 1
+    ) {
+      items.push({ type: "ad", key: `snap-ad-${index}` });
+    }
+  });
+  return items;
+}
+
 function SnapHeroMedia({
   src,
   alt,
@@ -262,7 +292,14 @@ export function SnapsFeed() {
   const progressRafRef = useRef<number | null>(null);
   const appliedFocusIdRef = useRef<string | null>(null);
 
-  const activeSnap = displaySnaps[activeIndex] ?? null;
+  // The rendered carousel is snaps + interleaved ad slides; activeIndex indexes
+  // this list. Snap data/mutations still live in displaySnaps, keyed by id.
+  const carouselItems = useMemo(
+    () => buildSnapCarouselItems(displaySnaps, isAdSlotActive("feed-snaps")),
+    [displaySnaps],
+  );
+  const activeItem = carouselItems[activeIndex] ?? null;
+  const activeSnap = activeItem?.type === "snap" ? activeItem.snap : null;
   const activeComments = activeSnap ? commentsBySnap[activeSnap.id] ?? [] : [];
 
   const discoveryItems = useMemo<PostsDiscoveryItem[]>(
@@ -282,7 +319,9 @@ export function SnapsFeed() {
 
   const focusSnapById = useCallback(
     (id: string) => {
-      const index = displaySnaps.findIndex((row) => row.id === id);
+      const index = carouselItems.findIndex(
+        (item) => item.type === "snap" && item.snap.id === id,
+      );
       if (index < 0) {
         return;
       }
@@ -293,11 +332,11 @@ export function SnapsFeed() {
       setCommentSheetOffsetY(0);
       setCommentDraft("");
     },
-    [displaySnaps],
+    [carouselItems],
   );
 
   const rotateBy = useCallback((step: number) => {
-    if (displaySnaps.length === 0 || navLockRef.current) {
+    if (carouselItems.length === 0 || navLockRef.current) {
       return;
     }
     navLockRef.current = true;
@@ -308,8 +347,8 @@ export function SnapsFeed() {
     setIsCommentSheetOpen(false);
     setCommentSheetOffsetY(0);
     setCommentDraft("");
-    setActiveIndex((previous) => advanceCarouselIndex(previous, step, displaySnaps.length));
-  }, [displaySnaps.length]);
+    setActiveIndex((previous) => advanceCarouselIndex(previous, step, carouselItems.length));
+  }, [carouselItems.length]);
 
   const refreshSnaps = useCallback(() => {
     const session = getStoredAuthSession();
@@ -416,17 +455,19 @@ export function SnapsFeed() {
     if (appliedFocusIdRef.current === focusId) {
       return;
     }
-    if (!focusId || displaySnaps.length === 0) {
+    if (!focusId || carouselItems.length === 0) {
       return;
     }
-    const index = displaySnaps.findIndex((snap) => snap.id === focusId);
+    const index = carouselItems.findIndex(
+      (item) => item.type === "snap" && item.snap.id === focusId,
+    );
     if (index >= 0) {
       setActiveIndex(index);
       setAutoScrollMode(false);
       setAdvanceProgress(0);
       appliedFocusIdRef.current = focusId;
     }
-  }, [displaySnaps, searchParams]);
+  }, [carouselItems, searchParams]);
 
   useEffect(() => {
     if (searchParams.get("create") === "1") {
@@ -1123,21 +1164,55 @@ export function SnapsFeed() {
                 <span className="text-xs">Be the first to share one.</span>
               </div>
             ) : null}
-            {displaySnaps.map((snap, index) => {
-              const offset = getCircularOffset(index, activeIndex, displaySnaps.length);
+            {carouselItems.map((item, index) => {
+              const offset = getCircularOffset(index, activeIndex, carouselItems.length);
               const layer = getFeedCarouselLayer(offset);
               if (!layer) {
                 return null;
               }
+              if (isFullscreenCard && !layer.isActive) {
+                return null;
+              }
+
+              if (item.type === "ad") {
+                return (
+                  <div
+                    key={item.key}
+                    className="pointer-events-none absolute inset-0 flex items-center justify-center [transform-style:preserve-3d]"
+                  >
+                    <div
+                      className={cx(
+                        "relative aspect-[9/16] overflow-hidden rounded-[1.45rem] border transition-all duration-350 ease-out",
+                        layer.isActive ? "pointer-events-auto" : "pointer-events-none",
+                        layer.isActive && isFullscreenCard
+                          ? "suzi-feed-card-fullscreen"
+                          : layer.isActive
+                            ? "suzi-feed-card-active h-[92%] max-h-[44rem] w-auto max-w-[86vw] sm:max-w-[26rem]"
+                            : "h-[84%] max-h-[40rem] w-auto max-w-[86vw] sm:max-w-[24rem]",
+                        layer.isActive
+                          ? "border-cyan-300/85 shadow-[0_0_60px_rgba(0,229,255,0.42),0_0_20px_rgba(34,211,238,0.28)]"
+                          : "border-cyan-300/12 brightness-[0.52] saturate-[0.82]",
+                      )}
+                      style={{
+                        transform: isFullscreenCard ? "none" : layer.transform,
+                        opacity: isFullscreenCard ? 1 : layer.opacity,
+                        zIndex: layer.zIndex,
+                        transformStyle: isFullscreenCard ? "flat" : "preserve-3d",
+                        willChange: "transform, opacity",
+                      }}
+                    >
+                      <AdCard slot="feed-snaps" className="h-full w-full rounded-[1.45rem] border-0" />
+                    </div>
+                  </div>
+                );
+              }
+
+              const snap = item.snap;
               const isLiked = Boolean(likedBySnap[snap.id]);
               const likeCount = snap.likes;
               const commentCount = snap.comments;
               const viewCount = snap.views ?? 0;
               const isShareOpen = shareTarget?.id === snap.id;
-
-              if (isFullscreenCard && !layer.isActive) {
-                return null;
-              }
 
               return (
                 <div
