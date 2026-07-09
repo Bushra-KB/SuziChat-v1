@@ -18,41 +18,52 @@ Sources at the bottom.
 
 ---
 
-## B1 — iOS privacy manifest (`PrivacyInfo.xcprivacy`)
+## B1 — iOS privacy manifest (`PrivacyInfo.xcprivacy`) — ✅ DONE (code)
 
 - **Branch:** `feat/ios-privacy-manifest`
 - **Priority:** P0 (Apple rejects builds without it once required-reason APIs /
   ad SDKs are present)
 - **Depends on:** A0 (need to know the SDK's data behavior)
 
-**Goal:** add the Apple-required privacy manifest declaring required-reason APIs
-and data collection (ads/tracking).
+**Decision (locked):** Suzi Chat serves **non-personalized** ExoClick ads and does
+**not** use IDFA / cross-app tracking → `NSPrivacyTracking=false`, no tracking
+domains. This makes **B2 (ATT) a no-op** (no prompt required). Revisit only if the
+ad strategy changes to personalized/IDFA ads.
 
-**Steps:**
-1. Create `apps/web/ios/App/App/PrivacyInfo.xcprivacy` (add it to the App target
-   in Xcode so it's bundled).
-2. Declare **required-reason APIs** used by Capacitor/plugins — at minimum
-   `NSPrivacyAccessedAPICategoryUserDefaults` (from `@capacitor/preferences`),
-   plus file-timestamp/system-boot/disk-space if used. Use Capacitor's sample as
-   the base.
-3. Declare **collected data types** (ExoClick ads → typically Device ID / usage
-   data / coarse location for ads; "used for third-party advertising";
-   "linked/tracking" as applicable).
-4. Set `NSPrivacyTracking` to `true` if ExoClick uses IDFA/tracking (pairs with
-   B2), and list `NSPrivacyTrackingDomains` (ExoClick/magsrv ad domains).
+**What was done:** created `apps/web/ios/App/App/PrivacyInfo.xcprivacy` declaring:
+- `NSPrivacyTracking = false`, empty `NSPrivacyTrackingDomains`.
+- Required-reason API `NSPrivacyAccessedAPICategoryUserDefaults` (Capacitor core)
+  with reason `CA92.1`.
+- Empty `NSPrivacyCollectedDataTypes` — app-level data collection is declared in
+  App Store Connect **App Privacy** (Ticket B4) to keep one source of truth.
+  (Only Capacitor core + apple-sign-in are bundled; no native Filesystem/
+  Preferences/ad SDK, so no extra required-reason APIs are needed.)
+
+**Manual step (Mac, one-time — NOT doable from Windows):** in Xcode, add the file
+to the **App target** so it ships in the bundle:
+`App` group → right-click → *Add Files to "App"…* → select `PrivacyInfo.xcprivacy`
+→ ensure the **App** target is checked. (The file on disk alone isn't bundled
+until it's a target member.)
 
 **Acceptance criteria:** archive validates in Xcode with no missing-manifest or
-required-reason warnings; declarations match the App Privacy answers (B4).
+required-reason warnings. If upload validation names an additional required-reason
+API (from a CocoaPod), add it to the manifest with the reason code Apple gives.
 
 ---
 
-## B2 — iOS App Tracking Transparency (ATT)
+## B2 — iOS App Tracking Transparency (ATT) — ⏭️ SKIPPED (non-tracking chosen)
 
 - **Branch:** `feat/ios-att-tracking`
 - **Depends on:** A0, B1
 
-**Goal:** if ExoClick uses the advertising identifier (IDFA) / cross-app
-tracking, show Apple's ATT prompt before tracking and add the usage string.
+**Status:** Not needed under the B1 decision (non-personalized ads, no IDFA/
+tracking). No `NSUserTrackingUsageDescription` and no ATT prompt required. Keep
+this ticket parked; only implement the steps below if the client later switches
+to personalized/IDFA ads.
+
+**Goal (only if tracking is enabled later):** if ExoClick uses the advertising
+identifier (IDFA) / cross-app tracking, show Apple's ATT prompt before tracking
+and add the usage string.
 
 **Steps:**
 1. Add `NSUserTrackingUsageDescription` to `Info.plist` (currently absent) with a
