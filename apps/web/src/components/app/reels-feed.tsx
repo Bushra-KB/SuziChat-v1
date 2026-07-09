@@ -56,6 +56,8 @@ import { getRealtimeSocket } from "@/lib/realtime-client";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { subscribePostsFeedChannel, subscribeUserProfileUpdates } from "@/lib/realtime-feed";
 import type { Reel } from "@/lib/v1-mock-data";
+import { AdCard } from "@/components/ads/ad-card";
+import { isAdSlotActive } from "@/lib/ads-config";
 
 type ReelComment = {
   id: string;
@@ -78,6 +80,34 @@ const VIDEO_FILE_ACCEPT =
 // The carousel only shows the active card plus a couple of neighbours, so a
 // smaller initial page loads noticeably faster. More can be paginated later.
 const REELS_FEED_TAKE = 30;
+
+// Ticket A4 — an ad slide after every 20 reels.
+const REELS_AD_INTERVAL = 20;
+
+type ReelCarouselItem =
+  | { type: "reel"; key: string; reel: Reel }
+  | { type: "ad"; key: string };
+
+// Interleave an ad slide after every REELS_AD_INTERVAL reels (never a trailing
+// ad). Ads are only inserted when the reels ad slot is active, so a disabled or
+// unconfigured ad zone leaves the carousel exactly as before — no blank slides.
+function buildReelCarouselItems(
+  reels: Reel[],
+  withAds: boolean,
+): ReelCarouselItem[] {
+  const items: ReelCarouselItem[] = [];
+  reels.forEach((reel, index) => {
+    items.push({ type: "reel", key: reel.id, reel });
+    if (
+      withAds &&
+      (index + 1) % REELS_AD_INTERVAL === 0 &&
+      index < reels.length - 1
+    ) {
+      items.push({ type: "ad", key: `reel-ad-${index}` });
+    }
+  });
+  return items;
+}
 
 type FullscreenDocument = Document & {
   webkitFullscreenElement?: Element | null;
@@ -312,7 +342,14 @@ export function ReelsFeed() {
   const wheelLockRef = useRef(0);
   const navLockRef = useRef(false);
   const appliedFocusIdRef = useRef<string | null>(null);
-  const activeReel = displayReels[activeIndex] ?? null;
+  // The rendered carousel is reels + interleaved ad slides; activeIndex indexes
+  // this list. Reel data/mutations still live in displayReels, keyed by id.
+  const carouselItems = useMemo(
+    () => buildReelCarouselItems(displayReels, isAdSlotActive("feed-reels")),
+    [displayReels],
+  );
+  const activeItem = carouselItems[activeIndex] ?? null;
+  const activeReel = activeItem?.type === "reel" ? activeItem.reel : null;
   const activeComments = activeReel ? commentsByReel[activeReel.id] ?? [] : [];
   const isFullscreenCard = isNativeFullscreenCard || isFullscreenFallback;
 
@@ -333,7 +370,9 @@ export function ReelsFeed() {
 
   const focusReelById = useCallback(
     (id: string) => {
-      const index = displayReels.findIndex((row) => row.id === id);
+      const index = carouselItems.findIndex(
+        (item) => item.type === "reel" && item.reel.id === id,
+      );
       if (index < 0) {
         return;
       }
@@ -346,11 +385,11 @@ export function ReelsFeed() {
       setCommentSheetOffsetY(0);
       setCommentDraft("");
     },
-    [displayReels],
+    [carouselItems],
   );
 
   const rotateBy = useCallback((step: number) => {
-    if (displayReels.length === 0 || navLockRef.current) {
+    if (carouselItems.length === 0 || navLockRef.current) {
       return;
     }
     navLockRef.current = true;
@@ -363,8 +402,8 @@ export function ReelsFeed() {
     setIsCommentSheetOpen(false);
     setCommentSheetOffsetY(0);
     setCommentDraft("");
-    setActiveIndex((previous) => advanceCarouselIndex(previous, step, displayReels.length));
-  }, [displayReels.length]);
+    setActiveIndex((previous) => advanceCarouselIndex(previous, step, carouselItems.length));
+  }, [carouselItems.length]);
 
   const refreshReels = useCallback(() => {
     const session = getStoredAuthSession();
@@ -483,10 +522,12 @@ export function ReelsFeed() {
     if (appliedFocusIdRef.current === focusId) {
       return;
     }
-    if (!focusId || displayReels.length === 0) {
+    if (!focusId || carouselItems.length === 0) {
       return;
     }
-    const index = displayReels.findIndex((reel) => reel.id === focusId);
+    const index = carouselItems.findIndex(
+      (item) => item.type === "reel" && item.reel.id === focusId,
+    );
     if (index >= 0) {
       setActiveIndex(index);
       setAutoScrollMode(false);
@@ -497,7 +538,7 @@ export function ReelsFeed() {
       setCommentDraft("");
       appliedFocusIdRef.current = focusId;
     }
-  }, [displayReels, searchParams]);
+  }, [carouselItems, searchParams]);
 
   useEffect(() => {
     if (searchParams.get("create") === "1") {
@@ -1342,21 +1383,55 @@ export function ReelsFeed() {
                   <span className="text-xs">Be the first to share one.</span>
                 </div>
               ) : null}
-              {displayReels.map((reel, index) => {
-                const offset = getCircularOffset(index, activeIndex, displayReels.length);
+              {carouselItems.map((item, index) => {
+                const offset = getCircularOffset(index, activeIndex, carouselItems.length);
                 const layer = getFeedCarouselLayer(offset);
                 if (!layer) {
                   return null;
                 }
+                if (isFullscreenCard && !layer.isActive) {
+                  return null;
+                }
+
+                if (item.type === "ad") {
+                  return (
+                    <div
+                      key={item.key}
+                      className="pointer-events-none absolute inset-0 flex items-center justify-center [transform-style:preserve-3d]"
+                    >
+                      <div
+                        className={cx(
+                          "relative aspect-[9/16] overflow-hidden rounded-[1.45rem] border transition-all duration-350 ease-out",
+                          layer.isActive ? "pointer-events-auto" : "pointer-events-none",
+                          layer.isActive && isFullscreenCard
+                            ? "suzi-feed-card-fullscreen"
+                            : layer.isActive
+                              ? "suzi-feed-card-active h-[92%] max-h-[44rem] w-auto max-w-[86vw] sm:max-w-[26rem]"
+                              : "h-[84%] max-h-[40rem] w-auto max-w-[86vw] sm:max-w-[24rem]",
+                          layer.isActive
+                            ? "border-cyan-300/85 shadow-[0_0_60px_rgba(0,229,255,0.42),0_0_20px_rgba(34,211,238,0.28)]"
+                            : "border-cyan-300/12 brightness-[0.52] saturate-[0.82]",
+                        )}
+                        style={{
+                          transform: isFullscreenCard ? "none" : layer.transform,
+                          opacity: isFullscreenCard ? 1 : layer.opacity,
+                          zIndex: layer.zIndex,
+                          transformStyle: isFullscreenCard ? "flat" : "preserve-3d",
+                          willChange: "transform, opacity",
+                        }}
+                      >
+                        <AdCard slot="feed-reels" className="h-full w-full rounded-[1.45rem] border-0" />
+                      </div>
+                    </div>
+                  );
+                }
+
+                const reel = item.reel;
                 const isLiked = Boolean(likedByReel[reel.id]);
                 const likeCount = reel.likes;
                 const commentCount = reel.comments;
                 const viewCount = reel.views ?? 0;
                 const isShareOpen = shareTarget?.id === reel.id;
-
-                if (isFullscreenCard && !layer.isActive) {
-                  return null;
-                }
 
                 return (
                   <div
