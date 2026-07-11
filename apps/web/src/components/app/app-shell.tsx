@@ -1313,11 +1313,14 @@ export function AppShell({
               "suzi-feed-shell-frame",
           )}
         >
-          {/* Global top/bottom banners (Ticket A1). shrink-0 so they never eat
-              the page's flexible middle; render nothing until ads are enabled. */}
-          <AdBanner slot="top" className="shrink-0 py-0.5" />
+          {/* Global top/bottom banners (Ticket A1). Fixed-height strip so an
+              oversized creative can never eat the page; desktop/tablet only —
+              the 728x90 leaderboard zones don't fit phone widths, so phones
+              monetise via the in-feed ad cards instead. shrink-0 keeps the
+              flexible middle intact. Renders nothing until ads are enabled. */}
+          <AdBanner slot="top" className="hidden h-[96px] shrink-0 md:block" />
           {children}
-          <AdBanner slot="bottom" className="mt-auto shrink-0 py-0.5" />
+          <AdBanner slot="bottom" className="mt-auto hidden h-[96px] shrink-0 md:block" />
         </div>
 
         <footer
