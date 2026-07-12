@@ -18,9 +18,13 @@ declare global {
 export function ExoClickZone({
   zoneId,
   className,
+  insClassName = EXOCLICK_INS_CLASS,
 }: {
   zoneId: string;
   className?: string;
+  // ExoClick's marker class varies by ad format — pass the one from the zone's
+  // invocation code. Defaults to the standard display-banner class.
+  insClassName?: string;
 }) {
   useEffect(() => {
     if (!adsEnabled || !zoneId || typeof window === "undefined") {
@@ -40,7 +44,7 @@ export function ExoClickZone({
 
   return (
     <ins
-      className={cx(EXOCLICK_INS_CLASS, className)}
+      className={cx(insClassName, className)}
       data-zoneid={zoneId}
     />
   );

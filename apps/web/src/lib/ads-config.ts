@@ -24,8 +24,14 @@ export const adsEnabled =
 /** ExoClick / MagSrv ad-provider script (loaded once by ExoClickProvider). */
 export const EXOCLICK_PROVIDER_SRC = "https://a.magsrv.com/ad-provider.js";
 
-/** ExoClick requires this exact marker class on every ad <ins> element. */
+/**
+ * ExoClick marker class for the ad <ins> element. The suffix encodes the ad
+ * FORMAT, so it differs per format: display banners (incl. the feed zones) use
+ * `eas6a97888e2`, while the native Sticky Banner format uses `eas6a97888e17`.
+ * Always copy the class from the zone's invocation code in the ExoClick panel.
+ */
 export const EXOCLICK_INS_CLASS = "eas6a97888e2";
+export const EXOCLICK_STICKY_INS_CLASS = "eas6a97888e17";
 
 const ZONE_IDS: Record<AdSlot, string> = {
   sticky: (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_STICKY ?? "").trim(),
