@@ -38,7 +38,7 @@ import {
   shellDropdownRowTitle,
 } from "@/components/app/home-typography";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
-import { AdBanner } from "@/components/ads/ad-banner";
+import { StickyBottomAd } from "@/components/ads/sticky-bottom-ad";
 
 const shellDropdownPanel = "suzi-shell-dropdown rounded-[0.85rem] p-1.5";
 
@@ -1313,14 +1313,7 @@ export function AppShell({
               "suzi-feed-shell-frame",
           )}
         >
-          {/* Global top/bottom banners (Ticket A1). Fixed-height strip so an
-              oversized creative can never eat the page; desktop/tablet only —
-              the 728x90 leaderboard zones don't fit phone widths, so phones
-              monetise via the in-feed ad cards instead. shrink-0 keeps the
-              flexible middle intact. Renders nothing until ads are enabled. */}
-          <AdBanner slot="top" className="hidden h-[96px] shrink-0 md:block" />
           {children}
-          <AdBanner slot="bottom" className="mt-auto hidden h-[96px] shrink-0 md:block" />
         </div>
 
         <footer
@@ -1367,6 +1360,17 @@ export function AppShell({
           closeLabel={t("common.close")}
           onClose={() => setLegalDialog(null)}
         />
+      ) : null}
+
+      {/* Small anchored ad bar, all screen sizes. Skipped on the feed routes
+          (reels/snaps/dating) where it would cover the card controls and which
+          already carry in-feed ad cards. */}
+      {!(
+        pathname.startsWith("/app/reels") ||
+        pathname.startsWith("/app/snaps") ||
+        pathname.startsWith("/app/dating")
+      ) ? (
+        <StickyBottomAd />
       ) : null}
 
       {/* MOBILE BOTTOM NAV — < md only. */}

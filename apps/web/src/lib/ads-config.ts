@@ -10,13 +10,11 @@
 // explicitly below.
 
 export type AdSlot =
-  | "top"
-  | "bottom"
+  | "sticky"
   | "feed-reels"
   | "feed-snaps"
   | "feed-dating";
 
-export type BannerSlot = Extract<AdSlot, "top" | "bottom">;
 export type FeedSlot = Extract<AdSlot, "feed-reels" | "feed-snaps" | "feed-dating">;
 
 /** Global kill switch. Set NEXT_PUBLIC_ADS_ENABLED=true to turn ads on. */
@@ -30,8 +28,7 @@ export const EXOCLICK_PROVIDER_SRC = "https://a.magsrv.com/ad-provider.js";
 export const EXOCLICK_INS_CLASS = "eas6a97888e2";
 
 const ZONE_IDS: Record<AdSlot, string> = {
-  top: (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_BANNER_TOP ?? "").trim(),
-  bottom: (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_BANNER_BOTTOM ?? "").trim(),
+  sticky: (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_STICKY ?? "").trim(),
   "feed-reels": (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_REELS ?? "").trim(),
   "feed-snaps": (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_SNAPS ?? "").trim(),
   "feed-dating": (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_DATING ?? "").trim(),
