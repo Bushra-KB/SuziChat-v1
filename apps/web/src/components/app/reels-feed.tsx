@@ -81,8 +81,8 @@ const VIDEO_FILE_ACCEPT =
 // smaller initial page loads noticeably faster. More can be paginated later.
 const REELS_FEED_TAKE = 30;
 
-// Ticket A4 — an ad slide after every 20 reels.
-const REELS_AD_INTERVAL = 20;
+// Ticket A4 — an ad slide after every 8 reels.
+const REELS_AD_INTERVAL = 8;
 
 type ReelCarouselItem =
   | { type: "reel"; key: string; reel: Reel }

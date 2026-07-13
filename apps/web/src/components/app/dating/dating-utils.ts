@@ -78,9 +78,10 @@ export type DatingDeckItem =
   | { type: "profile"; key: string; item: DatingDiscoverItem }
   | { type: "ad"; key: string };
 
-const DATING_AD_INTERVAL = 20;
+const DATING_AD_INTERVAL = 8;
 
-// Interleave an ad slide after every 20 profiles (never a trailing ad). Ads are
+// Interleave an ad slide after every DATING_AD_INTERVAL profiles (never a
+// trailing ad). Ads are
 // only inserted when withAds is true, so a disabled/unconfigured ad zone leaves
 // the deck 1:1 with the profiles — no blank slides.
 export function buildDatingDeckItems(
