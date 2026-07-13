@@ -161,8 +161,8 @@ function formatAuthorLine(author: string) {
 const AUTO_ADVANCE_MS = 12_000;
 const SNAP_MAX_FILE_BYTES = 15 * 1024 * 1024;
 
-// Ticket A5 — an ad slide after every 20 snaps.
-const SNAPS_AD_INTERVAL = 20;
+// Ticket A5 — an ad slide after every 8 snaps.
+const SNAPS_AD_INTERVAL = 8;
 
 type SnapCarouselItem =
   | { type: "snap"; key: string; snap: Snap }
