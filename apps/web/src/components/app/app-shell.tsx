@@ -39,7 +39,12 @@ import {
 } from "@/components/app/home-typography";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
 import { StickyBottomAd } from "@/components/ads/sticky-bottom-ad";
-
+import { ExoClickZone } from "@/components/ads/exoclick-zone";
+import {
+  getAdInsClass,
+  getAdZoneId,
+  isAdSlotActive,
+} from "@/lib/ads-config";
 const shellDropdownPanel = "suzi-shell-dropdown rounded-[0.85rem] p-1.5";
 
 const globeIconPath = "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 3v18M3 12h18";
@@ -892,8 +897,16 @@ export function AppShell({
           className="suzi-shell-header-desktop relative z-[270] hidden shrink-0 items-center justify-between gap-3 overflow-visible md:flex"
           style={{ minHeight: "var(--shell-header-h)" }}
         >
-          <div className="min-w-0 flex-1" aria-hidden="true" />
-
+          <div className="flex min-w-0 flex-1 items-center justify-start">
+  {isAdSlotActive("logo-left-banner") ? (
+    <div className="pointer-events-auto">
+      <ExoClickZone
+        zoneId={getAdZoneId("logo-left-banner")}
+        insClassName={getAdInsClass("logo-left-banner")}
+      />
+    </div>
+  ) : null}
+</div>
           <div className="suzi-shell-toolbar pointer-events-auto flex shrink-0 items-center border border-white/10 bg-[linear-gradient(140deg,rgba(15,13,43,0.76),rgba(34,18,79,0.56))] backdrop-blur-md">
           <div ref={createRef} className="relative">
             <button
