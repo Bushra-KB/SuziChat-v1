@@ -26,12 +26,12 @@ export const EXOCLICK_PROVIDER_SRC = "https://a.magsrv.com/ad-provider.js";
 
 /**
  * ExoClick marker class for the ad <ins> element. The suffix encodes the ad
- * FORMAT, so it differs per format: display banners (incl. the feed zones) use
- * `eas6a97888e2`, while the native Sticky Banner format uses `eas6a97888e17`.
- * Always copy the class from the zone's invocation code in the ExoClick panel.
+ * FORMAT and can differ per format, so always copy the class from the zone's
+ * invocation code in the ExoClick panel. Standard display banners use
+ * `eas6a97888e2`; pass a different one to ExoClickZone via `insClassName` if a
+ * zone's code shows otherwise.
  */
 export const EXOCLICK_INS_CLASS = "eas6a97888e2";
-export const EXOCLICK_STICKY_INS_CLASS = "eas6a97888e17";
 
 const ZONE_IDS: Record<AdSlot, string> = {
   sticky: (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_STICKY ?? "").trim(),
@@ -43,6 +43,22 @@ const ZONE_IDS: Record<AdSlot, string> = {
 /** Zone ID for a slot, or "" when not configured. */
 export function getAdZoneId(slot: AdSlot): string {
   return ZONE_IDS[slot];
+}
+
+// ExoClick's <ins> marker class differs per ad format/size, so each zone gets its
+// own class. Copy these from each zone's invocation code in the ExoClick panel.
+// (sticky 300x50 = eas6a97888e10; the feed zones' classes must be verified from
+// their invocation codes — update below if they differ from the default.)
+const ZONE_INS_CLASSES: Record<AdSlot, string> = {
+  sticky: "eas6a97888e10",
+  "feed-reels": EXOCLICK_INS_CLASS,
+  "feed-snaps": EXOCLICK_INS_CLASS,
+  "feed-dating": EXOCLICK_INS_CLASS,
+};
+
+/** ExoClick <ins> marker class for a slot. */
+export function getAdInsClass(slot: AdSlot): string {
+  return ZONE_INS_CLASSES[slot];
 }
 
 /** True when ads are on AND this slot has a configured Zone ID. */
