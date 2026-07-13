@@ -1,25 +1,29 @@
 "use client";
 
-import {
-  EXOCLICK_STICKY_INS_CLASS,
-  getAdZoneId,
-  isAdSlotActive,
-} from "@/lib/ads-config";
+import { getAdInsClass, getAdZoneId, isAdSlotActive } from "@/lib/ads-config";
 import { ExoClickZone } from "./exoclick-zone";
 
-// ExoClick's native Sticky Banner zone anchors itself to the bottom of the
-// viewport, brings its own close button, is responsive on mobile + desktop, and
-// only appears when an ad actually fills (so there's no empty box). We just
-// render the zone with the sticky format's marker class and let ExoClick do the
-// rest — no custom positioning or chrome here.
+// A plain 300x50 banner pinned to the bottom of the viewport — above the footer
+// on desktop and above the bottom nav on mobile (positioning in globals.css
+// .suzi-sticky-ad). No chrome: no box, border, label, or close button. When the
+// slot is unfilled the <ins> is empty, so nothing is visible. The outer wrapper
+// is pointer-events-none so its empty width never blocks taps on the page; only
+// the banner itself is interactive.
 export function StickyBottomAd() {
   if (!isAdSlotActive("sticky")) {
     return null;
   }
   return (
-    <ExoClickZone
-      zoneId={getAdZoneId("sticky")}
-      insClassName={EXOCLICK_STICKY_INS_CLASS}
-    />
+    <div
+      className="suzi-sticky-ad pointer-events-none fixed inset-x-0 z-[90] flex justify-center"
+      data-ad-slot="sticky"
+    >
+      <div className="pointer-events-auto">
+        <ExoClickZone
+          zoneId={getAdZoneId("sticky")}
+          insClassName={getAdInsClass("sticky")}
+        />
+      </div>
+    </div>
   );
 }

@@ -216,6 +216,18 @@ html.suzi-app-frame-lock body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Anchored bottom ad bar (StickyBottomAd). Desktop: just above the tiny shell
+ * footer. Mobile: above the fixed bottom nav. Positioning only. */
+.suzi-sticky-ad {
+  bottom: calc(var(--shell-footer-h, 0.6rem) + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 767px) {
+  .suzi-sticky-ad {
+    bottom: calc(var(--m-bottom-h, 4rem) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* ------------------------------------------------------------------
  * Page-level layout primitives.
  * Use these on every page root inside .suzi-app-frame-fill.

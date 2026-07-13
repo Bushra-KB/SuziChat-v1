@@ -1,6 +1,11 @@
 "use client";
 
-import { type FeedSlot, getAdZoneId, isAdSlotActive } from "@/lib/ads-config";
+import {
+  type FeedSlot,
+  getAdInsClass,
+  getAdZoneId,
+  isAdSlotActive,
+} from "@/lib/ads-config";
 import { cx } from "@/components/ui/suzi-primitives";
 import { ExoClickZone } from "./exoclick-zone";
 
@@ -30,7 +35,11 @@ export function AdCard({
       <span className="pointer-events-none absolute left-2 top-2 z-[1] rounded-full bg-black/50 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-white/70">
         Sponsored
       </span>
-      <ExoClickZone zoneId={getAdZoneId(slot)} className="flex items-center justify-center" />
+      <ExoClickZone
+        zoneId={getAdZoneId(slot)}
+        insClassName={getAdInsClass(slot)}
+        className="flex items-center justify-center"
+      />
     </div>
   );
 }
