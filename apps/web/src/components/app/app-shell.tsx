@@ -39,6 +39,10 @@ import {
 } from "@/components/app/home-typography";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
 import { StickyBottomAd } from "@/components/ads/sticky-bottom-ad";
+import {
+  HomeInstantMessageAd,
+  HomeReelsTopAd,
+} from "@/components/ads/home-desktop-ads";
 import { ExoClickZone } from "@/components/ads/exoclick-zone";
 import {
   getAdInsClass,
@@ -898,15 +902,17 @@ export function AppShell({
           style={{ minHeight: "var(--shell-header-h)" }}
         >
           <div className="flex min-w-0 flex-1 items-center justify-start">
-  {isAdSlotActive("logo-left-banner") ? (
-    <div className="pointer-events-auto">
-      <ExoClickZone
-        zoneId={getAdZoneId("logo-left-banner")}
-        insClassName={getAdInsClass("logo-left-banner")}
-      />
-    </div>
-  ) : null}
-</div>
+            {pathname === "/app" ? (
+              <HomeReelsTopAd />
+            ) : isAdSlotActive("logo-left-banner") ? (
+              <div className="pointer-events-auto">
+                <ExoClickZone
+                  zoneId={getAdZoneId("logo-left-banner")}
+                  insClassName={getAdInsClass("logo-left-banner")}
+                />
+              </div>
+            ) : null}
+          </div>
           <div className="suzi-shell-toolbar pointer-events-auto flex shrink-0 items-center border border-white/10 bg-[linear-gradient(140deg,rgba(15,13,43,0.76),rgba(34,18,79,0.56))] backdrop-blur-md">
           <div ref={createRef} className="relative">
             <button
@@ -1385,6 +1391,8 @@ export function AppShell({
       ) ? (
         <StickyBottomAd refreshKey={pathname} />
       ) : null}
+
+      {pathname === "/app" ? <HomeInstantMessageAd /> : null}
 
       {/* MOBILE BOTTOM NAV — < md only. */}
       <nav

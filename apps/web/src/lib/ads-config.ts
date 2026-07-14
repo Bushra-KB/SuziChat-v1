@@ -12,6 +12,8 @@
 export type AdSlot =
   | "sticky"
   | "logo-left-banner"
+  | "home-reels-top"
+  | "instant-message"
   | "feed-reels"
   | "feed-snaps"
   | "feed-dating";
@@ -39,6 +41,12 @@ const ZONE_IDS: Record<AdSlot, string> = {
   "logo-left-banner": (
     process.env.NEXT_PUBLIC_EXOCLICK_ZONE_LOGO_LEFT_BANNER ?? ""
   ).trim(),
+  "home-reels-top": (
+    process.env.NEXT_PUBLIC_EXOCLICK_ZONE_HOME_REELS_TOP ?? ""
+  ).trim(),
+  "instant-message": (
+    process.env.NEXT_PUBLIC_EXOCLICK_ZONE_INSTANT_MESSAGE ?? ""
+  ).trim(),
   "feed-reels": (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_REELS ?? "").trim(),
   "feed-snaps": (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_SNAPS ?? "").trim(),
   "feed-dating": (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_DATING ?? "").trim(),
@@ -60,6 +68,12 @@ const ZONE_INS_CLASSES: Record<AdSlot, string> = {
   "logo-left-banner":
     (process.env.NEXT_PUBLIC_EXOCLICK_INS_CLASS_LOGO_LEFT_BANNER ?? "").trim() ||
     EXOCLICK_INS_CLASS,
+  "home-reels-top":
+    (process.env.NEXT_PUBLIC_EXOCLICK_INS_CLASS_HOME_REELS_TOP ?? "").trim() ||
+    "eas6a97888e10",
+  "instant-message":
+    (process.env.NEXT_PUBLIC_EXOCLICK_INS_CLASS_INSTANT_MESSAGE ?? "").trim() ||
+    "eas6a97888e6",
   "feed-reels":
     (process.env.NEXT_PUBLIC_EXOCLICK_INS_CLASS_REELS ?? "").trim() ||
     EXOCLICK_INS_CLASS,
