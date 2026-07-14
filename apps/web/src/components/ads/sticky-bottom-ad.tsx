@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { getAdInsClass, getAdZoneId, isAdSlotActive } from "@/lib/ads-config";
 import { ExoClickZone } from "./exoclick-zone";
 
@@ -9,10 +10,24 @@ import { ExoClickZone } from "./exoclick-zone";
 // slot is unfilled the <ins> is empty, so nothing is visible. The outer wrapper
 // is pointer-events-none so its empty width never blocks taps on the page; only
 // the banner itself is interactive.
-export function StickyBottomAd() {
+export function StickyBottomAd({ refreshKey }: { refreshKey?: string }) {
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setRefreshTick((current) => current + 1);
+    }, 40_000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   if (!isAdSlotActive("sticky")) {
     return null;
   }
+
+  const zoneId = getAdZoneId("sticky");
+  const serveKey = `${refreshKey ?? "sticky"}:${refreshTick}`;
+
   return (
     <div
       className="suzi-sticky-ad pointer-events-none fixed inset-x-0 z-[90] flex justify-center"
@@ -20,8 +35,10 @@ export function StickyBottomAd() {
     >
       <div className="pointer-events-auto">
         <ExoClickZone
-          zoneId={getAdZoneId("sticky")}
+          key={serveKey}
+          zoneId={zoneId}
           insClassName={getAdInsClass("sticky")}
+          refreshKey={serveKey}
         />
       </div>
     </div>

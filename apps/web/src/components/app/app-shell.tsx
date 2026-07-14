@@ -1383,7 +1383,7 @@ export function AppShell({
         pathname.startsWith("/app/snaps") ||
         pathname.startsWith("/app/dating")
       ) ? (
-        <StickyBottomAd />
+        <StickyBottomAd refreshKey={pathname} />
       ) : null}
 
       {/* MOBILE BOTTOM NAV — < md only. */}

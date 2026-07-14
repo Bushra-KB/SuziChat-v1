@@ -19,12 +19,16 @@ export function ExoClickZone({
   zoneId,
   className,
   insClassName = EXOCLICK_INS_CLASS,
+  refreshKey,
 }: {
   zoneId: string;
   className?: string;
   // ExoClick's marker class varies by ad format — pass the one from the zone's
   // invocation code. Defaults to the standard display-banner class.
   insClassName?: string;
+  // Change this when a carousel slide becomes active so ExoClick re-checks it at
+  // its final, visible size instead of only while it is a side card.
+  refreshKey?: string | number | boolean;
 }) {
   useEffect(() => {
     if (!adsEnabled || !zoneId || typeof window === "undefined") {
@@ -36,7 +40,7 @@ export function ExoClickZone({
     } catch {
       // If the provider script hasn't loaded yet the push still queues safely.
     }
-  }, [zoneId]);
+  }, [zoneId, refreshKey]);
 
   if (!adsEnabled || !zoneId) {
     return null;

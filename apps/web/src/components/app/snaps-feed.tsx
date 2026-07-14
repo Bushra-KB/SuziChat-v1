@@ -1201,7 +1201,11 @@ export function SnapsFeed() {
                         willChange: "transform, opacity",
                       }}
                     >
-                      <AdCard slot="feed-snaps" className="h-full w-full rounded-[1.45rem] border-0" />
+                      <AdCard
+                        slot="feed-snaps"
+                        active={layer.isActive}
+                        className="h-full w-full rounded-[1.45rem] border-0"
+                      />
                     </div>
                   </div>
                 );

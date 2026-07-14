@@ -250,7 +250,11 @@ export function DatingDiscoverDeck({
                         willChange: "transform, opacity",
                       }}
                     >
-                      <AdCard slot="feed-dating" className="h-full w-full rounded-[1.45rem] border-0" />
+                      <AdCard
+                        slot="feed-dating"
+                        active={layer.isActive}
+                        className="h-full w-full rounded-[1.45rem] border-0"
+                      />
                     </article>
                   </div>
                 );

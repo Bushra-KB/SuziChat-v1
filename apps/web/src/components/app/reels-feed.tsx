@@ -1420,7 +1420,11 @@ export function ReelsFeed() {
                           willChange: "transform, opacity",
                         }}
                       >
-                        <AdCard slot="feed-reels" className="h-full w-full rounded-[1.45rem] border-0" />
+                        <AdCard
+                          slot="feed-reels"
+                          active={layer.isActive}
+                          className="h-full w-full rounded-[1.45rem] border-0"
+                        />
                       </div>
                     </div>
                   );
