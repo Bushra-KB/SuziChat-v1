@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import {
   type FeedSlot,
   getAdInsClass,
@@ -22,29 +23,45 @@ export function AdCard({
   active?: boolean;
   className?: string;
 }) {
+  const [hasAdContent, setHasAdContent] = useState(false);
+  const handleFillChange = useCallback((filled: boolean) => {
+    setHasAdContent(filled);
+  }, []);
+
   if (!isAdSlotActive(slot)) {
     return null;
   }
+
+  const showAdContent = active && hasAdContent;
 
   return (
     <div
       data-ad-slot={slot}
       className={cx(
-        "suzi-ad-card relative flex h-full w-full items-center justify-center overflow-hidden rounded-[1.45rem] border border-cyan-200/45 bg-[linear-gradient(180deg,rgba(236,249,255,0.96),rgba(203,232,255,0.9))] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.65)]",
+        "suzi-ad-card relative flex h-full w-full items-center justify-center overflow-hidden rounded-[1.45rem] border border-cyan-200/45 bg-[linear-gradient(180deg,rgba(217,240,255,0.82),rgba(115,179,226,0.44))] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.38)]",
         className,
       )}
     >
       <span className="pointer-events-none absolute left-2 top-2 z-[2] rounded-full bg-slate-950/70 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-white/78">
         Sponsored
       </span>
-      <div className="relative flex min-h-[15rem] w-full max-w-[22rem] items-center justify-center overflow-hidden rounded-[1rem] bg-white shadow-[0_12px_36px_rgba(15,23,42,0.18)]">
-        <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(56,189,248,0.18),transparent_45%)]" />
+      <div className="relative flex w-full max-w-[22rem] items-center justify-center overflow-visible">
+        {active && !showAdContent ? (
+          <div className="pointer-events-none h-[250px] w-[300px] max-w-full rounded-[1rem] border border-white/30 bg-[linear-gradient(110deg,rgba(255,255,255,0.12),rgba(255,255,255,0.34),rgba(255,255,255,0.12))] bg-[length:220%_100%] shadow-[inset_0_1px_0_rgba(255,255,255,0.28)]" />
+        ) : null}
         {active ? (
           <ExoClickZone
             zoneId={getAdZoneId(slot)}
             insClassName={getAdInsClass(slot)}
             refreshKey={active}
-            className="relative z-[1] block min-h-[250px] min-w-[300px]"
+            hideUntilFilled
+            onFillChange={handleFillChange}
+            className={cx(
+              "relative z-[1] block max-w-full overflow-visible text-center transition-opacity duration-200",
+              showAdContent
+                ? "min-h-0 min-w-0"
+                : "absolute left-1/2 top-1/2 min-h-[250px] min-w-[300px] -translate-x-1/2 -translate-y-1/2",
+            )}
           />
         ) : null}
       </div>
