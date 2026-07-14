@@ -22,9 +22,16 @@ function escapeHtml(value: string) {
   });
 }
 
-function buildSrcDoc(zoneId: string, insClassName: string) {
+function buildSrcDoc(
+  zoneId: string,
+  insClassName: string,
+  blockAdTypes?: string,
+) {
   const safeZoneId = escapeHtml(zoneId);
   const safeClassName = escapeHtml(insClassName);
+  const blockAdTypesAttribute = blockAdTypes
+    ? ` data-block-ad-types="${escapeHtml(blockAdTypes)}"`
+    : "";
 
   return `<!doctype html>
 <html>
@@ -53,7 +60,7 @@ function buildSrcDoc(zoneId: string, insClassName: string) {
   </head>
   <body>
     <script async type="application/javascript" src="${EXOCLICK_PROVIDER_SRC}"></script>
-    <ins class="${safeClassName}" data-zoneid="${safeZoneId}"></ins>
+    <ins class="${safeClassName}" data-zoneid="${safeZoneId}"${blockAdTypesAttribute}></ins>
     <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>
   </body>
 </html>`;
@@ -64,11 +71,13 @@ export function ExoClickIframeZone({
   insClassName,
   title = "Sponsored ad",
   className,
+  blockAdTypes,
 }: {
   zoneId: string;
   insClassName: string;
   title?: string;
   className?: string;
+  blockAdTypes?: string;
 }) {
   if (!adsEnabled || !zoneId) {
     return null;
@@ -77,7 +86,7 @@ export function ExoClickIframeZone({
   return (
     <iframe
       title={title}
-      srcDoc={buildSrcDoc(zoneId, insClassName)}
+      srcDoc={buildSrcDoc(zoneId, insClassName, blockAdTypes)}
       className={cx("block border-0 bg-transparent", className)}
       referrerPolicy="strict-origin-when-cross-origin"
       scrolling="no"

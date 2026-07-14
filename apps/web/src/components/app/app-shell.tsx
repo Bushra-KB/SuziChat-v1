@@ -39,10 +39,7 @@ import {
 } from "@/components/app/home-typography";
 import { Icon, cx } from "@/components/ui/suzi-primitives";
 import { StickyBottomAd } from "@/components/ads/sticky-bottom-ad";
-import {
-  HomeInstantMessageAd,
-  HomeReelsTopAd,
-} from "@/components/ads/home-desktop-ads";
+import { HomeReelsTopAd } from "@/components/ads/home-desktop-ads";
 import { ExoClickZone } from "@/components/ads/exoclick-zone";
 import {
   getAdInsClass,
@@ -1391,8 +1388,6 @@ export function AppShell({
       ) ? (
         <StickyBottomAd refreshKey={pathname} />
       ) : null}
-
-      {pathname === "/app" ? <HomeInstantMessageAd /> : null}
 
       {/* MOBILE BOTTOM NAV — < md only. */}
       <nav
