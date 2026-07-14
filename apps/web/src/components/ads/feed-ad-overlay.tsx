@@ -7,7 +7,7 @@ import {
   isAdSlotActive,
 } from "@/lib/ads-config";
 import { cx } from "@/components/ui/suzi-primitives";
-import { ExoClickZone } from "./exoclick-zone";
+import { ExoClickIframeZone } from "./exoclick-iframe-zone";
 
 export function FeedAdOverlay({
   slot,
@@ -41,12 +41,11 @@ export function FeedAdOverlay({
               : "shadow-[0_0_36px_rgba(0,229,255,0.24)]",
           )}
         >
-          <ExoClickZone
+          <ExoClickIframeZone
             zoneId={getAdZoneId(slot)}
             insClassName={getAdInsClass(slot)}
-            className="relative z-[1] block min-h-[250px] min-w-[300px] max-w-full overflow-hidden text-center"
-            serveDelayFrames={2}
-            debugName={slot}
+            className="relative z-[1] h-[250px] w-[300px] max-w-full overflow-hidden"
+            title={`${slot} sponsored ad`}
           />
         </div>
       </div>
