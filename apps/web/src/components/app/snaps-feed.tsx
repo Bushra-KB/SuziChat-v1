@@ -55,7 +55,7 @@ import { getRealtimeSocket } from "@/lib/realtime-client";
 import { resolveUserAvatarUrl } from "@/lib/avatar-url";
 import { subscribePostsFeedChannel, subscribeUserProfileUpdates } from "@/lib/realtime-feed";
 import type { Snap } from "@/lib/v1-mock-data";
-import { AdCard } from "@/components/ads/ad-card";
+import { FeedAdOverlay } from "@/components/ads/feed-ad-overlay";
 import { isAdSlotActive } from "@/lib/ads-config";
 
 type SnapComment = {
@@ -1175,33 +1175,7 @@ export function SnapsFeed() {
               }
 
               if (item.type === "ad") {
-                return (
-                  <div
-                    key={item.key}
-                    className="pointer-events-none absolute inset-0 flex items-center justify-center [transform-style:preserve-3d]"
-                  >
-                    <div
-                      className={cx(
-                        "relative flex h-[250px] w-[300px] max-w-[86vw] items-center justify-center overflow-visible rounded-[0.75rem] transition-all duration-350 ease-out",
-                        layer.isActive ? "pointer-events-auto" : "pointer-events-none",
-                        layer.isActive ? "shadow-[0_0_36px_rgba(0,229,255,0.24)]" : "brightness-[0.62] saturate-[0.82]",
-                      )}
-                      style={{
-                        transform: isFullscreenCard ? "none" : layer.transform,
-                        opacity: isFullscreenCard ? 1 : layer.opacity,
-                        zIndex: layer.zIndex,
-                        transformStyle: isFullscreenCard ? "flat" : "preserve-3d",
-                        willChange: "transform, opacity",
-                      }}
-                    >
-                      <AdCard
-                        slot="feed-snaps"
-                        active={layer.isActive}
-                        className="h-full w-full"
-                      />
-                    </div>
-                  </div>
-                );
+                return null;
               }
 
               const snap = item.snap;
@@ -1528,6 +1502,9 @@ export function SnapsFeed() {
               );
             })}
           </div>
+          {activeItem?.type === "ad" ? (
+            <FeedAdOverlay key={activeItem.key} slot="feed-snaps" />
+          ) : null}
 
           <button
             type="button"

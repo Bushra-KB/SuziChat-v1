@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { cx } from "@/components/ui/suzi-primitives";
-import { AdCard } from "@/components/ads/ad-card";
+import { FeedAdOverlay } from "@/components/ads/feed-ad-overlay";
 import { cardImageUrl, cardImageUrls, datingDisplayName, getCircularOffset, getLayerForOffset, type DatingDeckItem } from "@/components/app/dating/dating-utils";
 
 type DragState = {
@@ -230,34 +230,7 @@ export function DatingDiscoverDeck({
                 return null;
               }
               if (entry.type === "ad") {
-                return (
-                  <div
-                    key={entry.key}
-                    className="pointer-events-none absolute inset-0 flex items-center justify-center [transform-style:preserve-3d]"
-                  >
-                    <article
-                      className={cx(
-                        "relative flex h-[250px] w-[300px] max-w-[86vw] items-center justify-center overflow-visible rounded-[0.75rem] transition-all duration-500 ease-out",
-                        layer.isActive
-                          ? "pointer-events-auto shadow-[0_0_36px_rgba(232,77,255,0.24)]"
-                          : "brightness-[0.62] saturate-[0.82]",
-                      )}
-                      style={{
-                        transform: layer.transform,
-                        opacity: layer.opacity,
-                        zIndex: layer.zIndex,
-                        transformStyle: "preserve-3d",
-                        willChange: "transform, opacity",
-                      }}
-                    >
-                      <AdCard
-                        slot="feed-dating"
-                        active={layer.isActive}
-                        className="h-full w-full"
-                      />
-                    </article>
-                  </div>
-                );
+                return null;
               }
               const item = entry.item;
               const photos = cardImageUrls(item);
@@ -530,6 +503,13 @@ export function DatingDiscoverDeck({
           </>
         )}
         </div>
+        {activeItem?.type === "ad" ? (
+          <FeedAdOverlay
+            key={activeItem.key}
+            slot="feed-dating"
+            accent="fuchsia"
+          />
+        ) : null}
       </div>
 
       {activeCard && hasProfile ? (
