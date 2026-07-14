@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { EXOCLICK_INS_CLASS, adsEnabled } from "@/lib/ads-config";
 import { cx } from "@/components/ui/suzi-primitives";
 
@@ -30,11 +30,16 @@ export function ExoClickZone({
   // its final, visible size instead of only while it is a side card.
   refreshKey?: string | number | boolean;
 }) {
+  const insRef = useRef<HTMLModElement | null>(null);
+
   useEffect(() => {
     if (!adsEnabled || !zoneId || typeof window === "undefined") {
       return;
     }
     try {
+      if (insRef.current) {
+        insRef.current.replaceChildren();
+      }
       window.AdProvider = window.AdProvider || [];
       window.AdProvider.push({ serve: {} });
     } catch {
@@ -48,6 +53,7 @@ export function ExoClickZone({
 
   return (
     <ins
+      ref={insRef}
       className={cx(insClassName, className)}
       data-zoneid={zoneId}
     />

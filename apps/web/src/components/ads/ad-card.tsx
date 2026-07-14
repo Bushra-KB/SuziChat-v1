@@ -30,20 +30,20 @@ export function AdCard({
     <div
       data-ad-slot={slot}
       className={cx(
-        "suzi-ad-card relative flex h-full w-full items-center justify-center overflow-hidden rounded-[1.45rem] border border-cyan-200/45 bg-[linear-gradient(180deg,rgba(217,240,255,0.82),rgba(115,179,226,0.44))] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.38)]",
+        "suzi-ad-card relative flex h-full w-full items-center justify-center overflow-hidden rounded-[1.45rem] border border-cyan-200/20 bg-transparent p-4",
         className,
       )}
     >
       <span className="pointer-events-none absolute left-2 top-2 z-[2] rounded-full bg-slate-950/70 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-white/78">
         Sponsored
       </span>
-      <div className="relative flex min-h-[250px] w-full max-w-[22rem] items-center justify-center overflow-visible">
+      <div className="relative flex h-[250px] w-[300px] max-w-full items-center justify-center overflow-hidden rounded-[0.9rem]">
         {active ? (
           <ExoClickZone
             zoneId={getAdZoneId(slot)}
             insClassName={getAdInsClass(slot)}
             refreshKey={active}
-            className="relative z-[1] block max-w-full overflow-visible text-center"
+            className="relative z-[1] block min-h-[250px] min-w-[300px] max-w-full overflow-hidden text-center"
           />
         ) : null}
       </div>
