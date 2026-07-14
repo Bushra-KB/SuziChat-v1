@@ -76,6 +76,9 @@ export function DatingHub() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [deck, setDeck] = useState<DatingDiscoverItem[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [hiddenAdKeys, setHiddenAdKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [myProfile, setMyProfile] = useState<(DatingProfilePayload & { interests: string[] }) | null>(null);
   const [matches, setMatches] = useState<DatingMatchRow[]>([]);
   const [likesReceived, setLikesReceived] = useState<DatingDiscoverItem[]>([]);
@@ -444,8 +447,11 @@ export function DatingHub() {
   // Deck rendered/navigated by the carousel = profiles + interleaved ad slides.
   // Data mutations stay on `deck` (profiles), keyed by userId.
   const deckWithAds = useMemo(
-    () => buildDatingDeckItems(deck, isAdSlotActive("feed-dating")),
-    [deck],
+    () =>
+      buildDatingDeckItems(deck, isAdSlotActive("feed-dating")).filter(
+        (item) => item.type !== "ad" || !hiddenAdKeys.has(item.key),
+      ),
+    [deck, hiddenAdKeys],
   );
 
   const rotateBy = useCallback(
@@ -454,6 +460,25 @@ export function DatingHub() {
         return;
       }
       setActiveIndex((i) => (i + step + deckWithAds.length) % deckWithAds.length);
+    },
+    [deckWithAds.length],
+  );
+
+  const handleAdNoFill = useCallback(
+    (key: string) => {
+      setHiddenAdKeys((previous) => {
+        if (previous.has(key)) {
+          return previous;
+        }
+        const next = new Set(previous);
+        next.add(key);
+        return next;
+      });
+      setActiveIndex((previous) =>
+        deckWithAds.length > 1
+          ? (previous + 1 + deckWithAds.length) % deckWithAds.length
+          : 0,
+      );
     },
     [deckWithAds.length],
   );
@@ -849,6 +874,7 @@ export function DatingHub() {
               accessToken={accessToken}
               onRotate={rotateBy}
               onActiveIndexChange={setActiveIndex}
+              onAdNoFill={handleAdNoFill}
               onInterested={(userId) => void runSwipe(userId, "LIKE")}
               onRemoveInterest={(userId) => void removeInterest(userId)}
               onPass={(userId) => void runSwipe(userId, "PASS")}

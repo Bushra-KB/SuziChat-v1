@@ -263,6 +263,9 @@ export function SnapsFeed() {
   const [displaySnaps, setDisplaySnaps] = useState<Snap[]>([]);
   const [isLoadingSnaps, setIsLoadingSnaps] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [hiddenAdKeys, setHiddenAdKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [autoScrollMode, setAutoScrollMode] = useState(true);
   const [advanceProgress, setAdvanceProgress] = useState(0);
   const [likedBySnap, setLikedBySnap] = useState<Record<string, boolean>>({});
@@ -295,8 +298,11 @@ export function SnapsFeed() {
   // The rendered carousel is snaps + interleaved ad slides; activeIndex indexes
   // this list. Snap data/mutations still live in displaySnaps, keyed by id.
   const carouselItems = useMemo(
-    () => buildSnapCarouselItems(displaySnaps, isAdSlotActive("feed-snaps")),
-    [displaySnaps],
+    () =>
+      buildSnapCarouselItems(displaySnaps, isAdSlotActive("feed-snaps")).filter(
+        (item) => item.type !== "ad" || !hiddenAdKeys.has(item.key),
+      ),
+    [displaySnaps, hiddenAdKeys],
   );
   const activeItem = carouselItems[activeIndex] ?? null;
   const activeSnap = activeItem?.type === "snap" ? activeItem.snap : null;
@@ -349,6 +355,25 @@ export function SnapsFeed() {
     setCommentDraft("");
     setActiveIndex((previous) => advanceCarouselIndex(previous, step, carouselItems.length));
   }, [carouselItems.length]);
+
+  const handleAdNoFill = useCallback(
+    (key: string) => {
+      setHiddenAdKeys((previous) => {
+        if (previous.has(key)) {
+          return previous;
+        }
+        const next = new Set(previous);
+        next.add(key);
+        return next;
+      });
+      setActiveIndex((previous) =>
+        carouselItems.length > 1
+          ? advanceCarouselIndex(previous, 1, carouselItems.length)
+          : 0,
+      );
+    },
+    [carouselItems.length],
+  );
 
   const refreshSnaps = useCallback(() => {
     const session = getStoredAuthSession();
@@ -1204,6 +1229,7 @@ export function SnapsFeed() {
                       <AdCard
                         slot="feed-snaps"
                         active={layer.isActive}
+                        onNoFill={() => handleAdNoFill(item.key)}
                         className="h-full w-full rounded-[1.45rem] border-0"
                       />
                     </div>

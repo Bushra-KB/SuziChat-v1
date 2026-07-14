@@ -11,6 +11,22 @@ declare global {
   }
 }
 
+function hasRenderableAdContent(element: HTMLModElement | null) {
+  if (!element) {
+    return false;
+  }
+  return Array.from(element.childNodes).some((node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return Boolean(node.textContent?.trim());
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return false;
+    }
+    const child = node as HTMLElement;
+    return child.tagName !== "SCRIPT" && child.tagName !== "STYLE";
+  });
+}
+
 // Renders a single ExoClick ad zone. The <ins> element carries the zone id and
 // the required marker class; pushing `{ serve: {} }` onto window.AdProvider tells
 // the (already-loaded) provider script to fill any pending zones. The push runs
@@ -20,6 +36,8 @@ export function ExoClickZone({
   className,
   insClassName = EXOCLICK_INS_CLASS,
   refreshKey,
+  noFillTimeoutMs = 4000,
+  onNoFill,
 }: {
   zoneId: string;
   className?: string;
@@ -29,6 +47,8 @@ export function ExoClickZone({
   // Change this when a carousel slide becomes active so ExoClick re-checks it at
   // its final, visible size instead of only while it is a side card.
   refreshKey?: string | number | boolean;
+  noFillTimeoutMs?: number;
+  onNoFill?: () => void;
 }) {
   const insRef = useRef<HTMLModElement | null>(null);
 
@@ -45,7 +65,15 @@ export function ExoClickZone({
     } catch {
       // If the provider script hasn't loaded yet the push still queues safely.
     }
-  }, [zoneId, refreshKey]);
+
+    const noFillTimer = window.setTimeout(() => {
+      if (!hasRenderableAdContent(insRef.current)) {
+        onNoFill?.();
+      }
+    }, noFillTimeoutMs);
+
+    return () => window.clearTimeout(noFillTimer);
+  }, [zoneId, refreshKey, noFillTimeoutMs, onNoFill]);
 
   if (!adsEnabled || !zoneId) {
     return null;

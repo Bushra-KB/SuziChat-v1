@@ -29,6 +29,7 @@ export function DatingDiscoverDeck({
   accessToken,
   onRotate,
   onActiveIndexChange,
+  onAdNoFill,
   onInterested,
   onRemoveInterest,
   onPass,
@@ -43,6 +44,7 @@ export function DatingDiscoverDeck({
   accessToken: string | null;
   onRotate: (step: number) => void;
   onActiveIndexChange: (index: number) => void;
+  onAdNoFill?: (key: string) => void;
   onInterested: (userId: string) => void;
   onRemoveInterest: (userId: string) => void;
   onPass: (userId: string) => void;
@@ -253,6 +255,7 @@ export function DatingDiscoverDeck({
                       <AdCard
                         slot="feed-dating"
                         active={layer.isActive}
+                        onNoFill={() => onAdNoFill?.(entry.key)}
                         className="h-full w-full rounded-[1.45rem] border-0"
                       />
                     </article>

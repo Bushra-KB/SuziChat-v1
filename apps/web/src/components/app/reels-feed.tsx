@@ -309,6 +309,9 @@ export function ReelsFeed() {
   const [displayReels, setDisplayReels] = useState<Reel[]>([]);
   const [isLoadingReels, setIsLoadingReels] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [hiddenAdKeys, setHiddenAdKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [autoScrollMode, setAutoScrollMode] = useState(true);
   const [likedByReel, setLikedByReel] = useState<Record<string, boolean>>({});
   const [commentsByReel, setCommentsByReel] = useState<Record<string, ReelComment[]>>({});
@@ -345,8 +348,11 @@ export function ReelsFeed() {
   // The rendered carousel is reels + interleaved ad slides; activeIndex indexes
   // this list. Reel data/mutations still live in displayReels, keyed by id.
   const carouselItems = useMemo(
-    () => buildReelCarouselItems(displayReels, isAdSlotActive("feed-reels")),
-    [displayReels],
+    () =>
+      buildReelCarouselItems(displayReels, isAdSlotActive("feed-reels")).filter(
+        (item) => item.type !== "ad" || !hiddenAdKeys.has(item.key),
+      ),
+    [displayReels, hiddenAdKeys],
   );
   const activeItem = carouselItems[activeIndex] ?? null;
   const activeReel = activeItem?.type === "reel" ? activeItem.reel : null;
@@ -404,6 +410,25 @@ export function ReelsFeed() {
     setCommentDraft("");
     setActiveIndex((previous) => advanceCarouselIndex(previous, step, carouselItems.length));
   }, [carouselItems.length]);
+
+  const handleAdNoFill = useCallback(
+    (key: string) => {
+      setHiddenAdKeys((previous) => {
+        if (previous.has(key)) {
+          return previous;
+        }
+        const next = new Set(previous);
+        next.add(key);
+        return next;
+      });
+      setActiveIndex((previous) =>
+        carouselItems.length > 1
+          ? advanceCarouselIndex(previous, 1, carouselItems.length)
+          : 0,
+      );
+    },
+    [carouselItems.length],
+  );
 
   const refreshReels = useCallback(() => {
     const session = getStoredAuthSession();
@@ -1423,6 +1448,7 @@ export function ReelsFeed() {
                         <AdCard
                           slot="feed-reels"
                           active={layer.isActive}
+                          onNoFill={() => handleAdNoFill(item.key)}
                           className="h-full w-full rounded-[1.45rem] border-0"
                         />
                       </div>

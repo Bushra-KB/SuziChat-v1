@@ -16,10 +16,12 @@ import { ExoClickZone } from "./exoclick-zone";
 export function AdCard({
   slot,
   active = true,
+  onNoFill,
   className,
 }: {
   slot: FeedSlot;
   active?: boolean;
+  onNoFill?: () => void;
   className?: string;
 }) {
   if (!isAdSlotActive(slot)) {
@@ -43,6 +45,7 @@ export function AdCard({
             zoneId={getAdZoneId(slot)}
             insClassName={getAdInsClass(slot)}
             refreshKey={active}
+            onNoFill={onNoFill}
             className="relative z-[1] block min-h-[250px] min-w-[300px] max-w-full overflow-hidden text-center"
           />
         ) : null}
