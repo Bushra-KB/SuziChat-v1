@@ -11,6 +11,7 @@
 
 export type AdSlot =
   | "sticky"
+  | "logo-left-banner"
   | "feed-reels"
   | "feed-snaps"
   | "feed-dating";
@@ -35,6 +36,9 @@ export const EXOCLICK_INS_CLASS = "eas6a97888e2";
 
 const ZONE_IDS: Record<AdSlot, string> = {
   sticky: (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_STICKY ?? "").trim(),
+  "logo-left-banner": (
+    process.env.NEXT_PUBLIC_EXOCLICK_ZONE_LOGO_LEFT_BANNER ?? ""
+  ).trim(),
   "feed-reels": (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_REELS ?? "").trim(),
   "feed-snaps": (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_SNAPS ?? "").trim(),
   "feed-dating": (process.env.NEXT_PUBLIC_EXOCLICK_ZONE_DATING ?? "").trim(),
@@ -53,6 +57,9 @@ const ZONE_INS_CLASSES: Record<AdSlot, string> = {
   sticky:
     (process.env.NEXT_PUBLIC_EXOCLICK_INS_CLASS_STICKY ?? "").trim() ||
     "eas6a97888e10",
+  "logo-left-banner":
+    (process.env.NEXT_PUBLIC_EXOCLICK_INS_CLASS_LOGO_LEFT_BANNER ?? "").trim() ||
+    EXOCLICK_INS_CLASS,
   "feed-reels":
     (process.env.NEXT_PUBLIC_EXOCLICK_INS_CLASS_REELS ?? "").trim() ||
     EXOCLICK_INS_CLASS,
