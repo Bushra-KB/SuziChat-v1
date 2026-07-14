@@ -263,9 +263,6 @@ export function SnapsFeed() {
   const [displaySnaps, setDisplaySnaps] = useState<Snap[]>([]);
   const [isLoadingSnaps, setIsLoadingSnaps] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [hiddenAdKeys, setHiddenAdKeys] = useState<Set<string>>(
-    () => new Set(),
-  );
   const [autoScrollMode, setAutoScrollMode] = useState(true);
   const [advanceProgress, setAdvanceProgress] = useState(0);
   const [likedBySnap, setLikedBySnap] = useState<Record<string, boolean>>({});
@@ -298,11 +295,8 @@ export function SnapsFeed() {
   // The rendered carousel is snaps + interleaved ad slides; activeIndex indexes
   // this list. Snap data/mutations still live in displaySnaps, keyed by id.
   const carouselItems = useMemo(
-    () =>
-      buildSnapCarouselItems(displaySnaps, isAdSlotActive("feed-snaps")).filter(
-        (item) => item.type !== "ad" || !hiddenAdKeys.has(item.key),
-      ),
-    [displaySnaps, hiddenAdKeys],
+    () => buildSnapCarouselItems(displaySnaps, isAdSlotActive("feed-snaps")),
+    [displaySnaps],
   );
   const activeItem = carouselItems[activeIndex] ?? null;
   const activeSnap = activeItem?.type === "snap" ? activeItem.snap : null;
@@ -355,25 +349,6 @@ export function SnapsFeed() {
     setCommentDraft("");
     setActiveIndex((previous) => advanceCarouselIndex(previous, step, carouselItems.length));
   }, [carouselItems.length]);
-
-  const handleAdNoFill = useCallback(
-    (key: string) => {
-      setHiddenAdKeys((previous) => {
-        if (previous.has(key)) {
-          return previous;
-        }
-        const next = new Set(previous);
-        next.add(key);
-        return next;
-      });
-      setActiveIndex((previous) =>
-        carouselItems.length > 1
-          ? advanceCarouselIndex(previous, 1, carouselItems.length)
-          : 0,
-      );
-    },
-    [carouselItems.length],
-  );
 
   const refreshSnaps = useCallback(() => {
     const session = getStoredAuthSession();
@@ -1207,16 +1182,9 @@ export function SnapsFeed() {
                   >
                     <div
                       className={cx(
-                        "relative aspect-[9/16] overflow-hidden rounded-[1.45rem] border transition-all duration-350 ease-out",
+                        "relative flex h-[250px] w-[300px] max-w-[86vw] items-center justify-center overflow-visible rounded-[0.75rem] transition-all duration-350 ease-out",
                         layer.isActive ? "pointer-events-auto" : "pointer-events-none",
-                        layer.isActive && isFullscreenCard
-                          ? "suzi-feed-card-fullscreen"
-                          : layer.isActive
-                            ? "suzi-feed-card-active h-[92%] max-h-[44rem] w-auto max-w-[86vw] sm:max-w-[26rem]"
-                            : "h-[84%] max-h-[40rem] w-auto max-w-[86vw] sm:max-w-[24rem]",
-                        layer.isActive
-                          ? "border-cyan-300/85 shadow-[0_0_60px_rgba(0,229,255,0.42),0_0_20px_rgba(34,211,238,0.28)]"
-                          : "border-cyan-300/12 brightness-[0.52] saturate-[0.82]",
+                        layer.isActive ? "shadow-[0_0_36px_rgba(0,229,255,0.24)]" : "brightness-[0.62] saturate-[0.82]",
                       )}
                       style={{
                         transform: isFullscreenCard ? "none" : layer.transform,
@@ -1229,8 +1197,7 @@ export function SnapsFeed() {
                       <AdCard
                         slot="feed-snaps"
                         active={layer.isActive}
-                        onNoFill={() => handleAdNoFill(item.key)}
-                        className="h-full w-full rounded-[1.45rem] border-0"
+                        className="h-full w-full"
                       />
                     </div>
                   </div>

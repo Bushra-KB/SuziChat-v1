@@ -16,12 +16,10 @@ import { ExoClickZone } from "./exoclick-zone";
 export function AdCard({
   slot,
   active = true,
-  onNoFill,
   className,
 }: {
   slot: FeedSlot;
   active?: boolean;
-  onNoFill?: () => void;
   className?: string;
 }) {
   if (!isAdSlotActive(slot)) {
@@ -32,20 +30,18 @@ export function AdCard({
     <div
       data-ad-slot={slot}
       className={cx(
-        "suzi-ad-card relative flex h-full w-full items-center justify-center overflow-hidden rounded-[1.45rem] border border-cyan-200/20 bg-transparent p-4",
+        "suzi-ad-card relative flex h-full w-full items-center justify-center overflow-visible bg-transparent p-0",
         className,
       )}
     >
-      <span className="pointer-events-none absolute left-2 top-2 z-[2] rounded-full bg-slate-950/70 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-white/78">
+      <span className="pointer-events-none absolute -top-7 left-0 z-[2] rounded-full bg-slate-950/70 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-white/78">
         Sponsored
       </span>
-      <div className="relative flex h-[250px] w-[300px] max-w-full items-center justify-center overflow-hidden rounded-[0.9rem]">
+      <div className="relative flex h-[250px] w-[300px] max-w-full items-center justify-center overflow-hidden rounded-[0.75rem]">
         {active ? (
           <ExoClickZone
             zoneId={getAdZoneId(slot)}
             insClassName={getAdInsClass(slot)}
-            refreshKey={active}
-            onNoFill={onNoFill}
             className="relative z-[1] block min-h-[250px] min-w-[300px] max-w-full overflow-hidden text-center"
           />
         ) : null}
