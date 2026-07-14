@@ -33,12 +33,13 @@ export function StickyBottomAd({ refreshKey }: { refreshKey?: string }) {
       className="suzi-sticky-ad pointer-events-none fixed inset-x-0 z-[90] flex justify-center"
       data-ad-slot="sticky"
     >
-      <div className="pointer-events-auto">
+      <div className="pointer-events-auto h-[50px] w-[320px] max-w-[100vw] overflow-hidden">
         <ExoClickZone
           key={serveKey}
           zoneId={zoneId}
           insClassName={getAdInsClass("sticky")}
           refreshKey={serveKey}
+          className="block h-[50px] w-[320px] max-w-[100vw] overflow-hidden"
         />
       </div>
     </div>
