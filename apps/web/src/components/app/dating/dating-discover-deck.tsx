@@ -29,7 +29,6 @@ export function DatingDiscoverDeck({
   accessToken,
   onRotate,
   onActiveIndexChange,
-  onAdNoFill,
   onInterested,
   onRemoveInterest,
   onPass,
@@ -44,7 +43,6 @@ export function DatingDiscoverDeck({
   accessToken: string | null;
   onRotate: (step: number) => void;
   onActiveIndexChange: (index: number) => void;
-  onAdNoFill?: (key: string) => void;
   onInterested: (userId: string) => void;
   onRemoveInterest: (userId: string) => void;
   onPass: (userId: string) => void;
@@ -239,10 +237,10 @@ export function DatingDiscoverDeck({
                   >
                     <article
                       className={cx(
-                        "relative aspect-[9/16] overflow-hidden rounded-[1.45rem] border transition-all duration-500 ease-out",
+                        "relative flex h-[250px] w-[300px] max-w-[86vw] items-center justify-center overflow-visible rounded-[0.75rem] transition-all duration-500 ease-out",
                         layer.isActive
-                          ? "pointer-events-auto h-[92%] max-h-[44rem] w-auto max-w-[86vw] border-fuchsia-200/80 shadow-[0_0_60px_rgba(232,77,255,0.36)] sm:max-w-[26rem]"
-                          : "h-[84%] max-h-[39rem] w-auto max-w-[78vw] border-fuchsia-300/14 brightness-[0.54] saturate-[0.8] sm:max-w-[23rem]",
+                          ? "pointer-events-auto shadow-[0_0_36px_rgba(232,77,255,0.24)]"
+                          : "brightness-[0.62] saturate-[0.82]",
                       )}
                       style={{
                         transform: layer.transform,
@@ -255,8 +253,7 @@ export function DatingDiscoverDeck({
                       <AdCard
                         slot="feed-dating"
                         active={layer.isActive}
-                        onNoFill={() => onAdNoFill?.(entry.key)}
-                        className="h-full w-full rounded-[1.45rem] border-0"
+                        className="h-full w-full"
                       />
                     </article>
                   </div>
