@@ -20,6 +20,9 @@ export function ExoClickZone({
   className,
   insClassName = EXOCLICK_INS_CLASS,
   refreshKey,
+  serveDelayFrames = 0,
+  debugName,
+  debugEmptyAfterMs = 2000,
 }: {
   zoneId: string;
   className?: string;
@@ -29,6 +32,10 @@ export function ExoClickZone({
   // Change this when a carousel slide becomes active so ExoClick re-checks it at
   // its final, visible size instead of only while it is a side card.
   refreshKey?: string | number | boolean;
+  // Some containers need to finish layout before the provider measures them.
+  serveDelayFrames?: number;
+  debugName?: string;
+  debugEmptyAfterMs?: number;
 }) {
   const insRef = useRef<HTMLModElement | null>(null);
 
@@ -36,16 +43,77 @@ export function ExoClickZone({
     if (!adsEnabled || !zoneId || typeof window === "undefined") {
       return;
     }
-    try {
-      if (insRef.current) {
-        insRef.current.replaceChildren();
+    let cancelled = false;
+    const frameIds: number[] = [];
+    let debugTimer: number | null = null;
+
+    const serve = () => {
+      if (cancelled) {
+        return;
       }
-      window.AdProvider = window.AdProvider || [];
-      window.AdProvider.push({ serve: {} });
-    } catch {
-      // If the provider script hasn't loaded yet the push still queues safely.
-    }
-  }, [zoneId, refreshKey]);
+      try {
+        if (insRef.current) {
+          insRef.current.replaceChildren();
+        }
+        window.AdProvider = window.AdProvider || [];
+        window.AdProvider.push({ serve: {} });
+      } catch {
+        // If the provider script hasn't loaded yet the push still queues safely.
+      }
+
+      if (debugName) {
+        debugTimer = window.setTimeout(() => {
+          const ins = insRef.current;
+          if (!ins) {
+            return;
+          }
+          const rect = ins.getBoundingClientRect();
+          const hasRenderableContent =
+            ins.childElementCount > 0 ||
+            Boolean(ins.textContent?.trim()) ||
+            Boolean(ins.querySelector("iframe"));
+          if (!hasRenderableContent) {
+            console.warn("[ads] ExoClick zone remained empty", {
+              slot: debugName,
+              zoneId,
+              insClassName,
+              width: Math.round(rect.width),
+              height: Math.round(rect.height),
+              childElementCount: ins.childElementCount,
+            });
+          }
+        }, debugEmptyAfterMs);
+      }
+    };
+
+    const queueServe = (framesRemaining: number) => {
+      if (framesRemaining <= 0) {
+        serve();
+        return;
+      }
+      const frameId = window.requestAnimationFrame(() => {
+        queueServe(framesRemaining - 1);
+      });
+      frameIds.push(frameId);
+    };
+
+    queueServe(Math.max(0, Math.floor(serveDelayFrames)));
+
+    return () => {
+      cancelled = true;
+      frameIds.forEach((frameId) => window.cancelAnimationFrame(frameId));
+      if (debugTimer !== null) {
+        window.clearTimeout(debugTimer);
+      }
+    };
+  }, [
+    zoneId,
+    refreshKey,
+    insClassName,
+    serveDelayFrames,
+    debugName,
+    debugEmptyAfterMs,
+  ]);
 
   if (!adsEnabled || !zoneId) {
     return null;
